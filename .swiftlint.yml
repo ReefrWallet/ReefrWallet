@@ -1,0 +1,159 @@
+deployment_target:
+  macOS_deployment_target: 15
+
+disabled_rules:
+  - cyclomatic_complexity
+  - inclusive_language
+  - todo
+
+excluded:
+  - WalletKit
+  - Tuist/.build
+
+opt_in_rules:
+  - contains_over_filter_count
+  - explicit_init
+  - final_class
+  - opening_scope_newline
+  - pattern_matching_keywords
+  - short_guard_let
+
+file_length:
+  - 500
+
+function_body_length:
+  - 50
+
+function_parameter_count:
+  warning: 10
+  error: 15
+
+identifier_name:
+  min_length: 1
+  max_length: 50
+
+line_length:
+  warning: 120
+  ignores_comments: true
+  ignores_interpolated_strings: true
+  ignores_function_declarations: false
+  ignores_urls: true
+
+nesting:
+  type_level:
+    warning: 3
+    error: 4
+
+type_body_length:
+  - 350 # warning
+  - 500 # error
+
+type_name:
+  max_length: 51
+
+custom_rules:
+  date_now:
+    included: ".*.swift"
+    regex: '(\s+)Date(\s+)?\((\s+)?\)(\s+)?'
+    name: "Date() denied"
+    message: "Date() denied, use Date.now instead"
+    severity: warning
+
+  deny_print:
+    included: ".*.swift"
+    regex: '(\s+)print(\s+)?\('
+    name: "print denied"
+    message: "You must use printDebug, etc for debugging"
+    severity: warning
+
+  deny_debug_print:
+    included: ".*.swift"
+    regex: '(\s+)debugPrint(\s+)?\('
+    name: "debugPrint denied"
+    message: "You must use printDebug, etc for debugging"
+    severity: warning
+
+  final_class:
+    name: "Final Class"
+    regex: '(?<!final\s)class(?!\s(func|var))(?=[^\{\n]*[\{])'
+    message: "Mark class as final. Or disable the rule."
+    severity: warning
+
+  fixme:
+    included: ".*.swift"
+    regex: '\/\/\s*F[Ii][Xx][Mm][Ee]'
+    name: "FIXME"
+    message: "Fix your code"
+    severity: warning
+
+  is_empty:
+    name: "isEmpty"
+    regex: '\.count\s+==\s+0'
+    message: "Use .isEmpty instead of .count == 0"
+    severity: warning
+
+  no_empty_space_after_logic:
+    name: "Redundant Empty Space"
+    regex: '(?<=\n)[ ]*?\n\s*?(?=\})'
+    message: "Remove empty space before }."
+    severity: warning
+
+  not_empty:
+    name: "!isEmpty"
+    regex: '\.count\s+>\s+0'
+    message: "Use !.isEmpty for .count > 0"
+    severity: warning
+
+  opening_scope_newline:
+    included: ".*.swift"
+    regex: '\{(\s+)?\n\n(?!((\s+)?\/\/\s+MARK))'
+    name: "No empty lines at the beginning of scope"
+    message: "No empty lines at the beginning of scope"
+    severity: warning
+
+  return_in_3_rows:
+    included: ".*.swift"
+    regex: '\{ return \}'
+    name: "Write return in 3 rows"
+    message: "Write return in 3 rows"
+    severity: warning
+
+  short_guard_let:
+    included: ".*.swift"
+    regex: 'guard let (\w+)\s+\=\s+\1[\s,](?!as)'
+    name: "Short guard let"
+    message: "Prefer `guard let foo` to `guard let foo = foo`"
+    severity: warning
+
+  short_guard_let_self:
+    included: ".*.swift"
+    regex: 'guard let (\w+)\s+\=\s+self.\1[\s,](?!as)'
+    name: "Short if let"
+    message: "Prefer `guard let foo` to `guard let foo = self.foo`"
+    severity: warning
+
+  short_if_let_self:
+    included: ".*.swift"
+    regex: 'if let (\w+)\s+\=\s+self.\1[\s,](?!as)'
+    name: "Short if let"
+    message: "Prefer `if let foo` to `if let foo = self.foo`"
+    severity: warning
+
+  use_void:
+    included: ".*.swift"
+    regex: '-> {0,}\(\)|-> {0,}\(Void\)'
+    name: "Use Void instead of ()"
+    message: "Use Void instead of () in closures"
+    severity: warning
+
+  void_closure:
+    name: "void_closure"
+    regex: '->\s+\(\)'
+    message: "Use `-> Void`"
+    severity: warning
+
+  void_generic:
+    name: "void_generic"
+    regex: '<\(\)>'
+    message: "Use `Void`"
+    severity: warning

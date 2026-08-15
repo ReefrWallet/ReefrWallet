@@ -1,0 +1,10 @@
+# UniFFI Swift bindings configuration.
+# https://mozilla.github.io/uniffi-rs/latest/swift/configuration.html
+
+[bindings.swift]
+module_name = "WalletKit"
+
+# Matches the CaseIterable conformance already used throughout the Swift
+# design spec (e.g. Curve, HardwareVendor) — see
+# ../../Docs/Design Specification/.
+generate_case_iterable_conformance = true

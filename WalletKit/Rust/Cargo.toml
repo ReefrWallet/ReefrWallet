@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "walletkit-ffi",
+]
+
+# Future members land here as each phase in ../Docs/Overview.md is built.
+# Nothing below is implemented yet — this workspace currently contains
+# only the hello-world UniFFI scaffold in `walletkit-ffi`.
+#
+#   "walletkit-keys"      software key management (BIP39/BIP32/SLIP-0010)
+#   "walletkit-hardware"  vendor-agnostic hardware wallet traits
+#   "walletkit-trezor"    Trezor support (wraps the official trezor-client crate)
+#   "walletkit-<chain>"   one crate per blockchain, once a chain client is built

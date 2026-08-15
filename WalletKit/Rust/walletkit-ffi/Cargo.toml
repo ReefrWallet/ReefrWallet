@@ -1,0 +1,26 @@
+[package]
+name = "walletkit-ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "UniFFI export layer for WalletKit. Hello-world scaffold only — no wallet APIs implemented yet."
+
+[lib]
+name = "walletkit_ffi"
+crate-type = ["cdylib", "staticlib", "lib"]
+
+[features]
+default = []
+cli = ["uniffi/cli"]
+
+[dependencies]
+uniffi = "0.32"
+
+# Generates Swift (and other foreign-language) bindings from the built
+# library. Run with `cargo run --features cli --bin uniffi-bindgen --
+# generate --library <path-to-libwalletkit_ffi> --language swift --out-dir
+# <dir>` — see ../README.md.
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["cli"]
