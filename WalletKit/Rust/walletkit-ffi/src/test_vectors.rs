@@ -1,5 +1,5 @@
-//! Shared `#[cfg(test)]` loader for `TestVectors/bip39.json`, used by both
-//! `keys::Mnemonic` and `wallet::Wallet` tests.
+//! Shared `#[cfg(test)]` loader for `TestVectors/bip39.json`, used by
+//! `keys::Mnemonic` tests.
 
 use serde_json::Value;
 

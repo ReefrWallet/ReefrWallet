@@ -33,6 +33,7 @@ let project = Project(
     additionalFiles: [
         "Docs/**/*",
         "Tuist.swift",
+        "Makefile",
         "Project.swift",
         ".swiftlint.yml"
     ]

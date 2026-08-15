@@ -4,9 +4,10 @@ WalletKit is the shared key-management and blockchain-access core for
 Reefr Wallet. It is implemented in Rust and exposed to Swift (iOS/macOS) 
 via UniFFI. This document covers mnemonic-based key management plus
 hardware wallets (Trezor first) as a second, first-class key source, plus
-Ethereum address derivation and transaction signing as the first concrete
-chain client. Other chain clients (Bitcoin, Tron, Solana, Cardano, Sui) are
-a later phase and are called out below only as extension points.
+Ethereum address derivation and transaction signing, and Sui address
+derivation, as the first concrete chain clients (Sui transaction signing
+isn't speced yet). Other chain clients (Bitcoin, Tron, Solana, Cardano)
+are a later phase and are called out below only as extension points.
 
 
 ## Goals
@@ -54,7 +55,7 @@ a later phase and are called out below only as extension points.
   support is wired up so `HardwareDeviceDelegate` (Swift) can be called
   from in-flight Rust/device operations.
 - `walletkit-ethereum` — the first concrete `walletkit-<chain>` crate (see
-  below). Implements `EthereumClient`'s `address(for:)`, returning a
+  below). Implements `EthereumSigner`'s `address(for:)`, returning a
   dedicated `EthereumAddress` type rather than a raw `String`: Keccak-256
   hash of the account's uncompressed secp256k1 public key, last 20 bytes,
   wrapped as `EthereumAddress`'s raw bytes; `EthereumAddress.checksummed`
@@ -63,26 +64,42 @@ a later phase and are called out below only as extension points.
   throwing `init(string:)`/`init(rawBytes:)` for parsing/validating an
   address the host app received as text or bytes (e.g. pasted, scanned, or
   read back from storage), throwing `.invalidAddress` on malformed input.
-  Also implements `EthereumClient`'s
+  Also implements `EthereumSigner`'s
   `sign(transaction:account:)`: RLP-decodes the caller-supplied unsigned
   transaction, signs its Keccak-256 hash (software path via `PrivateKey`,
   hardware path via a Trezor-specific `HardwareSigner` conformer
   speaking `EthereumSignTx`), and RLP-re-encodes the signed result with
-  EIP-155 `v`/`r`/`s` fields populated. Depends only on `walletkit-keys` for
+  EIP-155 `v`/`r`/`s` fields populated using `EthereumSigner.chainId` (the
+  `UInt64` carried by `Blockchain.ethereum(_:)`) rather than a value baked
+  into the transaction bytes. Depends only on `walletkit-keys` for
   `Account`/`PublicKey` — no networking, no transaction *building*, no gas
   estimation; those stay out of scope until a later phase (see "Explicitly
   out of scope for now"). Tested against the shared vectors in
   `TestVectors/ethereum-address.json` and `TestVectors/ethereum-tx.json`
   (see "Testing strategy").
+- `walletkit-sui` — the second concrete `walletkit-<chain>` crate.
+  Implements `SuiSigner`'s `address(for:)`, returning a dedicated
+  `SuiAddress` type: Blake2b-256 hash of a one-byte scheme flag
+  (`0x00` for `.ed25519`, `0x01` for `.secp256k1` — selected by
+  `SuiSigner.curve`, the `Curve` carried by `Blockchain.sui(_:)`) followed
+  by the account's raw public key bytes, with no truncation (unlike
+  Ethereum, the full 32-byte digest is the address). `SuiAddress`
+  conforms to the shared `BlockchainAddress` protocol and has the same
+  throwing `init(string:)`/`init(rawBytes:)` shape as `EthereumAddress`,
+  except Sui addresses carry no EIP-55-style checksum — casing is never
+  validated. `SuiSigner.sign(transaction:account:)` isn't implemented
+  yet — Sui's BCS transaction encoding and intent-signing wrapper are a
+  separate, not-yet-speced piece of work (see "Explicitly out of scope
+  for now").
 - `walletkit-<chain>` (future) — one crate per remaining chain (e.g.
   `walletkit-bitcoin`, `walletkit-solana`, `walletkit-cardano`,
-  `walletkit-sui`, `walletkit-tron`), following the shape `walletkit-ethereum`
-  establishes above. Each implements `BlockchainClient` (address derivation
-  and signing) against `Account`, with an `Address` type conforming to the
-  shared `BlockchainAddress` protocol (string/raw-byte serialization plus
-  throwing string/byte parsing) — `BlockchainClient.Address` is constrained
-  to `BlockchainAddress`, so this isn't optional per chain. Hardware
-  signing additionally routes through a per-(chain, vendor)
+  `walletkit-tron`), following the shape `walletkit-ethereum` and
+  `walletkit-sui` establish above. Each implements `Signer` (address
+  derivation and signing) against `Account`, with an `Address` type
+  conforming to the shared `BlockchainAddress` protocol (string/raw-byte
+  serialization plus throwing string/byte parsing) — `Signer.Address` is
+  constrained to `BlockchainAddress`, so this isn't optional per chain.
+  Hardware signing additionally routes through a per-(chain, vendor)
   `HardwareSigner` internally — see "Hardware wallet support" below
   for why that can't be one shared trait across vendors. Not implemented
   yet.
@@ -112,23 +129,35 @@ a later phase and are called out below only as extension points.
   - SLIP-0010 for ed25519-based chains (Solana, Sui, ...).
   - Supports path-based derivation (`m/44'/60'/0'/0/0`), single-child
     derivation, and xpub/xprv-style serialization for import/export.
-- **DerivationPath / CoinType / Blockchain** — `CoinType` is a small SLIP-44
-  coin registry (bitcoin, ethereum, tron, solana, cardano, sui: curve +
-  coin index). `Blockchain` wraps a `CoinType` and knows how to produce
-  that chain's standard derivation path from it — it's the identifier
-  `Account`, `KeyProvider`, and `BlockchainClient` are actually built around, so
-  callers work with `Blockchain.ethereum` etc. rather than assembling
-  curve/path constants by hand.
+- **DerivationPath / Blockchain** — `Blockchain` is an enum with one case
+  per supported chain (bitcoin, ethereum, tron, solana, cardano, sui). It
+  is still just a chain identifier — it carries no derivation-path logic
+  of its own, and an account's curve and standard
+  `m/purpose'/coin_type'/account'/change/index` path are read directly
+  off `Account.curve`/`Account.derivationPath`, not derived from
+  `Blockchain` — but some cases carry the extra configuration a `Signer`
+  needs beyond the identifier itself:
+  - `.ethereum(UInt64)` carries the EVM chain ID (1 = mainnet, 11155111 =
+    Sepolia, ...) — Ethereum's address derivation doesn't need it, but
+    `EthereumSigner.sign(transaction:account:)` uses it for EIP-155
+    replay protection, and a signer scoped to one network shouldn't
+    silently sign for another.
+  - `.sui(Curve)` carries the signature scheme an account uses — Sui,
+    unlike Ethereum, supports more than one curve (`.ed25519` is
+    standard/default; `.secp256k1` accounts also exist) and encodes
+    *which* one directly into the address itself (see `SuiSigner`), so
+    the scheme has to travel with the chain identifier rather than being
+    implied by it.
+  Every other case is a plain, argument-less identifier. `Account`,
+  `KeyProvider`, and `Signer` are built around `Blockchain` either way
+  (callers pass `Blockchain.ethereum(1)`, `.sui(.ed25519)`, `.bitcoin`,
+  etc. rather than a raw string) — whichever `KeyProvider` conformer
+  constructs the `Account` (software or `HardwareDevice`) is responsible
+  for picking the right curve/derivation path for that chain, and the
+  right associated configuration for chains that carry one.
 - **PrivateKey / PublicKey** — curve-tagged key handles. Signing happens
   inside Rust (`privateKey.sign(message:)`); there is intentionally no
   general "give me the raw private key bytes" call on the hot path.
-- **Wallet facade** — convenience type wrapping mnemonic + seed +
-  derivation for the common case (`Wallet.create()`, `.restore(phrase:)`,
-  `.account(blockchain:)`), while the lower-level types stay available for
-  advanced use.
-- **Backup / restore** — plaintext backup payload (mnemonic + metadata) for
-  callers who manage their own encrypted storage, plus a built-in
-  password-based encrypted export/import path for convenience.
 
 ## Hardware wallet support
 
@@ -145,25 +174,25 @@ a later phase and are called out below only as extension points.
   `EthereumSignTx` for Ethereum, and so on), often carrying structured,
   chain-specific fields rather than a raw digest, because the device's
   trusted screen needs to decode and display what it's signing — that's
-  the whole security property of a hardware wallet. `BlockchainClient.sign(
+  the whole security property of a hardware wallet. `Signer.sign(
   transaction:account:)` gives *callers* one shared `Data`-in/`Data`-out
   entry point regardless of `account.source`, but that doesn't make the
   underlying problem disappear — it just moves it: a hardware-backed
-  `BlockchainClient` conformer has to parse the serialized transaction back
+  `Signer` conformer has to parse the serialized transaction back
   into structured fields internally before it can hand them to a device.
   `HardwareSigner` is the placeholder seam for that internal step; it
   gets filled in per (chain, vendor) once a chain module actually
   implements hardware signing (not yet — see "Explicitly out of scope for
   now").
-- **`KeyProvider` unifies identity; `BlockchainClient` unifies signing.**
-  `Wallet` (software) and `HardwareDevice` (hardware) both conform to
+- **`KeyProvider` unifies identity; `Signer` unifies signing.**
+  Software key sources and `HardwareDevice` (hardware) both conform to
   `KeyProvider` and both produce `Account` — a source-agnostic handle
   carrying a `Blockchain`, derivation path, curve, public key, and
   `KeySource`. GUI code that only needs "what's the address / which
   accounts exist" never branches on software vs. hardware, and, since
-  `BlockchainClient.sign(transaction:account:)` takes the same `Account`
+  `Signer.sign(transaction:account:)` takes the same `Account`
   either way, neither does code that signs — the software/hardware branch
-  happens once, inside the `BlockchainClient` conformer, dispatched on
+  happens once, inside the `Signer` conformer, dispatched on
   `account.source`, not at every call site.
 - **Interactive operations need a callback, not just async/throws.**
   Trezor operations can require mid-flight host input (PIN typed against a
@@ -203,8 +232,8 @@ a later phase and are called out below only as extension points.
 
 Cardano does not use plain SLIP-0010 — it uses a variant of BIP32-Ed25519
 (CIP-1852 paths, extended 96-byte keys, different child-key derivation
-math). `Blockchain.cardano` (backed by `CoinType.cardano`) is registered
-now for address/path bookkeeping, but full support requires a dedicated
+math). `Blockchain.cardano` is registered now as an identifier case, but
+producing a correct `Account.derivationPath` for it requires a dedicated
 derivation path inside `walletkit-keys` (or its own crate) before the
 Cardano chain client can ship. Called out here so it isn't a surprise
 later.
@@ -218,9 +247,9 @@ later.
   wherever the operation can be expressed as "do the thing in Rust and
   return the result" instead of "hand me the bytes."
 - Explicit raw-export functions (`Seed.exportRaw()`,
-  `ExtendedKey.serializedPrivate()`, `Wallet.exportBackup()`) exist for
-  legitimate backup/import flows, are individually named, and are not
-  called implicitly by anything else in the library.
+  `ExtendedKey.serializedPrivate()`) exist for legitimate backup/import
+  flows, are individually named, and are not called implicitly by
+  anything else in the library.
 - WalletKit never persists keys itself. Storage (Keychain, Secure Enclave
   wrapping, on-disk encrypted files) is entirely the host app's
   responsibility; WalletKit only produces and consumes in-memory material
@@ -243,9 +272,9 @@ later.
 - Errors surface to Swift as a single `WalletKitError` enum conforming to
   `Error`, generated from a `thiserror`-based Rust error type.
 - Object types (`Mnemonic`, `Seed`, `ExtendedKey`, `PrivateKey`,
-  `PublicKey`, `Wallet`) become UniFFI `interface` types → Swift classes;
-  value types (`DerivationPath`, `CoinType`, `Blockchain`, `WalletBackup`,
-  enums) become UniFFI `record`/`enum` types → Swift structs/enums.
+  `PublicKey`) become UniFFI `interface` types → Swift classes;
+  value types (`DerivationPath`, `Blockchain`, enums)
+  become UniFFI `record`/`enum` types → Swift structs/enums.
 - Packaged as an XCFramework + Swift package (`WalletKit`), consumed by the
   GUI app via SPM.
 - Software key derivation/signing is CPU-bound and fast, but the
@@ -258,13 +287,14 @@ later.
 
 ## Explicitly out of scope for now
 
-- Blockchain-specific logic beyond Ethereum address derivation and
-  transaction signing: transaction *building*, fee estimation,
-  RPC/networking, and address derivation/signing for every chain other
-  than Ethereum (Bitcoin, Tron, Solana, Cardano, Sui remain extension
-  points only — see `BlockchainClient` in Clients/).
+- Blockchain-specific logic beyond Ethereum (address derivation +
+  transaction signing) and Sui (address derivation only): transaction
+  *building*, fee estimation, RPC/networking, Sui transaction *signing*
+  (BCS encoding + intent-signing wrapper), and address derivation/signing
+  for every chain other than Ethereum/Sui (Bitcoin, Tron, Solana, Cardano
+  remain extension points only — see `Signer` in Clients/).
 - Hardware signing *implementation* — the interface exists
-  (`BlockchainClient.sign(transaction:account:)`, `HardwareSigner`),
+  (`Signer.sign(transaction:account:)`, `HardwareSigner`),
   but no chain module actually implements the hardware path yet, Ethereum
   included (see "Hardware wallet support" above — deferred to land with
   each chain client, not skipped).
@@ -286,7 +316,7 @@ later.
     commit.
   - **Swift tests, against the exported WalletKit API.** A Swift test
     target that consumes the generated UniFFI bindings the same way the
-    GUI app would — `import WalletKit` and call `Mnemonic`, `Wallet`,
+    GUI app would — `import WalletKit` and call `Mnemonic`,
     `HardwareDeviceManager`, etc. through their public Swift surface, not
     through Rust directly. This is what catches bugs the Rust-side tests
     can't see: incorrect UniFFI type mapping, wrong Swift-facing defaults/
@@ -314,8 +344,8 @@ later.
 - Ethereum address derivation is tested against shared vectors in
   `TestVectors/ethereum-address.json` (private key → expected checksummed
   `0x...` address) — both `walletkit-ethereum` (Rust, via `cargo test`) and
-  a Swift `EthereumClientTests` target (against the exported
-  `EthereumClient`) run against the same vector file, comparing the derived
+  a Swift `EthereumSignerTests` target (against the exported
+  `EthereumSigner`) run against the same vector file, comparing the derived
   `EthereumAddress.checksummed` string to each vector's expected address,
   so both sides of the FFI boundary are checked against identical expected
   output, per the two-layer testing approach above. The same vector file's
@@ -326,16 +356,25 @@ later.
 - Ethereum transaction signing is tested against shared vectors in
   `TestVectors/ethereum-tx.json` (unsigned RLP signing data + private key →
   expected signed RLP transaction, with EIP-155 `v`/`r`/`s`) — again both
-  `walletkit-ethereum` (Rust, `cargo test`) and `EthereumClientTests`
-  (Swift, against the exported `EthereumClient`) run against the same
+  `walletkit-ethereum` (Rust, `cargo test`) and `EthereumSignerTests`
+  (Swift, against the exported `EthereumSigner`) run against the same
   vector file, so both sides of the FFI boundary produce byte-identical
   signed output for the same input, per the two-layer testing approach
   above. The vectors are keyed by raw private keys rather than
   mnemonics/derivation paths, so both sides sign via the primitive-based
-  entry point (`EthereumClient.sign(transaction:privateKey:)` in Swift,
-  `EthereumClientFfi::sign` in Rust) rather than
-  `EthereumClient.sign(transaction:account:)` — that `Account`-based
+  entry point (`EthereumSigner.sign(transaction:privateKey:)` in Swift,
+  `EthereumSignerFfi::sign` in Rust) rather than
+  `EthereumSigner.sign(transaction:account:)` — that `Account`-based
   overload compiles and type-checks but currently just throws, since
   `Account` doesn't yet expose a way to recover its signing key (software
   path) or route through a `HardwareSigner` (hardware path); see the "open
-  question" in `BlockchainClient`'s spec.
+  question" in `Signer`'s spec.
+- Sui address derivation has no official published test vectors the way
+  Ethereum's BIP39/EIP-155 ones exist — `walletkit-sui`'s Rust tests
+  instead independently recompute the expected Blake2b-256 digest via the
+  `blake2` crate directly (bypassing `SuiSignerFfi` internals, the same
+  "verify against an independent computation" principle as the
+  cross-check bullet above) and compare it against `SuiSignerFfi::address()`'s
+  output, plus curve-mismatch and cross-scheme-divergence cases. No
+  corresponding Swift `SuiSignerTests` yet, since `SuiSigner`'s Swift
+  surface still throws (`fatalError("spec only")`).

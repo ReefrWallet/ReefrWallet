@@ -38,6 +38,9 @@ let project = Project(
     ],
     additionalFiles: [
         "Docs/**/*",
+        "Rust/walletkit-ffi/**/*",
+        "Rust/Cargo.toml",
+        "Rust/README.md",
         "Makefile",
         "Project.swift"
     ]

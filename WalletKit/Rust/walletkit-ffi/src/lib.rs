@@ -10,15 +10,16 @@
 //!
 //!   errors/         WalletKitError
 //!   common/         Curve, DerivationScheme, Wordlist, MnemonicWordCount,
-//!                   CoinType, Blockchain, DerivationPath
+//!                   Blockchain, DerivationPath
 //!   keys/           Mnemonic, Seed, ExtendedKey, PublicKey, PrivateKey
 //!   accounts/       KeySource, Account, KeyProvider — not implemented yet
-//!   wallet/         Wallet, WalletBackup
 //!   hardware/       HardwareVendor, HardwareTransportKind, HardwareDevice, ...
 //!                   — not implemented yet
-//!   blockchain_clients/  BlockchainClient, BlockchainAddress,
-//!                   HardwareSigner — not implemented yet; EthereumClient,
-//!                   EthereumAddress — implemented (Alloy-backed)
+//!   blockchain_clients/  Signer, BlockchainAddress,
+//!                   HardwareSigner — not implemented yet; EthereumSigner,
+//!                   EthereumAddress — implemented (Alloy-backed);
+//!                   SuiSigner, SuiAddress — address derivation only,
+//!                   implemented (blake2-backed)
 
 uniffi::setup_scaffolding!();
 
@@ -30,4 +31,3 @@ mod hardware;
 pub mod keys;
 #[cfg(test)]
 mod test_vectors;
-pub mod wallet;

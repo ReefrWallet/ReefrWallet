@@ -31,16 +31,4 @@ public struct DerivationPath: Equatable {
     }
 
     public var string: String { fatalError("spec only") }
-
-    /// Convenience constructor for the common
-    /// `m/purpose'/coin_type'/account'/change/index` shape.
-    public static func bip44(
-        purpose: UInt32 = 44,
-        coinType: CoinType,
-        account: UInt32 = 0,
-        change: UInt32 = 0,
-        index: UInt32 = 0
-    ) -> DerivationPath {
-        fatalError("spec only")
-    }
 }

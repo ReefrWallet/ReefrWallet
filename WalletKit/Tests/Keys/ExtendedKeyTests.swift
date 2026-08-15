@@ -7,7 +7,7 @@ import Testing
 struct ExtendedKeyTests {
     @Test func deriveWalksTheFullRequestedPath() throws {
         let master = try Mnemonic.generate().toSeed().masterKey(curve: .secp256k1)
-        let path = Blockchain.ethereum.derivationPath()
+        let path = try DerivationPath(string: "m/44'/60'/0'/0/0")
         let derived = try master.derive(path)
         #expect(derived.depth == UInt8(path.segments.count))
     }

@@ -1,7 +1,7 @@
 //! `DerivationPath`: a BIP32/SLIP-10-style derivation path (e.g.
 //! `m/44'/60'/0'/0/0`).
 
-use crate::common::{CoinType, Segment};
+use crate::common::Segment;
 use crate::errors::WalletKitErrorFfi;
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
@@ -57,39 +57,6 @@ impl DerivationPath {
         }
         result
     }
-
-    pub fn bip44(
-        purpose: u32,
-        coin_type: &CoinType,
-        account: u32,
-        change: u32,
-        index: u32,
-    ) -> DerivationPath {
-        DerivationPath {
-            segments: vec![
-                Segment {
-                    index: purpose,
-                    hardened: true,
-                },
-                Segment {
-                    index: coin_type.slip44_index,
-                    hardened: true,
-                },
-                Segment {
-                    index: account,
-                    hardened: true,
-                },
-                Segment {
-                    index: change,
-                    hardened: false,
-                },
-                Segment {
-                    index,
-                    hardened: false,
-                },
-            ],
-        }
-    }
 }
 
 #[cfg(test)]
@@ -120,18 +87,5 @@ mod tests {
     fn invalid_string_throws_invalid_derivation_path() {
         let err = DerivationPath::parse("not-a-path").unwrap_err();
         assert!(matches!(err, WalletKitErrorFfi::InvalidDerivationPath { .. }));
-    }
-
-    #[test]
-    fn bip44_convenience_matches_manual_segments() {
-        let convenience = DerivationPath::bip44(44, &CoinType::ethereum(), 0, 0, 0);
-        let manual = DerivationPath::new(vec![
-            Segment { index: 44, hardened: true },
-            Segment { index: 60, hardened: true },
-            Segment { index: 0, hardened: true },
-            Segment { index: 0, hardened: false },
-            Segment { index: 0, hardened: false },
-        ]);
-        assert_eq!(convenience, manual);
     }
 }

@@ -6,39 +6,18 @@
 //  module-level notes and architecture.
 //
 
-/// A specific chain WalletKit can derive keys and addresses for. This is
-/// the identifier `Account`, `KeyProvider`, and `BlockchainClient` are built
-/// around — callers select `.bitcoin`, `.ethereum`, etc. rather than
-/// assembling a `CoinType` and a derivation path by hand.
-///
-/// `Blockchain` maps to a `CoinType` (the raw SLIP-44 registry entry: curve
-/// + coin index) and knows how to produce that chain's standard derivation
-/// path from it. `CoinType` stays around as the lower-level registry type
-/// this is built on — application code should reach for `Blockchain` day
-/// to day, not `CoinType` directly.
-public struct Blockchain: Equatable {
-    public let coinType: CoinType
-    /// BIP44 purpose field; 44 for most chains here today. For some chains (for example Sui) this tells which `Curve` is used
-    public let purpose: UInt32
+public enum Blockchain: Equatable, CaseIterable {
+    case bitcoin
 
-    public init(coinType: CoinType, purpose: UInt32 = 44) {
-        self.coinType = coinType
-        self.purpose = purpose
-    }
+    // parameter is EVM chain id
+    case ethereum(UInt64)
 
-    public private(set) var curve: Curve { coinType.curve }
-    public var identifier: String { coinType.identifier }
+    case tron
+    case solana
+    case cardano
 
-    /// The standard `m/purpose'/coin_type'/account'/change/index` path for
-    /// this chain.
-    public func derivationPath(account: UInt32 = 0, change: UInt32 = 0, index: UInt32 = 0) -> DerivationPath {
-        .bip44(purpose: purpose, coinType: coinType, account: account, change: change, index: index)
-    }
-
-    public static let bitcoin  = Blockchain(coinType: .bitcoin)
-    public static let ethereum = Blockchain(coinType: .ethereum)
-    public static let tron = Blockchain(coinType: .tron)
-    public static let solana = Blockchain(coinType: .solana)
-    public static let cardano = Blockchain(coinType: .cardano)
-    public static let sui = Blockchain(coinType: .sui)
+    // Ed25519: m/44'/784'/0'/0'/0' (fully hardened)
+    // ECDSA Secp256k1: m/54'/784'/0'/0/0 (first three levels hardened)
+    // ECDSA Secp256r1: m/74'/784'/0'/0/0 (first three levels hardened)
+    case sui(Curve)
 }

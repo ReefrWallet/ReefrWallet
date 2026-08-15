@@ -370,7 +370,7 @@ fn public_key_bytes_for(curve: Curve, private_key: &[u8; 32]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::{Blockchain, MnemonicWordCount, Wordlist};
+    use crate::common::{MnemonicWordCount, Wordlist};
     use crate::keys::MnemonicFfi;
 
     fn master(curve: Curve) -> Arc<ExtendedKeyFfi> {
@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn derive_walks_the_full_requested_path() {
         let master = master(Curve::Secp256k1);
-        let path = Blockchain::ethereum().derivation_path(0, 0, 0);
+        let path = DerivationPath::parse("m/44'/60'/0'/0/0").unwrap();
         let derived = master.derive(path.clone()).unwrap();
         assert_eq!(derived.depth() as usize, path.segments.len());
     }

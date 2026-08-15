@@ -105,12 +105,12 @@ walletkit-ffi: rust-targets
 	@mkdir -p $(FRAMEWORKS_DIR)
 	@rm -rf $(XCFRAMEWORK)
 	@xcodebuild -create-xcframework \
-		-library $(MACOS_LIB)      -headers $(HEADERS_DIR) \
+		-library $(MACOS_LIB) -headers $(HEADERS_DIR) \
 		-library $(IOS_DEVICE_LIB) -headers $(HEADERS_DIR) \
-		-library $(IOS_SIM_LIB)    -headers $(HEADERS_DIR) \
+		-library $(IOS_SIM_LIB) -headers $(HEADERS_DIR) \
 		-output $(XCFRAMEWORK)
 	@echo "==> Done"
-	@echo "    XCFramework:    $(XCFRAMEWORK)"
+	@echo "    XCFramework: $(XCFRAMEWORK)"
 	@echo "    Swift bindings: $(SOURCES_DIR)/*.swift"
 	@echo "    Add both to your Xcode project / Swift package."
 

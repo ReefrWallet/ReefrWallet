@@ -17,30 +17,36 @@ first-class key signer. Trezor is the first hardware vendor
 targeted; the abstraction is written so other vendors (Ledger,
 Keystone, ...) can be added as their own modules later without
 changing this surface. Blockchain-specific clients are still a later
-phase, with one exception: Ethereum is now speced end-to-end —
-address derivation (`EthereumClient.address(for:)`) and transaction
-signing (`EthereumClient.sign(transaction:account:)`), backed by a
-dedicated `walletkit-ethereum` Rust crate — every other chain client
-remains an extension point. Every `BlockchainClient` conformer's
-`Address` type conforms to the shared `BlockchainAddress` protocol
-(string/raw-byte serialization, throwing string/byte parsing —
-`.invalidAddress` on malformed input); hardware-backed signing routes
-internally through a per-(chain, vendor) `HardwareSigner` conformer,
-not exposed directly to callers. See Clients/ for the intended shape.
+phase, with two exceptions: Ethereum is speced end-to-end — address
+derivation (`EthereumSigner.address(for:)`) and transaction signing
+(`EthereumSigner.sign(transaction:account:)`), backed by a dedicated
+`walletkit-ethereum` Rust crate — and Sui is speced for address
+derivation only (`SuiSigner.address(for:)`, backed by a dedicated
+`walletkit-sui` Rust crate); Sui transaction signing isn't speced yet.
+Every other chain client remains an extension point. Some `Blockchain`
+cases carry the extra configuration a `Signer` needs beyond the chain
+identifier itself — `.ethereum(UInt64)` carries an EVM chain ID,
+`.sui(Curve)` carries the signature scheme an account uses — see
+`Blockchain` and the `EthereumSigner`/`SuiSigner` initializers. Every
+`Signer` conformer's `Address` type conforms to the shared
+`BlockchainAddress` protocol (string/raw-byte serialization, throwing
+string/byte parsing — `.invalidAddress` on malformed input);
+hardware-backed signing routes internally through a per-(chain, vendor)
+`HardwareSigner` conformer, not exposed directly to callers. See
+Clients/ for the intended shape.
 
 Every type lives in
 its own file under a subfolder here:
 
   Errors/         WalletKitError
   Core/           Curve, DerivationScheme, Wordlist, MnemonicWordCount,
-                  CoinType, Blockchain, DerivationPath
+                  Blockchain, DerivationPath
   Keys/           Mnemonic, Seed, ExtendedKey, PublicKey, PrivateKey
   Accounts/       KeySource, Account, KeyProvider
-  Wallet/         Wallet, WalletBackup
   Hardware/       HardwareVendor, HardwareTransportKind,
                   HardwareDeviceInfo, HardwareInputRequest,
                   HardwareButtonRequest, HardwareDeviceDelegate,
                   HardwareDeviceManager, HardwareDevice
-  Clients/        BlockchainClient, BlockchainAddress, HardwareSigner,
-                  EthereumClient, EthereumAddress
+  Clients/        Signer, BlockchainAddress, HardwareSigner,
+                  EthereumSigner, EthereumAddress, SuiSigner, SuiAddress
 

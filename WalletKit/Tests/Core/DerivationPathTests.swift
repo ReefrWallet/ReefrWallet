@@ -22,16 +22,4 @@ struct DerivationPathTests {
             _ = try DerivationPath(string: "not-a-path")
         }
     }
-
-    @Test func bip44ConvenienceMatchesManualSegments() {
-        let convenience = DerivationPath.bip44(coinType: .ethereum, account: 0, change: 0, index: 0)
-        let manual = DerivationPath(segments: [
-            .init(index: 44, hardened: true),
-            .init(index: 60, hardened: true),
-            .init(index: 0, hardened: true),
-            .init(index: 0, hardened: false),
-            .init(index: 0, hardened: false),
-        ])
-        #expect(convenience == manual)
-    }
 }
