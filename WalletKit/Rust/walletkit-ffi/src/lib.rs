@@ -1,14 +1,10 @@
 //! walletkit-ffi
 //!
-//! UniFFI export layer for WalletKit. This crate is currently an empty
-//! "hello world" scaffold proving out the Rust → UniFFI → Swift pipeline
-//! end to end; no wallet APIs are implemented yet. See
-//! `Walletkit/Docs/Overview.md` for the target architecture and
-//! `Walletkit/Docs/Design Specification/` for the Swift API this crate
-//! will eventually back.
+//! UniFFI export layer for WalletKit. See `Walletkit/Docs/Overview.md` for
+//! the target architecture and `Walletkit/Docs/Design Specification/` for
+//! the Swift API this crate backs.
 //!
-//! Module layout mirrors the Swift design spec's folders 1:1 so real
-//! types can land in the matching module later without restructuring
+//! Module layout mirrors the Swift design spec's folders 1:1
 //! (`core` is reserved by the standard library, so the Swift `Core/`
 //! folder maps to `common` here):
 //!
@@ -16,28 +12,22 @@
 //!   common/         Curve, DerivationScheme, Wordlist, MnemonicWordCount,
 //!                   CoinType, Blockchain, DerivationPath
 //!   keys/           Mnemonic, Seed, ExtendedKey, PublicKey, PrivateKey
-//!   accounts/       KeySource, Account, KeyProvider
+//!   accounts/       KeySource, Account, KeyProvider — not implemented yet
 //!   wallet/         Wallet, WalletBackup
 //!   hardware/       HardwareVendor, HardwareTransportKind, HardwareDevice, ...
-//!   chain_clients/  ChainClient, HardwareChainSigner
-//!
-//! Every module below is intentionally empty.
+//!                   — not implemented yet
+//!   blockchain_clients/  BlockchainClient, BlockchainAddress,
+//!                   HardwareSigner — not implemented yet; EthereumClient,
+//!                   EthereumAddress — implemented (Alloy-backed)
 
 uniffi::setup_scaffolding!();
 
 mod accounts;
-mod chain_clients;
-mod common;
-mod errors;
+pub mod blockchain_clients;
+pub mod common;
+pub mod errors;
 mod hardware;
-mod keys;
-mod wallet;
-
-/// Temporary hello-world export used to prove the UniFFI pipeline (Rust →
-/// generated Swift bindings → Xcode) end to end before any real API
-/// lands. Remove once the first real export (e.g. `Mnemonic::generate`)
-/// is implemented.
-#[uniffi::export]
-pub fn hello_world() -> String {
-    "Hello, World!".to_string()
-}
+pub mod keys;
+#[cfg(test)]
+mod test_vectors;
+pub mod wallet;

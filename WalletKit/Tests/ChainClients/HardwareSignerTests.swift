@@ -1,5 +1,4 @@
-// Spec-driven test for Docs/Design Specification/ChainClients/HardwareChainSigner.swift.
-// Will compile once the corresponding type is exported from Sources.
+// Spec-driven test for Docs/Design Specification/Clients/HardwareSigner.swift.
 //
 // No (chain, vendor) signer exists yet, so this exercises the protocol's
 // shape through a local mock. Requires a connected (or mocked) Trezor to
@@ -9,7 +8,7 @@
 import Testing
 @testable import WalletKit
 
-private struct MockHardwareChainSigner: HardwareChainSigner {
+private struct MockHardwareSigner: HardwareSigner {
     typealias UnsignedTransaction = String
     typealias SignedTransaction = String
 
@@ -20,7 +19,7 @@ private struct MockHardwareChainSigner: HardwareChainSigner {
     }
 }
 
-struct HardwareChainSignerTests {
+struct HardwareSignerTests {
     @Test func signForwardsTheTransactionAccountAndDevice() async throws {
         let manager = HardwareDeviceManager()
         let devices = try await manager.scan()
@@ -29,7 +28,7 @@ struct HardwareChainSignerTests {
         let account = try await device.account(.bitcoin)
 
         var receivedTransaction: String?
-        let signer = MockHardwareChainSigner { transaction, _, _ in
+        let signer = MockHardwareSigner { transaction, _, _ in
             receivedTransaction = transaction
             return "signed:\(transaction)"
         }

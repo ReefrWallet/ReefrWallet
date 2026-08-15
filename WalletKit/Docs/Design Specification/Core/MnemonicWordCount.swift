@@ -7,9 +7,9 @@
 //
 
 public enum MnemonicWordCount: UInt32, CaseIterable {
-    case words12 = 12
-    case words15 = 15
-    case words18 = 18
-    case words21 = 21
-    case words24 = 24
+    case `12` = 12
+    case `15` = 15
+    case `18` = 18
+    case `21` = 21
+    case `24` = 24
 }

@@ -18,18 +18,3 @@ public protocol HardwareDeviceManagerProtocol: AnyObject {
     /// is retained for the lifetime of the returned `HardwareDevice`.
     func connect(_ info: HardwareDeviceInfo, delegate: HardwareDeviceDelegate) async throws -> HardwareDevice
 }
-
-public final class HardwareDeviceManager: HardwareDeviceManagerProtocol {
-    public init() {}
-
-    public func scan(
-        vendors: [HardwareVendor] = HardwareVendor.allCases,
-        transports: [HardwareTransportKind] = [.usb, .bluetooth]
-    ) async throws -> [HardwareDeviceInfo] {
-        fatalError("spec only")
-    }
-
-    public func connect(_ info: HardwareDeviceInfo, delegate: HardwareDeviceDelegate) async throws -> HardwareDevice {
-        fatalError("spec only")
-    }
-}

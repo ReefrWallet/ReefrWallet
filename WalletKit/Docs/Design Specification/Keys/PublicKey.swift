@@ -10,17 +10,9 @@ import Foundation
 
 public protocol PublicKeyProtocol: AnyObject {
     var curve: Curve { get }
-    var rawBytes: Data { get }
-    func verify(signature: Data, message: Data) -> Bool
-}
-
-public final class PublicKey: PublicKeyProtocol {
-    public var curve: Curve { fatalError("spec only") }
 
     /// Compressed SEC1 encoding for secp256k1, raw 32 bytes for ed25519.
-    public var rawBytes: Data { fatalError("spec only") }
+    var rawBytes: Data { get }
 
-    public func verify(signature: Data, message: Data) -> Bool {
-        fatalError("spec only")
-    }
+    func verify(signature: Data, message: Data) -> Bool
 }

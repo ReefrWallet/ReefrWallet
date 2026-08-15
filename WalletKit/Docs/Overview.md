@@ -3,9 +3,11 @@
 WalletKit is the shared key-management and blockchain-access core for
 Reefr Wallet. It is implemented in Rust and exposed to Swift (iOS/macOS) 
 via UniFFI. This document covers mnemonic-based key management plus
-hardware wallets (Trezor first) as a second, first-class key source. 
-Chain clients (Bitcoin, Ethereum, Tron, Solana, Cardano, Sui) are a later
-phase and are called out below only as extension points.
+hardware wallets (Trezor first) as a second, first-class key source, plus
+Ethereum address derivation and transaction signing as the first concrete
+chain client. Other chain clients (Bitcoin, Tron, Solana, Cardano, Sui) are
+a later phase and are called out below only as extension points.
+
 
 ## Goals
 
@@ -51,13 +53,39 @@ phase and are called out below only as extension points.
   XCFramework Swift links against. Also where UniFFI's callback-interface
   support is wired up so `HardwareDeviceDelegate` (Swift) can be called
   from in-flight Rust/device operations.
-- `walletkit-<chain>` (future) — one crate per chain (e.g.
-  `walletkit-bitcoin`, `walletkit-ethereum`, `walletkit-solana`,
-  `walletkit-cardano`, `walletkit-sui`, `walletkit-tron`). Each implements
-  `ChainClient` (address derivation) against `Account`, and, once needed,
-  a per-(chain, vendor) `HardwareChainSigner` for hardware signing — see
-  "Hardware wallet support" below for why that can't be one shared trait
-  across vendors. Not implemented yet.
+- `walletkit-ethereum` — the first concrete `walletkit-<chain>` crate (see
+  below). Implements `EthereumClient`'s `address(for:)`, returning a
+  dedicated `EthereumAddress` type rather than a raw `String`: Keccak-256
+  hash of the account's uncompressed secp256k1 public key, last 20 bytes,
+  wrapped as `EthereumAddress`'s raw bytes; `EthereumAddress.checksummed`
+  computes the EIP-55 mixed-case encoding on demand. `EthereumAddress`
+  conforms to the shared `BlockchainAddress` protocol (see below) and has
+  throwing `init(string:)`/`init(rawBytes:)` for parsing/validating an
+  address the host app received as text or bytes (e.g. pasted, scanned, or
+  read back from storage), throwing `.invalidAddress` on malformed input.
+  Also implements `EthereumClient`'s
+  `sign(transaction:account:)`: RLP-decodes the caller-supplied unsigned
+  transaction, signs its Keccak-256 hash (software path via `PrivateKey`,
+  hardware path via a Trezor-specific `HardwareSigner` conformer
+  speaking `EthereumSignTx`), and RLP-re-encodes the signed result with
+  EIP-155 `v`/`r`/`s` fields populated. Depends only on `walletkit-keys` for
+  `Account`/`PublicKey` — no networking, no transaction *building*, no gas
+  estimation; those stay out of scope until a later phase (see "Explicitly
+  out of scope for now"). Tested against the shared vectors in
+  `TestVectors/ethereum-address.json` and `TestVectors/ethereum-tx.json`
+  (see "Testing strategy").
+- `walletkit-<chain>` (future) — one crate per remaining chain (e.g.
+  `walletkit-bitcoin`, `walletkit-solana`, `walletkit-cardano`,
+  `walletkit-sui`, `walletkit-tron`), following the shape `walletkit-ethereum`
+  establishes above. Each implements `BlockchainClient` (address derivation
+  and signing) against `Account`, with an `Address` type conforming to the
+  shared `BlockchainAddress` protocol (string/raw-byte serialization plus
+  throwing string/byte parsing) — `BlockchainClient.Address` is constrained
+  to `BlockchainAddress`, so this isn't optional per chain. Hardware
+  signing additionally routes through a per-(chain, vendor)
+  `HardwareSigner` internally — see "Hardware wallet support" below
+  for why that can't be one shared trait across vendors. Not implemented
+  yet.
 - `walletkit-<chain>-<vendor>` (future, as needed) — thin crates for
   hardware signing adapters that don't naturally belong inside either the
   chain crate or the vendor crate (e.g. `walletkit-ethereum-trezor`),
@@ -88,7 +116,7 @@ phase and are called out below only as extension points.
   coin registry (bitcoin, ethereum, tron, solana, cardano, sui: curve +
   coin index). `Blockchain` wraps a `CoinType` and knows how to produce
   that chain's standard derivation path from it — it's the identifier
-  `Account`, `KeyProvider`, and `ChainClient` are actually built around, so
+  `Account`, `KeyProvider`, and `BlockchainClient` are actually built around, so
   callers work with `Blockchain.ethereum` etc. rather than assembling
   curve/path constants by hand.
 - **PrivateKey / PublicKey** — curve-tagged key handles. Signing happens
@@ -110,24 +138,33 @@ phase and are called out below only as extension points.
   `KeyProvider.account`) for hardware devices — genuinely useful today
   (e.g. show a receive address from a connected Trezor) and identical in
   shape to the software path. It does **not** yet cover hardware signing.
-- **Why signing is deferred, deliberately, not by oversight.** Software
-  signing is "sign these bytes with this key" — one shape, works for every
-  chain. Hardware signing is not: Trezor's wire protocol has a distinct
-  message type per chain (`SignTx` for Bitcoin, `EthereumSignTx` for
-  Ethereum, and so on), often carrying structured, chain-specific fields
-  rather than a raw digest, because the device's trusted screen needs to
-  decode and display what it's signing — that's the whole security
-  property of a hardware wallet. There is no honest single
-  `sign(digest:)` that fits both software and every chain's hardware
-  message. `HardwareChainSigner` is the placeholder seam for this; it gets
-  filled in per (chain, vendor) once a chain module is actually built.
-- **`KeyProvider` unifies identity, not signing.** `Wallet` (software) and
-  `HardwareDevice` (hardware) both conform to `KeyProvider` and both
-  produce `Account` — a source-agnostic handle carrying a `Blockchain`,
-  derivation path, curve, public key, and `KeySource`. GUI code that only
-  needs "what's the address / which accounts exist" never branches on
-  software vs. hardware. Code that needs to actually sign does branch,
-  necessarily, at the chain-client layer.
+- **Why signing implementation is deferred, deliberately, not by
+  oversight.** Software signing is "sign these bytes with this key" — one
+  shape, works for every chain. Hardware signing is not: Trezor's wire
+  protocol has a distinct message type per chain (`SignTx` for Bitcoin,
+  `EthereumSignTx` for Ethereum, and so on), often carrying structured,
+  chain-specific fields rather than a raw digest, because the device's
+  trusted screen needs to decode and display what it's signing — that's
+  the whole security property of a hardware wallet. `BlockchainClient.sign(
+  transaction:account:)` gives *callers* one shared `Data`-in/`Data`-out
+  entry point regardless of `account.source`, but that doesn't make the
+  underlying problem disappear — it just moves it: a hardware-backed
+  `BlockchainClient` conformer has to parse the serialized transaction back
+  into structured fields internally before it can hand them to a device.
+  `HardwareSigner` is the placeholder seam for that internal step; it
+  gets filled in per (chain, vendor) once a chain module actually
+  implements hardware signing (not yet — see "Explicitly out of scope for
+  now").
+- **`KeyProvider` unifies identity; `BlockchainClient` unifies signing.**
+  `Wallet` (software) and `HardwareDevice` (hardware) both conform to
+  `KeyProvider` and both produce `Account` — a source-agnostic handle
+  carrying a `Blockchain`, derivation path, curve, public key, and
+  `KeySource`. GUI code that only needs "what's the address / which
+  accounts exist" never branches on software vs. hardware, and, since
+  `BlockchainClient.sign(transaction:account:)` takes the same `Account`
+  either way, neither does code that signs — the software/hardware branch
+  happens once, inside the `BlockchainClient` conformer, dispatched on
+  `account.source`, not at every call site.
 - **Interactive operations need a callback, not just async/throws.**
   Trezor operations can require mid-flight host input (PIN typed against a
   device-displayed matrix, an on-host passphrase) or a physical
@@ -221,10 +258,16 @@ later.
 
 ## Explicitly out of scope for now
 
-- Any blockchain-specific logic: address formatting, transaction building,
-  fee estimation, RPC/networking.
-- Hardware *signing* (see "Hardware wallet support" above — deferred to
-  land with each chain client, not skipped).
+- Blockchain-specific logic beyond Ethereum address derivation and
+  transaction signing: transaction *building*, fee estimation,
+  RPC/networking, and address derivation/signing for every chain other
+  than Ethereum (Bitcoin, Tron, Solana, Cardano, Sui remain extension
+  points only — see `BlockchainClient` in Clients/).
+- Hardware signing *implementation* — the interface exists
+  (`BlockchainClient.sign(transaction:account:)`, `HardwareSigner`),
+  but no chain module actually implements the hardware path yet, Ethereum
+  included (see "Hardware wallet support" above — deferred to land with
+  each chain client, not skipped).
 - Additional hardware vendors beyond Trezor (Ledger, Keystone, ...) — the
   abstraction is written to accommodate them, but none are being built yet.
 - Persistence of any kind (Keychain integration lives in the host app).
@@ -268,3 +311,31 @@ later.
   emulator-backed cases belong in Rust (`walletkit-trezor`); the
   Swift-side hardware tests focus on the delegate/callback plumbing and
   error mapping rather than re-verifying device protocol correctness.
+- Ethereum address derivation is tested against shared vectors in
+  `TestVectors/ethereum-address.json` (private key → expected checksummed
+  `0x...` address) — both `walletkit-ethereum` (Rust, via `cargo test`) and
+  a Swift `EthereumClientTests` target (against the exported
+  `EthereumClient`) run against the same vector file, comparing the derived
+  `EthereumAddress.checksummed` string to each vector's expected address,
+  so both sides of the FFI boundary are checked against identical expected
+  output, per the two-layer testing approach above. The same vector file's
+  expected addresses also double as round-trip cases for
+  `EthereumAddress.init(string:)` (should parse back to the same
+  `rawBytes`), plus deliberately malformed variants to confirm it throws
+  `.invalidAddress` rather than trapping.
+- Ethereum transaction signing is tested against shared vectors in
+  `TestVectors/ethereum-tx.json` (unsigned RLP signing data + private key →
+  expected signed RLP transaction, with EIP-155 `v`/`r`/`s`) — again both
+  `walletkit-ethereum` (Rust, `cargo test`) and `EthereumClientTests`
+  (Swift, against the exported `EthereumClient`) run against the same
+  vector file, so both sides of the FFI boundary produce byte-identical
+  signed output for the same input, per the two-layer testing approach
+  above. The vectors are keyed by raw private keys rather than
+  mnemonics/derivation paths, so both sides sign via the primitive-based
+  entry point (`EthereumClient.sign(transaction:privateKey:)` in Swift,
+  `EthereumClientFfi::sign` in Rust) rather than
+  `EthereumClient.sign(transaction:account:)` — that `Account`-based
+  overload compiles and type-checks but currently just throws, since
+  `Account` doesn't yet expose a way to recover its signing key (software
+  path) or route through a `HardwareSigner` (hardware path); see the "open
+  question" in `BlockchainClient`'s spec.

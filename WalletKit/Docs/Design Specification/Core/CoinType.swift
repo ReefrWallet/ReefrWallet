@@ -25,10 +25,10 @@ public struct CoinType: Equatable {
         self.identifier = identifier
     }
 
-    public static let bitcoin  = CoinType(slip44Index: 0,    curve: .secp256k1, identifier: "bitcoin")
-    public static let ethereum = CoinType(slip44Index: 60,   curve: .secp256k1, identifier: "ethereum")
-    public static let tron     = CoinType(slip44Index: 195,  curve: .secp256k1, identifier: "tron")
-    public static let solana   = CoinType(slip44Index: 501,  curve: .ed25519,   identifier: "solana")
-    public static let cardano  = CoinType(slip44Index: 1815, curve: .ed25519,   identifier: "cardano")
-    public static let sui      = CoinType(slip44Index: 784,  curve: .ed25519,   identifier: "sui")
+    public static let bitcoin  = CoinType(slip44Index: 0, curve: .secp256k1, identifier: "bitcoin")
+    public static let ethereum = CoinType(slip44Index: 60, curve: .secp256k1, identifier: "ethereum")
+    public static let tron = CoinType(slip44Index: 195, curve: .secp256k1, identifier: "tron")
+    public static let solana = CoinType(slip44Index: 501, curve: .ed25519, identifier: "solana")
+    public static let cardano = CoinType(slip44Index: 1815, curve: .ed25519, identifier: "cardano")
+    public static let sui = CoinType(slip44Index: 784,  curve: .ed25519, identifier: "sui")
 }

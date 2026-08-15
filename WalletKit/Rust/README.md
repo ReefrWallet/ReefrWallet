@@ -1,11 +1,9 @@
 # WalletKit — Rust workspace
 
-Currently contains one crate, `walletkit-ffi`, set up as an empty
-"hello world" UniFFI scaffold — it proves out the Rust → UniFFI → Swift
-pipeline end to end with a single `hello_world()` export and implements no
-wallet APIs yet. See `../Docs/Overview.md` for the target architecture and
-`../Docs/Design Specification/` for the Swift API this crate will
-eventually back.
+Currently contains one crate, `walletkit-ffi`, a UniFFI export layer
+covering software key management (BIP39 mnemonics, BIP32/SLIP-0010
+derivation) so far. See `../Docs/Overview.md` for the target architecture
+and `../Docs/Design Specification/` for the Swift API this crate backs.
 
 For the full macOS + iOS (device + simulator) XCFramework build, use the
 top-level `../Makefile` (`make walletkit-ffi`, `make test`, `make all`,

@@ -8,5 +8,16 @@
 
 public enum Wordlist: Equatable, CaseIterable {
     case english
-    // Additional BIP39 wordlists land here as the core adds them.
+    case english
+    case chineseSimplified
+    case chineseTraditional
+    case czech
+    case french
+    case italian
+    case japanese
+    case korean
+    case portuguese
+    case spanish
+    case russian
+    case turkish
 }

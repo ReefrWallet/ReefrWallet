@@ -35,13 +35,6 @@ public final class Wallet: WalletProtocol {
         fatalError("spec only")
     }
 
-    public var mnemonic: Mnemonic { fatalError("spec only") }
-    public var source: KeySource { .software }
-
-    public func publicKey(path: DerivationPath, curve: Curve) async throws -> PublicKey {
-        fatalError("spec only")
-    }
-
     /// Derives the standard account root for a chain
     /// (`m/44'|purpose'/coin_type'/account'`) using that chain's registered
     /// curve and scheme automatically, and returns it as a source-agnostic
@@ -56,14 +49,6 @@ public final class Wallet: WalletProtocol {
     /// Software-only — there is no hardware equivalent of exporting key
     /// material, by design.
     public func derive(_ path: DerivationPath, curve: Curve) throws -> ExtendedKey {
-        fatalError("spec only")
-    }
-
-    public func exportBackup() -> WalletBackup {
-        fatalError("spec only")
-    }
-
-    public func exportEncryptedBackup(password: String) throws -> Data {
         fatalError("spec only")
     }
 }

@@ -11,6 +11,7 @@ public enum WalletKitError: Error, Equatable {
     case invalidEntropy
     case invalidPassphrase
     case invalidDerivationPath(path: String)
+    case invalidAddress(reason: String)
     case unsupportedCurve(curve: Curve)
     case unsupportedWordCount(count: UInt32)
     case signingFailed(reason: String)

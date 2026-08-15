@@ -3,7 +3,7 @@ name = "walletkit-ffi"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "UniFFI export layer for WalletKit. Hello-world scaffold only — no wallet APIs implemented yet."
+description = "UniFFI export layer for WalletKit."
 
 [lib]
 name = "walletkit_ffi"
@@ -15,6 +15,42 @@ cli = ["uniffi/cli"]
 
 [dependencies]
 uniffi = "0.32"
+aes-gcm = "0.10"
+# Ethereum-specific primitives for `blockchain_clients::ethereum` (address
+# derivation, legacy/EIP-155 transaction RLP + signing hash). `secp256k1`
+# feature lets `Address::from_secp256k1_public_key` take this crate's
+# existing `secp256k1::PublicKey` directly, and `rlp` feature provides
+# `alloy_rlp::Encodable`/`Decodable` for `Address`/`U256`/`Bytes`.
+alloy-primitives = { version = "1", features = ["rlp", "secp256k1"] }
+alloy-rlp = "0.3"
+bip39 = { version = "2", features = [
+    "std",
+    "rand",
+    "zeroize",
+    "chinese-simplified",
+    "chinese-traditional",
+    "czech",
+    "french",
+    "italian",
+    "japanese",
+    "korean",
+    "portuguese",
+    "spanish",
+] }
+bs58 = { version = "0.5", features = ["check"] }
+ed25519-dalek = "2"
+hmac = "0.12"
+pbkdf2 = "0.12"
+rand = "0.8"
+ripemd = "0.1"
+secp256k1 = { version = "0.31", features = ["recovery"] }
+sha2 = "0.10"
+thiserror = "2"
+zeroize = "1"
+
+[dev-dependencies]
+hex = "0.4"
+serde_json = "1"
 
 # Generates Swift (and other foreign-language) bindings from the built
 # library. Run with `cargo run --features cli --bin uniffi-bindgen --

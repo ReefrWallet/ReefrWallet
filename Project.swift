@@ -10,6 +10,13 @@ let project = Project(
             bundleId: "xyz.reefr.wallet",
             deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
             buildableFolders: ["Sources"],
+            scripts: [
+                .post(
+                    script: "$HOME/.local/bin/mise x -C $SRCROOT -- swiftlint --config .swiftlint.yml",
+                    name: "SwiftLint",
+                    basedOnDependencyAnalysis: false
+                )
+            ],
             dependencies: [.project(target: "WalletKit", path: "WalletKit")]
         ),
         .target(
@@ -26,6 +33,7 @@ let project = Project(
     additionalFiles: [
         "Docs/**/*",
         "Tuist.swift",
-        "Project.swift"
+        "Project.swift",
+        ".swiftlint.yml"
     ]
 )

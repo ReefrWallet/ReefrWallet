@@ -5,8 +5,8 @@ members = [
 ]
 
 # Future members land here as each phase in ../Docs/Overview.md is built.
-# Nothing below is implemented yet — this workspace currently contains
-# only the hello-world UniFFI scaffold in `walletkit-ffi`.
+# `walletkit-ffi` currently covers software key management (BIP39/BIP32/
+# SLIP-0010); the crates below are not implemented yet.
 #
 #   "walletkit-keys"      software key management (BIP39/BIP32/SLIP-0010)
 #   "walletkit-hardware"  vendor-agnostic hardware wallet traits

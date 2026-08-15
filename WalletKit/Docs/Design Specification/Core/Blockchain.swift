@@ -7,7 +7,7 @@
 //
 
 /// A specific chain WalletKit can derive keys and addresses for. This is
-/// the identifier `Account`, `KeyProvider`, and `ChainClient` are built
+/// the identifier `Account`, `KeyProvider`, and `BlockchainClient` are built
 /// around — callers select `.bitcoin`, `.ethereum`, etc. rather than
 /// assembling a `CoinType` and a derivation path by hand.
 ///
@@ -18,14 +18,15 @@
 /// to day, not `CoinType` directly.
 public struct Blockchain: Equatable {
     public let coinType: CoinType
-    public let purpose: UInt32 // BIP44 purpose field; 44 for every chain here today
+    /// BIP44 purpose field; 44 for most chains here today. For some chains (for example Sui) this tells which `Curve` is used
+    public let purpose: UInt32
 
     public init(coinType: CoinType, purpose: UInt32 = 44) {
         self.coinType = coinType
         self.purpose = purpose
     }
 
-    public var curve: Curve { coinType.curve }
+    public private(set) var curve: Curve { coinType.curve }
     public var identifier: String { coinType.identifier }
 
     /// The standard `m/purpose'/coin_type'/account'/change/index` path for
@@ -36,8 +37,8 @@ public struct Blockchain: Equatable {
 
     public static let bitcoin  = Blockchain(coinType: .bitcoin)
     public static let ethereum = Blockchain(coinType: .ethereum)
-    public static let tron     = Blockchain(coinType: .tron)
-    public static let solana   = Blockchain(coinType: .solana)
-    public static let cardano  = Blockchain(coinType: .cardano)
-    public static let sui      = Blockchain(coinType: .sui)
+    public static let tron = Blockchain(coinType: .tron)
+    public static let solana = Blockchain(coinType: .solana)
+    public static let cardano = Blockchain(coinType: .cardano)
+    public static let sui = Blockchain(coinType: .sui)
 }

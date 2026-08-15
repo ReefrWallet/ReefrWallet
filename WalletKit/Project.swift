@@ -26,11 +26,12 @@ let project = Project(
         ),
         .target(
             name: "WalletKitTests",
-            destinations: [.mac, .iPhone, .iPad],
+            destinations: [.mac],
             product: .unitTests,
             bundleId: "xyz.reefr.wallet.walletkit.tests",
-            deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
+            deploymentTargets: .multiplatform(macOS: "15.0"),
             infoPlist: .default,
+            resources: ["TestVectors/**/*"],
             buildableFolders: ["Tests"],
             dependencies: [.target(name: "WalletKit")]
         ),

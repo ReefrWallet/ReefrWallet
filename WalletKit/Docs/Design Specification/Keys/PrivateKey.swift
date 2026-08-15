@@ -8,21 +8,12 @@
 
 import Foundation
 
-public protocol PrivateKeyProtocol: AnyObject {
-    var curve: Curve { get }
-    var publicKey: PublicKey { get }
-    func sign(message: Data) throws -> Data
-}
-
 /// Signing happens inside the Rust core. `PrivateKey` intentionally has no
 /// raw-bytes getter on the hot path — use `ExtendedKey.serializedPrivate()`
 /// or `Wallet.exportBackup()` for the explicit, gated export flows.
-public final class PrivateKey: PrivateKeyProtocol {
-    public var curve: Curve { fatalError("spec only") }
-    public var publicKey: PublicKey { fatalError("spec only") }
-
+public protocol PrivateKeyProtocol: AnyObject {
+    var curve: Curve { get }
+    var publicKey: PublicKey { get }
     /// Throws `.signingFailed` on curve-specific signing errors.
-    public func sign(message: Data) throws -> Data {
-        fatalError("spec only")
-    }
+    func sign(message: Data) throws -> Data
 }

@@ -9,7 +9,10 @@
 #                        only — independent of walletkit-ffi.
 #   make all             walletkit-ffi, then test. (default target)
 #   make clean            Remove all build output (.build/, Frameworks/,
-#                         Sources/, and Rust/target/).
+#                         generated Sources/*.swift, and Rust/target/) plus
+#                         Tuist-generated Xcode artifacts (Derived/,
+#                         *.xcodeproj, *.xcworkspace) — preserves the
+#                         hand-written Sources/WalletKitAPI.swift.
 #
 # Requires on the host machine:
 #   - Rust via rustup (this drives `rustup target add` for you)
@@ -35,11 +38,11 @@ LIB_NAME := libwalletkit_ffi.a
 BUILD_DIR := .build
 BINDINGS_DIR := $(BUILD_DIR)/bindings
 HEADERS_DIR := $(BUILD_DIR)/headers
+SOURCES_DIR := Sources
 
 # Deliverables: what the rest of the project (Xcode/SPM) actually consumes.
 FRAMEWORKS_DIR := Frameworks
-SOURCES_DIR := Sources
-
+GENERATED_SOURCES_DIR := $(SOURCES_DIR)/Generated
 XCFRAMEWORK := $(FRAMEWORKS_DIR)/WalletKit.xcframework
 
 # Apple Silicon + Intel Mac, fused into one macOS slice.
@@ -86,10 +89,9 @@ walletkit-ffi: rust-targets
 	@mkdir -p $(BINDINGS_DIR)
 	@cd $(CRATE_DIR) && $(CARGO) run --quiet --features cli --bin uniffi-bindgen -- \
 		generate --library $(abspath $(BINDGEN_SOURCE_LIB)) --language swift --out-dir $(abspath $(BINDINGS_DIR))
-	@echo "==> Copying generated Swift bindings to $(SOURCES_DIR)"
-	@rm -rf $(SOURCES_DIR)
-	@mkdir -p $(SOURCES_DIR)
-	@cp $(BINDINGS_DIR)/*.swift $(SOURCES_DIR)/
+	@echo "==> Copying generated Swift bindings to $(GENERATED_SOURCES_DIR)"
+	@mkdir -p $(GENERATED_SOURCES_DIR)
+	@cp $(BINDINGS_DIR)/*.swift $(GENERATED_SOURCES_DIR)/
 	@echo "==> Fusing per-platform slices with lipo"
 	@mkdir -p $(BUILD_DIR)/macos $(BUILD_DIR)/ios-simulator
 	@lipo -create $(foreach t,$(MACOS_TARGETS),$(TARGET_DIR)/$(t)/release/$(LIB_NAME)) -output $(MACOS_LIB)
@@ -122,5 +124,7 @@ test:
 
 clean:
 	@echo "==> Cleaning build output"
-	@rm -rf $(BUILD_DIR) $(FRAMEWORKS_DIR) $(SOURCES_DIR)
+	@rm -rf $(BUILD_DIR) $(FRAMEWORKS_DIR) $(GENERATED_SOURCES_DIR)
 	@cd $(CRATE_DIR) && $(CARGO) clean
+	@echo "==> Cleaning Tuist-generated Xcode artifacts"
+	@rm -rf Derived *.xcodeproj *.xcworkspace
