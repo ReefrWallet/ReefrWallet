@@ -16,7 +16,11 @@ private struct MockAddress: BlockchainAddress {
     }
 
     init(rawBytes: Data) throws {
-        string = String(decoding: rawBytes, as: UTF8.self)
+        guard let string = String(bytes: rawBytes, encoding: .utf8)  else {
+            throw WalletKitError.invalidAddress(reason: "Invalid bytes")
+        }
+
+        self.string = string
     }
 
     var rawBytes: Data { Data(string.utf8) }
@@ -41,7 +45,11 @@ private struct MockSigner: Signer {
 struct SignerTests {
     @Test func addressReceivesTheProvidedAccount() async throws {
         let account = try TestAccountFactory.ethereumAccount()
-        let signer = MockSigner(blockchain: .ethereum(1), addressForAccount: { _ in "0xmocked" }, signHandler: { data, _ in data })
+        let signer = MockSigner(
+            blockchain: .ethereum(1),
+            addressForAccount: { _ in "0xmocked" },
+            signHandler: { data, _ in data }
+        )
         let address = try signer.address(for: account)
         #expect(address.string == "0xmocked")
     }

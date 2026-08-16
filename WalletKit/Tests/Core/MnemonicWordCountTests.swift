@@ -10,7 +10,7 @@ struct MnemonicWordCountTests {
         (MnemonicWordCount.words15, UInt32(15)),
         (MnemonicWordCount.words18, UInt32(18)),
         (MnemonicWordCount.words21, UInt32(21)),
-        (MnemonicWordCount.words24, UInt32(24)),
+        (MnemonicWordCount.words24, UInt32(24))
     ])
     func rawValueMatchesWordCount(count: MnemonicWordCount, expected: UInt32) {
         #expect(count.rawValue == expected)

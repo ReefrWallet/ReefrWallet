@@ -23,7 +23,7 @@ struct WalletKitErrorTests {
             .userRejectedOnDevice,
             .transportUnavailable(reason: "usb unavailable on iOS"),
             .unsupportedDevice(reason: "unknown model"),
-            .firmwareOutdated(minimumVersion: "2.6.0"),
+            .firmwareOutdated(minimumVersion: "2.6.0")
         ]
         #expect(cases.count == 8)
     }

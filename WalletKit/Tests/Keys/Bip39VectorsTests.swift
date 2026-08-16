@@ -23,8 +23,10 @@ private struct Bip39VectorFile: Decodable {
 
 private func loadEnglishBip39Vectors() -> [Bip39Vector] {
     let url = Bundle.module.url(forResource: "bip39", withExtension: "json")!
+    // swiftlint:disable force_try
     let data = try! Data(contentsOf: url)
     let file = try! JSONDecoder().decode(Bip39VectorFile.self, from: data)
+    // swiftlint:enable force_try
     return file.english.map { row in
         Bip39Vector(mnemonic: row[1], seedHex: row[2], xprv: row[3])
     }

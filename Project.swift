@@ -35,6 +35,7 @@ let project = Project(
         "Tuist.swift",
         "Makefile",
         "Project.swift",
+        ".github/**/*",
         ".swiftlint.yml"
     ]
 )

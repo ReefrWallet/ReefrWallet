@@ -8,8 +8,6 @@
 
 public enum Wordlist: Equatable, CaseIterable {
     case english
-    case english
-    case chineseSimplified
     case chineseTraditional
     case czech
     case french

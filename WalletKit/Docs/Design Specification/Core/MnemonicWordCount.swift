@@ -7,9 +7,11 @@
 //
 
 public enum MnemonicWordCount: UInt32, CaseIterable {
+    // swiftlint:disable identifier_name
     case `12` = 12
     case `15` = 15
     case `18` = 18
     case `21` = 21
     case `24` = 24
+    // swiftlint:enable identifier_name
 }

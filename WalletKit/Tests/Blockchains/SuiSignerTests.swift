@@ -68,9 +68,11 @@ private struct SuiTxVector: Decodable, Sendable, CustomTestStringConvertible {
 }
 
 private func loadVectors<T: Decodable>(_ resource: String) -> [T] {
+    // swiftlint:disable force_try
     let url = Bundle.module.url(forResource: resource, withExtension: "json")!
     let data = try! Data(contentsOf: url)
     return try! JSONDecoder().decode([T].self, from: data)
+    // swiftlint:enable force_try
 }
 
 private extension String {
@@ -150,7 +152,10 @@ struct SuiSignerTests {
         let privateKey = try PrivateKey(curve: curve, rawBytes: vector.privateKey.hexDecoded)
         let signer = SuiSigner(curve: curve)
 
-        let signature = try await signer.sign(transaction: vector.transactionDataBcsHex.hexDecoded, privateKey: privateKey)
+        let signature = try await signer.sign(
+            transaction: vector.transactionDataBcsHex.hexDecoded,
+            privateKey: privateKey
+        )
         #expect(signature.hexEncoded == vector.signatureHex)
     }
 

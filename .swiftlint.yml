@@ -7,7 +7,6 @@ disabled_rules:
   - todo
 
 excluded:
-  - WalletKit
   - Tuist/.build
 
 opt_in_rules:

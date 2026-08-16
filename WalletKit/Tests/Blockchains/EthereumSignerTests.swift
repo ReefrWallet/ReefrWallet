@@ -38,8 +38,10 @@ private struct EthereumTxVector: Decodable, Sendable, CustomTestStringConvertibl
 
 private func loadVectors<T: Decodable>(_ resource: String) -> [T] {
     let url = Bundle.module.url(forResource: resource, withExtension: "json")!
+    // swiftlint:disable force_try
     let data = try! Data(contentsOf: url)
     return try! JSONDecoder().decode([T].self, from: data)
+    // swiftlint:enable force_try
 }
 
 private extension String {
