@@ -5,19 +5,40 @@
 //  Created by Andrey Yurkevich on 16/08/2026.
 //
 
+/// A single derived account: a blockchain, a derivation path, and the
+/// public key derived at that path.
 public protocol AccountProtocol: AnyObject {
+    /// The blockchain this account is for.
     var blockchain: Blockchain { get }
+
+    /// The derivation path this account's public key was derived at.
     var derivationPath: DerivationPath { get }
+
+    /// The elliptic curve this account's keys use.
     var curve: Curve { get }
+
+    /// Where this account's key material lives (software or hardware).
     var source: KeySource { get }
+
+    /// This account's public key.
     var publicKey: PublicKey { get }
 }
 
+/// A single derived account, produced by a ``KeyProvider``.
 public final class Account: AccountProtocol {
+    /// The blockchain this account is for.
     public let blockchain: Blockchain
+
+    /// The derivation path this account's public key was derived at.
     public let derivationPath: DerivationPath
+
+    /// The elliptic curve this account's keys use.
     public let curve: Curve
+
+    /// Where this account's key material lives (software or hardware).
     public let source: KeySource
+
+    /// This account's public key.
     public let publicKey: PublicKey
 
     init(

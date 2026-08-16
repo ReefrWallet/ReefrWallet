@@ -12,7 +12,7 @@ let project = Project(
             buildableFolders: ["Sources"],
             scripts: [
                 .post(
-                    script: "$HOME/.local/bin/mise x -C $SRCROOT -- swiftlint --config .swiftlint.yml",
+                    script: "$HOME/.local/bin/mise x -C $SRCROOT -- swiftlint --config .swiftlint.yml .",
                     name: "SwiftLint",
                     basedOnDependencyAnalysis: false
                 )

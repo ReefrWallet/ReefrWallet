@@ -49,7 +49,7 @@ let project = Project(
                     script: """
                         $HOME/.local/bin/mise x -C $SRCROOT
                             --
-                            swiftlint --config ../.swiftlint.yml
+                            swiftlint --config ../.swiftlint.yml .
                     """,
                     name: "SwiftLint",
                     basedOnDependencyAnalysis: false

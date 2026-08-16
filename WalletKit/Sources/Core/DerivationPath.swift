@@ -6,6 +6,14 @@
 //
 
 extension DerivationPath {
+    /// Parses a `m/44'/60'/0'/0/0`-style derivation path string.
+    ///
+    /// - Parameter string: The path string to parse. Must start with `m`
+    ///   and have at least one `/`-separated segment; each segment is a
+    ///   non-negative integer optionally suffixed with `'`, `h`, or `H` to
+    ///   mark it as hardened.
+    /// - Throws: ``WalletKitError/invalidDerivationPath(path:)`` if
+    ///   `string` doesn't match that shape.
     public init(string: String) throws {
         var parts = string.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
 
@@ -35,6 +43,7 @@ extension DerivationPath {
         self.init(segments: segments)
     }
 
+    /// The `m/44'/60'/0'/0/0`-style string representation of this path.
     public var string: String {
         var result = "m"
 
