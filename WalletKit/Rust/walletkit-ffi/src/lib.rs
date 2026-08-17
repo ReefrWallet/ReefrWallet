@@ -12,14 +12,14 @@
 //!   common/         Curve, DerivationScheme, Wordlist, MnemonicWordCount,
 //!                   Blockchain, DerivationPath, BigIntFfi
 //!   keys/           Mnemonic, Seed, ExtendedKey, PublicKey, PrivateKey
-//!   accounts/       KeySource, Account, KeyProvider — not implemented yet
+//!   accounts/       KeySource, Account — not implemented yet
 //!   hardware/       HardwareVendor, HardwareTransportKind, HardwareDevice, ...
 //!                   — not implemented yet
-//!   blockchain_clients/  Signer, BlockchainAddress,
-//!                   HardwareSigner — not implemented yet; EthereumSigner,
-//!                   EthereumAddress — implemented (Alloy-backed);
-//!                   SuiSigner, SuiAddress — address derivation only,
-//!                   implemented (blake2-backed)
+//!   blockchain_clients/  Signer, BlockchainAddress; EthereumSigner,
+//!                   EthereumAddress — implemented (Alloy-backed), including
+//!                   the decode/signature/encode seam a hardware-backed
+//!                   signer composes; SuiSigner, SuiAddress — address
+//!                   derivation only, implemented (blake2-backed)
 
 uniffi::setup_scaffolding!();
 

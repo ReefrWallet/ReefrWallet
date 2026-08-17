@@ -9,6 +9,7 @@ import BigInt
 import Foundation
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 // A realistic crypto value: `2^256 - 1`, the maximum Solidity `uint256`.
 private let maxUInt256 = BigUInt(1) << 256 - BigUInt(1)

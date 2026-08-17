@@ -3,6 +3,7 @@
 
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 struct DerivationPathTests {
     @Test func parsesStandardBip44String() throws {

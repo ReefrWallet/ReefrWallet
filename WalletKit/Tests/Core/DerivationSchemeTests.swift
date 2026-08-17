@@ -3,6 +3,7 @@
 
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 struct DerivationSchemeTests {
     @Test func bip32AndSlip0010AreDistinct() {

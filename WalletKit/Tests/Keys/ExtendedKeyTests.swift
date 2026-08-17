@@ -3,6 +3,7 @@
 
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 struct ExtendedKeyTests {
     @Test func deriveWalksTheFullRequestedPath() throws {

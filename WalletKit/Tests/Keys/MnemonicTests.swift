@@ -3,6 +3,7 @@
 
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 struct MnemonicTests {
     @Test func generateDefaultsTo24WordsAndEnglish() {

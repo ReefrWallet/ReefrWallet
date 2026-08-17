@@ -3,6 +3,7 @@
 
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 struct CurveTests {
     @Test func allCasesCoversSecp256k1AndEd25519() {

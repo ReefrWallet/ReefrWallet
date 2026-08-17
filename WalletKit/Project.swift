@@ -1,17 +1,42 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
-// Builds the WalletKit Swift module from what `make walletkit-ffi` already
-// produced (see ../Makefile): the UniFFI-generated Swift bindings in
-// Sources, linked against the prebuilt Rust core in
-// Frameworks/WalletKit.xcframework. This manifest only assembles those
-// outputs into a target — it doesn't invoke Rust/UniFFI itself, so run
+// WalletKit is split across two targets:
+//
+// - WalletKitRust wraps what `make walletkit-ffi` already produced (see
+//   ../Makefile): the UniFFI-generated Swift bindings in Sources/Generated,
+//   linked against the prebuilt Rust core in Frameworks/WalletKit.xcframework.
+//   Its public surface is raw UniFFI output — object types with a `*Ffi`
+//   suffix (wrapped by WalletKit below) plus plain generated value types
+//   used as-is (`Curve`, `Blockchain`, `DerivationPath`, ...).
+// - WalletKit (Sources/Static) is the hand-written Swift wrapper that GUI
+//   code actually imports. It `import WalletKitRust` and hides every
+//   `*Ffi` type behind its own wrapper; code that needs to name a plain
+//   generated value type directly (`DerivationPath(string:)`, a `Curve`
+//   case, ...) still needs its own `import WalletKitRust` too, since
+//   Swift has no way to re-export just those symbols.
+//
+// This manifest only assembles what `make walletkit-ffi` already produced
+// into targets — it doesn't invoke Rust/UniFFI itself, so run
 // `make walletkit-ffi` at least once (and after any Rust change) before
 // (re)generating this project.
 //
 // Frameworks/WalletKit.xcframework already contains macOS + iOS device +
 // iOS simulator slices, so `destinations` below covers both macOS and iOS
 // to match ReefrWallet.
+
+let walletKitRust: Target = .target(
+    name: "WalletKitRust",
+    destinations: [.mac, .iPhone, .iPad],
+    product: .staticFramework,
+    bundleId: "xyz.reefr.wallet.walletkit.rust",
+    deploymentTargets: Project.deploymentTargets,
+    infoPlist: .extendingDefault(with: Project.commonInfoPlist),
+    buildableFolders: ["Sources/Generated"],
+    dependencies: [
+        .xcframework(path: "Frameworks/WalletKit.xcframework")
+    ]
+)
 
 let walletKit: Target = .target(
     name: "WalletKit",
@@ -20,12 +45,12 @@ let walletKit: Target = .target(
     bundleId: "xyz.reefr.wallet.walletkit",
     deploymentTargets: Project.deploymentTargets,
     infoPlist: .extendingDefault(with: Project.commonInfoPlist),
-    buildableFolders: ["Sources"],
+    buildableFolders: ["Sources/Static"],
     scripts: [
         .post(
             script: """
                     $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
-                    swiftlint --config ../.swiftlint.yml Sources Docs/Design\\ Specifications Project.swift
+                    swiftlint --config ../.swiftlint.yml Sources/Static Docs/Design\\ Specifications Project.swift
                     """,
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
@@ -33,7 +58,7 @@ let walletKit: Target = .target(
     ],
     dependencies: [
         .external(name: "BigInt"),
-        .xcframework(path: "Frameworks/WalletKit.xcframework")
+        .target(name: "WalletKitRust")
     ]
 )
 
@@ -57,7 +82,8 @@ let walletKitTestsMac: Target = .target(
     ],
     dependencies: [
         .external(name: "BigInt"),
-        .xcframework(path: "Frameworks/WalletKit.xcframework")
+        .target(name: "WalletKit"),
+        .target(name: "WalletKitRust")
     ]
 )
 
@@ -95,9 +121,10 @@ let schemes: [Scheme] = [
 let project = Project(
     name: "WalletKit",
     organizationName: Project.organizationName,
-    targets: [walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
+    targets: [walletKitRust, walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
     schemes: schemes,
     additionalFiles: [
+        "*.md",
         "Docs/**/*",
         "Rust/walletkit-ffi/**/*",
         "Rust/Cargo.toml",

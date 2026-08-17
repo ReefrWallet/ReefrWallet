@@ -1,15 +1,16 @@
 // Shared test helper for constructing `Account`s directly.
 //
-// There is no software `KeyProvider` conformer in the public API anymore
-// (see Docs/Design Specification/Core/Account.swift's doc comment —
-// `Blockchain` carries no curve/derivation-path logic, and picking the
-// right ones for a chain is "whichever `KeyProvider` conformer constructs
-// the `Account`"'s job). Tests that need a software-sourced `Account`
-// build one directly here, via `Account`'s internal initializer (visible
-// through `@testable import`) plus a freshly generated key.
+// Normally an `Account` only exists bound to a `Signer` (software) or a
+// `HardwareDevice` (hardware) — `Blockchain` carries no curve/
+// derivation-path logic of its own, and picking the right ones for a
+// chain is that conformer's job. Tests that need a bare `Account` without
+// a signer attached build one directly here, via `Account`'s internal
+// initializer (visible through `@testable import`) plus a freshly
+// generated key.
 
 import Foundation
 @testable import WalletKit
+import WalletKitRust
 
 enum TestAccountFactory {
     /// Builds a software-sourced `Account` for `blockchain`, deriving a

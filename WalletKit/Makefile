@@ -4,15 +4,16 @@
 #   make walletkit-ffi   Build the walletkit-ffi Rust crate for macOS,
 #                        iOS device, and iOS simulator, and package the
 #                        result as an XCFramework (Frameworks/) + Swift
-#                        bindings (Sources/).
+#                        bindings (Sources/Generated/), consumed by the
+#                        WalletKitRust target.
 #   make test            Run the Rust test suite (cargo test), host target
 #                        only — independent of walletkit-ffi.
 #   make all             walletkit-ffi, then test. (default target)
 #   make clean            Remove all build output (.build/, Frameworks/,
-#                         generated Sources/*.swift, and Rust/target/) plus
-#                         Tuist-generated Xcode artifacts (Derived/,
-#                         *.xcodeproj, *.xcworkspace) — preserves the
-#                         hand-written Sources/WalletKitAPI.swift.
+#                         generated Sources/Generated/*.swift, and
+#                         Rust/target/) plus Tuist-generated Xcode artifacts
+#                         (Derived/, *.xcodeproj, *.xcworkspace) — preserves
+#                         the hand-written sources under Sources/Static/.
 #
 # Requires on the host machine:
 #   - Rust via rustup (this drives `rustup target add` for you)

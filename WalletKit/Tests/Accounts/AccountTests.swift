@@ -1,9 +1,8 @@
 // Spec-driven test for Docs/Design Specification/Core/Account.swift.
 //
-// `Account` has no public initializer of its own — no software
-// `KeyProvider` conformer exists in the public API anymore (see Account's
-// design-spec doc comment), so these tests build one via
-// `TestAccountFactory`, which uses `Account`'s internal initializer
+// `Account` has no public initializer of its own — it's only ever produced
+// by a `Signer` conformer or a `HardwareDevice` — so these tests build one
+// via `TestAccountFactory`, which uses `Account`'s internal initializer
 // directly (visible here via `@testable import`).
 
 import Testing

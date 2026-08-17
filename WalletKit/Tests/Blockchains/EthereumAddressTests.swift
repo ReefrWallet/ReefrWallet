@@ -2,7 +2,8 @@
 //
 // Type-level tests for `EthereumAddress` itself — construction, EIP-55
 // checksum handling, and error cases. Vector-driven tests that derive
-// `EthereumAddress`es from real key material live in EthereumSignerTests.
+// `EthereumAddress`es from real key material live in
+// EthereumPKeySignerTests.
 
 import Foundation
 import Testing

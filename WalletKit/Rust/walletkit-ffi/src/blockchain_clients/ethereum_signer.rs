@@ -9,9 +9,34 @@ use alloy_primitives::{keccak256, Address as AlloyAddress, Bytes, TxKind, U256};
 use alloy_rlp::{Decodable, Encodable, Header};
 
 use crate::blockchain_clients::ethereum_address::EthereumAddressFfi;
-use crate::common::Curve;
+use crate::common::{BigIntFfi, Curve};
 use crate::errors::WalletKitErrorFfi;
 use crate::keys::{PrivateKeyFfi, PublicKeyFfi};
+
+/// The structured fields a Trezor `EthereumSignTx` message carries, decoded
+/// from EIP-155 signing data so a hardware device's trusted screen can
+/// display what it's about to sign. `to == None` is a contract-creation
+/// transaction.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct EthereumSignTxFfi {
+    pub nonce: BigIntFfi,
+    pub gas_price: BigIntFfi,
+    pub gas_limit: BigIntFfi,
+    pub to: Option<Vec<u8>>,
+    pub value: BigIntFfi,
+    pub data: Vec<u8>,
+    pub chain_id: u64,
+}
+
+/// An EIP-155 signature, in the shape a hardware device returns it (or a
+/// software signer computes it) — the pieces `encode_signed` needs to
+/// re-assemble a broadcastable signed transaction.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct EthereumSignatureFfi {
+    pub v: u64,
+    pub r: Vec<u8>,
+    pub s: Vec<u8>,
+}
 
 /// EVM chain ID this signer is scoped to (1 = mainnet, 11155111 =
 /// Sepolia, ...) — the value carried by `Blockchain.ethereum(_:)`.
@@ -49,38 +74,54 @@ impl EthereumSignerFfi {
         Ok(Arc::new(EthereumAddressFfi::from_alloy(address)))
     }
 
-    /// Signs `signing_data` — the 9-field EIP-155 RLP-encoded
+    /// Decodes `signing_data` — the 9-field EIP-155 RLP-encoded
     /// `[nonce, gasPrice, gasLimit, to, value, data, chainId, 0, 0]` unsigned
-    /// transaction blob (see `TestVectors/ethereum-tx.json`'s
-    /// `signingDataHex`) — with `private_key`, returning the RLP-encoded
-    /// signed transaction `[nonce, gasPrice, gasLimit, to, value, data, v, r,
-    /// s]` (`signedTxHex`) ready to broadcast.
+    /// transaction blob — into the structured fields a hardware device's
+    /// trusted screen needs to display, so a hardware-backed `Signer`
+    /// conformer can hand them to a device without any RLP knowledge of its
+    /// own.
     ///
-    /// `keccak256(signing_data)` *is* the EIP-155 signing hash directly (no
-    /// decoding needed for that part); `signing_data` is separately
-    /// RLP-decoded to recover the six semantic fields plus `chainId` needed
-    /// to re-encode the signed output with `v`/`r`/`s` in place of the
-    /// trailing `chainId, 0, 0`.
+    /// Throws `.signingFailed` if `signing_data` isn't well-formed 9-field
+    /// EIP-155 RLP or its embedded chain ID doesn't fit in 64 bits, or
+    /// `.signingFailed` if that chain ID doesn't match `self.chain_id` — a
+    /// signer scoped to one network refuses to even describe a transaction
+    /// for another.
+    pub fn decode_signing_data(&self, signing_data: Vec<u8>) -> Result<EthereumSignTxFfi, WalletKitErrorFfi> {
+        let fields = decode_eip155_signing_fields(&signing_data)?;
+        self.check_chain_id(fields.chain_id)?;
+        Ok(EthereumSignTxFfi {
+            nonce: BigIntFfi::from(fields.nonce),
+            gas_price: BigIntFfi::from(fields.gas_price),
+            gas_limit: BigIntFfi::from(fields.gas_limit),
+            to: match fields.to {
+                TxKind::Call(address) => Some(address.as_slice().to_vec()),
+                TxKind::Create => None,
+            },
+            value: BigIntFfi::from(fields.value),
+            data: fields.data.to_vec(),
+            chain_id: fields.chain_id,
+        })
+    }
+
+    /// Computes the EIP-155 signature over `signing_data` with `private_key`
+    /// — the software half of `sign()`. Exposed separately from
+    /// `encode_signed` so a hardware-backed signer can obtain the same
+    /// shape of signature from a device instead.
     ///
-    /// Throws `.unsupportedCurve` for a non-secp256k1 key, `.signingFailed`
-    /// if `signing_data` isn't well-formed 9-field EIP-155 RLP, its
-    /// embedded chain ID doesn't fit in 64 bits, or that chain ID doesn't
-    /// match `self.chain_id` — a signer scoped to one network refuses to
-    /// silently sign for another.
-    pub fn sign(&self, signing_data: Vec<u8>, private_key: Arc<PrivateKeyFfi>) -> Result<Vec<u8>, WalletKitErrorFfi> {
+    /// Throws `.unsupportedCurve` for a non-secp256k1 key, or
+    /// `.signingFailed` if `signing_data` isn't well-formed 9-field EIP-155
+    /// RLP or its embedded chain ID doesn't match `self.chain_id`.
+    pub fn signature(
+        &self,
+        signing_data: Vec<u8>,
+        private_key: Arc<PrivateKeyFfi>,
+    ) -> Result<EthereumSignatureFfi, WalletKitErrorFfi> {
         if private_key.curve() != Curve::Secp256k1 {
             return Err(WalletKitErrorFfi::UnsupportedCurve { curve: private_key.curve() });
         }
 
         let fields = decode_eip155_signing_fields(&signing_data)?;
-        if fields.chain_id != self.chain_id {
-            return Err(WalletKitErrorFfi::SigningFailed {
-                reason: format!(
-                    "signing data's chain id {} does not match signer's configured chain id {}",
-                    fields.chain_id, self.chain_id
-                ),
-            });
-        }
+        self.check_chain_id(fields.chain_id)?;
 
         let digest = keccak256(&signing_data);
         let signature = private_key.sign_prehashed_recoverable(digest.0.to_vec())?;
@@ -89,11 +130,85 @@ impl EthereumSignerFfi {
                 reason: format!("expected a 64-byte compact signature, got {}", signature.compact.len()),
             });
         }
-        let r = U256::from_be_slice(&signature.compact[0..32]);
-        let s = U256::from_be_slice(&signature.compact[32..64]);
-        let v = fields.chain_id * 2 + 35 + u64::from(signature.recovery_id);
 
-        Ok(encode_signed_transaction(&fields, v, r, s))
+        Ok(EthereumSignatureFfi {
+            v: fields.chain_id * 2 + 35 + u64::from(signature.recovery_id),
+            r: signature.compact[0..32].to_vec(),
+            s: signature.compact[32..64].to_vec(),
+        })
+    }
+
+    /// Re-encodes `signing_data` with `signature` in place of its trailing
+    /// `chainId, 0, 0` placeholder fields, producing the RLP-encoded signed
+    /// transaction `[nonce, gasPrice, gasLimit, to, value, data, v, r, s]`
+    /// ready to broadcast. `signature` may come from `signature()` above
+    /// (software path) or a hardware device (hardware path) — both
+    /// converge here.
+    ///
+    /// Throws `.signingFailed` if `signing_data` isn't well-formed 9-field
+    /// EIP-155 RLP, its embedded chain ID doesn't match `self.chain_id`, or
+    /// `signature.r`/`signature.s` aren't 32 bytes, or `signature.v` isn't
+    /// one of the two EIP-155 values `self.chain_id` implies — a signer
+    /// scoped to one network refuses to encode a signature for another.
+    pub fn encode_signed(
+        &self,
+        signing_data: Vec<u8>,
+        signature: EthereumSignatureFfi,
+    ) -> Result<Vec<u8>, WalletKitErrorFfi> {
+        let fields = decode_eip155_signing_fields(&signing_data)?;
+        self.check_chain_id(fields.chain_id)?;
+
+        let r: [u8; 32] = signature.r.as_slice().try_into().map_err(|_| WalletKitErrorFfi::SigningFailed {
+            reason: format!("expected a 32-byte r, got {} bytes", signature.r.len()),
+        })?;
+        let s: [u8; 32] = signature.s.as_slice().try_into().map_err(|_| WalletKitErrorFfi::SigningFailed {
+            reason: format!("expected a 32-byte s, got {} bytes", signature.s.len()),
+        })?;
+        let expected_vs = [fields.chain_id * 2 + 35, fields.chain_id * 2 + 36];
+        if !expected_vs.contains(&signature.v) {
+            return Err(WalletKitErrorFfi::SigningFailed {
+                reason: format!(
+                    "signature's v {} does not match chain id {}'s expected EIP-155 v values {expected_vs:?}",
+                    signature.v, fields.chain_id
+                ),
+            });
+        }
+
+        Ok(encode_signed_transaction(&fields, signature.v, U256::from_be_bytes(r), U256::from_be_bytes(s)))
+    }
+
+    /// Signs `signing_data` — the 9-field EIP-155 RLP-encoded
+    /// `[nonce, gasPrice, gasLimit, to, value, data, chainId, 0, 0]` unsigned
+    /// transaction blob (see `TestVectors/ethereum-tx.json`'s
+    /// `signingDataHex`) — with `private_key`, returning the RLP-encoded
+    /// signed transaction `[nonce, gasPrice, gasLimit, to, value, data, v, r,
+    /// s]` (`signedTxHex`) ready to broadcast. Composes `signature()` and
+    /// `encode_signed()` — the two calls a hardware-backed signer makes
+    /// separately, with a device's signature standing in for
+    /// `signature()`'s software one.
+    ///
+    /// Throws `.unsupportedCurve` for a non-secp256k1 key, `.signingFailed`
+    /// if `signing_data` isn't well-formed 9-field EIP-155 RLP, its
+    /// embedded chain ID doesn't fit in 64 bits, or that chain ID doesn't
+    /// match `self.chain_id` — a signer scoped to one network refuses to
+    /// silently sign for another.
+    pub fn sign(&self, signing_data: Vec<u8>, private_key: Arc<PrivateKeyFfi>) -> Result<Vec<u8>, WalletKitErrorFfi> {
+        let signature = self.signature(signing_data.clone(), private_key)?;
+        self.encode_signed(signing_data, signature)
+    }
+}
+
+impl EthereumSignerFfi {
+    fn check_chain_id(&self, chain_id: u64) -> Result<(), WalletKitErrorFfi> {
+        if chain_id != self.chain_id {
+            return Err(WalletKitErrorFfi::SigningFailed {
+                reason: format!(
+                    "signing data's chain id {} does not match signer's configured chain id {}",
+                    chain_id, self.chain_id
+                ),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -268,6 +383,66 @@ mod tests {
         let private_key = private_key_from_bytes(&vector.private_key);
         assert!(matches!(
             signer.sign(vector.signing_data.clone(), private_key),
+            Err(WalletKitErrorFfi::SigningFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn decode_signing_data_recovers_every_vectors_fields_and_round_trips_through_encode_signed() {
+        for vector in vectors() {
+            let signer = EthereumSignerFfi::new(vector.chain_id);
+            let private_key = private_key_from_bytes(&vector.private_key);
+
+            let decoded = signer
+                .decode_signing_data(vector.signing_data.clone())
+                .unwrap_or_else(|err| panic!("{}: {err}", vector.label));
+            assert_eq!(decoded.chain_id, vector.chain_id, "{}", vector.label);
+
+            let signature = signer
+                .signature(vector.signing_data.clone(), private_key)
+                .unwrap_or_else(|err| panic!("{}: {err}", vector.label));
+            let signed = signer
+                .encode_signed(vector.signing_data.clone(), signature)
+                .unwrap_or_else(|err| panic!("{}: {err}", vector.label));
+            assert_eq!(signed, vector.signed_tx, "{}", vector.label);
+        }
+    }
+
+    #[test]
+    fn decode_signing_data_rejects_malformed_rlp() {
+        let signer = EthereumSignerFfi::new(1);
+        assert!(matches!(signer.decode_signing_data(vec![0xff]), Err(WalletKitErrorFfi::SigningFailed { .. })));
+    }
+
+    #[test]
+    fn decode_signing_data_rejects_a_chain_id_mismatch() {
+        let vector = &vectors()[0];
+        let signer = EthereumSignerFfi::new(vector.chain_id + 1);
+        assert!(matches!(
+            signer.decode_signing_data(vector.signing_data.clone()),
+            Err(WalletKitErrorFfi::SigningFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn encode_signed_rejects_a_short_r_or_s() {
+        let vector = &vectors()[0];
+        let signer = EthereumSignerFfi::new(vector.chain_id);
+        let bad_signature = EthereumSignatureFfi { v: vector.chain_id * 2 + 35, r: vec![1, 2, 3], s: vec![0u8; 32] };
+        assert!(matches!(
+            signer.encode_signed(vector.signing_data.clone(), bad_signature),
+            Err(WalletKitErrorFfi::SigningFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn encode_signed_rejects_a_wrong_network_v() {
+        let vector = &vectors()[0];
+        let signer = EthereumSignerFfi::new(vector.chain_id);
+        let bad_signature =
+            EthereumSignatureFfi { v: (vector.chain_id + 1) * 2 + 35, r: vec![0u8; 32], s: vec![0u8; 32] };
+        assert!(matches!(
+            signer.encode_signed(vector.signing_data.clone(), bad_signature),
             Err(WalletKitErrorFfi::SigningFailed { .. })
         ));
     }

@@ -1,12 +1,14 @@
 // Spec-driven test for Docs/Design Specification/Clients/Signer.swift.
 //
-// Ethereum's real conformer is covered separately by EthereumSignerTests
-// and EthereumAddressTests; this exercises the protocol's shape itself
-// through a local mock, independent of any one chain.
+// Ethereum's real conformers are covered separately by
+// EthereumPKeySignerTests/EthereumTrezorSignerTests and EthereumAddressTests;
+// this exercises the protocol's shape itself through a local mock,
+// independent of any one chain.
 
 import Foundation
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 private struct MockAddress: BlockchainAddress {
     let string: String
@@ -29,51 +31,48 @@ private struct MockAddress: BlockchainAddress {
 private struct MockSigner: Signer {
     typealias Address = MockAddress
 
-    let blockchain: Blockchain
-    let addressForAccount: (Account) -> String
-    let signHandler: (Data, Account) async throws -> Data
+    let account: Account
+    let addressString: String
+    let signHandler: (Data) async throws -> Data
 
-    func address(for account: Account) throws -> MockAddress {
-        try MockAddress(string: addressForAccount(account))
+    func address() throws -> MockAddress {
+        try MockAddress(string: addressString)
     }
 
-    func sign(transaction: Data, account: Account) async throws -> Data {
-        try await signHandler(transaction, account)
+    func sign(transaction: Data) async throws -> Data {
+        try await signHandler(transaction)
     }
 }
 
 struct SignerTests {
-    @Test func addressReceivesTheProvidedAccount() async throws {
+    @Test func addressReflectsTheSignersConfiguredValue() throws {
         let account = try TestAccountFactory.ethereumAccount()
-        let signer = MockSigner(
-            blockchain: .ethereum(1),
-            addressForAccount: { _ in "0xmocked" },
-            signHandler: { data, _ in data }
-        )
-        let address = try signer.address(for: account)
+        let signer = MockSigner(account: account, addressString: "0xmocked", signHandler: { data in data })
+        let address = try signer.address()
         #expect(address.string == "0xmocked")
     }
 
-    @Test func blockchainMatchesTheSignersConfiguredChain() {
-        let signer = MockSigner(blockchain: .bitcoin, addressForAccount: { _ in "" }, signHandler: { data, _ in data })
+    @Test func blockchainDefaultsToTheAccountsBlockchain() throws {
+        let account = try TestAccountFactory.bitcoinAccount()
+        let signer = MockSigner(account: account, addressString: "", signHandler: { data in data })
         #expect(signer.blockchain == .bitcoin)
     }
 
-    @Test func signForwardsTheTransactionAndAccount() async throws {
+    @Test func signForwardsTheTransaction() async throws {
         let account = try TestAccountFactory.ethereumAccount()
-        var receivedAccount: Account?
+        var receivedTransaction: Data?
         let signer = MockSigner(
-            blockchain: .ethereum(1),
-            addressForAccount: { _ in "" },
-            signHandler: { data, acct in
-                receivedAccount = acct
+            account: account,
+            addressString: "",
+            signHandler: { data in
+                receivedTransaction = data
                 return data
             }
         )
 
         let transaction = Data([0x01, 0x02, 0x03])
-        let signed = try await signer.sign(transaction: transaction, account: account)
+        let signed = try await signer.sign(transaction: transaction)
         #expect(signed == transaction)
-        #expect(receivedAccount === account)
+        #expect(receivedTransaction == transaction)
     }
 }

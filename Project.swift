@@ -57,6 +57,7 @@ let project = Project(
     additionalFiles: [
         ".github/**/*",
         ".swiftlint.yml",
+        "*.md",
         "Docs/**/*",
         "Makefile",
         "Project.swift",

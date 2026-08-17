@@ -3,6 +3,7 @@
 
 import Testing
 @testable import WalletKit
+import WalletKitRust
 
 struct MnemonicWordCountTests {
     @Test(arguments: [
