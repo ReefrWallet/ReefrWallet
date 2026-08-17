@@ -74,3 +74,4 @@ WalletKit/Rust/target
 WalletKit/.build
 WalletKit/Frameworks
 WalletKit/Sources/Generated
+Tuist/ProjectDescriptionHelpers/Project+Version.swift

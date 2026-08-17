@@ -33,6 +33,12 @@ public enum WalletKitError: Error, Equatable {
     /// deriving an Ethereum address from an ed25519 key).
     case unsupportedCurve(curve: Curve)
 
+    /// A ``BigIntFfi`` conversion couldn't be represented in the requested
+    /// integer type (negative magnitude for an unsigned type, or a value
+    /// too large/small for the target's bit width). `reason` describes
+    /// what went wrong.
+    case invalidBigInt(reason: String)
+
     /// A mnemonic word count wasn't a supported BIP39 word count (12, 15,
     /// 18, 21, or 24).
     case unsupportedWordCount(count: UInt32)
@@ -89,6 +95,7 @@ public enum WalletKitError: Error, Equatable {
         case .InvalidDerivationPath(let path): self = .invalidDerivationPath(path: path)
         case .InvalidAddress(let reason): self = .invalidAddress(reason: reason)
         case .UnsupportedCurve(let curve): self = .unsupportedCurve(curve: curve)
+        case .InvalidBigInt(let reason): self = .invalidBigInt(reason: reason)
         case .UnsupportedWordCount(let count): self = .unsupportedWordCount(count: count)
         case .SigningFailed(let reason): self = .signingFailed(reason: reason)
         case .KeyNotFound: self = .keyNotFound

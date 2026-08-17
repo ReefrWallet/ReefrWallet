@@ -10,6 +10,7 @@
 //! `DerivationPath(string:)`, ...) are added on the Swift side, since
 //! they're pure data-shuffling with no cryptography involved.
 
+mod big_int;
 mod blockchain;
 mod curve;
 mod derivation_path;
@@ -18,6 +19,7 @@ mod mnemonic_word_count;
 mod segment;
 mod wordlist;
 
+pub use big_int::BigIntFfi;
 pub use blockchain::Blockchain;
 pub use curve::Curve;
 pub use derivation_path::DerivationPath;

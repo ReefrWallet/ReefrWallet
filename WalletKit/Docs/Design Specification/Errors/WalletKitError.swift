@@ -13,6 +13,7 @@ public enum WalletKitError: Error, Equatable {
     case invalidDerivationPath(path: String)
     case invalidAddress(reason: String)
     case unsupportedCurve(curve: Curve)
+    case invalidBigInt(reason: String)
     case unsupportedWordCount(count: UInt32)
     case signingFailed(reason: String)
     case keyNotFound

@@ -1,4 +1,5 @@
 import ProjectDescription
+import ProjectDescriptionHelpers
 
 // Builds the WalletKit Swift module from what `make walletkit-ffi` already
 // produced (see ../Makefile): the UniFFI-generated Swift bindings in
@@ -12,52 +13,90 @@ import ProjectDescription
 // iOS simulator slices, so `destinations` below covers both macOS and iOS
 // to match ReefrWallet.
 
-let project = Project(
+let walletKit: Target = .target(
     name: "WalletKit",
-    targets: [
-        .target(
-            name: "WalletKit",
-            destinations: [.mac, .iPhone, .iPad],
-            product: .staticFramework,
-            bundleId: "xyz.reefr.wallet.walletkit",
-            deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
-            buildableFolders: ["Sources"],
-            scripts: [
-                .post(
-                    script: """
-                        $HOME/.local/bin/mise x -C $SRCROOT
-                            --
-                            swiftlint --config ../.swiftlint.yml
+    destinations: [.mac, .iPhone, .iPad],
+    product: .staticFramework,
+    bundleId: "xyz.reefr.wallet.walletkit",
+    deploymentTargets: Project.deploymentTargets,
+    infoPlist: .extendingDefault(with: Project.commonInfoPlist),
+    buildableFolders: ["Sources"],
+    scripts: [
+        .post(
+            script: """
+                    $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
+                    swiftlint --config ../.swiftlint.yml Sources Docs/Design\\ Specifications Project.swift
                     """,
-                    name: "SwiftLint",
-                    basedOnDependencyAnalysis: false
-                )
-            ],
-            dependencies: [.xcframework(path: "Frameworks/WalletKit.xcframework")]
-        ),
-        .target(
-            name: "WalletKitTests",
-            destinations: [.mac],
-            product: .unitTests,
-            bundleId: "xyz.reefr.wallet.walletkit.tests",
-            deploymentTargets: .multiplatform(macOS: "15.0"),
-            infoPlist: .default,
-            resources: ["TestVectors/**/*"],
-            buildableFolders: ["Tests"],
-            scripts: [
-                .post(
-                    script: """
-                        $HOME/.local/bin/mise x -C $SRCROOT
-                            --
-                            swiftlint --config ../.swiftlint.yml .
-                    """,
-                    name: "SwiftLint",
-                    basedOnDependencyAnalysis: false
-                )
-            ],
-            dependencies: [.target(name: "WalletKit")]
+            name: "SwiftLint",
+            basedOnDependencyAnalysis: false
         )
     ],
+    dependencies: [
+        .external(name: "BigInt"),
+        .xcframework(path: "Frameworks/WalletKit.xcframework")
+    ]
+)
+
+let walletKitTestsMac: Target = .target(
+    name: "WalletKitTests-macOS",
+    destinations: [.mac],
+    product: .unitTests,
+    bundleId: "xyz.reefr.wallet.walletkit.tests-mac",
+    deploymentTargets: .macOS("15.0"),
+    resources: ["TestVectors/**/*"],
+    buildableFolders: ["Tests"],
+    scripts: [
+        .post(
+            script: """
+                    $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
+                    swiftlint --config ../.swiftlint.yml Tests
+                    """,
+            name: "SwiftLint",
+            basedOnDependencyAnalysis: false
+        )
+    ],
+    dependencies: [
+        .external(name: "BigInt"),
+        .xcframework(path: "Frameworks/WalletKit.xcframework")
+    ]
+)
+
+/* let walletKitTestsIOS: Target = .target(
+    name: "WalletKitTests-iOS",
+    destinations: [.iPhone, .iPad],
+    product: .unitTests,
+    bundleId: "xyz.reefr.wallet.walletkit.tests-ios",
+    deploymentTargets: .iOS("18.0"),
+    resources: ["TestVectors/**/*"],
+    buildableFolders: ["Tests"],
+    scripts: [
+        .post(
+            script: """
+                    $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
+                    swiftlint --config ../.swiftlint.yml Tests
+                    """,
+            name: "SwiftLint",
+            basedOnDependencyAnalysis: false
+        )
+    ]
+) */
+
+let schemes: [Scheme] = [
+    .scheme(
+        name: walletKit.name,
+        buildAction: .buildAction(targets: ["\(walletKit.name)"]),
+        testAction: .targets(
+            ["\(walletKitTestsMac.name)"/*, "\(walletKitTestsIOS.name)"*/],
+            options: .options(coverage: true, codeCoverageTargets: ["\(walletKit.name)"])
+        )
+    )
+]
+
+let project = Project(
+    name: "WalletKit",
+    organizationName: Project.organizationName,
+    targets: [walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
+    schemes: schemes,
     additionalFiles: [
         "Docs/**/*",
         "Rust/walletkit-ffi/**/*",

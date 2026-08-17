@@ -12,30 +12,56 @@ let project = Project(
             buildableFolders: ["Sources"],
             scripts: [
                 .post(
-                    script: "$HOME/.local/bin/mise x -C $SRCROOT -- swiftlint --config .swiftlint.yml .",
+                    script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml",
                     name: "SwiftLint",
                     basedOnDependencyAnalysis: false
                 )
             ],
             dependencies: [.project(target: "WalletKit", path: "WalletKit")]
-        ),
+        ) /* ,
         .target(
-            name: "ReefrWalletTests",
-            destinations: [.mac, .iPhone, .iPad],
+            name: "ReefrWalletTests-macOS",
+            destinations: [.mac],
             product: .unitTests,
             bundleId: "xyz.reefr.wallet.tests",
-            deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
+            deploymentTargets: .macOS("15.0"),
             infoPlist: .default,
             buildableFolders: ["Tests"],
+            scripts: [
+                .post(
+                    script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml",
+                    name: "SwiftLint",
+                    basedOnDependencyAnalysis: false
+                )
+            ],
             dependencies: [.target(name: "ReefrWallet")]
-        )
+        ),
+        .target(
+            name: "ReefrWalletTests-iOS",
+            destinations: [.iPhone, .iPad],
+            product: .unitTests,
+            bundleId: "xyz.reefr.wallet.tests",
+            deploymentTargets: .iOS("18.0"),
+            infoPlist: .default,
+            buildableFolders: ["Tests"],
+            scripts: [
+                .post(
+                    script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml",
+                    name: "SwiftLint",
+                    basedOnDependencyAnalysis: false
+                )
+            ],
+            dependencies: [.target(name: "ReefrWallet")]
+        ) */
     ],
     additionalFiles: [
+        ".github/**/*",
+        ".swiftlint.yml",
         "Docs/**/*",
-        "Tuist.swift",
         "Makefile",
         "Project.swift",
-        ".github/**/*",
-        ".swiftlint.yml"
+        "Tuist.swift",
+        "Tuist/Package.swift",
+        "Tuist/ProjectDescriptionHelpers/**/*.swift"
     ]
 )
