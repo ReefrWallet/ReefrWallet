@@ -1,23 +1,25 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 #if TUIST
     import ProjectDescription
 
-    // attaswift/BigInt's own Package.swift declares `.macOS(.v10_13)`,
-    // below the minimum deployment target current Xcode accepts (12.0) —
-    // override just that build setting on the generated package target
-    // rather than waiting on upstream to bump it.
     let packageSettings = PackageSettings(
-        targetSettings: [
-            "BigInt": .settings(base: ["MACOSX_DEPLOYMENT_TARGET": "15.0"])
-        ]
+        baseSettings: .settings(base: [
+            "IPHONEOS_DEPLOYMENT_TARGET": "18.0",
+            "MACOSX_DEPLOYMENT_TARGET": "15.0",
+            "WATCHOS_DEPLOYMENT_TARGET": "9.0",
+        ])
     )
 #endif
 
 let package = Package(
     name: "ReefrWallet",
     dependencies: [
-        .package(url: "https://github.com/attaswift/BigInt.git", from: "6.0.0")
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.38.1"),
+        .package(url: "https://github.com/attaswift/BigInt.git", from: "6.0.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.2.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-protobuf.git", from: "2.4.1")
     ]
 )

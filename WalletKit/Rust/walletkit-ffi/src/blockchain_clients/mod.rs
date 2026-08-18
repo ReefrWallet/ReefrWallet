@@ -11,14 +11,19 @@
 //! `signature`/`encode_signed` as the seam a hardware-backed signer (no
 //! private key, a device instead) composes to reach the same signed
 //! output as the software `sign` path. `SuiSignerFfi` covers address
-//! derivation only, matching the Swift spec. Every other chain client
-//! remains design-only.
+//! derivation only, matching the Swift spec. `ethereum_function_selector`
+//! is a standalone Keccak-256-based helper backing `EthereumABI.selector(_:)`
+//! on the Swift side, for encoding arbitrary contract calls (ERC-20,
+//! oracle reads, ...) rather than signing/address derivation. Every other
+//! chain client remains design-only.
 
+mod ethereum_abi;
 mod ethereum_address;
 mod ethereum_signer;
 mod sui_address;
 mod sui_signer;
 
+pub use ethereum_abi::ethereum_function_selector;
 pub use ethereum_address::EthereumAddressFfi;
 pub use ethereum_signer::EthereumSignerFfi;
 pub use sui_address::SuiAddressFfi;

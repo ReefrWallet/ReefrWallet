@@ -6,24 +6,25 @@ all: test
 clean:
 	$(MAKE) -C WalletKit clean
 	@tuist clean
+	@rm -rf Derived *.xcodeproj *.xcworkspace
 
 project: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Frameworks/WalletKit.xcframework
 	@echo "==> Generating Xcode project"
 	@mise x tuist -- tuist install
 	@mise x tuist -- tuist generate --no-open
 
-test:
-	@echo "==> Running Rust tests (walletkit-ffi)"
+test: ReefrWallet.xcworkspace
+	@echo "==> Running Rust tests
 	$(MAKE) -C WalletKit test
 
-	@echo "==> Running Swift tests (WalletKit)"
-	@mise x tuist -- tuist test --test-targets WalletKitTests
+	@echo "==> Running Swift tests
+	@mise x tuist -- tuist test --test-targets WalletKitTests-macOS
 
 versions:
 	Scripts/make_versions.sh
 
 walletkit:
-	$(MAKE) -C WalletKit walletkit-ffi
+	$(MAKE) -C WalletKit sui-grpc walletkit-ffi
 
 ReefrWallet.xcworkspace: project
 Tuist/ProjectDescriptionHelpers/Project+Version.swift: versions

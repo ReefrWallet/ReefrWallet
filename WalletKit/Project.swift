@@ -1,30 +1,6 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
-// WalletKit is split across two targets:
-//
-// - WalletKitRust wraps what `make walletkit-ffi` already produced (see
-//   ../Makefile): the UniFFI-generated Swift bindings in Sources/Generated,
-//   linked against the prebuilt Rust core in Frameworks/WalletKit.xcframework.
-//   Its public surface is raw UniFFI output — object types with a `*Ffi`
-//   suffix (wrapped by WalletKit below) plus plain generated value types
-//   used as-is (`Curve`, `Blockchain`, `DerivationPath`, ...).
-// - WalletKit (Sources/Static) is the hand-written Swift wrapper that GUI
-//   code actually imports. It `import WalletKitRust` and hides every
-//   `*Ffi` type behind its own wrapper; code that needs to name a plain
-//   generated value type directly (`DerivationPath(string:)`, a `Curve`
-//   case, ...) still needs its own `import WalletKitRust` too, since
-//   Swift has no way to re-export just those symbols.
-//
-// This manifest only assembles what `make walletkit-ffi` already produced
-// into targets — it doesn't invoke Rust/UniFFI itself, so run
-// `make walletkit-ffi` at least once (and after any Rust change) before
-// (re)generating this project.
-//
-// Frameworks/WalletKit.xcframework already contains macOS + iOS device +
-// iOS simulator slices, so `destinations` below covers both macOS and iOS
-// to match ReefrWallet.
-
 let walletKitRust: Target = .target(
     name: "WalletKitRust",
     destinations: [.mac, .iPhone, .iPad],
@@ -32,9 +8,25 @@ let walletKitRust: Target = .target(
     bundleId: "xyz.reefr.wallet.walletkit.rust",
     deploymentTargets: Project.deploymentTargets,
     infoPlist: .extendingDefault(with: Project.commonInfoPlist),
-    buildableFolders: ["Sources/Generated"],
+    buildableFolders: ["Sources/Generated/Bindings"],
     dependencies: [
         .xcframework(path: "Frameworks/WalletKit.xcframework")
+    ]
+)
+
+let walletKitGRPC: Target = .target(
+    name: "WalletKitGRPC",
+    destinations: [.mac, .iPhone, .iPad],
+    product: .staticFramework,
+    bundleId: "xyz.reefr.wallet.walletkit.grpc",
+    deploymentTargets: Project.deploymentTargets,
+    infoPlist: .extendingDefault(with: Project.commonInfoPlist),
+    buildableFolders: ["Sources/Generated/gRPC"],
+    dependencies: [
+        .external(name: "SwiftProtobuf"),
+        .external(name: "GRPCCore"),
+        .external(name: "GRPCNIOTransportHTTP2Posix"),
+        .external(name: "GRPCProtobuf")
     ]
 )
 
@@ -58,8 +50,18 @@ let walletKit: Target = .target(
     ],
     dependencies: [
         .external(name: "BigInt"),
+        .external(name: "GRPCCore"),
+        .external(name: "GRPCNIOTransportHTTP2Posix"),
+        .target(name: "WalletKitGRPC"),
         .target(name: "WalletKitRust")
-    ]
+    ],
+    // grpc-swift-nio-transport pulls in swift-nio-ssl's CNIOBoringSSL, a C++
+    // library — its final link step needs libc++, which Xcode only links
+    // in automatically for a target that itself has Objective-C++/C++
+    // sources. This target has none, so any consumer that actually calls
+    // into SuiGRPCClient (and so keeps CNIOBoringSSL's symbols live rather
+    // than dead-stripped) fails to link without this.
+    settings: .settings(base: ["OTHER_LDFLAGS": ["-lc++"]])
 )
 
 let walletKitTestsMac: Target = .target(
@@ -83,8 +85,13 @@ let walletKitTestsMac: Target = .target(
     dependencies: [
         .external(name: "BigInt"),
         .target(name: "WalletKit"),
-        .target(name: "WalletKitRust")
-    ]
+        .target(name: "WalletKitRust"),
+        .target(name: "WalletKitGRPC")
+    ],
+    // See the matching comment on `walletKit` above — this target links
+    // SuiGRPCClient's own test bundle, independently of WalletKit's link
+    // settings.
+    settings: .settings(base: ["OTHER_LDFLAGS": ["-lc++"]])
 )
 
 /* let walletKitTestsIOS: Target = .target(
@@ -121,7 +128,7 @@ let schemes: [Scheme] = [
 let project = Project(
     name: "WalletKit",
     organizationName: Project.organizationName,
-    targets: [walletKitRust, walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
+    targets: [walletKitRust, walletKitGRPC, walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
     schemes: schemes,
     additionalFiles: [
         "*.md",

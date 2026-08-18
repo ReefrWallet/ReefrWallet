@@ -6,18 +6,34 @@
 #                        result as an XCFramework (Frameworks/) + Swift
 #                        bindings (Sources/Generated/), consumed by the
 #                        WalletKitRust target.
+#
+#   make sui-grpc        Generate Swift bindings (Sources/Generated/gRPC/)
+#                        for Sui's gRPC API from the Sources/gRPC/
+#                        sui-rpc-api-v2 submodule's .proto files, consumed
+#                        by the WalletKitGRPC target. Independent of
+#                        walletkit-ffi — a second, protoc-based codegen
+#                        pipeline alongside the Rust/UniFFI one.
+#
 #   make test            Run the Rust test suite (cargo test), host target
 #                        only — independent of walletkit-ffi.
-#   make all             walletkit-ffi, then test. (default target)
-#   make clean            Remove all build output (.build/, Frameworks/,
-#                         generated Sources/Generated/*.swift, and
-#                         Rust/target/) plus Tuist-generated Xcode artifacts
-#                         (Derived/, *.xcodeproj, *.xcworkspace) — preserves
-#                         the hand-written sources under Sources/Static/.
+#
+#   make all             walletkit-ffi, sui-grpc, then test. (default target)
+#
+#   make clean           Remove all build output (.build/, Frameworks/,
+#                        generated Sources/Generated/*.swift and
+#                        Sources/Generated/gRPC/*.swift, and
+#                        Rust/target/) plus Tuist-generated Xcode artifacts
+#                        (Derived/, *.xcodeproj, *.xcworkspace) — preserves
+#                        the hand-written sources under Sources/Static/.
 #
 # Requires on the host machine:
 #   - Rust via rustup (this drives `rustup target add` for you)
 #   - Xcode command line tools (xcodebuild, lipo)
+#   - protoc, protoc-gen-swift, and protoc-gen-grpc-swift (v2, binary name
+#     `protoc-gen-grpc-swift-2`) for `make sui-grpc` — e.g.
+#     `brew install protobuf swift-protobuf protoc-gen-grpc-swift`
+#   - `git submodule update --init --recursive` once after cloning, to
+#     fetch Sources/gRPC/sui-rpc-api-v2's .proto files
 #
 # See Rust/README.md for the crate this wraps and Docs/Overview.md for the
 # overall architecture.
@@ -43,8 +59,14 @@ SOURCES_DIR := Sources
 
 # Deliverables: what the rest of the project (Xcode/SPM) actually consumes.
 FRAMEWORKS_DIR := Frameworks
-GENERATED_SOURCES_DIR := $(SOURCES_DIR)/Generated
+GENERATED_SOURCES_DIR := $(SOURCES_DIR)/Generated/Bindings
 XCFRAMEWORK := $(FRAMEWORKS_DIR)/WalletKit.xcframework
+
+# --- sui-grpc: Sui gRPC API .proto -> Swift ---------------------------------
+
+SUI_PROTO_SUBMODULE := $(SOURCES_DIR)/gRPC/sui-rpc-api-v2
+SUI_PROTO_DIR := $(SUI_PROTO_SUBMODULE)/proto
+GENERATED_GRPC_SOURCES_DIR := $(SOURCES_DIR)/Generated/gRPC
 
 # Apple Silicon + Intel Mac, fused into one macOS slice.
 MACOS_TARGETS := aarch64-apple-darwin x86_64-apple-darwin
@@ -65,9 +87,9 @@ IOS_DEVICE_LIB := $(TARGET_DIR)/$(IOS_DEVICE_TARGET)/release/$(LIB_NAME)
 BINDGEN_SOURCE_LIB := $(TARGET_DIR)/aarch64-apple-darwin/release/$(LIB_NAME)
 
 .DEFAULT_GOAL := all
-.PHONY: all walletkit-ffi test clean rust-targets
+.PHONY: all walletkit-ffi sui-grpc test clean rust-targets
 
-all: walletkit-ffi test
+all: walletkit-ffi sui-grpc test
 
 # --- walletkit-ffi: build + package as an XCFramework ----------------------
 
@@ -111,9 +133,27 @@ walletkit-ffi: rust-targets
 		-library $(IOS_SIM_LIB) -headers $(HEADERS_DIR) \
 		-output $(XCFRAMEWORK)
 	@echo "==> Done"
-	@echo "    XCFramework: $(XCFRAMEWORK)"
-	@echo "    Swift bindings: $(SOURCES_DIR)/*.swift"
-	@echo "    Add both to your Xcode project / Swift package."
+
+# --- sui-grpc: Sui's gRPC API .proto -> Swift, for WalletKitGRPC ------------
+
+sui-grpc:
+	@test -d $(SUI_PROTO_DIR)/sui/rpc/v2 || { \
+		echo "$(SUI_PROTO_SUBMODULE) is empty — run: git submodule update --init --recursive"; \
+		exit 1; \
+	}
+
+	@echo "==> Generating Swift bindings for Sui's gRPC API"
+	@rm -rf $(GENERATED_GRPC_SOURCES_DIR)
+	@mkdir -p $(GENERATED_GRPC_SOURCES_DIR)
+	@protoc -I $(SUI_PROTO_DIR) \
+		--swift_opt=Visibility=Public \
+		--swift_out=$(GENERATED_GRPC_SOURCES_DIR) \
+		--grpc-swift-2_opt=Visibility=Public,Server=false,Client=true \
+		--grpc-swift-2_out=$(GENERATED_GRPC_SOURCES_DIR) \
+		$(SUI_PROTO_DIR)/sui/rpc/v2/*.proto \
+		$(SUI_PROTO_DIR)/google/rpc/*.proto
+	@echo "==> Done"
+	@echo "    Swift bindings: $(GENERATED_GRPC_SOURCES_DIR)/sui/rpc/v2/*.swift"
 
 # --- test: Rust test suite, host target only --------------------------------
 
@@ -124,8 +164,6 @@ test:
 # --- clean -------------------------------------------------------------------
 
 clean:
-	@echo "==> Cleaning build output"
-	@rm -rf $(BUILD_DIR) $(FRAMEWORKS_DIR) $(GENERATED_SOURCES_DIR)
+	@rm -rf $(BUILD_DIR) $(FRAMEWORKS_DIR) $(GENERATED_SOURCES_DIR) $(GENERATED_GRPC_SOURCES_DIR)
 	@cd $(CRATE_DIR) && $(CARGO) clean
-	@echo "==> Cleaning Tuist-generated Xcode artifacts"
 	@rm -rf Derived *.xcodeproj *.xcworkspace
