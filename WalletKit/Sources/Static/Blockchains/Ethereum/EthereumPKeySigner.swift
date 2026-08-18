@@ -42,8 +42,10 @@ public final class EthereumPKeySigner: Signer {
         guard privateKey.curve == .secp256k1 else {
             throw WalletKitError.unsupportedCurve(curve: privateKey.curve)
         }
+
         self.chainId = chainId
         self.privateKey = privateKey
+
         raw = EthereumSignerFfi(chainId: chainId)
         account = Account(
             blockchain: .ethereum(chainId),

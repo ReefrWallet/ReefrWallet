@@ -37,18 +37,18 @@ public enum EthereumABIValue {
     }
 }
 
-/// Minimal Ethereum ABI encode/decode helpers — function-selector
-/// computation, static-word call-data encoding, and static-word return-
-/// data decoding. Backs `EthereumRPCClient`'s contract-call methods
-/// (`erc20Balance`, `latestRoundData`) and is available directly for a
-/// caller's own contract calls via `EthereumRPCClient.call(to:data:)`.
+/// Minimal Ethereum ABI encode/decode helpers — function-selector computation,
+/// static-word call-data encoding, and static-word return-data decoding.
+/// Backs `EthereumRPCClient`'s contract-call methods (`erc20Balance`,
+/// `latestRoundData`) and is available directly for a caller's own contract
+/// calls via `EthereumRPCClient.call(to:data:)`.
 public enum EthereumABI {
     /// Computes the 4-byte function selector for `signature` (e.g.
     /// `"balanceOf(address)"`) — Keccak-256(signature)'s first 4 bytes.
     ///
-    /// - Parameter signature: The canonical function signature — name
-    ///   plus parenthesized, comma-separated parameter types, no
-    ///   parameter names or spaces (e.g. `"transfer(address,uint256)"`).
+    /// - Parameter signature: The canonical function signature — name plus
+    ///   parenthesized, comma-separated parameter types, no parameter names or
+    ///   spaces (e.g. `"transfer(address,uint256)"`).
     public static func selector(_ signature: String) -> Data {
         ethereumFunctionSelector(signature: signature)
     }
