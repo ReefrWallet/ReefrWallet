@@ -1,6 +1,7 @@
 // Spec-driven test for Docs/Design Specification/Keys/Seed.swift.
 // Will compile once the corresponding type is exported from Sources.
 
+import Foundation
 import Testing
 @testable import WalletKit
 
@@ -22,5 +23,17 @@ struct SeedTests {
         let key = try seed.masterKey(curve: .ed25519)
         #expect(key.curve == .ed25519)
         #expect(key.depth == 0)
+    }
+
+    @Test func rawBytesRoundTripsThroughExportRaw() throws {
+        let original = Mnemonic.generate().toSeed()
+        let restored = try Seed(rawBytes: original.exportRaw())
+        #expect(restored.exportRaw() == original.exportRaw())
+    }
+
+    @Test func rawBytesRejectsTheWrongByteCount() {
+        #expect(throws: WalletKitError.self) {
+            try Seed(rawBytes: Data(repeating: 0, count: 63))
+        }
     }
 }

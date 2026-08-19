@@ -41,6 +41,11 @@ public enum WalletKitError: Error, Equatable {
     /// what went wrong.
     case invalidBigInt(reason: String)
 
+    /// Raw seed bytes couldn't be reconstructed into a ``Seed`` — the byte
+    /// count didn't match the expected 64-byte BIP39 seed size. `reason`
+    /// describes what went wrong.
+    case invalidSeed(reason: String)
+
     /// A mnemonic word count wasn't a supported BIP39 word count (12, 15,
     /// 18, 21, or 24).
     case unsupportedWordCount(count: UInt32)
@@ -98,6 +103,7 @@ public enum WalletKitError: Error, Equatable {
         case .InvalidAddress(let reason): self = .invalidAddress(reason: reason)
         case .UnsupportedCurve(let curve): self = .unsupportedCurve(curve: curve)
         case .InvalidBigInt(let reason): self = .invalidBigInt(reason: reason)
+        case .InvalidSeed(let reason): self = .invalidSeed(reason: reason)
         case .UnsupportedWordCount(let count): self = .unsupportedWordCount(count: count)
         case .SigningFailed(let reason): self = .signingFailed(reason: reason)
         case .KeyNotFound: self = .keyNotFound

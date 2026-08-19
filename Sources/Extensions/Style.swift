@@ -1,0 +1,99 @@
+//
+//  Style.swift
+//  Reefr Wallet
+//
+//  Created by Andrey Yurkevich on 13.12.25.
+//  Copyright © 2025 Reefr Wallet. All rights reserved.
+//
+
+import SwiftUI
+
+struct StyledView: ViewModifier {
+    @State private var size: Size?
+    @State private var foregroundColor: Color?
+    @State private var backgroundColor: Color?
+
+    init(
+        size: Size? = nil,
+        foregroundColor: Color? = nil,
+        backgroundColor: Color? = nil
+    ) {
+        self._size = State(initialValue: size)
+        self._foregroundColor = State(initialValue: foregroundColor)
+        self._backgroundColor = State(initialValue: backgroundColor)
+    }
+
+    func body(content: Content) -> some View {
+            content
+                .with(size: size)
+                .with(foregroundColor: foregroundColor)
+                .with(backgroundColor: backgroundColor)
+    }
+}
+
+extension StyledView {
+    enum Size {
+        case largeHeader
+        case mediumHeader
+        case smallHeader
+        case large
+        case medium
+        case small
+    }
+}
+
+extension View {
+    func style(
+        _ size: StyledView.Size? = nil,
+        foreground: Color? = nil,
+        background: Color? = nil
+    ) -> some View {
+        modifier(
+            StyledView(
+                size: size,
+                foregroundColor: foreground,
+                backgroundColor: background
+            )
+        )
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func with(backgroundColor: Color?) -> some View {
+        if let backgroundColor {
+            backgroundStyle(backgroundColor)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func with(foregroundColor: Color?) -> some View {
+        if let foregroundColor {
+            foregroundStyle(foregroundColor)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func with(size: StyledView.Size?) -> some View {
+        switch size {
+        case .largeHeader:
+            font(.system(size: 16, weight: .bold))
+        case .mediumHeader:
+            font(.system(size: 14, weight: .bold))
+        case .smallHeader:
+            font(.system(size: 12, weight: .bold))
+        case .large:
+            font(.system(size: 16, weight: .regular))
+        case .medium:
+            font(.system(size: 14, weight: .regular))
+        case .small:
+            font(.system(size: 12, weight: .regular))
+        case .none:
+            self
+        }
+    }
+}

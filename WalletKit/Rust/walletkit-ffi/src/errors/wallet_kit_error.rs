@@ -21,6 +21,8 @@ pub enum WalletKitErrorFfi {
     UnsupportedCurve { curve: Curve },
     #[error("invalid big integer: {reason}")]
     InvalidBigInt { reason: String },
+    #[error("invalid seed: {reason}")]
+    InvalidSeed { reason: String },
     #[error("unsupported word count: {count}")]
     UnsupportedWordCount { count: u32 },
     #[error("signing failed: {reason}")]

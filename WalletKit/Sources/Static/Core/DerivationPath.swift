@@ -8,6 +8,25 @@
 import WalletKitRust
 
 extension DerivationPath {
+    /// Gets derivation path for given ``Blockchain`` and account index
+    public init(_ blockchain: Blockchain, accountIndex: UInt64) throws {
+        switch blockchain {
+        case .ethereum:
+            try self.init(string: "m/44'/60'/0'/0/\(accountIndex)")
+        case let .sui(curve):
+            switch curve {
+            /// m/44'/784'/{account}'/0/0
+            case .ed25519:
+                try self.init(string: "m/44'/784'/0'/0'/\(accountIndex)'")
+            /// m/54'/784'/{account}'/0'/0'
+            case .secp256k1:
+                try self.init(string: "m/54'/784'/0'/0/\(accountIndex)")
+            }
+        default:
+            throw WalletKitError.internalError(message: "Unsupported blockchain: \(blockchain)")
+        }
+    }
+
     /// Parses a `m/44'/60'/0'/0/0`-style derivation path string.
     ///
     /// - Parameter string: The path string to parse. Must start with `m`

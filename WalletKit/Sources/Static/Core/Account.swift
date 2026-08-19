@@ -5,7 +5,19 @@
 //  Created by Andrey Yurkevich on 16/08/2026.
 //
 
+@_exported import enum WalletKitRust.Curve
 import WalletKitRust
+
+extension Curve: @retroactive CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .secp256k1:
+            "ECDSA Secp256k1"
+        case .ed25519:
+            "Ed25519 (EdDSA)"
+        }
+    }
+}
 
 /// Where an ``Account``'s signing key material actually lives.
 public enum KeySource: Equatable {

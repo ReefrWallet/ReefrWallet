@@ -1,9 +1,10 @@
+//
+//  Tuist.swift
+//  Wallet
+//
+//  Created by Andrey Yurkevich on 30/11/2025.
+//
+
 import ProjectDescription
 
-let tuist = Tuist(
-//    Create an account with "tuist auth login" and a project with "tuist project create"
-//    then uncomment the section below and set the project full-handle.
-//    * Read more: https://docs.tuist.io/guides/quick-start/gather-insights
-//
-//    fullHandle: "{account_handle}/{project_handle}",
-)
+let tuist = Tuist(project: .tuist(swiftVersion: Version(6, 2, 0)))

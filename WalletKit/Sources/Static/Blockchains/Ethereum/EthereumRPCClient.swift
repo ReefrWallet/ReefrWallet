@@ -9,16 +9,6 @@
 import BigInt
 import Foundation
 
-/// Chainlink's `AggregatorV3Interface.latestRoundData()` return values —
-/// the worked example for reading an on-chain oracle.
-public struct ChainlinkRoundData {
-    public let roundId: BigUInt
-    public let answer: BigInt
-    public let startedAt: BigUInt
-    public let updatedAt: BigUInt
-    public let answeredInRound: BigUInt
-}
-
 /// A client for an Ethereum JSON-RPC node — native-token balance,
 /// arbitrary read-only contract calls, and broadcasting an already-signed
 /// transaction. Pairs with ``EthereumPKeySigner``/``EthereumTrezorSigner``,
@@ -46,27 +36,15 @@ public struct EthereumRPCClient {
         rpc = JSONRPCClient(endpoint: endpoint, session: session)
     }
 
-    /// Reads `address`'s native-token (ETH) balance, in wei.
+    /// Broadcasts an already-signed transaction — `eth_sendRawTransaction`.
     ///
-    /// - Parameter address: The address to read the balance of.
-    /// - Returns: The balance, in wei.
+    /// - Parameter signedTransaction: The RLP-encoded signed transaction,
+    ///   e.g. from ``EthereumPKeySigner/sign(transaction:)``.
+    /// - Returns: The transaction hash.
     /// - Throws: ``BlockchainClientError`` on a transport, RPC, or
     ///   decoding failure.
-    public func nativeBalance(of address: EthereumAddress) async throws -> BigUInt {
-        let hex: String = try await rpc.call(method: "eth_getBalance", params: [address.string, "latest"])
-
-        // `eth_getBalance` returns Ethereum's "Quantity" hex encoding —
-        // minimal digits, no leading zeros, so (unlike "Data" hex —
-        // addresses, calldata, raw tx — which is always byte-aligned) an
-        // odd digit count is valid (e.g. "0x1" for 1 wei). Parsed as a
-        // plain hex integer, not through `Data(hexString:)`.
-        let body = hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
-
-        guard let balance = BigUInt(body, radix: 16) else {
-            throw BlockchainClientError.decodingFailed(reason: "invalid quantity hex: \(hex)")
-        }
-
-        return balance
+    public func broadcast(_ signedTransaction: Data) async throws -> String {
+        try await rpc.call(method: "eth_sendRawTransaction", params: [signedTransaction.hexEncoded])
     }
 
     /// Executes a read-only contract call against `address` — the
@@ -138,15 +116,46 @@ public struct EthereumRPCClient {
         )
     }
 
-    /// Broadcasts an already-signed transaction — `eth_sendRawTransaction`.
+    /// Reads `address`'s native-token (ETH) balance, in wei.
     ///
-    /// - Parameter signedTransaction: The RLP-encoded signed transaction,
-    ///   e.g. from ``EthereumPKeySigner/sign(transaction:)``.
-    /// - Returns: The transaction hash.
+    /// - Parameter address: The address to read the balance of.
+    /// - Returns: The balance, in wei.
     /// - Throws: ``BlockchainClientError`` on a transport, RPC, or
     ///   decoding failure.
-    public func broadcast(_ signedTransaction: Data) async throws -> String {
-        try await rpc.call(method: "eth_sendRawTransaction", params: [signedTransaction.hexEncoded])
+    public func nativeBalance(of address: EthereumAddress) async throws -> BigUInt {
+        let hex: String = try await rpc.call(method: "eth_getBalance", params: [address.string, "latest"])
+
+        // `eth_getBalance` returns Ethereum's "Quantity" hex encoding —
+        // minimal digits, no leading zeros, so (unlike "Data" hex —
+        // addresses, calldata, raw tx — which is always byte-aligned) an
+        // odd digit count is valid (e.g. "0x1" for 1 wei). Parsed as a
+        // plain hex integer, not through `Data(hexString:)`.
+        let body = hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
+
+        guard let balance = BigUInt(body, radix: 16) else {
+            throw BlockchainClientError.decodingFailed(reason: "invalid quantity hex: \(hex)")
+        }
+
+        return balance
+    }
+
+    /// Reads `address`'s current nonce — the number of transactions it has
+    /// sent, i.e. the nonce to use for its next transaction.
+    ///
+    /// - Parameter address: The address to read the nonce of.
+    /// - Returns: The nonce.
+    /// - Throws: ``BlockchainClientError`` on a transport, RPC, or
+    ///   decoding failure.
+    public func nonce(of address: EthereumAddress) async throws -> UInt64 {
+        let hex: String = try await rpc.call(method: "eth_getTransactionCount", params: [address.string, "latest"])
+
+        let body = hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
+
+        guard let nonce = UInt64(body, radix: 16) else {
+            throw BlockchainClientError.decodingFailed(reason: "invalid quantity hex: \(hex)")
+        }
+
+        return nonce
     }
 }
 

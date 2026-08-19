@@ -75,6 +75,23 @@ public struct SuiGRPCClient {
         try await coinBalance(of: address)
     }
 
+    /// Lists objects owned by `owner`.
+    ///
+    /// - Parameter owner: The account to list owned objects for.
+    /// - Returns: The owner's objects (a single page — up to the node's
+    ///   default page size).
+    /// - Throws: ``BlockchainClientError`` on a transport, RPC, or
+    ///   decoding failure.
+    public func getOwnedObjects(_ owner: SuiAddress) async throws -> [Sui_Rpc_V2_Object] {
+        try await withStateServiceClient { client in
+            let request = Sui_Rpc_V2_ListOwnedObjectsRequest.with {
+                $0.owner = owner.string
+            }
+            let response = try await client.listOwnedObjects(request: ClientRequest(message: request))
+            return response.objects
+        }
+    }
+
     /// Broadcasts an already-signed transaction.
     ///
     /// - Parameters:

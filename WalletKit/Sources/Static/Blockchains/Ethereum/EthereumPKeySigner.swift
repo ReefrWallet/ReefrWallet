@@ -7,6 +7,7 @@
 //
 
 import Foundation
+@_exported import struct WalletKitRust.DerivationPath
 import WalletKitRust
 
 /// A ``Signer`` backed directly by a software-held ``PrivateKey``, for

@@ -17,6 +17,8 @@ import PackageDescription
 let package = Package(
     name: "ReefrWallet",
     dependencies: [
+        .package(url: "https://github.com/Moya/Moya.git", from: "15.0.0"),
+        .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver", from: "2.1.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.38.1"),
         .package(url: "https://github.com/attaswift/BigInt.git", from: "6.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.0"),

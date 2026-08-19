@@ -9,6 +9,7 @@ let project = Project(
             product: .app,
             bundleId: "xyz.reefr.wallet",
             deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
+            resources: ["Resources/**/*"],
             buildableFolders: ["Sources"],
             scripts: [
                 .post(
@@ -17,8 +18,13 @@ let project = Project(
                     basedOnDependencyAnalysis: false
                 )
             ],
-            dependencies: [.project(target: "WalletKit", path: "WalletKit")]
-        ) /* ,
+            dependencies: [
+                .external(name: "Moya"),
+                .external(name: "SwiftyBeaver"),
+                .project(target: "WalletKit", path: "WalletKit")
+            ],
+            settings: .settings(base: ["OTHER_LDFLAGS": ["-lc++"]])
+        ),
         .target(
             name: "ReefrWalletTests-macOS",
             destinations: [.mac],
@@ -35,7 +41,7 @@ let project = Project(
                 )
             ],
             dependencies: [.target(name: "ReefrWallet")]
-        ),
+        ) /*,
         .target(
             name: "ReefrWalletTests-iOS",
             destinations: [.iPhone, .iPad],
@@ -55,15 +61,8 @@ let project = Project(
         ) */
     ],
     additionalFiles: [
-        ".github/**/*",
-        ".swiftlint.yml",
-        "*.md",
-        "Docs/**/*",
         "Makefile",
         "Project.swift",
-        "README.md",
-        "Tuist.swift",
-        "Tuist/Package.swift",
-        "Tuist/ProjectDescriptionHelpers/**/*.swift"
+        "README.md"
     ]
 )
