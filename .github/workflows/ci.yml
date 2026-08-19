@@ -2,10 +2,11 @@ name: Wallet CI
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main"]
   pull_request:
-    branches: ["master"]
-
+    branches: ["main"]
+  workflow_dispatch:
+  
 env:
   CARGO_TERM_COLOR: always
 
@@ -13,11 +14,16 @@ jobs:
   build:
     runs-on: macos-26
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - name: Install protoc and Swift gRPC plugins
+      run: |
+        brew install protobuf swift-protobuf grpc-swift
+        protoc --version
     - name: Run tests
       run: |
         curl https://mise.run | sh
         echo "$HOME/.local/share/mise/bin" >> $GITHUB_PATH
         echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-        make project
         make test
