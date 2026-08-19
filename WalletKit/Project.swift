@@ -42,7 +42,7 @@ let walletKit: Target = .target(
         .post(
             script: """
                     $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
-                    swiftlint --config ../.swiftlint.yml Sources/Static Docs/Design\\ Specifications Project.swift
+                    swiftlint --config ../.swiftlint.yml Sources/Static Project.swift
                     """,
             name: "SwiftLint",
             basedOnDependencyAnalysis: false

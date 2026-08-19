@@ -71,7 +71,7 @@ public enum EthereumABI {
     ///   constructed `Data`.
     public static func words(_ data: Data) -> [Data] {
         stride(from: data.startIndex, to: data.endIndex, by: 32).map {
-            data[$0..<Swift.min(data.index($0, offsetBy: 32), data.endIndex)]
+            data[$0..<Swift.min($0 + 32, data.endIndex)]
         }
     }
 

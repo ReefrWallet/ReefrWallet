@@ -14,10 +14,10 @@ project: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Framewo
 	@mise x tuist -- tuist generate --no-open
 
 test: ReefrWallet.xcworkspace
-	@echo "==> Running Rust tests
+	@echo "==> Running Rust tests"
 	$(MAKE) -C WalletKit test
 
-	@echo "==> Running Swift tests
+	@echo "==> Running Swift tests"
 	@mise x tuist -- tuist test --test-targets WalletKitTests-macOS
 
 versions:

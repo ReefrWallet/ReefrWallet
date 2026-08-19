@@ -1,5 +1,6 @@
 deployment_target:
   macOS_deployment_target: 15
+  iOS_deployment_target: 18
 
 disabled_rules:
   - cyclomatic_complexity
@@ -8,6 +9,7 @@ disabled_rules:
 
 excluded:
   - Tuist/.build
+  - WalletKit/Sources/Generated
 
 opt_in_rules:
   - contains_over_filter_count

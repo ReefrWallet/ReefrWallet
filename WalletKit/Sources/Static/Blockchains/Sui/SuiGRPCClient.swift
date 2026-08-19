@@ -97,6 +97,10 @@ public struct SuiGRPCClient {
                         $0.bcs = Sui_Rpc_V2_Bcs.with { $0.value = signature }
                     }
                 ]
+                // The default read mask (`effects.status,checkpoint`) omits
+                // `digest` entirely, so without this the returned digest is
+                // empty and unusable for a follow-up `GetTransaction` call.
+                $0.readMask.paths = ["digest"]
             }
             let response = try await client.executeTransaction(request: ClientRequest(message: request))
             return response.transaction.digest

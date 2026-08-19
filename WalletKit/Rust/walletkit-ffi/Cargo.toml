@@ -60,3 +60,6 @@ serde_json = "1"
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 required-features = ["cli"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-mmacosx-version-min=15.0"]

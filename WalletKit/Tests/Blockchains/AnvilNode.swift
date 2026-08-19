@@ -92,6 +92,7 @@ final class AnvilNode {
     private func waitUntilReady() async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(60))
         while ContinuousClock.now < deadline {
+            // swiftlint:disable:next unused_optional_binding
             if let _: String = try? await rpc.call(method: "eth_blockNumber", params: [String]()) {
                 return
             }

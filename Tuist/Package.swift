@@ -8,7 +8,8 @@ import PackageDescription
         baseSettings: .settings(base: [
             "IPHONEOS_DEPLOYMENT_TARGET": "18.0",
             "MACOSX_DEPLOYMENT_TARGET": "15.0",
-            "WATCHOS_DEPLOYMENT_TARGET": "9.0",
+            "OTHER_LIBTOOLFLAGS": "-no_warning_for_no_symbols",
+            "WATCHOS_DEPLOYMENT_TARGET": "9.0"
         ])
     )
 #endif

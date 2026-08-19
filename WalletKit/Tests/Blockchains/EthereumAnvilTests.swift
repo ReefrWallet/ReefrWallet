@@ -79,6 +79,7 @@ private func makeSigner(privateKeyHex: String, chainId: UInt64) throws -> Ethere
 
 @Suite(.timeLimit(.minutes(1)))
 struct EthereumAnvilTests {
+    // swiftlint:disable:next function_body_length
     @Test func twoWalletsExchangeETHAndMockUSDC() async throws {
         let node = try await AnvilNode.start()
         defer { node.stop() }

@@ -9,8 +9,12 @@
     "unsignedPtb": {
       "sender": "0x81a9f133e7d8e1f294cc01cf15eaeedac71acb943cd4369d072d6bb9190b9d22",
       "commands": ["SplitCoins(GasCoin, [1000000000])", "TransferObjects([Result(0)], 0x000000000000000000000000000000000000000000000000000000000000000a)"],
+      "transfers": [
+        { "amount": 1000000000, "recipient": "0x000000000000000000000000000000000000000000000000000000000000000a" }
+      ],
       "gasObjectId": "0x6e4e1e19c021c43d17211485dc767dd5a073ed5bcd9b64aec0c96b7778b4c46c",
       "gasObjectVersion": 2,
+      "gasObjectDigest": "0x327d6584dcef7a8e65c95e0d3dbdc38f355ab64b4e764149b4f3abd2200eed73",
       "gasPrice": 1000,
       "gasBudget": 3000000,
       "expiration": "None"
@@ -33,8 +37,13 @@
         "TransferObjects([Result(0).0], 0x...b0b0)",
         "TransferObjects([Result(0).1], 0x...c0c0)"
       ],
+      "transfers": [
+        { "amount": 250000000, "recipient": "0x000000000000000000000000000000000000000000000000000000000000b0b0" },
+        { "amount": 90000000, "recipient": "0x000000000000000000000000000000000000000000000000000000000000c0c0" }
+      ],
       "gasObjectId": "0x0f38fcb3643e7452578cc81cd7d67b8298497380227a4e2e3bc21e4dd28d242c",
       "gasObjectVersion": 3,
+      "gasObjectDigest": "0xad20b5b7d839bd26e6ffc2f04153b5ae2436b75b2e16c777910d4056b6510c49",
       "gasPrice": 1000,
       "gasBudget": 5000000,
       "expiration": "None"
@@ -55,6 +64,7 @@
       "commands": ["MergeCoins(0x07e86cc9...f23de, [0x8ef3d92c...f69fd7])"],
       "gasObjectId": "0xfdfe48323ebc3f910ad180b647070e732e2a5ed3b5450b514dc096bbbee6280a",
       "gasObjectVersion": 4,
+      "gasObjectDigest": "0xa2cfa34f1fb548c3dbbb13d8fbcc2b8a7593860fd27f8f876929f072f2455219",
       "gasPrice": 1000,
       "gasBudget": 2000000,
       "expiration": "None"

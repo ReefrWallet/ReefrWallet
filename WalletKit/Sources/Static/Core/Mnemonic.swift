@@ -5,7 +5,9 @@
 //  Created by Andrey Yurkevich on 16/08/2026.
 //
 
-import WalletKitRust
+@_exported import enum WalletKitRust.MnemonicWordCount
+@_exported import enum WalletKitRust.Wordlist
+import class WalletKitRust.MnemonicFfi
 
 /// A BIP39 recovery phrase, and the entry point for deriving the wallet's
 /// seed from it.
@@ -101,7 +103,7 @@ public final class Mnemonic: MnemonicProtocol {
 
 // MARK: - MnemonicWordCount
 
-extension MnemonicWordCount: RawRepresentable {
+extension MnemonicWordCount: @retroactive RawRepresentable {
     public typealias RawValue = UInt32
 
     /// The number of words this case represents (12, 15, 18, 21, or 24).
