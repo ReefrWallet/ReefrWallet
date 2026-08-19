@@ -91,8 +91,6 @@ BINDGEN_SOURCE_LIB := $(TARGET_DIR)/aarch64-apple-darwin/release/$(LIB_NAME)
 
 all: walletkit-ffi sui-grpc test
 
-# --- walletkit-ffi: build + package as an XCFramework ----------------------
-
 # Internal helper, not one of the four requested targets: makes sure the
 # Apple cross-compilation targets are installed before building. Cheap and
 # idempotent, so it's safe to run on every `make walletkit-ffi`.
@@ -107,23 +105,28 @@ walletkit-ffi: rust-targets
 		echo "  -- $$target"; \
 		$(CARGO) build --release --target $$target || exit 1; \
 	done
+
 	@echo "==> Generating Swift bindings"
 	@rm -rf $(BINDINGS_DIR)
 	@mkdir -p $(BINDINGS_DIR)
 	@cd $(CRATE_DIR) && $(CARGO) run --quiet --features cli --bin uniffi-bindgen -- \
 		generate --library $(abspath $(BINDGEN_SOURCE_LIB)) --language swift --out-dir $(abspath $(BINDINGS_DIR))
+
 	@echo "==> Copying generated Swift bindings to $(GENERATED_SOURCES_DIR)"
 	@mkdir -p $(GENERATED_SOURCES_DIR)
 	@cp $(BINDINGS_DIR)/*.swift $(GENERATED_SOURCES_DIR)/
+
 	@echo "==> Fusing per-platform slices with lipo"
 	@mkdir -p $(BUILD_DIR)/macos $(BUILD_DIR)/ios-simulator
 	@lipo -create $(foreach t,$(MACOS_TARGETS),$(TARGET_DIR)/$(t)/release/$(LIB_NAME)) -output $(MACOS_LIB)
 	@lipo -create $(foreach t,$(IOS_SIM_TARGETS),$(TARGET_DIR)/$(t)/release/$(LIB_NAME)) -output $(IOS_SIM_LIB)
+
 	@echo "==> Assembling headers + module map"
 	@rm -rf $(HEADERS_DIR)
 	@mkdir -p $(HEADERS_DIR)
 	@cp $(BINDINGS_DIR)/*.h $(HEADERS_DIR)/
 	@cp $(BINDINGS_DIR)/*.modulemap $(HEADERS_DIR)/module.modulemap
+
 	@echo "==> Creating XCFramework"
 	@mkdir -p $(FRAMEWORKS_DIR)
 	@rm -rf $(XCFRAMEWORK)
@@ -132,9 +135,6 @@ walletkit-ffi: rust-targets
 		-library $(IOS_DEVICE_LIB) -headers $(HEADERS_DIR) \
 		-library $(IOS_SIM_LIB) -headers $(HEADERS_DIR) \
 		-output $(XCFRAMEWORK)
-	@echo "==> Done"
-
-# --- sui-grpc: Sui's gRPC API .proto -> Swift, for WalletKitGRPC ------------
 
 sui-grpc:
 	@test -d $(SUI_PROTO_DIR)/sui/rpc/v2 || { \
@@ -152,7 +152,6 @@ sui-grpc:
 		--grpc-swift-2_out=$(GENERATED_GRPC_SOURCES_DIR) \
 		$(SUI_PROTO_DIR)/sui/rpc/v2/*.proto \
 		$(SUI_PROTO_DIR)/google/rpc/*.proto
-	@echo "==> Done"
 	@echo "    Swift bindings: $(GENERATED_GRPC_SOURCES_DIR)/sui/rpc/v2/*.swift"
 
 # --- test: Rust test suite, host target only --------------------------------

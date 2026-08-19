@@ -61,6 +61,7 @@ let project = Project(
         "Docs/**/*",
         "Makefile",
         "Project.swift",
+        "README.md",
         "Tuist.swift",
         "Tuist/Package.swift",
         "Tuist/ProjectDescriptionHelpers/**/*.swift"

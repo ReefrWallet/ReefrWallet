@@ -8,11 +8,6 @@ clean:
 	@tuist clean
 	@rm -rf Derived *.xcodeproj *.xcworkspace
 
-project: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Frameworks/WalletKit.xcframework
-	@echo "==> Generating Xcode project"
-	@mise x tuist -- tuist install
-	@mise x tuist -- tuist generate --no-open
-
 test: ReefrWallet.xcworkspace
 	@echo "==> Running Rust tests"
 	$(MAKE) -C WalletKit test
@@ -26,6 +21,11 @@ versions:
 walletkit:
 	$(MAKE) -C WalletKit sui-grpc walletkit-ffi
 
-ReefrWallet.xcworkspace: project
+workspace: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Frameworks/WalletKit.xcframework
+	@echo "==> Generating Xcode project"
+	@mise x tuist -- tuist install
+	@mise x tuist -- tuist generate --no-open
+
+ReefrWallet.xcworkspace: workspace
 Tuist/ProjectDescriptionHelpers/Project+Version.swift: versions
 WalletKit/Frameworks/WalletKit.xcframework: walletkit
