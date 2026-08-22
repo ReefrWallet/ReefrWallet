@@ -9,6 +9,7 @@
 enum Error: Swift.Error {
     case alreadyExists
     case clientNotAvailable
+    case internalError
     case invalidAddress
     case invalidData
     case notFound

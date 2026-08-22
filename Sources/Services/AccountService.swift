@@ -9,35 +9,22 @@
 import WalletKit
 
 final class AccountService {
+    private lazy var blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
 
     func makeAccount(
-        _ blockchainConfig: BlockchainConfig,
+        _ blockchain: Blockchain,
         keyStore: KeyStore
     ) async throws -> Account {
-        let accountIndex = keyStore.nextAccountIndex(blockchainConfig.blockchain)
-        let name = "\(blockchainConfig.displayName) #\(accountIndex + 1)"
-
-        let storedBlockchainConfig: BlockchainConfig
-
-        if let config = try await databaseService.fetchBlockchainConfig(blockchainConfig.blockchain) {
-            storedBlockchainConfig = config
-        } else {
-            try await databaseService.saveBlockchainConfig(blockchainConfig)
-
-            guard let config = try await databaseService.fetchBlockchainConfig(blockchainConfig.blockchain) else {
-                throw Error.notFound
-            }
-
-            storedBlockchainConfig = config
-        }
-
         let storedKeyStore = try await databaseService.fetchKeyStore(id: keyStore.id)
+        let blockchainConfig = try await blockchainConfigService.getConfig(for: blockchain)
+        let accountIndex = keyStore.nextAccountIndex(blockchain)
+        let name = "\(blockchainConfig.displayName) #\(accountIndex + 1)"
 
         let account = Account(
             accountIndex: accountIndex,
             address: "",
-            blockchainConfig: storedBlockchainConfig,
+            blockchainConfig: blockchainConfig,
             keyStore: storedKeyStore,
             name: name
         )

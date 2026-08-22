@@ -33,7 +33,8 @@ final class Balance: Identifiable, Hashable {
 
 extension Balance {
     var amount: BigUInt {
-        BigUInt(serializedAmount)
+        get { BigUInt(serializedAmount) }
+        set { serializedAmount = newValue.serialize() }
     }
 
     var decimalAmount: Decimal {

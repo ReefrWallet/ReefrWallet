@@ -10,7 +10,7 @@ import Foundation
 import WalletKit
 
 final class BlockchainConfigService {
-    private(set) var configuredBlockchains: [BlockchainConfig]
+    private var configuredBlockchains: [BlockchainConfig]
 
     init() {
         configuredBlockchains = []
@@ -20,6 +20,55 @@ final class BlockchainConfigService {
         } catch {
             printError(error)
             assertionFailure()
+        }
+    }
+
+    var allBlockchains: [Blockchain] {
+        configuredBlockchains
+            .filter { $0.isTestnet == false }
+            .map(\.blockchain)
+    }
+
+    func allNetworks(for blockchain: Blockchain) -> [Blockchain] {
+        configuredBlockchains
+            .filter { $0.blockchain == blockchain }
+            .map(\.blockchain)
+    }
+
+    /// Always returns a stored config or throws error
+    func getConfig(for blockchain: Blockchain) async throws -> BlockchainConfig {
+        let databaseService = DI.injectOrFail(DatabaseService.self)
+
+        if let config = try await databaseService.fetchBlockchainConfig(blockchain) {
+            return config
+        }
+
+        if let config = configuredBlockchains.first(where: { $0.blockchain == blockchain }) {
+            try await databaseService.saveBlockchainConfig(config)
+        } else {
+            throw Error.notFound
+        }
+
+        guard let config = try await databaseService.fetchBlockchainConfig(blockchain) else {
+            throw Error.internalError
+        }
+
+        return config
+    }
+
+    func getDisplayName(for blockchain: Blockchain) -> String? {
+        if let config = configuredBlockchains.first(where: { $0.blockchain == blockchain }) {
+            config.displayName
+        } else {
+            nil
+        }
+    }
+
+    func getNetworkName(for blockchain: Blockchain) -> String? {
+        if let config = configuredBlockchains.first(where: { $0.blockchain == blockchain }) {
+            config.networkName
+        } else {
+            nil
         }
     }
 }

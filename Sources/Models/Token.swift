@@ -13,6 +13,7 @@ import SwiftData
 
 @Model
 final class Token {
+    /// `nil` for native tokens
     var address: String?
     var decimalsCount: UInt8
     var imageURL: URL?

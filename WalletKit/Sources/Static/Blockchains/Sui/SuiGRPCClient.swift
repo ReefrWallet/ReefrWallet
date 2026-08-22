@@ -63,6 +63,16 @@ public struct SuiGRPCClient {
         }
     }
 
+    public func listAllBalances(of address: SuiAddress) async throws -> [Sui_Rpc_V2_Balance] {
+        try await withStateServiceClient { client in
+            let request = Sui_Rpc_V2_ListBalancesRequest.with {
+                $0.owner = address.string
+            }
+            let response = try await client.listBalances(request: ClientRequest(message: request))
+            return response.balances
+        }
+    }
+
     /// Reads `address`'s native SUI balance —
     /// ``coinBalance(of:coinType:)`` with the default `"0x2::sui::SUI"`
     /// coin type.

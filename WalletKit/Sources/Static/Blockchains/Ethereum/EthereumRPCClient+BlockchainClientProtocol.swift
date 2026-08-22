@@ -6,7 +6,13 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
+
 extension EthereumRPCClient: BlockchainClientProtocol {
+    public func getAllBalances(_ owner: String) async throws -> [String: BigUInt] {
+        throw WalletKitError.unsupportedFeature
+    }
+
     public func getBalance(_ owner: String, token: String) async throws -> BigUInt {
         let owner = try EthereumAddress(string: owner)
         let token = try EthereumAddress(string: token)
@@ -32,5 +38,11 @@ extension EthereumRPCClient: BlockchainClientProtocol {
         }
 
         return true
+    }
+
+    public func isSupported(_ feature: BlockchainClientFeature) -> Bool {
+        switch feature {
+        case .allBalances: false
+        }
     }
 }

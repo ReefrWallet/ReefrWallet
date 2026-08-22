@@ -31,6 +31,9 @@ public enum WalletKitError: Error, Equatable {
     /// describes what went wrong.
     case invalidAddress(reason: String)
 
+    /// This feature is not supported
+    case unsupportedFeature
+
     /// An operation was attempted on a curve it doesn't support (e.g.
     /// deriving an Ethereum address from an ed25519 key).
     case unsupportedCurve(curve: Curve)

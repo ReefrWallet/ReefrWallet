@@ -39,21 +39,11 @@ actor DatabaseService {
         return account
     }
 
-    func fetchBlockchainConfig(_ blockchainConfig: BlockchainConfig) throws -> BlockchainConfig {
-        let serializedBlockchain = try blockchainConfig.blockchain.asJSONString()
+    func fetchBlockchainConfig(_ blockchain: Blockchain) throws -> BlockchainConfig? {
+        let serializedBlockchain = try blockchain.asJSONString()
         let predicate = #Predicate<BlockchainConfig> { $0.serializedBlockchain == serializedBlockchain }
         let descriptor = FetchDescriptor(predicate: predicate)
-
-        if let config = try modelContext.fetch(descriptor).first {
-            return config
-        }
-
-        try saveBlockchainConfig(blockchainConfig)
-        guard let config = try modelContext.fetch(descriptor).first else {
-            throw Error.notFound
-        }
-
-        return config
+        return try modelContext.fetch(descriptor).first
     }
 
     func fetchBlockchains() throws -> [BlockchainConfig] {

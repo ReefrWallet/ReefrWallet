@@ -8,8 +8,14 @@
 
 @_exported import BigInt
 
+public enum BlockchainClientFeature {
+    case allBalances
+}
+
 public protocol BlockchainClientProtocol {
+    func getAllBalances(_ owner: String) async throws -> [String: BigUInt]
     func getBalance(_ owner: String, token: String) async throws -> BigUInt
     func getNativeBalance(_ owner: String) async throws -> BigUInt
     func isActiveAccount(_ owner: String) async throws -> Bool
+    func isSupported(_ feature: BlockchainClientFeature) -> Bool
 }

@@ -16,43 +16,37 @@ struct AddAccountView: View {
     let keyStore: KeyStore
 
     @State private var address = ""
-    @State private var blockchains: [BlockchainConfig]
+    @State private var blockchains: [Blockchain]
     @State private var error: Swift.Error?
     @State private var isAlertPresented = false
-    @State private var networks: [BlockchainConfig]
+    @State private var networks: [Blockchain]
 
-    @State private var selectedBlockchain: BlockchainConfig?
+    @State private var selectedBlockchain: Blockchain?
     @State private var selectedKeyScheme: Curve?
-    @State private var selectedNetwork: BlockchainConfig?
-
-    @Query private var savedBlockchains: [BlockchainConfig]
+    @State private var selectedNetwork: Blockchain?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
-    private let blockchainConfigService: BlockchainConfigService
-    private let databaseService: DatabaseService
+    let blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
+//    private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
 
     init(keyStore: KeyStore) {
         self.keyStore = keyStore
 
-        self.blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
-        self.databaseService = DI.injectOrFail(DatabaseService.self)
-
-        let blockchains = blockchainConfigService.configuredBlockchains
-            .filter { !$0.isTestnet && $0.presetId != nil }
+        let blockchains = blockchainConfigService.allBlockchains
+        let selectedBlockchain = blockchains.first
 
         self.blockchains = blockchains
-        self.selectedBlockchain = blockchains.first
 
-        if let selectedBlockchain = blockchains.first {
-            let networks = blockchainConfigService.configuredBlockchains
-                .filter { $0.blockchain == selectedBlockchain.blockchain }
-            self.networks = networks
+        if let selectedBlockchain {
+            self.networks = blockchainConfigService.allNetworks(for: selectedBlockchain)
             self.selectedNetwork = networks.first
         } else {
             self.networks = []
         }
+
+        self.selectedBlockchain = selectedBlockchain
     }
 }
 
@@ -70,23 +64,22 @@ extension AddAccountView {
                 Section {
                     Picker("Blockchain", selection: $selectedBlockchain) {
                         ForEach(blockchains, id: \.self) { blockchain in
-                            Text(blockchain.displayName)
-                                .tag(blockchain)
+                            let displayName = blockchainConfigService.getDisplayName(for: blockchain) ?? ""
+                            Text(displayName).tag(blockchain)
                         }
                     }
 
                     Picker("Network", selection: $selectedNetwork) {
                         ForEach(networks, id: \.self) { blockchain in
-                            Text(blockchain.networkName)
-                                .tag(blockchain)
+                            let networkName = blockchainConfigService.getNetworkName(for: blockchain) ?? ""
+                            Text(networkName).tag(blockchain)
                         }
                     }
 
-                    if case .sui = selectedBlockchain?.blockchain {
+                    if case .sui = selectedBlockchain {
                         Picker("Key Scheme", selection: $selectedKeyScheme) {
                             ForEach(Curve.allCases, id: \.self) { scheme in
-                                Text(scheme.description)
-                                    .tag(scheme)
+                                Text(scheme.description).tag(scheme)
                             }
                         }
                     }
@@ -153,17 +146,9 @@ private extension AddAccountView {
 
 extension AddAccountView {
     @MainActor
-    func addAccount(_ blockchain: BlockchainConfig, signatureScheme: Curve?) async throws {
-        let blockchain = savedBlockchains
-            .first { $0.presetId == blockchain.presetId }
-            ?? blockchain
-
+    func addAccount(_ blockchain: Blockchain, signatureScheme: Curve?) async throws {
         let accountService = DI.injectOrFail(AccountService.self)
-
-        let account = try await accountService.makeAccount(
-            blockchain,
-            keyStore: keyStore
-        )
+        let account = try await accountService.makeAccount(blockchain, keyStore: keyStore)
 
         if keyStore.isWatchOnly {
             func setWatchOnlyAddress(_ account: Account) throws {
@@ -197,15 +182,12 @@ extension AddAccountView {
         }
     }
 
-    func didSelectBlockchain(_ blockchain: BlockchainConfig?) {
+    func didSelectBlockchain(_ blockchain: Blockchain?) {
         if let blockchain {
-            networks = blockchainConfigService.configuredBlockchains.filter {
-                $0.blockchain == blockchain.blockchain
-            }
-
+            networks = blockchainConfigService.allNetworks(for: blockchain)
             selectedNetwork = networks.first
 
-            if case .sui = blockchain.blockchain {
+            if case .sui = blockchain {
                 selectedKeyScheme = .ed25519
             } else {
                 selectedKeyScheme = nil

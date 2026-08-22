@@ -6,6 +6,7 @@
 //  Copyright © 2025 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
 import Foundation
 import SwiftData
 
@@ -70,6 +71,15 @@ extension Account {
     var usdValue: Decimal {
         balances.reduce(into: 0) { partialResult, balance in
             partialResult += balance.usdValue
+        }
+    }
+
+    func setBalance(of token: Token, amount: BigUInt) {
+        if let balance = balances.first(where: { $0.token.id == token.id }) {
+            balance.amount = amount
+        } else {
+            let balance = Balance(account: self, amount: amount, token: token)
+            balances.append(balance)
         }
     }
 }
