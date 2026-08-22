@@ -1,9 +1,19 @@
-//! Placeholder for vendor-agnostic hardware wallet plumbing. Intentionally
-//! empty — see `Walletkit/Docs/Design Specification/Hardware/` for the
-//! target shape: `HardwareVendor`, `HardwareTransportKind`,
-//! `HardwareDeviceInfo`, `HardwareInputRequest`, `HardwareButtonRequest`,
-//! `HardwareDeviceDelegate`, `HardwareDeviceManager`, `HardwareDevice`.
-//!
-//! Vendor-specific implementations (Trezor first) live in their own
-//! crates (`walletkit-trezor`, ...), not here — see
-//! `Walletkit/Docs/Overview.md`.
+//! UniFFI export layer for hardware wallet support. Wraps
+//! `walletkit-hardware`'s vendor-agnostic traits/types and
+//! `walletkit-trezor`'s Trezor implementation behind `#[uniffi::export]`,
+//! including the foreign-trait callback interface
+//! (`HardwareDeviceDelegateFfi`) so Rust can call back into Swift
+//! mid-operation for PIN/passphrase/button prompts. See
+//! `Walletkit/Docs/Overview.md`'s "Hardware wallet support".
+
+mod delegate;
+mod device;
+mod manager;
+mod types;
+
+pub use delegate::HardwareDeviceDelegateFfi;
+pub use device::HardwareDeviceFfi;
+pub use manager::HardwareDeviceManagerFfi;
+pub use types::{
+    HardwareButtonRequest, HardwareDeviceInfoFfi, HardwareInputRequest, HardwareTransportKind, HardwareVendorFfi,
+};

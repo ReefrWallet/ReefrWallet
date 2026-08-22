@@ -10,16 +10,16 @@ import Foundation
 import WalletKitRust
 
 /// A ``Signer`` backed by a connected Trezor ``HardwareDevice``, for
-/// Ethereum. The device signs; this type only handles decoding the
-/// caller-supplied EIP-155 signing data into the structured fields the
-/// device's trusted screen displays (``signTx(from:)``) and re-assembling
-/// the device's returned signature into a broadcastable transaction
+/// Ethereum. This type handles decoding the caller-supplied EIP-155
+/// signing data into the structured fields the device's trusted screen
+/// displays (``signTx(from:)``) and re-assembling the device's returned
+/// signature into a broadcastable transaction
 /// (``signedTransaction(_:signature:)``) — both real, Rust-backed
 /// operations, shared with ``EthereumPKeySigner``'s software path via
-/// `EthereumSignerFfi`. The device conversation itself needs the
-/// `walletkit-trezor` transport, which isn't implemented yet (see
-/// `Docs/Overview.md`'s "Hardware wallet support"), so ``sign(transaction:)``
-/// throws at that one step.
+/// `EthereumSignerFfi`. ``sign(transaction:)`` composes both around the
+/// actual device conversation (``HardwareDevice/raw``'s
+/// `ethereumSignTx(path:tx:)`), which shows `transaction`'s decoded fields
+/// on the device's trusted screen and returns its signature.
 public final class EthereumTrezorSigner: Signer {
     public typealias Address = EthereumAddress
 
@@ -91,19 +91,28 @@ public final class EthereumTrezorSigner: Signer {
         try remappingWalletKitError { try raw.encodeSigned(signingData: transaction, signature: signature.raw) }
     }
 
-    /// Signs `transaction` on the connected Trezor.
+    /// Signs `transaction` on the connected Trezor, showing its decoded
+    /// fields on the device's trusted screen for the user to confirm.
     ///
-    /// - Note: The decode (``signTx(from:)``) and re-encode
-    ///   (``signedTransaction(_:signature:)``) halves are fully
-    ///   implemented; only the device conversation itself is missing,
-    ///   since no Trezor transport exists yet.
+    /// - Parameter transaction: The 9-field EIP-155 RLP-encoded unsigned
+    ///   transaction blob.
+    /// - Returns: The RLP-encoded signed transaction, ready to broadcast.
+    /// - Throws: ``WalletKitError/signingFailed(reason:)`` if `transaction`
+    ///   isn't well-formed 9-field EIP-155 RLP or its embedded chain ID
+    ///   doesn't match ``chainId``, ``WalletKitError/deviceDisconnected``
+    ///   if the device has gone away, or
+    ///   ``WalletKitError/userCancelled``/
+    ///   ``WalletKitError/userRejectedOnDevice`` if the user backs out of
+    ///   a PIN/passphrase/confirmation prompt.
     public func sign(transaction: Data) async throws -> Data {
-        _ = try signTx(from: transaction)
+        let tx = try remappingWalletKitError { try raw.decodeSigningData(signingData: transaction) }
         guard device.isConnected else {
             throw WalletKitError.deviceDisconnected
         }
-        throw WalletKitError.transportUnavailable(
-            reason: "Trezor Ethereum signing needs the walletkit-trezor transport, which isn't implemented yet"
-        )
+        let ffiSignature = try await remappingWalletKitError {
+            try await device.raw.ethereumSignTx(path: account.derivationPath, tx: tx)
+        }
+        let signature = EthereumSignature(v: ffiSignature.v, r: ffiSignature.r, s: ffiSignature.s)
+        return try signedTransaction(transaction, signature: signature)
     }
 }

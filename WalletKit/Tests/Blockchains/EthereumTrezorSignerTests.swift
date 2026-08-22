@@ -2,19 +2,22 @@
 //
 // EthereumTrezorSigner's decode (signTx(from:)) and re-encode
 // (signedTransaction(_:signature:)) halves are real, Rust-backed operations
-// shared with EthereumPKeySigner's software path via EthereumSignerFfi —
-// only the device conversation itself is unimplemented (no walletkit-trezor
-// transport exists yet). Constructing a signer still requires a connected
-// device to read its public key, so this whole suite is device-gated;
-// `#require`/`withKnownIssue` skip cleanly when none is available, the way
-// the deleted HardwareSignerTests did.
+// shared with EthereumPKeySigner's software path via EthereumSignerFfi.
+// sign(transaction:) composes them around a real device conversation over
+// the walletkit-trezor USB transport. Constructing a signer still requires
+// a connected device to read its public key, so this whole suite is
+// device-gated; `#require`/`withKnownIssue` skip cleanly when none is
+// available, the way the deleted HardwareSignerTests did.
 //
-// Runs the same ethereum-tx.json vectors as EthereumPKeySignerTests. Since
-// there's no real Trezor signing yet, the "device-produced" signature is
-// stood in for by computing it straight from the vector's private key via
-// the same `EthereumSignerFfi.signature(signingData:privateKey:)` a real
-// device conversation would eventually stand in for — everything else
-// (decode, re-encode) is exercised for real.
+// Runs the same ethereum-tx.json vectors as EthereumPKeySignerTests. The
+// round-trip test stands the "device-produced" signature in for by computing
+// it straight from the vector's private key via the same
+// `EthereumSignerFfi.signature(signingData:privateKey:)` a real device
+// conversation produces the equivalent of — this exercises decode/re-encode
+// against known-good expected output without needing the connected device's
+// own (unknown) private key to match a vector. The other test calls
+// sign(transaction:) against the real device end to end instead, which can
+// only assert well-formedness, not byte-for-byte equality with a vector.
 
 import Foundation
 import Testing
@@ -95,7 +98,7 @@ struct EthereumTrezorSignerTests {
         }
     }
 
-    @Test func signThrowsUntilTheTrezorTransportIsImplemented() async throws {
+    @Test func signProducesARealSignedTransactionFromAConnectedDevice() async throws {
         await withKnownIssue("requires a connected hardware wallet, unavailable in CI") {
             let manager = HardwareDeviceManager()
             let devices = try await manager.scan()
@@ -106,9 +109,15 @@ struct EthereumTrezorSignerTests {
                 derivationPath: TestAccountFactory.bip44Path(coinType: 60)
             )
 
-            await #expect(throws: WalletKitError.self) {
-                _ = try await signer.sign(transaction: Self.txVectors[0].signingDataHex.hexDecoded)
-            }
+            // The connected device's own key won't match the vector's, so
+            // this can't assert byte-for-byte equality against
+            // `signedTxHex` the way the decode/re-encode round trip above
+            // does — only that a real device conversation produces a
+            // well-formed signed transaction (which, since `encodeSigned`
+            // validates `v`/`r`/`s` strictly, also proves the device
+            // returned a valid EIP-155 signature for this chain).
+            let signed = try await signer.sign(transaction: Self.txVectors[0].signingDataHex.hexDecoded)
+            #expect(!signed.isEmpty)
         }
     }
 }

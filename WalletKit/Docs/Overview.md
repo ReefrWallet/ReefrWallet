@@ -38,17 +38,19 @@ are a later phase and are called out below only as extension points.
   derivation, signing. No networking, no persistence, no chain-specific
   logic.
 - `walletkit-hardware` — vendor-agnostic hardware wallet plumbing: the
-  `Account`/`HardwareDevice` traits, transport enumeration, the async
-  delegate/callback mechanism for host-side PIN/passphrase/button prompts,
-  and error mapping. Defines the contract; carries no vendor protocol code
-  itself.
+  `HardwareDevice`/`HardwareDeviceManager`/`HardwareDeviceDelegate` traits,
+  transport/vendor enumeration, and error mapping (`HardwareError`).
+  Defines the contract; carries no vendor protocol code itself. (`Account`
+  has no Rust representation at all — see "FFI / bindings strategy" — so
+  it isn't one of these traits.)
 - `walletkit-trezor` — implements `walletkit-hardware`'s traits for Trezor
   devices. Wraps the official `trezor-client` crate (from
   `trezor/trezor-firmware`, the Trezor team's own Rust client covering the
   wire protocol/protobuf messages) rather than reimplementing the protocol
   — same "don't hand-roll audited/reference protocol code" principle as
-  the crypto primitives. USB transport first; Bluetooth (needed for Trezor
-  Safe 7 on iOS) added once the base plumbing is proven on macOS/USB.
+  the crypto primitives. USB is implemented (macOS only — see "Transport
+  and platform constraints"); Bluetooth (needed for Trezor Safe 7 on iOS)
+  isn't built yet.
 - `walletkit-ffi` — UniFFI export layer. Wraps `walletkit-keys`,
   `walletkit-hardware` (+ vendor crates), and later chain crates behind
   `#[uniffi::export]` proc-macros; this is what gets compiled into the
@@ -167,34 +169,37 @@ are a later phase and are called out below only as extension points.
 
 ## Hardware wallet support
 
-- **What ships now vs. later.** This phase covers device discovery,
-  connection/session lifecycle, the host-input/confirmation callback
-  model, and public-key/address retrieval (`HardwareDevice.publicKey`,
-  `HardwareDevice.account`) — genuinely useful today (e.g. show a receive
-  address from a connected Trezor) and identical in shape to reading a
-  software account's address. It does **not** yet cover the actual device
-  signing conversation.
-- **Why the device conversation is deferred, deliberately, not by
-  oversight.** Software signing is "sign these bytes with this key" — one
-  shape, works for every chain. Hardware signing is not: Trezor's wire
-  protocol has a distinct message type per chain (`SignTx` for Bitcoin,
-  `EthereumSignTx` for Ethereum, and so on), often carrying structured,
-  chain-specific fields rather than a raw digest, because the device's
-  trusted screen needs to decode and display what it's signing — that's
-  the whole security property of a hardware wallet. Every `Signer`
-  conformer still gives *callers* one shared `Data`-in/`Data`-out
-  `sign(transaction:)` entry point regardless of software vs. hardware,
-  but that doesn't make the underlying problem disappear for the
-  hardware-backed conformer itself — it has to decode the serialized
-  transaction back into structured fields before it can hand them to a
-  device, and re-encode whatever the device signs. `EthereumTrezorSigner`
-  is built with exactly that split: `signTx(from:)` and
-  `signedTransaction(_:signature:)` are real, Rust-backed, and unit-tested
-  against the same vectors as the software path (see "Testing strategy");
-  only the device conversation itself — the one step that needs the
-  actual `walletkit-trezor` transport — is missing, and
-  `sign(transaction:)` throws there until that transport exists (not yet
-  — see "Explicitly out of scope for now").
+- **What ships now.** Device discovery, connection/session lifecycle, the
+  host-input/confirmation callback model, public-key/address retrieval
+  (`HardwareDevice.publicKey`, `HardwareDevice.account`), and — for
+  Ethereum — the full device signing conversation
+  (`EthereumTrezorSigner.sign(transaction:)`), all over USB on macOS,
+  wrapping the Trezor team's own `trezor-client` crate in
+  `walletkit-trezor`. iOS compiles the identical public API as a
+  `.transportUnavailable`-throwing stub (see "Transport and platform
+  constraints" below).
+- **How the device conversation works.** Software signing is "sign these
+  bytes with this key" — one shape, works for every chain. Hardware
+  signing is not: Trezor's wire protocol has a distinct message type per
+  chain (`SignTx` for Bitcoin, `EthereumSignTx` for Ethereum, and so on),
+  often carrying structured, chain-specific fields rather than a raw
+  digest, because the device's trusted screen needs to decode and display
+  what it's signing — that's the whole security property of a hardware
+  wallet. Every `Signer` conformer still gives *callers* one shared
+  `Data`-in/`Data`-out `sign(transaction:)` entry point regardless of
+  software vs. hardware, but that doesn't make the underlying problem
+  disappear for the hardware-backed conformer itself — it has to decode
+  the serialized transaction back into structured fields before it can
+  hand them to a device, and re-encode whatever the device signs.
+  `EthereumTrezorSigner` is built with exactly that split: `signTx(from:)`
+  and `signedTransaction(_:signature:)` are real, Rust-backed, and
+  unit-tested against the same vectors as the software path (see "Testing
+  strategy"); `sign(transaction:)` composes both around the actual device
+  conversation — `walletkit-trezor` hand-rolls the `EthereumSignTx`
+  message exchange (rather than using `trezor-client`'s own
+  `ethereum_sign_tx` convenience wrapper, which handles button/passphrase
+  requests internally but has no hook for a host-entered PIN) so it can
+  drive `HardwareDeviceDelegate` for every interaction type, PIN included.
 - **One `Signer` protocol, one software and one hardware conformer per
   chain.** A conformer binds to its key source at construction — a
   `PrivateKey` for the software conformer
@@ -208,18 +213,32 @@ are a later phase and are called out below only as extension points.
 - **Interactive operations need a callback, not just async/throws.**
   Trezor operations can require mid-flight host input (PIN typed against a
   device-displayed matrix, an on-host passphrase) or a physical
-  confirmation the user performs on the device itself. `HardwareDeviceDelegate`
-  is a UniFFI *callback interface* — Rust holds a reference to a
-  Swift-implemented object and calls into it while an operation is
-  in-flight — rather than a single request/response call. This is a step
-  up in FFI complexity from phase 1's plain function calls and is worth
-  prototyping early (a "connect + read one public key" spike) before
-  building real functionality on top of it.
+  confirmation the user performs on the device itself.
+  `HardwareDeviceDelegateFfi` is a genuine UniFFI async foreign trait
+  (`#[uniffi::export(foreign, async_runtime = "tokio")]`) — Rust holds a
+  handle to a Swift-implemented object and calls into it while an
+  operation is in-flight — rather than a single request/response call.
+  `walletkit-trezor` hand-rolls the `TrezorResponse` interaction loop
+  (button/PIN/passphrase requests) itself rather than using
+  `trezor-client`'s own convenience wrappers, which handle button/
+  passphrase internally but have no hook for a host-entered PIN. Each
+  connected device gets a dedicated OS thread owning its `Trezor` client
+  for the device's whole connected lifetime — `TrezorResponse` borrows the
+  client mutably, so that loop can never be split across an `.await`; the
+  thread calls back into the delegate synchronously via
+  `Handle::block_on`, which `walletkit-trezor` only does from its own
+  independently-owned Tokio runtime (not whatever runtime UniFFI's own
+  async bridge happens to use to poll the exported `async fn`s
+  themselves, which is an implementation detail this crate doesn't rely
+  on).
 - **Transport and platform constraints are real and vendor/model-specific,
   not just an implementation detail:**
   - macOS: USB HID access is practical (IOKit + the appropriate
-    sandbox entitlement if sandboxed). All current Trezor models
-    (One, T, Safe 3, Safe 5, Safe 7) work over USB on macOS.
+    sandbox entitlement if sandboxed — the app has no App Sandbox
+    capability today, so nothing currently gates this; add
+    `com.apple.security.device.usb` if/when it's sandboxed). All current
+    Trezor models (One, T, Safe 3, Safe 5, Safe 7) work over USB on macOS,
+    via `rusb`/libusb (`walletkit-trezor`'s `trezor-client` dependency).
   - iOS: no generic USB HID access without MFi certification, and Trezor
     devices are not MFi-certified — so USB-connected Trezors cannot sign
     from an iOS app. Trezor Safe 7 adds Bluetooth and is, as of now, the
@@ -322,12 +341,13 @@ later.
   (BCS encoding + intent-signing wrapper), and address derivation/signing
   for every chain other than Ethereum/Sui (Bitcoin, Tron, Solana, Cardano
   remain extension points only — see `Signer` in Clients/).
-- The Trezor device conversation itself — `EthereumTrezorSigner`'s decode
-  (`signTx(from:)`) and re-encode (`signedTransaction(_:signature:)`)
-  halves are implemented and tested, but `sign(transaction:)` throws at
-  the one step that needs the actual `walletkit-trezor` transport, which
-  doesn't exist yet (see "Hardware wallet support" above — deferred to
-  land once that transport does, not skipped).
+- Hardware-signing for any chain other than Ethereum — Sui's BCS
+  transaction encoding and intent-signing wrapper for a hardware trusted
+  screen aren't speced yet either, so there's no `SuiTrezorSigner`.
+- Bluetooth/QR-air-gap transports and hardware wallet support on iOS —
+  Trezor devices aren't MFi-certified, so iOS has no generic USB HID
+  access (see "Transport and platform constraints" above); Trezor Safe 7's
+  Bluetooth would be the first real iOS story, not yet built.
 - Additional hardware vendors beyond Trezor (Ledger, Keystone, ...) — the
   abstraction is written to accommodate them, but none are being built yet.
 - Persistence of any kind (Keychain integration lives in the host app).
@@ -398,9 +418,13 @@ later.
   vectors through `EthereumSignerFfi`'s decode/encode split
   (`signTx(from:)` → a signature computed the same way `signature()`
   would → `signedTransaction(_:signature:)`) whenever a real device is
-  connected, standing in for the not-yet-implemented device conversation;
-  it skips cleanly (`withKnownIssue`) otherwise, the same as other
-  device-gated hardware tests.
+  connected — this, rather than `sign(transaction:)` itself, is what
+  checks against `signedTxHex` byte-for-byte, since a real connected
+  device's own key won't match the vector's; a second test calls
+  `sign(transaction:)` end to end against the real device instead, which
+  can only assert well-formedness. Both skip cleanly (`withKnownIssue`)
+  when no device is connected, the same as other device-gated hardware
+  tests.
 - Sui address derivation has no official published test vectors the way
   Ethereum's BIP39/EIP-155 ones exist — `walletkit-sui`'s Rust tests
   instead independently recompute the expected Blake2b-256 digest via the

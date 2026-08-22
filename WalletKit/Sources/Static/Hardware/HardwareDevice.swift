@@ -6,23 +6,26 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import class WalletKitRust.HardwareDeviceFfi
+
 /// A connected hardware wallet.
 ///
 /// Obtained from ``HardwareDeviceManager/connect(_:delegate:)``.
 public final class HardwareDevice: HardwareDeviceProtocol {
-    /// Static metadata describing this device.
+    /// Static metadata describing this device, snapshotted at connect time.
     public let info: HardwareDeviceInfo
 
-    /// Whether this device is still connected.
-    public private(set) var isConnected: Bool
+    let raw: HardwareDeviceFfi
+    private let delegateAdapter: HardwareDeviceDelegateAdapter
 
-    private weak var delegate: HardwareDeviceDelegate?
-
-    public init(info: HardwareDeviceInfo, delegate: HardwareDeviceDelegate?) {
-        self.info = info
-        self.delegate = delegate
-        self.isConnected = true
+    init(raw: HardwareDeviceFfi, delegateAdapter: HardwareDeviceDelegateAdapter) {
+        self.raw = raw
+        self.info = HardwareDeviceInfo(raw: raw.info())
+        self.delegateAdapter = delegateAdapter
     }
+
+    /// Whether this device is still connected.
+    public var isConnected: Bool { raw.isConnected() }
 
     /// Where this device's key material lives — always
     /// ``KeySource/hardware(_:)`` with this device's ``info``.
@@ -34,8 +37,14 @@ public final class HardwareDevice: HardwareDeviceProtocol {
     ///   - path: The derivation path to read the public key at.
     ///   - curve: The elliptic curve to derive under.
     /// - Returns: The public key at `path`.
+    /// - Throws: ``WalletKitError/unsupportedDevice(reason:)`` for a curve
+    ///   this device can't derive (Trezor only supports secp256k1 today),
+    ///   ``WalletKitError/deviceDisconnected`` if the device has gone
+    ///   away, or ``WalletKitError/userCancelled``/
+    ///   ``WalletKitError/userRejectedOnDevice`` if the user backs out of
+    ///   a PIN/passphrase/confirmation prompt.
     public func publicKey(path: DerivationPath, curve: Curve) async throws -> PublicKey {
-        throw WalletKitError.deviceDisconnected
+        try await remappingWalletKitError { PublicKey(raw: try await raw.publicKey(path: path, curve: curve)) }
     }
 
     /// Builds the ``Account`` for `blockchain` at index `account` from the
@@ -46,12 +55,36 @@ public final class HardwareDevice: HardwareDeviceProtocol {
     ///   - account: The BIP44-style account index.
     /// - Returns: The resulting account, including its derived public key.
     public func account(_ blockchain: Blockchain, account: UInt32 = 0) async throws -> Account {
-        throw WalletKitError.deviceDisconnected
+        let path = try DerivationPath(blockchain, accountIndex: UInt64(account))
+        let curve = Self.curve(for: blockchain)
+        let key = try await publicKey(path: path, curve: curve)
+        return Account(blockchain: blockchain, derivationPath: path, curve: curve, source: source, publicKey: key)
     }
 
     /// Disconnects from this device and notifies the delegate.
     public func disconnect() async {
-        isConnected = false
-        delegate?.hardwareDeviceDidDisconnect(self)
+        await raw.disconnect()
+    }
+
+    private static func curve(for blockchain: Blockchain) -> Curve {
+        switch blockchain {
+        case .sui(let curve): curve
+        case .solana, .cardano: .ed25519
+        case .bitcoin, .ethereum, .tron: .secp256k1
+        }
+    }
+}
+
+public extension HardwareDeviceInfo {
+    init(_ vendor: HardwareVendor, deviceId: String, transport: HardwareTransportKind = .usb) {
+        self.init(
+            id: deviceId,
+            vendor: vendor,
+            transport: transport,
+            model: "",
+            label: nil,
+            firmwareVersion: nil,
+            needsFirmwareUpdate: false
+        )
     }
 }

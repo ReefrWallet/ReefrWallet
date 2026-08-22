@@ -6,6 +6,8 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import struct WalletKitRust.HardwareDeviceInfoFfi
+
 /// Static, connection-independent metadata describing a discovered or
 /// connected hardware device.
 public struct HardwareDeviceInfo: Equatable {
@@ -62,5 +64,27 @@ public struct HardwareDeviceInfo: Equatable {
         self.label = label
         self.firmwareVersion = firmwareVersion
         self.needsFirmwareUpdate = needsFirmwareUpdate
+    }
+
+    init(raw: HardwareDeviceInfoFfi) {
+        id = raw.id
+        vendor = HardwareVendor(raw.vendor)
+        transport = raw.transport
+        model = raw.model
+        label = raw.label
+        firmwareVersion = raw.firmwareVersion
+        needsFirmwareUpdate = raw.needsFirmwareUpdate
+    }
+
+    var raw: HardwareDeviceInfoFfi {
+        HardwareDeviceInfoFfi(
+            id: id,
+            vendor: vendor.raw,
+            transport: transport,
+            model: model,
+            label: label,
+            firmwareVersion: firmwareVersion,
+            needsFirmwareUpdate: needsFirmwareUpdate
+        )
     }
 }

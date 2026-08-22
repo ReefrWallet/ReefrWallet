@@ -11,6 +11,7 @@ import WalletKit
 final class AccountService {
     private lazy var blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
+    private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
 
     func makeAccount(
         _ blockchain: Blockchain,
@@ -23,7 +24,7 @@ final class AccountService {
 
         let account = Account(
             accountIndex: accountIndex,
-            address: "",
+            address: "", // we'll set address later on
             blockchainConfig: blockchainConfig,
             keyStore: storedKeyStore,
             name: name
@@ -34,7 +35,12 @@ final class AccountService {
         case .local:
             try setLocalAddress(account)
         case .trezor:
-            let device = try keyStore.device()
+            guard let deviceId = keyStore.deviceId else {
+                printError("Missing device id")
+                throw Error.invalidData
+            }
+
+            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
             try await setTrezorAddress(account, device: device)
         case .watchOnly:
             break
@@ -91,9 +97,15 @@ private extension AccountService {
 
         switch account.blockchainConfig.blockchain {
         case .ethereum:
-            let signer = try await EthereumTrezorSigner(device: device, derivationPath: derivationPath)
-            account.address = try signer.address().string
-            account.derivationPath = derivationPath.string
+            do {
+                let signer = try await EthereumTrezorSigner(device: device, derivationPath: derivationPath)
+                account.address = try signer.address().string
+                account.derivationPath = derivationPath.string
+            } catch {
+                printError("Can't create signer: \(error)")
+                throw error
+            }
+
         default:
             throw Error.notImplemented
         }

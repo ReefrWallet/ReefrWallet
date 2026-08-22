@@ -19,10 +19,12 @@ implemented yet — see "Status" below).
   sign → re-encode) from a raw `PrivateKey`
 - Sui: address derivation (Blake2b-256 of scheme flag + public key,
   ed25519 and secp256k1) and address parsing/validation
-- Hardware wallet API surface (`HardwareDevice`, `HardwareDeviceManager`,
-  `HardwareDeviceDelegate`) for a Trezor-first design — currently a stub:
-  `scan` always returns no devices and `connect` always throws, since no
-  transport (USB/Bluetooth) is wired up yet
+- Hardware wallet support (`HardwareDevice`, `HardwareDeviceManager`,
+  `HardwareDeviceDelegate`) for Trezor over USB — device discovery,
+  connection, public-key retrieval, and Ethereum transaction signing
+  (`EthereumTrezorSigner`), with PIN/passphrase/button prompts relayed to
+  the app through `HardwareDeviceDelegate`. USB is macOS-only (see
+  "Status"); Bluetooth/other transports aren't implemented.
 
 ## Status
 
@@ -31,7 +33,10 @@ This is early and under active development. Notably not implemented yet:
 - Sui transaction signing (BCS encoding + intent-signing wrapper)
 - Signing through an `Account` rather than a raw `PrivateKey`
   (`Signer.sign(transaction:account:)` currently throws)
-- Real hardware wallet transport/connection (Trezor USB support)
+- Hardware wallet support beyond Trezor-over-USB: Bluetooth/QR-air-gap
+  transports, other vendors (Ledger, Keystone, ...), and iOS (Trezor
+  devices aren't MFi-certified, so iOS has no generic USB HID access —
+  Trezor Safe 7's Bluetooth would be the first real iOS story)
 - Any chain beyond Ethereum and Sui (Bitcoin, Tron, Solana, Cardano are
   identifier-only extension points)
 

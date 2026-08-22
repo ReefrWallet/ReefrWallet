@@ -85,6 +85,10 @@ public enum WalletKitError: Error, Equatable {
     /// The user rejected the operation on the device itself.
     case userRejectedOnDevice
 
+    /// The user cancelled a host-side prompt (PIN or passphrase entry)
+    /// instead of providing a value.
+    case userCancelled
+
     /// The requested transport (USB, Bluetooth, ...) isn't available.
     /// `reason` describes why.
     case transportUnavailable(reason: String)
@@ -117,6 +121,7 @@ public enum WalletKitError: Error, Equatable {
         case .DeviceLocked: self = .deviceLocked
         case .DeviceBusy: self = .deviceBusy
         case .UserRejectedOnDevice: self = .userRejectedOnDevice
+        case .UserCancelled: self = .userCancelled
         case .TransportUnavailable(let reason): self = .transportUnavailable(reason: reason)
         case .UnsupportedDevice(let reason): self = .unsupportedDevice(reason: reason)
         case .FirmwareOutdated(let minimumVersion): self = .firmwareOutdated(minimumVersion: minimumVersion)
@@ -134,6 +139,21 @@ public enum WalletKitError: Error, Equatable {
 func remappingWalletKitError<T>(_ body: () throws -> T) rethrows -> T {
     do {
         return try body()
+    } catch let error as WalletKitErrorFfi {
+        throw WalletKitError(error)
+    }
+}
+
+/// The `async` counterpart of ``remappingWalletKitError(_:)``, for
+/// hardware-device operations that need to await device I/O.
+///
+/// - Parameter body: The FFI-calling closure to run.
+/// - Returns: `body`'s result, unchanged.
+/// - Throws: ``WalletKitError`` if `body` throws a `WalletKitErrorFfi`;
+///   otherwise rethrows whatever `body` threw.
+func remappingWalletKitError<T>(_ body: () async throws -> T) async rethrows -> T {
+    do {
+        return try await body()
     } catch let error as WalletKitErrorFfi {
         throw WalletKitError(error)
     }

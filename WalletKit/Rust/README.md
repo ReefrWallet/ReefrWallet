@@ -1,9 +1,20 @@
 # WalletKit — Rust workspace
 
-Currently contains one crate, `walletkit-ffi`, a UniFFI export layer
-covering software key management (BIP39 mnemonics, BIP32/SLIP-0010
-derivation) so far. See `../Docs/Overview.md` for the target architecture
-and `../Docs/Design Specification/` for the Swift API this crate backs.
+Three crates:
+
+- `walletkit-ffi` — the UniFFI export layer covering software key
+  management (BIP39 mnemonics, BIP32/SLIP-0010 derivation), Ethereum/Sui
+  chain clients, and the hardware-wallet FFI surface (`hardware/`).
+- `walletkit-hardware` — vendor-agnostic hardware wallet traits/types, no
+  vendor protocol code.
+- `walletkit-trezor` — implements those traits for Trezor over USB,
+  wrapping the Trezor team's own `trezor-client` crate. Only builds real
+  USB support on macOS (Trezor devices aren't MFi-certified, so iOS has no
+  generic USB HID access); other targets compile the same public API as a
+  transport-unavailable stub.
+
+See `../Docs/Overview.md` for the target architecture and
+`../Docs/Design Specification/` for the Swift API this crate backs.
 
 For the full macOS + iOS (device + simulator) XCFramework build, use the
 top-level `../Makefile` (`make walletkit-ffi`, `make test`, `make all`,
@@ -14,8 +25,7 @@ what actually produces something Xcode can link against.
 ## Build (host-only, for local iteration)
 
 ```sh
-cd walletkit-ffi
-cargo build
+cargo build --workspace
 ```
 
 ## Test
@@ -24,9 +34,14 @@ Rust-side tests live alongside the code they cover, per
 `../Docs/Overview.md`'s testing strategy:
 
 ```sh
-cd walletkit-ffi
-cargo test
+cargo test --workspace
 ```
+
+Hardware-wallet tests here are unit tests over pure logic (path/error
+mapping, byte encoding) — they don't need a connected device. Tests that
+do need one live on the Swift side (`Tests/Hardware/`,
+`Tests/Blockchains/EthereumTrezorSignerTests.swift`), gated with
+`withKnownIssue` so they skip cleanly in CI.
 
 ## Generate Swift bindings
 

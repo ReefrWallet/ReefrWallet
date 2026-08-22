@@ -12,13 +12,20 @@ import WalletKit
 
 @Model
 final class KeyStore {
-    var deviceId: String? // trezor only
+    /// Device id or `nil` for software key store
+    var deviceId: String?
+
     var name: String
-    var model: String? // trezor only
+    /// Device model or `nil` for software key store
+    var model: String?
+
     var rawKind: String
-    var rawKey: Data? // local only
-    var transport: HardwareTransportKind? // trezor only
-    var vendor: HardwareVendor? // trezor only
+    /// Raw key bytes, `nil` for harware wallets
+    var rawKey: Data?
+    /// Harware transport, `nil` for software key store
+    var rawTransport: String?
+    /// Hardware vendor, `nil` for software key store
+    var rawVendor: String?
 
     @Relationship(deleteRule: .cascade, inverse: \Account.keyStore)
     var accounts: [Account]?
@@ -38,7 +45,7 @@ final class KeyStore {
         self.model = model
         self.rawKey = rawKey
         self.rawKind = kind.rawValue
-        self.vendor = vendor
+        self.rawVendor = vendor?.rawValue
     }
 }
 
@@ -79,7 +86,7 @@ extension KeyStore {
         case .local:
             return "Local Key Store (on this computer)"
         case .trezor:
-            guard let model, let vendor else {
+            guard let model, let rawVendor, let vendor = HardwareVendor(rawValue: rawVendor) else {
                 preconditionFailure()
             }
 
@@ -103,22 +110,6 @@ extension KeyStore {
 
     var kind: Kind {
         Kind(rawValue: rawKind)!
-    }
-
-    func device() throws -> HardwareDevice {
-        guard let deviceId, let vendor, let transport, let model else {
-            printError("Missing device data")
-            throw Error.invalidData
-        }
-
-        let info = HardwareDeviceInfo(
-            id: deviceId,
-            vendor: vendor,
-            transport: transport,
-            model: model
-        )
-
-        return HardwareDevice(info: info, delegate: nil) // TODO: set delegate
     }
 
     /// Return next account index that has not yet been configured

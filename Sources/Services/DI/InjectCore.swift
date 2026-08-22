@@ -55,6 +55,10 @@ extension ServiceContainer {
             DatabaseService(modelContainer: DI.injectOrFail(ModelContainer.self))
         }
 
+        register(HardwareService.self) {
+            HardwareService()
+        }
+
         register(KeyStoreService.self) {
             KeyStoreService()
         }

@@ -4,6 +4,7 @@
 //! key-management and hardware-device failure cases).
 
 use crate::common::Curve;
+use walletkit_hardware::HardwareError;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Error)]
 pub enum WalletKitErrorFfi {
@@ -45,12 +46,33 @@ pub enum WalletKitErrorFfi {
     DeviceBusy,
     #[error("user rejected on device")]
     UserRejectedOnDevice,
+    #[error("user cancelled")]
+    UserCancelled,
     #[error("transport unavailable: {reason}")]
     TransportUnavailable { reason: String },
     #[error("unsupported device: {reason}")]
     UnsupportedDevice { reason: String },
     #[error("firmware outdated: minimum version {minimum_version}")]
     FirmwareOutdated { minimum_version: String },
+}
+
+impl From<HardwareError> for WalletKitErrorFfi {
+    fn from(error: HardwareError) -> Self {
+        match error {
+            HardwareError::NotFound => WalletKitErrorFfi::DeviceNotFound,
+            HardwareError::Disconnected => WalletKitErrorFfi::DeviceDisconnected,
+            HardwareError::Locked => WalletKitErrorFfi::DeviceLocked,
+            HardwareError::Busy => WalletKitErrorFfi::DeviceBusy,
+            HardwareError::UserRejectedOnDevice => WalletKitErrorFfi::UserRejectedOnDevice,
+            HardwareError::UserCancelled => WalletKitErrorFfi::UserCancelled,
+            HardwareError::TransportUnavailable { reason } => WalletKitErrorFfi::TransportUnavailable { reason },
+            HardwareError::UnsupportedDevice { reason } => WalletKitErrorFfi::UnsupportedDevice { reason },
+            HardwareError::FirmwareOutdated { minimum_version } => {
+                WalletKitErrorFfi::FirmwareOutdated { minimum_version }
+            }
+            HardwareError::SigningFailed { reason } => WalletKitErrorFfi::SigningFailed { reason },
+        }
+    }
 }
 
 #[cfg(test)]
@@ -94,6 +116,7 @@ mod tests {
             WalletKitErrorFfi::DeviceLocked,
             WalletKitErrorFfi::DeviceBusy,
             WalletKitErrorFfi::UserRejectedOnDevice,
+            WalletKitErrorFfi::UserCancelled,
             WalletKitErrorFfi::TransportUnavailable {
                 reason: "usb unavailable on iOS".to_string(),
             },
@@ -104,6 +127,16 @@ mod tests {
                 minimum_version: "2.6.0".to_string(),
             },
         ];
-        assert_eq!(cases.len(), 8);
+        assert_eq!(cases.len(), 9);
+    }
+
+    #[test]
+    fn hardware_error_maps_onto_the_matching_wallet_kit_error() {
+        assert_eq!(WalletKitErrorFfi::from(HardwareError::NotFound), WalletKitErrorFfi::DeviceNotFound);
+        assert_eq!(WalletKitErrorFfi::from(HardwareError::UserCancelled), WalletKitErrorFfi::UserCancelled);
+        assert_eq!(
+            WalletKitErrorFfi::from(HardwareError::TransportUnavailable { reason: "no usb".to_string() }),
+            WalletKitErrorFfi::TransportUnavailable { reason: "no usb".to_string() }
+        );
     }
 }

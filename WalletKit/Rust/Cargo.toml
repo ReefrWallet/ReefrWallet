@@ -2,13 +2,6 @@
 resolver = "2"
 members = [
     "walletkit-ffi",
+    "walletkit-hardware",
+    "walletkit-trezor",
 ]
-
-# Future members land here as each phase in ../Docs/Overview.md is built.
-# `walletkit-ffi` currently covers software key management (BIP39/BIP32/
-# SLIP-0010); the crates below are not implemented yet.
-#
-#   "walletkit-keys"      software key management (BIP39/BIP32/SLIP-0010)
-#   "walletkit-hardware"  vendor-agnostic hardware wallet traits
-#   "walletkit-trezor"    Trezor support (wraps the official trezor-client crate)
-#   "walletkit-<chain>"   one crate per blockchain, once a chain client is built

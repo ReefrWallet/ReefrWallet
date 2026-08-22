@@ -5,53 +5,40 @@
 //  Created by Andrey Yurkevich on 16/08/2026.
 //
 
+import WalletKitRust
+
 /// A supported hardware wallet manufacturer.
-public enum HardwareVendor: Equatable, CaseIterable, Codable {
-    /// A Trezor device.
+public enum HardwareVendor: String, Codable, CaseIterable {
     case trezor
+
+    init(_ raw: HardwareVendorFfi) {
+        switch raw {
+        case .trezor:
+            self = .trezor
+        }
+    }
+
+    var raw: HardwareVendorFfi {
+        switch self {
+        case .trezor: .trezor
+        }
+    }
 }
+
+// These are plain data types with no cryptography or FFI-object handle
+// involved, so — unlike ``HardwareVendor`` — they're UniFFI-generated and
+// re-exported as-is rather than hand-wrapped; see `Docs/Overview.md`'s
+// "FFI / bindings strategy".
 
 /// A physical/logical transport a hardware device can be reached over.
-public enum HardwareTransportKind: Equatable, CaseIterable, Codable {
-    /// A wired USB connection.
-    case usb
-
-    /// A Bluetooth connection.
-    case bluetooth
-
-    /// An air-gapped connection via QR code exchange (no direct
-    /// electrical/radio link to the device).
-    case qrAirGap
-}
+@_exported import enum WalletKitRust.HardwareTransportKind
 
 /// A piece of input a hardware device is asking the user to provide,
 /// relayed to the app via ``HardwareDeviceDelegate``.
-public enum HardwareInputRequest: Equatable {
-    /// The device wants its PIN entered. `attempt` is the 1-based attempt
-    /// number for this unlock session.
-    case pin(attempt: UInt32)
-
-    /// The device wants a BIP39 passphrase (the "25th word") entered.
-    case passphrase
-}
+@_exported import enum WalletKitRust.HardwareInputRequest
 
 /// A physical confirmation the device is waiting for the user to perform
 /// on its own screen/buttons, relayed to the app via
 /// ``HardwareDeviceDelegate`` so the UI can show "check your device"-style
 /// messaging.
-public enum HardwareButtonRequest: Equatable {
-    /// The device is showing an address for the user to visually confirm.
-    case confirmAddress
-
-    /// The device is showing a public key for the user to visually
-    /// confirm.
-    case confirmPublicKey
-
-    /// The device is showing transaction details for the user to review
-    /// and approve.
-    case confirmTransaction
-
-    /// Some other on-device confirmation not covered by the other cases,
-    /// with a human-readable description of what's being confirmed.
-    case other(description: String)
-}
+@_exported import enum WalletKitRust.HardwareButtonRequest

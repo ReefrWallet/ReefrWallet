@@ -13,8 +13,10 @@
 //!                   Blockchain, DerivationPath, BigIntFfi
 //!   keys/           Mnemonic, Seed, ExtendedKey, PublicKey, PrivateKey
 //!   accounts/       KeySource, Account — not implemented yet
-//!   hardware/       HardwareVendor, HardwareTransportKind, HardwareDevice, ...
-//!                   — not implemented yet
+//!   hardware/       HardwareVendorFfi, HardwareTransportKind,
+//!                   HardwareDeviceInfoFfi, HardwareDeviceFfi,
+//!                   HardwareDeviceManagerFfi, HardwareDeviceDelegateFfi —
+//!                   Trezor over USB (macOS only)
 //!   blockchain_clients/  Signer, BlockchainAddress; EthereumSigner,
 //!                   EthereumAddress — implemented (Alloy-backed), including
 //!                   the decode/signature/encode seam a hardware-backed
@@ -27,7 +29,7 @@ mod accounts;
 pub mod blockchain_clients;
 pub mod common;
 pub mod errors;
-mod hardware;
+pub mod hardware;
 pub mod keys;
 #[cfg(test)]
 mod test_vectors;

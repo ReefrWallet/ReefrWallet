@@ -6,6 +6,8 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import class WalletKitRust.HardwareDeviceManagerFfi
+
 /// Discovers and connects to hardware wallets.
 public protocol HardwareDeviceManagerProtocol: AnyObject {
     /// Scans for connected/reachable hardware devices.
@@ -26,13 +28,13 @@ public protocol HardwareDeviceManagerProtocol: AnyObject {
     func connect(_ info: HardwareDeviceInfo, delegate: HardwareDeviceDelegate) async throws -> HardwareDevice
 }
 
-/// Discovers and connects to hardware wallets.
-///
-/// - Note: No real transport (USB/Bluetooth) integration exists yet —
-///   ``scan(vendors:transports:)`` always succeeds with an empty result,
-///   and ``connect(_:delegate:)`` always throws
-///   ``WalletKitError/deviceNotFound``.
+/// Discovers and connects to hardware wallets. Trezor is the only vendor
+/// wired up today, over USB — and only on macOS, since Trezor devices
+/// aren't MFi-certified and iOS has no generic USB HID access without it
+/// (see `Docs/Overview.md`'s "Transport and platform constraints").
 public final class HardwareDeviceManager: HardwareDeviceManagerProtocol {
+    private let raw = HardwareDeviceManagerFfi()
+
     public init() {}
 
     /// Scans for connected/reachable hardware devices.
@@ -42,20 +44,18 @@ public final class HardwareDeviceManager: HardwareDeviceManagerProtocol {
     ///     supported vendor.
     ///   - transports: Which transports to scan over. Must be non-empty.
     ///     Defaults to USB and Bluetooth.
-    /// - Returns: Info for every discovered device. Currently always empty
-    ///   — see the type-level note.
+    /// - Returns: Info for every discovered device.
     /// - Throws: ``WalletKitError/transportUnavailable(reason:)`` if
-    ///   `transports` is empty.
+    ///   `transports` is empty, or if USB isn't supported on this
+    ///   platform.
     public func scan(
         vendors: [HardwareVendor] = HardwareVendor.allCases,
         transports: [HardwareTransportKind] = [.usb, .bluetooth]
     ) async throws -> [HardwareDeviceInfo] {
-        guard !transports.isEmpty else {
-            throw WalletKitError.transportUnavailable(reason: "no transports requested")
+        let infos = try await remappingWalletKitError {
+            try await raw.scan(vendors: vendors.map(\.raw), transports: transports)
         }
-        // No real transport (USB/Bluetooth) integration yet, so nothing is
-        // ever discovered — correct behavior with no device connected.
-        return []
+        return infos.map(HardwareDeviceInfo.init(raw:))
     }
 
     /// Connects to a previously discovered device.
@@ -65,9 +65,15 @@ public final class HardwareDeviceManager: HardwareDeviceManagerProtocol {
     ///   - delegate: The delegate to relay input/confirmation requests and
     ///     disconnection events to.
     /// - Returns: The connected device.
-    /// - Throws: Currently always throws
-    ///   ``WalletKitError/deviceNotFound`` — see the type-level note.
+    /// - Throws: ``WalletKitError/deviceNotFound`` if `info` doesn't match
+    ///   a device from a preceding ``scan`` call, or another
+    ///   hardware-wallet ``WalletKitError`` case if the connection
+    ///   handshake fails.
     public func connect(_ info: HardwareDeviceInfo, delegate: HardwareDeviceDelegate) async throws -> HardwareDevice {
-        throw WalletKitError.deviceNotFound
+        let adapter = HardwareDeviceDelegateAdapter(delegate: delegate)
+        let rawDevice = try await remappingWalletKitError { try await raw.connect(info: info.raw, delegate: adapter) }
+        let device = HardwareDevice(raw: rawDevice, delegateAdapter: adapter)
+        adapter.device = device
+        return device
     }
 }
