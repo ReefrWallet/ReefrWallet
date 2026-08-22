@@ -21,6 +21,7 @@ public enum EthereumABIValue {
     case address(EthereumAddress)
     case uint256(BigUInt)
     case bool(Bool)
+    case bytes32(Data)
 
     var word: Data {
         switch self {
@@ -33,6 +34,10 @@ public enum EthereumABIValue {
             return Data(repeating: 0, count: 32 - bytes.count) + bytes
         case .bool(let value):
             return Data(repeating: 0, count: 31) + Data([value ? 1 : 0])
+        case .bytes32(let value):
+            // Precondition: value is exactly 32 bytes — the caller's
+            // responsibility, e.g. an already-32-byte ENS namehash.
+            return value
         }
     }
 }
@@ -104,5 +109,74 @@ public enum EthereumABI {
     /// Decodes a 32-byte word as a boolean — non-zero is `true`.
     public static func decodeBool(_ word: Data) -> Bool {
         word.last != 0
+    }
+
+    /// Decodes ABI return data as a dynamic `string` — the
+    /// offset/length/UTF-8-bytes encoding Solidity uses for a function
+    /// that returns `string` (e.g. ERC-20's `name()`/`symbol()`).
+    ///
+    /// - Throws: ``BlockchainClientError/decodingFailed(reason:)`` if
+    ///   `data` is too short, its offset or length point outside of
+    ///   `data`, or the string bytes aren't valid UTF-8.
+    public static func decodeString(_ data: Data) throws -> String {
+        guard data.count >= 64,
+              let offset = Int(exactly: decodeUInt256(data[data.startIndex..<data.startIndex + 32]))
+        else {
+            throw BlockchainClientError.decodingFailed(reason: "string return data too short or has an invalid offset")
+        }
+
+        let lengthStart = data.startIndex + offset
+        guard lengthStart + 32 <= data.endIndex,
+              let length = Int(exactly: decodeUInt256(data[lengthStart..<lengthStart + 32]))
+        else {
+            throw BlockchainClientError.decodingFailed(reason: "string return data has an invalid length offset")
+        }
+
+        let stringStart = lengthStart + 32
+        guard stringStart + length <= data.endIndex else {
+            throw BlockchainClientError.decodingFailed(reason: "string return data has an invalid length")
+        }
+
+        guard let string = String(data: data[stringStart..<stringStart + length], encoding: .utf8) else {
+            throw BlockchainClientError.decodingFailed(reason: "string return data isn't valid UTF-8")
+        }
+
+        return string
+    }
+
+    /// Decodes ABI return data as a dynamic signed-integer array (e.g.
+    /// `int56[]`/`int256[]`) — the offset/length/elements encoding
+    /// Solidity uses for any dynamic array return, decoding each element
+    /// as a full 32-byte two's-complement word regardless of its declared
+    /// width (Uniswap V3's `observe(uint32[])` returns `int56[]
+    /// tickCumulatives`, which — like any narrower-than-256-bit integer —
+    /// is still ABI-encoded one word per element).
+    ///
+    /// - Throws: ``BlockchainClientError/decodingFailed(reason:)`` if
+    ///   `data` is too short, or its offset or length point outside of
+    ///   `data`.
+    public static func decodeInt256Array(_ data: Data) throws -> [BigInt] {
+        guard data.count >= 64,
+              let offset = Int(exactly: decodeUInt256(data[data.startIndex..<data.startIndex + 32]))
+        else {
+            throw BlockchainClientError.decodingFailed(reason: "array return data too short or has an invalid offset")
+        }
+
+        let lengthStart = data.startIndex + offset
+        guard lengthStart + 32 <= data.endIndex,
+              let length = Int(exactly: decodeUInt256(data[lengthStart..<lengthStart + 32]))
+        else {
+            throw BlockchainClientError.decodingFailed(reason: "array return data has an invalid length offset")
+        }
+
+        let elementsStart = lengthStart + 32
+        guard elementsStart + length * 32 <= data.endIndex else {
+            throw BlockchainClientError.decodingFailed(reason: "array return data has an invalid length")
+        }
+
+        return (0..<length).map { index in
+            let start = elementsStart + index * 32
+            return decodeInt256(data[start..<start + 32])
+        }
     }
 }

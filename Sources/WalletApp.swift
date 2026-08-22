@@ -19,8 +19,10 @@ import SwiftUI
         .commandsRemoved()
         .modelContainer(databaseService.modelContainer)
 
+        #if os(macOS)
         Settings {
             SettingsView()
         }
+        #endif
     }
 }

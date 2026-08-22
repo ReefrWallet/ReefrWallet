@@ -20,7 +20,7 @@ final class KeyStoreService {
     func addLocalKey(_ mnemonic: Mnemonic) async throws {
         let rawKey = mnemonic.toSeed().exportRaw()
         let keyStore = KeyStore(.local, name: "Key Store", rawKey: rawKey)
-        try await databaseService.saveKeyStore(keyStore)
+        try await databaseService.insertKeyStore(keyStore)
     }
 
     @MainActor
@@ -33,7 +33,7 @@ final class KeyStoreService {
         }
 
         let keyStore = KeyStore(device)
-        try await databaseService.saveKeyStore(keyStore)
+        try await databaseService.insertKeyStore(keyStore)
     }
 
     func generateSeedPhrase() -> String {

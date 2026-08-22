@@ -36,6 +36,11 @@ private let systemPackageAddress = try! SuiAddress(
     string: "0x0000000000000000000000000000000000000000000000000000000000000002"
 )
 
+// Circle's official native-USDC coin type on Sui testnet — a stable,
+// well-known coin whose metadata (name, symbol, decimals) is known ahead of
+// time, unlike an arbitrary coin type.
+private let usdcCoinType = "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC"
+
 @Suite(.timeLimit(.minutes(1)))
 struct SuiGRPCClientTests {
     private let client = SuiGRPCClient(host: "fullnode.testnet.sui.io")
@@ -43,6 +48,15 @@ struct SuiGRPCClientTests {
     @Test func nativeBalanceSucceedsAgainstTheLiveTestnet() async throws {
         await withKnownIssue("requires network access to Sui's testnet gRPC full node", isIntermittent: true) {
             _ = try await client.nativeBalance(of: systemPackageAddress)
+        }
+    }
+
+    @Test func coinInfoFetchesUSDCsMetadataFromTheLiveTestnet() async throws {
+        await withKnownIssue("requires network access to Sui's testnet gRPC full node", isIntermittent: true) {
+            let info = try await client.coinInfo(coinType: usdcCoinType)
+            #expect(info.name == "USDC")
+            #expect(info.symbol == "USDC")
+            #expect(info.decimals == 6)
         }
     }
 

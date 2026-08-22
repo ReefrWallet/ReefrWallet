@@ -16,11 +16,11 @@ public extension URLSessionConfiguration {
         configuration.connectionProxyDictionary = [
             kCFNetworkProxiesHTTPEnable: NSNumber(value: true),
             kCFNetworkProxiesHTTPProxy: host,
-            kCFNetworkProxiesHTTPPort: NSNumber(value: port),
+            kCFNetworkProxiesHTTPPort: NSNumber(value: port)
             // Add HTTPS proxy settings if needed
-            kCFNetworkProxiesHTTPSProxy: host,
+            /* kCFNetworkProxiesHTTPSProxy: host,
             kCFNetworkProxiesHTTPSEnable: NSNumber(value: true),
-            kCFNetworkProxiesHTTPSPort: NSNumber(value: port)
+            kCFNetworkProxiesHTTPSPort: NSNumber(value: port) */
         ] as CFDictionary as? [String: Any]
 
         return configuration

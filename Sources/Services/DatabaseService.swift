@@ -104,23 +104,27 @@ actor DatabaseService {
         return try modelContext.fetch(descriptor).first
     }
 
-    func saveAccount(_ account: Account) throws {
+    func insertAccount(_ account: Account) throws {
         modelContext.insert(account)
         try modelContext.save()
     }
 
-    func saveBlockchainConfig(_ blockchainConfig: BlockchainConfig) throws {
+    func insertBlockchainConfig(_ blockchainConfig: BlockchainConfig) throws {
         modelContext.insert(blockchainConfig)
         try modelContext.save()
     }
 
-    func saveKeyStore(_ keyStore: KeyStore) throws {
+    func insertKeyStore(_ keyStore: KeyStore) throws {
         modelContext.insert(keyStore)
         try modelContext.save()
     }
 
-    func saveToken(_ token: Token) throws {
+    func insertToken(_ token: Token) throws {
         modelContext.insert(token)
+        try modelContext.save()
+    }
+
+    func saveChanges() throws {
         try modelContext.save()
     }
 

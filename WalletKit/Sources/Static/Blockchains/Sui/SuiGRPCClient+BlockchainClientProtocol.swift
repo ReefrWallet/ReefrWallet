@@ -28,6 +28,10 @@ extension SuiGRPCClient: BlockchainClientProtocol {
         return BigUInt(try await nativeBalance(of: owner))
     }
 
+    public func getTokenInfo(_ token: String) async throws -> TokenInfo {
+        try await coinInfo(coinType: token)
+    }
+
     public func isActiveAccount(_ owner: String) async throws -> Bool {
         let owner = try SuiAddress(string: owner)
         let ownedObjects = try await getOwnedObjects(owner)

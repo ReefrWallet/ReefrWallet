@@ -23,7 +23,7 @@ mod ethereum_signer;
 mod sui_address;
 mod sui_signer;
 
-pub use ethereum_abi::ethereum_function_selector;
+pub use ethereum_abi::{ethereum_function_selector, ethereum_keccak256};
 pub use ethereum_address::EthereumAddressFfi;
 pub use ethereum_signer::{EthereumSignTxFfi, EthereumSignatureFfi, EthereumSignerFfi};
 pub use sui_address::SuiAddressFfi;

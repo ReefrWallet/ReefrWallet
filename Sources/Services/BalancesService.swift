@@ -50,7 +50,7 @@ final class BalancesService {
             storedKeyStore.accounts?.append(newAccount)
         } while true
 
-        try await databaseService.saveKeyStore(storedKeyStore)
+        try await databaseService.saveChanges()
     }
 
     @MainActor
@@ -63,7 +63,7 @@ final class BalancesService {
             try await updateTokenBalances(account)
         }
 
-        try await databaseService.saveAccount(account)
+        try await databaseService.saveChanges()
     }
 }
 
@@ -79,21 +79,21 @@ private extension BalancesService {
             if let token {
                 account.setBalance(of: token, amount: amount)
             } else {
-                // FIXME: get coin data
+                let tokenInfo = try await client.getTokenInfo(tokenAddress)
                 let token = Token(
                     address: tokenAddress,
                     blockchain: account.blockchainConfig,
-                    decimalsCount: 8,
+                    decimalsCount: tokenInfo.decimals,
                     isNativeToken: false,
-                    name: "New token",
-                    symbol: "NEW"
+                    name: tokenInfo.name,
+                    symbol: tokenInfo.symbol
                 )
 
                 account.setBalance(of: token, amount: amount)
             }
         }
 
-        try await databaseService.saveAccount(account)
+        try await databaseService.saveChanges()
     }
 
     func updateTokenBalances(_ account: Account) async throws {
@@ -111,6 +111,6 @@ private extension BalancesService {
             account.setBalance(of: token, amount: amount)
         }
 
-        try await databaseService.saveAccount(account)
+        try await databaseService.saveChanges()
     }
 }

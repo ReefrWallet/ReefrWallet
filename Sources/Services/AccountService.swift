@@ -19,7 +19,7 @@ final class AccountService {
     ) async throws -> Account {
         let storedKeyStore = try await databaseService.fetchKeyStore(id: keyStore.id)
         let blockchainConfig = try await blockchainConfigService.getConfig(for: blockchain)
-        let accountIndex = keyStore.nextAccountIndex(blockchain)
+        let accountIndex = storedKeyStore.nextAccountIndex(blockchain)
         let name = "\(blockchainConfig.displayName) #\(accountIndex + 1)"
 
         let account = Account(
@@ -31,11 +31,11 @@ final class AccountService {
         )
 
         // Figure out and save own address and derivation path
-        switch keyStore.kind {
+        switch storedKeyStore.kind {
         case .local:
             try setLocalAddress(account)
         case .trezor:
-            guard let deviceId = keyStore.deviceId else {
+            guard let deviceId = storedKeyStore.deviceId else {
                 printError("Missing device id")
                 throw Error.invalidData
             }
@@ -47,7 +47,7 @@ final class AccountService {
         }
 
         storedKeyStore.accounts?.append(account)
-        try await databaseService.saveKeyStore(storedKeyStore)
+        try await databaseService.saveChanges()
 
         return account
     }

@@ -13,6 +13,23 @@ import Testing
 // swiftlint:disable:next force_try
 private let someAddress = try! EthereumAddress(rawBytes: Data((1...20).map(UInt8.init)))
 
+/// Left-pads `data` to one 32-byte ABI word.
+private func word(_ data: Data) -> Data {
+    Data(repeating: 0, count: 32 - data.count) + data
+}
+
+/// A 32-byte ABI word encoding `value` as an unsigned big-endian integer.
+private func word(_ value: BigUInt) -> Data {
+    word(value.serialize())
+}
+
+/// A 32-byte ABI word encoding `value` as a two's-complement signed integer
+/// — computed independently of `EthereumABI.decodeInt256`.
+private func word(_ value: BigInt) -> Data {
+    guard value.sign == .minus else { return word(value.magnitude) }
+    return word((BigUInt(1) << 256) - value.magnitude)
+}
+
 struct EthereumABITests {
     // MARK: - selector
 
@@ -54,6 +71,11 @@ struct EthereumABITests {
     @Test func boolWordIsZeroOrOneInTheLastByte() {
         #expect(EthereumABIValue.bool(false).word == Data(repeating: 0, count: 32))
         #expect(EthereumABIValue.bool(true).word == Data(repeating: 0, count: 31) + Data([1]))
+    }
+
+    @Test func bytes32WordIsThePassedDataUnchanged() {
+        let node = Data(repeating: 0xAB, count: 32)
+        #expect(EthereumABIValue.bytes32(node).word == node)
     }
 
     // MARK: - words
@@ -125,5 +147,32 @@ struct EthereumABITests {
         var word = Data(repeating: 0, count: 32)
         word[31] = 1
         #expect(EthereumABI.decodeBool(word) == true)
+    }
+
+    // MARK: - decodeInt256Array
+
+    @Test func decodeInt256ArrayDecodesEachElementAsATwosComplementWord() throws {
+        let elements: [BigInt] = [5, -3]
+        let data = word(BigUInt(32)) + word(BigUInt(elements.count)) + word(elements[0]) + word(elements[1])
+        #expect(try EthereumABI.decodeInt256Array(data) == elements)
+    }
+
+    @Test func decodeInt256ArrayOfZeroLengthIsEmpty() throws {
+        let data = word(BigUInt(32)) + word(BigUInt(0))
+        #expect(try EthereumABI.decodeInt256Array(data).isEmpty)
+    }
+
+    @Test func decodeInt256ArrayThrowsOnDataTooShortForTheOffsetWord() {
+        #expect(throws: BlockchainClientError.self) {
+            _ = try EthereumABI.decodeInt256Array(Data(repeating: 0, count: 32))
+        }
+    }
+
+    @Test func decodeInt256ArrayThrowsWhenTheDeclaredLengthExceedsAvailableData() {
+        // Declares 2 elements but supplies none.
+        let data = word(BigUInt(32)) + word(BigUInt(2))
+        #expect(throws: BlockchainClientError.self) {
+            _ = try EthereumABI.decodeInt256Array(data)
+        }
     }
 }

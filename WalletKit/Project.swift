@@ -91,7 +91,11 @@ let walletKitTestsMac: Target = .target(
     // See the matching comment on `walletKit` above — this target links
     // SuiGRPCClient's own test bundle, independently of WalletKit's link
     // settings.
-    settings: .settings(base: ["OTHER_LDFLAGS": ["-lc++"]])
+    settings: .settings(base: [
+        "ENABLE_MODULE_VERIFIER": true,
+        "ENABLE_USER_SCRIPT_SANDBOXING": false,
+        "OTHER_LDFLAGS": ["-lc++"]
+    ])
 )
 
 /* let walletKitTestsIOS: Target = .target(

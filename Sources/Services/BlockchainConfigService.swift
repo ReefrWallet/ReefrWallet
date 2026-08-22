@@ -44,7 +44,7 @@ final class BlockchainConfigService {
         }
 
         if let config = configuredBlockchains.first(where: { $0.blockchain == blockchain }) {
-            try await databaseService.saveBlockchainConfig(config)
+            try await databaseService.insertBlockchainConfig(config)
         } else {
             throw Error.notFound
         }

@@ -73,6 +73,26 @@ public struct SuiGRPCClient {
         }
     }
 
+    /// Reads `coinType`'s metadata — name, symbol, and decimals.
+    ///
+    /// - Parameter coinType: The coin type, e.g. `"0x2::sui::SUI"`.
+    /// - Returns: The coin's metadata.
+    /// - Throws: ``BlockchainClientError`` on a transport, RPC, or
+    ///   decoding failure.
+    public func coinInfo(coinType: String = "0x2::sui::SUI") async throws -> TokenInfo {
+        try await withStateServiceClient { client in
+            let request = Sui_Rpc_V2_GetCoinInfoRequest.with {
+                $0.coinType = coinType
+            }
+            let response = try await client.getCoinInfo(request: ClientRequest(message: request))
+            return TokenInfo(
+                name: response.metadata.name,
+                symbol: response.metadata.symbol,
+                decimals: UInt8(response.metadata.decimals)
+            )
+        }
+    }
+
     /// Reads `address`'s native SUI balance —
     /// ``coinBalance(of:coinType:)`` with the default `"0x2::sui::SUI"`
     /// coin type.

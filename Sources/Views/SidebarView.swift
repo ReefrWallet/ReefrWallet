@@ -222,7 +222,7 @@ private extension SidebarView {
                             do {
                                 let storedAccount = try await databaseService.fetchAccount(id: account.id)
                                 storedAccount.name = editingName
-                                try await databaseService.saveAccount(storedAccount)
+                                try await databaseService.saveChanges()
                             } catch {
                                 printError(error)
                             }
@@ -289,7 +289,7 @@ private extension SidebarView {
                             do {
                                 let storedKeyStore = try await databaseService.fetchKeyStore(id: keyStore.id)
                                 storedKeyStore.name = editingName
-                                try await databaseService.saveKeyStore(storedKeyStore)
+                                try await databaseService.saveChanges()
                             } catch {
                                 printError(error)
                             }

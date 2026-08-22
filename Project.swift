@@ -23,7 +23,11 @@ let project = Project(
                 .external(name: "SwiftyBeaver"),
                 .project(target: "WalletKit", path: "WalletKit")
             ],
-            settings: .settings(base: ["OTHER_LDFLAGS": ["-lc++"]])
+            settings: .settings(base: [
+                "ENABLE_MODULE_VERIFIER": true,
+                "ENABLE_USER_SCRIPT_SANDBOXING": false,
+                "OTHER_LDFLAGS": ["-lc++"]
+            ])
         ),
         .target(
             name: "ReefrWalletTests-macOS",

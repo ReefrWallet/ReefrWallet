@@ -6,6 +6,8 @@ import PackageDescription
 
     let packageSettings = PackageSettings(
         baseSettings: .settings(base: [
+            "ENABLE_MODULE_VERIFIER": true,
+            "ENABLE_USER_SCRIPT_SANDBOXING": false,
             "IPHONEOS_DEPLOYMENT_TARGET": "18.0",
             "MACOSX_DEPLOYMENT_TARGET": "15.0",
             "OTHER_LIBTOOLFLAGS": "-no_warning_for_no_symbols",
