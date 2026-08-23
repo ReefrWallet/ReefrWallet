@@ -6,15 +6,18 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
 import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2Posix
+import SwiftProtobuf
 import WalletKitGRPC
 
-/// A client for Sui's gRPC full-node API — coin balance and broadcasting
-/// an already-signed transaction. Pairs with ``SuiPKeySigner``, which
-/// produces the raw BCS transaction bytes and signature ``broadcast(transactionData:signature:)``
-/// sends; this client builds no transactions of its own.
+/// A client for Sui's gRPC full-node API — coin balance, arbitrary
+/// object reads, and broadcasting an already-signed transaction. Pairs
+/// with ``SuiPKeySigner``, which produces the raw BCS transaction bytes
+/// and signature ``broadcast(transactionData:signature:)`` sends; this
+/// client builds no transactions of its own.
 ///
 /// Sui's node API is gRPC (`sui.rpc.v2`, vendored as the
 /// `Sources/gRPC/sui-rpc-api-v2` submodule and compiled by `make sui-grpc`
@@ -122,6 +125,109 @@ public struct SuiGRPCClient {
         }
     }
 
+    /// Reads a Move object's on-chain state directly — the general
+    /// "read arbitrary object data" entry point. ``cetusPoolPrice(pool:token:)``
+    /// is a worked example built on this; a caller with a different
+    /// object interprets `object.json`/`object.objectType`/
+    /// `object.contents` itself. Unlike
+    /// ``EthereumRPCClient/call(to:data:)``, this needs no simulated
+    /// execution — a Sui object's fields are plain on-chain data,
+    /// directly queryable, not storage a getter function has to run
+    /// against.
+    ///
+    /// - Parameters:
+    ///   - id: The object's ID.
+    ///   - readMask: Which of the object's fields to populate, e.g.
+    ///     `["json", "object_type"]`. Defaults to the node's own default
+    ///     (`object_id,version,digest`) when empty.
+    /// - Returns: The object.
+    /// - Throws: ``BlockchainClientError`` on a transport, RPC, or
+    ///   decoding failure.
+    public func object(id: String, readMask: [String] = []) async throws -> Sui_Rpc_V2_Object {
+        try await withLedgerServiceClient { client in
+            let request = Sui_Rpc_V2_GetObjectRequest.with {
+                $0.objectID = id
+                if !readMask.isEmpty {
+                    $0.readMask = Google_Protobuf_FieldMask.with { $0.paths = readMask }
+                }
+            }
+            let response = try await client.getObject(request: ClientRequest(message: request))
+            return response.object
+        }
+    }
+
+    /// Reads a Cetus CLMM pool's current spot price for `token`, in
+    /// terms of the pool's other coin — Cetus's `current_sqrt_price`, a
+    /// Q64.64 fixed-point value read directly off the shared
+    /// `Pool<CoinTypeA, CoinTypeB>` object via ``object(id:readMask:)``.
+    ///
+    /// - Note: This is Cetus's *current* price, not a time-weighted
+    ///   average the way ``EthereumRPCClient/uniswapV3TWAPPrice(token:pool:period:)``
+    ///   reads Uniswap V3's — Cetus doesn't publish a verified, stable
+    ///   single-call on-chain TWAP read analogous to Uniswap V3's
+    ///   `observe(uint32[])`.
+    ///
+    /// - Parameters:
+    ///   - pool: The Cetus `Pool` object's ID.
+    ///   - token: The coin type to price, e.g. `"0x2::sui::SUI"` — must
+    ///     match one of the pool's two generic coin type arguments
+    ///     (short or long address form; both are normalized before
+    ///     comparing).
+    /// - Returns: The current price of one (human-unit) `token`, in
+    ///   human-unit terms of the pool's other coin.
+    /// - Throws: ``BlockchainClientError/decodingFailed(reason:)`` if
+    ///   `token` matches neither of the pool's coin types, the object
+    ///   isn't a `Pool<CoinTypeA, CoinTypeB>`, or it has no readable
+    ///   `current_sqrt_price`, or ``BlockchainClientError`` on a
+    ///   transport, RPC, or other decoding failure.
+    public func cetusPoolPrice(pool: String, token: String) async throws -> Double {
+        let poolObject = try await object(id: pool, readMask: ["object_type", "json"])
+
+        let coinTypes = try MoveTypeTag.genericTypeArguments(of: poolObject.objectType)
+        guard coinTypes.count == 2 else {
+            throw BlockchainClientError.decodingFailed(
+                reason: "expected a Pool<CoinTypeA, CoinTypeB> object, got \(poolObject.objectType)"
+            )
+        }
+
+        let coinTypeA = try MoveTypeTag.canonicalCoinType(coinTypes[0])
+        let coinTypeB = try MoveTypeTag.canonicalCoinType(coinTypes[1])
+        let normalizedToken = try MoveTypeTag.canonicalCoinType(token)
+
+        guard normalizedToken == coinTypeA || normalizedToken == coinTypeB else {
+            throw BlockchainClientError.decodingFailed(reason: "token is neither of the pool's two coin types")
+        }
+
+        guard case .stringValue(let sqrtPriceString)? = poolObject.json.structValue.fields["current_sqrt_price"]?.kind,
+              let sqrtPriceX64 = BigUInt(sqrtPriceString)
+        else {
+            throw BlockchainClientError.decodingFailed(reason: "pool object has no readable current_sqrt_price")
+        }
+
+        async let coinACall = coinInfo(coinType: coinTypeA)
+        async let coinBCall = coinInfo(coinType: coinTypeB)
+        let coinADecimals = try await coinACall.decimals
+        let coinBDecimals = try await coinBCall.decimals
+
+        // Decimals relative to `token`/its quote coin, not fixed to
+        // coinA/coinB order — the adjustment's sign has to flip along
+        // with the price direction below, the same way
+        // `EthereumRPCClient.uniswapV3TWAPPrice`'s does.
+        let tokenDecimals = normalizedToken == coinTypeA ? coinADecimals : coinBDecimals
+        let quoteDecimals = normalizedToken == coinTypeA ? coinBDecimals : coinADecimals
+
+        // Raw price of one smallest-unit of coinA in smallest-units of
+        // coinB; adjusting by each side's decimals gives the
+        // human-readable price in the requested direction.
+        let sqrtPrice = Double(sqrtPriceX64) / pow(2, 64)
+        let rawCoinAInCoinB = sqrtPrice * sqrtPrice
+        let decimalsAdjustment = pow(10, Double(Int(tokenDecimals) - Int(quoteDecimals)))
+
+        return normalizedToken == coinTypeA
+            ? rawCoinAInCoinB * decimalsAdjustment
+            : decimalsAdjustment / rawCoinAInCoinB
+    }
+
     /// Broadcasts an already-signed transaction.
     ///
     /// - Parameters:
@@ -171,6 +277,16 @@ public struct SuiGRPCClient {
         try await withRemappedErrors {
             try await withGRPCClient(transport: try transport()) { grpcClient in
                 try await body(Sui_Rpc_V2_StateService.Client(wrapping: grpcClient))
+            }
+        }
+    }
+
+    private func withLedgerServiceClient<Result: Sendable>(
+        _ body: @escaping (Sui_Rpc_V2_LedgerService.Client<HTTP2ClientTransport.Posix>) async throws -> Result
+    ) async throws -> Result {
+        try await withRemappedErrors {
+            try await withGRPCClient(transport: try transport()) { grpcClient in
+                try await body(Sui_Rpc_V2_LedgerService.Client(wrapping: grpcClient))
             }
         }
     }
