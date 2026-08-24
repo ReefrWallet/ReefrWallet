@@ -9,11 +9,11 @@
 //! folder maps to `common` here):
 //!
 //!   errors/         WalletKitError
-//!   common/         Curve, DerivationScheme, Wordlist, MnemonicWordCount,
-//!                   Blockchain, DerivationPath, BigIntFfi
+//!   common/         CurveFfi, DerivationScheme, Wordlist, MnemonicWordCount,
+//!                   BlockchainFfi, DerivationPath, BigIntFfi
 //!   keys/           Mnemonic, Seed, ExtendedKey, PublicKey, PrivateKey
 //!   accounts/       KeySource, Account — not implemented yet
-//!   hardware/       HardwareVendorFfi, HardwareTransportKind,
+//!   hardware/       HardwareVendorFfi, HardwareTransportKindFfi,
 //!                   HardwareDeviceInfoFfi, HardwareDeviceFfi,
 //!                   HardwareDeviceManagerFfi, HardwareDeviceDelegateFfi —
 //!                   Trezor over USB (macOS only)

@@ -123,7 +123,7 @@ public struct EthereumRPCClient {
             throw BlockchainClientError.decodingFailed(reason: "empty or invalid decimals() response")
         }
 
-        return TokenInfo(name: name, symbol: symbol, decimals: decimals)
+        return TokenInfo(decimals: decimals, name: name, isNative: false, symbol: symbol)
     }
 
     // swiftlint:disable force_try

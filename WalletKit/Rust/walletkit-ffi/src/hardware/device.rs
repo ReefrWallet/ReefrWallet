@@ -4,7 +4,7 @@ use walletkit_hardware as hw;
 
 use crate::{
     blockchain_clients::{EthereumSignTxFfi, EthereumSignatureFfi},
-    common::{BigIntFfi, Curve, DerivationPath},
+    common::{BigIntFfi, CurveFfi, DerivationPath},
     errors::WalletKitErrorFfi,
     keys::PublicKeyFfi,
 };
@@ -41,7 +41,7 @@ impl HardwareDeviceFfi {
     pub async fn public_key(
         &self,
         path: DerivationPath,
-        curve: Curve,
+        curve: CurveFfi,
     ) -> Result<Arc<PublicKeyFfi>, WalletKitErrorFfi> {
         let segments = to_hardware_segments(&path);
         let raw_bytes = self.inner.public_key(segments, to_hardware_curve(curve)).await?;
@@ -76,10 +76,10 @@ fn to_hardware_segments(path: &DerivationPath) -> Vec<hw::HardwarePathSegment> {
     path.segments.iter().map(|segment| hw::HardwarePathSegment { index: segment.index, hardened: segment.hardened }).collect()
 }
 
-fn to_hardware_curve(curve: Curve) -> hw::HardwareCurve {
+fn to_hardware_curve(curve: CurveFfi) -> hw::HardwareCurve {
     match curve {
-        Curve::Secp256k1 => hw::HardwareCurve::Secp256k1,
-        Curve::Ed25519 => hw::HardwareCurve::Ed25519,
+        CurveFfi::Secp256k1 => hw::HardwareCurve::Secp256k1,
+        CurveFfi::Ed25519 => hw::HardwareCurve::Ed25519,
     }
 }
 
@@ -116,8 +116,8 @@ mod tests {
 
     #[test]
     fn to_hardware_curve_maps_every_curve() {
-        assert_eq!(to_hardware_curve(Curve::Secp256k1), hw::HardwareCurve::Secp256k1);
-        assert_eq!(to_hardware_curve(Curve::Ed25519), hw::HardwareCurve::Ed25519);
+        assert_eq!(to_hardware_curve(CurveFfi::Secp256k1), hw::HardwareCurve::Secp256k1);
+        assert_eq!(to_hardware_curve(CurveFfi::Ed25519), hw::HardwareCurve::Ed25519);
     }
 
     #[test]

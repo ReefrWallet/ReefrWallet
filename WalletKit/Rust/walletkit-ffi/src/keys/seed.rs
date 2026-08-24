@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use zeroize::Zeroizing;
 
-use crate::common::Curve;
+use crate::common::CurveFfi;
 use crate::errors::WalletKitErrorFfi;
 use crate::keys::extended_key::ExtendedKeyFfi;
 
@@ -42,7 +42,7 @@ impl SeedFfi {
     }
 
     /// Derives the master `ExtendedKeyFfi` for the requested curve/scheme.
-    pub fn master_key(&self, curve: Curve) -> Arc<ExtendedKeyFfi> {
+    pub fn master_key(&self, curve: CurveFfi) -> Arc<ExtendedKeyFfi> {
         Arc::new(ExtendedKeyFfi::master(curve, self.raw_bytes.as_slice()))
     }
 
@@ -69,15 +69,15 @@ mod tests {
 
     #[test]
     fn master_key_supports_secp256k1() {
-        let key = seed().master_key(Curve::Secp256k1);
-        assert_eq!(key.curve(), Curve::Secp256k1);
+        let key = seed().master_key(CurveFfi::Secp256k1);
+        assert_eq!(key.curve(), CurveFfi::Secp256k1);
         assert_eq!(key.depth(), 0);
     }
 
     #[test]
     fn master_key_supports_ed25519() {
-        let key = seed().master_key(Curve::Ed25519);
-        assert_eq!(key.curve(), Curve::Ed25519);
+        let key = seed().master_key(CurveFfi::Ed25519);
+        assert_eq!(key.curve(), CurveFfi::Ed25519);
         assert_eq!(key.depth(), 0);
     }
 
@@ -94,8 +94,8 @@ mod tests {
         let original = seed();
         let restored = SeedFfi::from_raw_bytes(original.export_raw()).unwrap();
         assert_eq!(
-            restored.master_key(Curve::Secp256k1).public_key().raw_bytes(),
-            original.master_key(Curve::Secp256k1).public_key().raw_bytes()
+            restored.master_key(CurveFfi::Secp256k1).public_key().raw_bytes(),
+            original.master_key(CurveFfi::Secp256k1).public_key().raw_bytes()
         );
     }
 

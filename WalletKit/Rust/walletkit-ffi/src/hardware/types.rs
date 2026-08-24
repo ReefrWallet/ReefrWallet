@@ -1,11 +1,11 @@
 //! Plain data mirrors of `walletkit-hardware`'s vendor-agnostic types,
 //! exported as UniFFI Records/Enums. Most carry no `Ffi` suffix, the same
-//! way `common::Curve`/`common::DerivationPath` don't — see
+//! way `common::CurveFfi`/`common::DerivationPath` don't — see
 //! `common/mod.rs`'s doc comment. `HardwareVendorFfi`/
-//! `HardwareDeviceInfoFfi` are the exception: `WalletKit` hand-wraps them
-//! (`HardwareVendor`, `HardwareDeviceInfo`) rather than using them as-is,
-//! so — like `EthereumSignTxFfi`/`EthereumSignatureFfi` — they get the
-//! suffix.
+//! `HardwareDeviceInfoFfi`/`HardwareTransportKindFfi` are the exception:
+//! `WalletKit` hand-wraps them (`HardwareVendor`, `HardwareDeviceInfo`,
+//! `HardwareTransportKind`) rather than using them as-is, so — like
+//! `EthereumSignTxFfi`/`EthereumSignatureFfi` — they get the suffix.
 
 use walletkit_hardware as hw;
 
@@ -33,28 +33,28 @@ impl From<hw::HardwareVendor> for HardwareVendorFfi {
 
 /// A physical/logical transport a hardware device can be reached over.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
-pub enum HardwareTransportKind {
+pub enum HardwareTransportKindFfi {
     Usb,
     Bluetooth,
     QrAirGap,
 }
 
-impl From<HardwareTransportKind> for hw::HardwareTransportKind {
-    fn from(value: HardwareTransportKind) -> Self {
+impl From<HardwareTransportKindFfi> for hw::HardwareTransportKind {
+    fn from(value: HardwareTransportKindFfi) -> Self {
         match value {
-            HardwareTransportKind::Usb => hw::HardwareTransportKind::Usb,
-            HardwareTransportKind::Bluetooth => hw::HardwareTransportKind::Bluetooth,
-            HardwareTransportKind::QrAirGap => hw::HardwareTransportKind::QrAirGap,
+            HardwareTransportKindFfi::Usb => hw::HardwareTransportKind::Usb,
+            HardwareTransportKindFfi::Bluetooth => hw::HardwareTransportKind::Bluetooth,
+            HardwareTransportKindFfi::QrAirGap => hw::HardwareTransportKind::QrAirGap,
         }
     }
 }
 
-impl From<hw::HardwareTransportKind> for HardwareTransportKind {
+impl From<hw::HardwareTransportKind> for HardwareTransportKindFfi {
     fn from(value: hw::HardwareTransportKind) -> Self {
         match value {
-            hw::HardwareTransportKind::Usb => HardwareTransportKind::Usb,
-            hw::HardwareTransportKind::Bluetooth => HardwareTransportKind::Bluetooth,
-            hw::HardwareTransportKind::QrAirGap => HardwareTransportKind::QrAirGap,
+            hw::HardwareTransportKind::Usb => HardwareTransportKindFfi::Usb,
+            hw::HardwareTransportKind::Bluetooth => HardwareTransportKindFfi::Bluetooth,
+            hw::HardwareTransportKind::QrAirGap => HardwareTransportKindFfi::QrAirGap,
         }
     }
 }
@@ -65,7 +65,7 @@ impl From<hw::HardwareTransportKind> for HardwareTransportKind {
 pub struct HardwareDeviceInfoFfi {
     pub id: String,
     pub vendor: HardwareVendorFfi,
-    pub transport: HardwareTransportKind,
+    pub transport: HardwareTransportKindFfi,
     pub model: String,
     pub label: Option<String>,
     pub firmware_version: Option<String>,
@@ -149,8 +149,8 @@ mod tests {
 
     #[test]
     fn transport_kind_round_trips_through_the_hardware_crate_type() {
-        for kind in [HardwareTransportKind::Usb, HardwareTransportKind::Bluetooth, HardwareTransportKind::QrAirGap] {
-            assert_eq!(HardwareTransportKind::from(hw::HardwareTransportKind::from(kind)), kind);
+        for kind in [HardwareTransportKindFfi::Usb, HardwareTransportKindFfi::Bluetooth, HardwareTransportKindFfi::QrAirGap] {
+            assert_eq!(HardwareTransportKindFfi::from(hw::HardwareTransportKind::from(kind)), kind);
         }
     }
 
@@ -159,7 +159,7 @@ mod tests {
         let info = HardwareDeviceInfoFfi {
             id: "trezor-usb-0".to_string(),
             vendor: HardwareVendorFfi::Trezor,
-            transport: HardwareTransportKind::Usb,
+            transport: HardwareTransportKindFfi::Usb,
             model: "Trezor Model T".to_string(),
             label: Some("my trezor".to_string()),
             firmware_version: Some("2.6.0".to_string()),

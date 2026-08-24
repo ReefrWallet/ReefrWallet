@@ -11,7 +11,7 @@ import SwiftUI
 
 private let localRawKind = KeyStore.Kind.local.rawValue
 private let trezorRawKind = KeyStore.Kind.trezor.rawValue
-private let watchOnlyRawKind = KeyStore.Kind.trezor.rawValue
+private let watchOnlyRawKind = KeyStore.Kind.watchOnly.rawValue
 
 enum PresentedSheet: Identifiable {
     case addAccount(KeyStore)
@@ -41,19 +41,18 @@ struct SidebarView {
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
     @Query
-    var allAccounts: [Account]
+    var allAccounts: [AccountModel]
 
     @Query
-    var keyStores: [KeyStore]
+    var keyStores: [KeyStoreModel]
 
-    @Query(filter: #Predicate<KeyStore> { $0.rawKind == localRawKind })
-    var localKeyStores: [KeyStore]
+    @Query(filter: #Predicate<KeyStoreModel> { $0.rawKind == localRawKind })
+    var localKeyStores: [KeyStoreModel]
 
-    @Query(filter: #Predicate<KeyStore> { $0.rawKind == trezorRawKind })
-    var hardwareKeyStores: [KeyStore]
+    @Query(filter: #Predicate<KeyStoreModel> { $0.rawKind == trezorRawKind })
+    var hardwareKeyStores: [KeyStoreModel]
 
     private let databaseService = DI.injectOrFail(DatabaseService.self)
-    // private let priceService = DI.injectOrFail(PriceService.self)
 }
 
 // MARK: - View
@@ -89,14 +88,18 @@ extension SidebarView: View {
             addMenu
             updateMenu
         }
-        .alert("Confirm Delete Account", isPresented: $deleteAccountAlertPresented) {
+        .alert("Confirm Delete AccountModel", isPresented: $deleteAccountAlertPresented) {
             Button("Delete") {
                 if let deletingAccount {
                     sidebarSelection.wrappedValue = nil
 
                     Task {
                         do {
-                            try await databaseService.deleteAccount(deletingAccount)
+                            guard let accountId = deletingAccount.id else {
+                                preconditionFailure()
+                            }
+
+                            try await databaseService.deleteAccount(id: accountId)
                         } catch {
                             printError(error)
                         }
@@ -119,7 +122,11 @@ extension SidebarView: View {
 
                     Task {
                         do {
-                            try await databaseService.deleteKeyStore(deletingKeyStore)
+                            guard let keyStoreId = deletingKeyStore.id else {
+                                throw Error.notFound
+                            }
+
+                            try await databaseService.deleteKeyStore(id: keyStoreId)
                         } catch {
                             printError(error)
                         }
@@ -152,8 +159,13 @@ private extension SidebarView {
     var addMenu: some View {
         Menu {
             addKeyMenuItem
-            addAccountMenuItem(keyStore: selectedKeyStore)
+
+            if let selectedKeyStore {
+                try? addAccountMenuItem(keyStore: KeyStore(model: selectedKeyStore))
+            }
+
             Divider()
+
             addWatchOnlyAccountMenuItem
         } label: {
             Label("Add", systemImage: "plus")
@@ -164,7 +176,7 @@ private extension SidebarView {
         Button {
             addWatchOnlyAccount()
         } label: {
-            Label("Add Watch-Only Account", systemImage: "eye")
+            Label("Add Watch-Only AccountModel", systemImage: "eye")
         }
     }
 
@@ -184,13 +196,13 @@ private extension SidebarView {
                 presentSheet?(.addAccount(keyStore))
             }
         } label: {
-            Label("Add Blockchain Account", systemImage: "person.badge.plus")
+            Label("Add Blockchain AccountModel", systemImage: "person.badge.plus")
         }
         .disabled(keyStore == nil)
     }
 
     @ViewBuilder
-    func makeAccountContextMenu(_ account: Account) -> some View {
+    func makeAccountContextMenu(_ account: AccountModel) -> some View {
         Button {
             sidebarSelection.wrappedValue = account.id
             editingName = account.name
@@ -202,15 +214,19 @@ private extension SidebarView {
         Divider()
 
         Button {
-            deletingAccount = account
-            deleteAccountAlertPresented = true
+            do {
+                deletingAccount = try Account(model: account)
+                deleteAccountAlertPresented = true
+            } catch {
+                printError("Cannot initialize Account: \(error)")
+            }
         } label: {
             Label("Delete \"\(account.name)\"", systemImage: "trash")
                 .style(foreground: .red)
         }
     }
 
-    func makeAccountItem(_ account: Account) -> some View {
+    func makeAccountItem(_ account: AccountModel) -> some View {
         Label {
             if editingId == account.id {
                 TextField(account.name, text: $editingName)
@@ -220,9 +236,7 @@ private extension SidebarView {
 
                         Task {
                             do {
-                                let storedAccount = try await databaseService.fetchAccount(id: account.id)
-                                storedAccount.name = editingName
-                                try await databaseService.saveChanges()
+                                try await databaseService.renameAccount(id: account.id, name: editingName)
                             } catch {
                                 printError(error)
                             }
@@ -238,7 +252,7 @@ private extension SidebarView {
                 Text(account.name)
             }
         } icon: {
-            Image(account.blockchainConfig.systemImage)
+            account.blockchain.blockchain.logoImage
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 16, height: 16)
@@ -273,9 +287,9 @@ private extension SidebarView {
         }
     }
 
-    func makeKeyStoreItem(_ keyStore: KeyStore) -> some View {
+    func makeKeyStoreItem(_ keyStore: KeyStoreModel) -> some View {
         Section {
-            ForEach(keyStore.accounts?.sorted() ?? []) { account in
+            ForEach(keyStore.accounts.sorted()) { account in
                 makeAccountItem(account)
             }
         } header: {
@@ -287,9 +301,7 @@ private extension SidebarView {
 
                         Task {
                             do {
-                                let storedKeyStore = try await databaseService.fetchKeyStore(id: keyStore.id)
-                                storedKeyStore.name = editingName
-                                try await databaseService.saveChanges()
+                                try await databaseService.renameKeyStore(id: keyStore.id, name: editingName)
                             } catch {
                                 printError(error)
                             }
@@ -298,7 +310,7 @@ private extension SidebarView {
             } else if sidebarSelection.wrappedValue == keyStore.id {
                 Text(keyStore.name)
                     .contextMenu {
-                        makeKeyStoreContextMenu(keyStore)
+                        try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
                     }
                     .onTapGesture {
                         editingName = keyStore.name
@@ -307,7 +319,7 @@ private extension SidebarView {
             } else {
                 Text(keyStore.name)
                     .contextMenu {
-                        makeKeyStoreContextMenu(keyStore)
+                        try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
                     }
             }
         }
@@ -318,15 +330,15 @@ private extension SidebarView {
 // MARK: - Logic
 
 extension SidebarView {
-    var selectedAccount: Account? {
+    var selectedAccount: AccountModel? {
         allAccounts.first { $0.id == sidebarSelection.wrappedValue }
     }
 
-    var selectedKeyStore: KeyStore? {
+    var selectedKeyStore: KeyStoreModel? {
         keyStores.first { $0.id == sidebarSelection.wrappedValue }
     }
 
-    var watchOnlyKeyStore: KeyStore? {
+    var watchOnlyKeyStore: KeyStoreModel? {
         keyStores.first(where: \.isWatchOnly)
     }
 
@@ -342,7 +354,7 @@ extension SidebarView {
         }
     }
 
-    func makeKeysSection(_ title: String, keyStores: [KeyStore]) -> some View {
+    func makeKeysSection(_ title: String, keyStores: [KeyStoreModel]) -> some View {
         Section(title) {
             ForEach(keyStores) { keyStore in
                 makeKeyStoreItem(keyStore)
@@ -367,9 +379,9 @@ extension SidebarView {
         Task {
             let balancesService = DI.injectOrFail(BalancesService.self)
 
-            for account in allAccounts {
+            for accountModel in allAccounts {
                 do {
-                    try await balancesService.updateBalances(account)
+                    try await balancesService.updateBalances(Account(model: accountModel))
                 } catch {
                     printError(error)
                 }

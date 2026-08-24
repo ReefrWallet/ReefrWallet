@@ -89,9 +89,10 @@ public struct SuiGRPCClient {
             }
             let response = try await client.getCoinInfo(request: ClientRequest(message: request))
             return TokenInfo(
+                decimals: UInt8(response.metadata.decimals),
                 name: response.metadata.name,
-                symbol: response.metadata.symbol,
-                decimals: UInt8(response.metadata.decimals)
+                isNative: response.metadata.id == "0x2::sui::SUI", // 
+                symbol: response.metadata.symbol
             )
         }
     }

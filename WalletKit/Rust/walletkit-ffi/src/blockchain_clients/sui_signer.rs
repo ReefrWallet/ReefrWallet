@@ -8,7 +8,7 @@ use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 
 use crate::blockchain_clients::sui_address::SuiAddressFfi;
-use crate::common::Curve;
+use crate::common::CurveFfi;
 use crate::errors::WalletKitErrorFfi;
 use crate::keys::{PrivateKeyFfi, PublicKeyFfi};
 
@@ -23,10 +23,10 @@ const TRANSACTION_DATA_INTENT: [u8; 3] = [0, 0, 0];
 /// Scheme flag Sui prefixes a public key with before hashing — `0x00` for
 /// Ed25519, `0x01` for Secp256k1. (Sui defines further flags for schemes
 /// this crate doesn't support, e.g. Secp256r1/multisig.)
-fn scheme_flag(curve: Curve) -> u8 {
+fn scheme_flag(curve: CurveFfi) -> u8 {
     match curve {
-        Curve::Ed25519 => 0x00,
-        Curve::Secp256k1 => 0x01,
+        CurveFfi::Ed25519 => 0x00,
+        CurveFfi::Secp256k1 => 0x01,
     }
 }
 
@@ -42,21 +42,21 @@ fn blake2b_256(parts: &[&[u8]]) -> [u8; 32] {
     digest
 }
 
-/// Which signature scheme this signer's accounts use — the `Curve`
-/// carried by `Blockchain.sui(_:)`.
+/// Which signature scheme this signer's accounts use — the `CurveFfi`
+/// carried by `WKBlockchain.sui(_:)`.
 #[derive(Debug, Clone, Copy, uniffi::Object)]
 pub struct SuiSignerFfi {
-    curve: Curve,
+    curve: CurveFfi,
 }
 
 #[uniffi::export]
 impl SuiSignerFfi {
     #[uniffi::constructor]
-    pub fn new(curve: Curve) -> SuiSignerFfi {
+    pub fn new(curve: CurveFfi) -> SuiSignerFfi {
         SuiSignerFfi { curve }
     }
 
-    pub fn curve(&self) -> Curve {
+    pub fn curve(&self) -> CurveFfi {
         self.curve
     }
 
@@ -123,7 +123,7 @@ mod tests {
     use crate::common::{MnemonicWordCount, Wordlist};
     use crate::keys::{MnemonicFfi, PrivateKeyFfi};
 
-    fn public_key(curve: Curve) -> Arc<PublicKeyFfi> {
+    fn public_key(curve: CurveFfi) -> Arc<PublicKeyFfi> {
         MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English)
             .to_seed("".to_string())
             .master_key(curve)
@@ -132,10 +132,10 @@ mod tests {
 
     struct Vector {
         label: String,
-        /// `None` for schemes `Curve` doesn't have a case for yet (Sui's
+        /// `None` for schemes `CurveFfi` doesn't have a case for yet (Sui's
         /// secp256r1) — those vectors carry no private key exercise, only
         /// a public key/address pair (see `secp256r1_vectors...` below).
-        curve: Option<Curve>,
+        curve: Option<CurveFfi>,
         private_key: Vec<u8>,
         public_key: Vec<u8>,
         address: String,
@@ -152,8 +152,8 @@ mod tests {
             .iter()
             .map(|entry| {
                 let curve = match entry["scheme"].as_str().unwrap() {
-                    "ed25519" => Some(Curve::Ed25519),
-                    "secp256k1" => Some(Curve::Secp256k1),
+                    "ed25519" => Some(CurveFfi::Ed25519),
+                    "secp256k1" => Some(CurveFfi::Secp256k1),
                     "secp256r1" => None,
                     other => panic!("unexpected scheme {other} in sui-address.json"),
                 };
@@ -175,7 +175,7 @@ mod tests {
         for vector in vectors() {
             // secp256r1 vectors are covered by
             // `secp256r1_vectors_match_the_flag_tagged_address_formula`
-            // instead — `Curve` has no case for that scheme yet, so there's
+            // instead — `CurveFfi` has no case for that scheme yet, so there's
             // no `PrivateKeyFfi`/`SuiSignerFfi` to drive through here.
             let Some(curve) = vector.curve else { continue };
 
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn secp256r1_vectors_match_the_flag_tagged_address_formula() {
-        // `Curve`/`PrivateKeyFfi` don't support secp256r1 (Sui's third
+        // `CurveFfi`/`PrivateKeyFfi` don't support secp256r1 (Sui's third
         // scheme) yet, so this can't derive the public key from the
         // vector's private key the way the ed25519/secp256k1 case above
         // does. It still checks the part that doesn't need curve support:
@@ -224,34 +224,34 @@ mod tests {
 
     #[test]
     fn address_matches_independently_computed_blake2b_hash_for_ed25519() {
-        let signer = SuiSignerFfi::new(Curve::Ed25519);
-        let key = public_key(Curve::Ed25519);
+        let signer = SuiSignerFfi::new(CurveFfi::Ed25519);
+        let key = public_key(CurveFfi::Ed25519);
         let address = signer.address(key.clone()).unwrap();
         assert_eq!(address.raw_bytes(), blake2b_256(&[&[0x00], &key.raw_bytes()]));
     }
 
     #[test]
     fn address_matches_independently_computed_blake2b_hash_for_secp256k1() {
-        let signer = SuiSignerFfi::new(Curve::Secp256k1);
-        let key = public_key(Curve::Secp256k1);
+        let signer = SuiSignerFfi::new(CurveFfi::Secp256k1);
+        let key = public_key(CurveFfi::Secp256k1);
         let address = signer.address(key.clone()).unwrap();
         assert_eq!(address.raw_bytes(), blake2b_256(&[&[0x01], &key.raw_bytes()]));
     }
 
     #[test]
     fn address_is_32_bytes() {
-        let signer = SuiSignerFfi::new(Curve::Ed25519);
-        let key = public_key(Curve::Ed25519);
+        let signer = SuiSignerFfi::new(CurveFfi::Ed25519);
+        let key = public_key(CurveFfi::Ed25519);
         assert_eq!(signer.address(key).unwrap().raw_bytes().len(), 32);
     }
 
     #[test]
     fn address_rejects_a_curve_mismatch() {
-        let signer = SuiSignerFfi::new(Curve::Ed25519);
-        let key = public_key(Curve::Secp256k1);
+        let signer = SuiSignerFfi::new(CurveFfi::Ed25519);
+        let key = public_key(CurveFfi::Secp256k1);
         assert!(matches!(
             signer.address(key),
-            Err(WalletKitErrorFfi::UnsupportedCurve { curve: Curve::Secp256k1 })
+            Err(WalletKitErrorFfi::UnsupportedCurve { curve: CurveFfi::Secp256k1 })
         ));
     }
 
@@ -260,20 +260,20 @@ mod tests {
         // Same raw key bytes, hashed with each scheme's own flag byte, must
         // diverge — the flag is what lets Sui tell the schemes apart.
         let key_bytes = vec![7u8; 32];
-        let ed25519_address = blake2b_256(&[&[scheme_flag(Curve::Ed25519)], &key_bytes]);
-        let secp256k1_address = blake2b_256(&[&[scheme_flag(Curve::Secp256k1)], &key_bytes]);
+        let ed25519_address = blake2b_256(&[&[scheme_flag(CurveFfi::Ed25519)], &key_bytes]);
+        let secp256k1_address = blake2b_256(&[&[scheme_flag(CurveFfi::Secp256k1)], &key_bytes]);
         assert_ne!(ed25519_address, secp256k1_address);
     }
 
     #[test]
     fn curve_returns_the_configured_scheme() {
-        assert_eq!(SuiSignerFfi::new(Curve::Secp256k1).curve(), Curve::Secp256k1);
+        assert_eq!(SuiSignerFfi::new(CurveFfi::Secp256k1).curve(), CurveFfi::Secp256k1);
     }
 
     struct TxVector {
         label: String,
         /// `None` for secp256r1 — see `Vector::curve` above, same reason.
-        curve: Option<Curve>,
+        curve: Option<CurveFfi>,
         private_key: Vec<u8>,
         transaction_data: Vec<u8>,
         signature: Vec<u8>,
@@ -293,8 +293,8 @@ mod tests {
             .iter()
             .map(|entry| {
                 let curve = match entry["scheme"].as_str().unwrap() {
-                    "ed25519" => Some(Curve::Ed25519),
-                    "secp256k1" => Some(Curve::Secp256k1),
+                    "ed25519" => Some(CurveFfi::Ed25519),
+                    "secp256k1" => Some(CurveFfi::Secp256k1),
                     "secp256r1" => None,
                     other => panic!("unexpected scheme {other} in sui-tx.json"),
                 };
@@ -318,7 +318,7 @@ mod tests {
     fn sign_matches_every_vectors_expected_signature() {
         for vector in tx_vectors() {
             // secp256r1 vectors can't be driven through `PrivateKeyFfi`/
-            // `SuiSignerFfi` — `Curve` has no case for that scheme yet.
+            // `SuiSignerFfi` — `CurveFfi` has no case for that scheme yet.
             let Some(curve) = vector.curve else { continue };
 
             let private_key: [u8; 32] = vector
@@ -343,34 +343,34 @@ mod tests {
         // ECDSA/secp256r1 signature with, so this just confirms the vector
         // (and its `scheme` field) is there, ready for
         // `sign_matches_every_vectors_expected_signature` to pick up once
-        // `Curve` grows a `Secp256r1` case.
+        // `CurveFfi` grows a `Secp256r1` case.
         assert!(tx_vectors().iter().any(|vector| vector.curve.is_none()));
     }
 
     #[test]
     fn sign_rejects_a_curve_mismatch() {
-        let vector = tx_vectors().into_iter().find(|vector| vector.curve == Some(Curve::Ed25519)).unwrap();
+        let vector = tx_vectors().into_iter().find(|vector| vector.curve == Some(CurveFfi::Ed25519)).unwrap();
         let private_key: [u8; 32] = vector.private_key.as_slice().try_into().unwrap();
-        let private_key = Arc::new(PrivateKeyFfi::new(Curve::Ed25519, private_key));
+        let private_key = Arc::new(PrivateKeyFfi::new(CurveFfi::Ed25519, private_key));
 
-        let signer = SuiSignerFfi::new(Curve::Secp256k1);
+        let signer = SuiSignerFfi::new(CurveFfi::Secp256k1);
         assert!(matches!(
             signer.sign(vector.transaction_data, private_key),
-            Err(WalletKitErrorFfi::UnsupportedCurve { curve: Curve::Ed25519 })
+            Err(WalletKitErrorFfi::UnsupportedCurve { curve: CurveFfi::Ed25519 })
         ));
     }
 
     #[test]
     fn sign_produces_flag_signature_public_key_of_the_expected_lengths() {
-        let signer = SuiSignerFfi::new(Curve::Ed25519);
-        let private_key = master_private_key(Curve::Ed25519);
+        let signer = SuiSignerFfi::new(CurveFfi::Ed25519);
+        let private_key = master_private_key(CurveFfi::Ed25519);
         let signature = signer.sign(vec![0xc0], private_key).unwrap();
         // flag (1) + ed25519 signature (64) + ed25519 public key (32).
         assert_eq!(signature.len(), 1 + 64 + 32);
         assert_eq!(signature[0], 0x00);
     }
 
-    fn master_private_key(curve: Curve) -> Arc<PrivateKeyFfi> {
+    fn master_private_key(curve: CurveFfi) -> Arc<PrivateKeyFfi> {
         MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English)
             .to_seed("".to_string())
             .master_key(curve)

@@ -24,9 +24,17 @@ extension EthereumRPCClient: BlockchainClientProtocol {
         return try await nativeBalance(of: owner)
     }
 
-    public func getTokenInfo(_ token: String) async throws -> TokenInfo {
-        let token = try EthereumAddress(string: token)
-        return try await erc20TokenInfo(token: token)
+    public func getTokenInfo(_ token: String?) async throws -> TokenInfo {
+        guard let token else {
+            return EVMBlockchain(chainId: chainId).nativeToken
+        }
+
+        let address = try EthereumAddress(string: token)
+        return try await erc20TokenInfo(token: address)
+    }
+
+    public func getTokenPrice(_ token: String?) async throws -> Decimal {
+        throw WalletKitError.internalError(message: "Not Implemented")
     }
 
     public func isActiveAccount(_ owner: String) async throws -> Bool {

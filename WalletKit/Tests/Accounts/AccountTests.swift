@@ -11,7 +11,7 @@ import Testing
 struct AccountTests {
     @Test func accountCarriesTheRequestedBlockchainCurveAndSource() throws {
         let account = try TestAccountFactory.ethereumAccount()
-        #expect(account.blockchain == .ethereum(1))
+        #expect(account.blockchain == .evm(.ethereum(.mainnet)))
         #expect(account.curve == .secp256k1)
         #expect(account.source == .software)
     }

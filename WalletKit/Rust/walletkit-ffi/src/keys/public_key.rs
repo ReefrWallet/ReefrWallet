@@ -5,23 +5,23 @@
 use ed25519_dalek::{Signature as Ed25519Signature, Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 
-use crate::common::Curve;
+use crate::common::CurveFfi;
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Object)]
 pub struct PublicKeyFfi {
-    curve: Curve,
+    curve: CurveFfi,
     raw_bytes: Vec<u8>,
 }
 
 impl PublicKeyFfi {
-    pub(crate) fn new(curve: Curve, raw_bytes: Vec<u8>) -> PublicKeyFfi {
+    pub(crate) fn new(curve: CurveFfi, raw_bytes: Vec<u8>) -> PublicKeyFfi {
         PublicKeyFfi { curve, raw_bytes }
     }
 }
 
 #[uniffi::export]
 impl PublicKeyFfi {
-    pub fn curve(&self) -> Curve {
+    pub fn curve(&self) -> CurveFfi {
         self.curve
     }
 
@@ -32,8 +32,8 @@ impl PublicKeyFfi {
 
     pub fn verify(&self, signature: Vec<u8>, message: Vec<u8>) -> bool {
         match self.curve {
-            Curve::Secp256k1 => self.verify_secp256k1(&signature, &message),
-            Curve::Ed25519 => self.verify_ed25519(&signature, &message),
+            CurveFfi::Secp256k1 => self.verify_secp256k1(&signature, &message),
+            CurveFfi::Ed25519 => self.verify_ed25519(&signature, &message),
         }
     }
 }
@@ -73,10 +73,10 @@ impl PublicKeyFfi {
 mod tests {
     use std::sync::Arc;
 
-    use crate::common::{Curve, MnemonicWordCount, Wordlist};
+    use crate::common::{CurveFfi, MnemonicWordCount, Wordlist};
     use crate::keys::MnemonicFfi;
 
-    fn master_public_key(curve: Curve) -> Arc<super::PublicKeyFfi> {
+    fn master_public_key(curve: CurveFfi) -> Arc<super::PublicKeyFfi> {
         MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English)
             .to_seed("".to_string())
             .master_key(curve)
@@ -85,18 +85,18 @@ mod tests {
 
     #[test]
     fn secp256k1_raw_bytes_are_compressed_33_bytes() {
-        assert_eq!(master_public_key(Curve::Secp256k1).raw_bytes().len(), 33);
+        assert_eq!(master_public_key(CurveFfi::Secp256k1).raw_bytes().len(), 33);
     }
 
     #[test]
     fn ed25519_raw_bytes_are_32_bytes() {
-        assert_eq!(master_public_key(Curve::Ed25519).raw_bytes().len(), 32);
+        assert_eq!(master_public_key(CurveFfi::Ed25519).raw_bytes().len(), 32);
     }
 
     #[test]
     fn verify_accepts_a_signature_from_the_matching_private_key() {
         let seed = MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English).to_seed("".to_string());
-        let extended_key = seed.master_key(Curve::Secp256k1);
+        let extended_key = seed.master_key(CurveFfi::Secp256k1);
         let message = b"hello walletkit".to_vec();
         let signature = extended_key.private_key().unwrap().sign(message.clone()).unwrap();
         assert!(extended_key.public_key().verify(signature, message));
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn verify_rejects_a_tampered_message() {
         let seed = MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English).to_seed("".to_string());
-        let extended_key = seed.master_key(Curve::Secp256k1);
+        let extended_key = seed.master_key(CurveFfi::Secp256k1);
         let signature = extended_key.private_key().unwrap().sign(b"hello".to_vec()).unwrap();
         assert!(!extended_key.public_key().verify(signature, b"goodbye".to_vec()));
     }

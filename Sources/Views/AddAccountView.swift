@@ -16,36 +16,28 @@ struct AddAccountView: View {
     let keyStore: KeyStore
 
     @State private var address = ""
-    @State private var blockchains: [Blockchain]
+    @State private var blockchains: [WKBlockchain]
     @State private var error: Swift.Error?
     @State private var isAlertPresented = false
-    @State private var networks: [Blockchain]
+    @State private var networks: [WKBlockchain]
 
-    @State private var selectedBlockchain: Blockchain?
+    @State private var selectedBlockchain: WKBlockchain
     @State private var selectedKeyScheme: Curve?
-    @State private var selectedNetwork: Blockchain?
+    @State private var selectedNetwork: WKBlockchain?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
-    let blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
-//    private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
-
     init(keyStore: KeyStore) {
         self.keyStore = keyStore
 
-        let blockchains = blockchainConfigService.allBlockchains
-        let selectedBlockchain = blockchains.first
+        let blockchains = WKBlockchain.allMainnets
+        let selectedBlockchain = blockchains.first!
+        let networks = selectedBlockchain.allNetworks
 
         self.blockchains = blockchains
-
-        if let selectedBlockchain {
-            self.networks = blockchainConfigService.allNetworks(for: selectedBlockchain)
-            self.selectedNetwork = networks.first
-        } else {
-            self.networks = []
-        }
-
+        self.networks = networks
+        self.selectedNetwork = networks.first
         self.selectedBlockchain = selectedBlockchain
     }
 }
@@ -55,7 +47,7 @@ struct AddAccountView: View {
 extension AddAccountView {
     var body: some View {
         VStack {
-            Text("Add Blockchain Account")
+            Text("Add Blockchain AccountModel")
                 .style(.largeHeader, foreground: .primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom)
@@ -64,15 +56,13 @@ extension AddAccountView {
                 Section {
                     Picker("Blockchain", selection: $selectedBlockchain) {
                         ForEach(blockchains, id: \.self) { blockchain in
-                            let displayName = blockchainConfigService.getDisplayName(for: blockchain) ?? ""
-                            Text(displayName).tag(blockchain)
+                            Text(blockchain.name).tag(blockchain)
                         }
                     }
 
                     Picker("Network", selection: $selectedNetwork) {
                         ForEach(networks, id: \.self) { blockchain in
-                            let networkName = blockchainConfigService.getNetworkName(for: blockchain) ?? ""
-                            Text(networkName).tag(blockchain)
+                            Text("\(blockchain.name) \(blockchain.networkName)").tag(blockchain)
                         }
                     }
 
@@ -135,7 +125,7 @@ private extension AddAccountView {
                     }
                 }
             } label: {
-                Text("Add Account")
+                Text("Add AccountModel")
             }
             .disabled(selectedNetwork == nil)
         }
@@ -144,27 +134,11 @@ private extension AddAccountView {
 
 // MARK: - Logic
 
-extension AddAccountView {
+private extension AddAccountView {
     @MainActor
-    func addAccount(_ blockchain: Blockchain, signatureScheme: Curve?) async throws {
+    func addAccount(_ blockchain: WKBlockchain, signatureScheme: Curve?) async throws {
         let accountService = DI.injectOrFail(AccountService.self)
         let account = try await accountService.makeAccount(blockchain, keyStore: keyStore)
-
-        if keyStore.isWatchOnly {
-            func setWatchOnlyAddress(_ account: Account) throws {
-                switch account.blockchainConfig.blockchain {
-                case .ethereum:
-                    _ = try EthereumAddress(string: address)
-                    account.address = address
-                case .sui:
-                    _ = try SuiAddress(string: address)
-                    account.address = address
-                default:
-                    throw Error.notImplemented
-                }
-            }
-        }
-
         sidebarSelection.wrappedValue = account.id
         dismiss()
     }
@@ -176,15 +150,15 @@ extension AddAccountView {
 
         switch error {
         case Error.alreadyExists:
-            return "Account already exists."
+            return "AccountModel already exists."
         default:
             return error.localizedDescription
         }
     }
 
-    func didSelectBlockchain(_ blockchain: Blockchain?) {
+    func didSelectBlockchain(_ blockchain: WKBlockchain?) {
         if let blockchain {
-            networks = blockchainConfigService.allNetworks(for: blockchain)
+            networks = blockchain.allNetworks
             selectedNetwork = networks.first
 
             if case .sui = blockchain {
@@ -198,7 +172,7 @@ extension AddAccountView {
 
 // MARK: - Preview
 
-#Preview {
-    AddAccountView(keyStore: .mockWatchOnly())
+/* #Preview {
+    AddAccountView(keyStore: try! KeyStore(model: .mockWatchOnly())) // swiftlint:disable:this force_try
         .frame(width: 400)
-}
+} */

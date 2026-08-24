@@ -10,18 +10,24 @@ import SwiftData
 import SwiftUI
 
 struct KeyStoreDetailsView: View {
-    let keyStore: KeyStore
+    private let keyStore: KeyStore
 
     @State private var sortOrder: [KeyPathComparator<Account>] = []
-    @SceneStorage("KeyStoreAccountsTableConfig") private var columnCustomization: TableColumnCustomization<Account>
+
+    @SceneStorage("KeyStoreAccountsTableConfig")
+    private var columnCustomization: TableColumnCustomization<Account>
+
+    init(_ keyStore: KeyStore) {
+        self.keyStore = keyStore
+    }
 
     var body: some View {
         VStack(alignment: .leading) {
             header
                 .padding()
 
-            if let accounts = keyStore.accounts, !accounts.isEmpty {
-                accountBalances
+            if !keyStore.accounts.isEmpty {
+                accountBalancesView
                     .padding(.leading)
             } else {
                 Text("Zero Balances")
@@ -33,14 +39,16 @@ struct KeyStoreDetailsView: View {
 }
 
 private extension KeyStoreDetailsView {
-    var accountBalances: some View {
+    var accountBalancesView: some View {
         VStack {
             totalValue
 
-            Table(keyStore.accounts ?? [], sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
+            var accounts = keyStore.accounts
+
+            Table(accounts, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
                 TableColumn("Account", value: \.name) { account in
                     HStack {
-                        Image(account.blockchainConfig.systemImage)
+                        account.blockchain.logoImage
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 16, height: 16)
@@ -51,19 +59,19 @@ private extension KeyStoreDetailsView {
                 .customizationID("account")
 
                 TableColumn("USD Value", value: \.usdValue) { account in
-                    let amount = account.usdValue.formatted(
-                        .number.precision(.fractionLength(2))
-                    )
-
-                    Text(amount)
+                    Text(account.usdValue.formatted(.number.precision(.fractionLength(2))))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .customizationID("usdValue")
             }
             .onChange(of: sortOrder) { _, newOrder in
-                keyStore.accounts?.sort(using: newOrder)
+                accounts.sort(using: newOrder)
             }
         }
+    }
+
+    var accountsUSDValue: Decimal {
+        keyStore.accounts.reduce(0) { $0 + $1.usdValue }
     }
 
     var header: some View {
@@ -76,7 +84,7 @@ private extension KeyStoreDetailsView {
                 .style(.medium, foreground: .secondary)
                 .padding(.bottom, 1)
 
-            let count = keyStore.accounts?.count ?? 0
+            let count = keyStore.accounts.count
 
             switch count {
             case 0:
@@ -97,7 +105,7 @@ private extension KeyStoreDetailsView {
             Text("Total Value:")
                 .style(.mediumHeader, foreground: .primary)
 
-            Text(keyStore.accountsUSDValue.formatted(.currency(code: "USD")))
+            Text(accountsUSDValue.formatted(.currency(code: "USD")))
                 .style(.mediumHeader, foreground: .primary)
 
             Spacer()

@@ -28,8 +28,16 @@ extension SuiGRPCClient: BlockchainClientProtocol {
         return BigUInt(try await nativeBalance(of: owner))
     }
 
-    public func getTokenInfo(_ token: String) async throws -> TokenInfo {
-        try await coinInfo(coinType: token)
+    public func getTokenInfo(_ token: String?) async throws -> TokenInfo {
+        guard let token else {
+            return .sui
+        }
+
+        return try await coinInfo(coinType: token)
+    }
+
+    public func getTokenPrice(_ token: String?) async throws -> Decimal {
+        throw WalletKitError.internalError(message: "Not Implemented")
     }
 
     public func isActiveAccount(_ owner: String) async throws -> Bool {

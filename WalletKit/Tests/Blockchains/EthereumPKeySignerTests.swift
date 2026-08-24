@@ -126,14 +126,14 @@ struct EthereumPKeySignerTests {
     @Test func blockchainReflectsTheConfiguredChainId() throws {
         let privateKey = try PrivateKey(curve: .secp256k1, rawBytes: Self.addressVectors[0].privateKey.hexDecoded)
         let mainnet = try EthereumPKeySigner(privateKey: privateKey, derivationPath: Self.derivationPath)
-        #expect(mainnet.blockchain == .ethereum(1))
+        #expect(mainnet.blockchain == .evm(.ethereum(.mainnet)))
 
         let sepolia = try EthereumPKeySigner(
             chainId: 11_155_111,
             privateKey: privateKey,
             derivationPath: Self.derivationPath
         )
-        #expect(sepolia.blockchain == .ethereum(11_155_111))
+        #expect(sepolia.blockchain == .evm(.ethereum(.testnet)))
     }
 
     @Test func initRejectsAnEd25519Key() throws {

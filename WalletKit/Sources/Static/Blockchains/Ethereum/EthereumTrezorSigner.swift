@@ -24,10 +24,10 @@ public final class EthereumTrezorSigner: Signer {
     public typealias Address = EthereumAddress
 
     /// The account this signer signs for.
-    public let account: Account
+    public let account: WKAccount
 
     /// EVM chain ID this signer is scoped to (1 = mainnet, 11155111 =
-    /// Sepolia, ...) — the value carried by `Blockchain.ethereum(_:)`.
+    /// Sepolia, ...) — the value carried by `WKBlockchain.ethereum(_:)`.
     public let chainId: UInt64
 
     private let device: HardwareDevice
@@ -49,8 +49,8 @@ public final class EthereumTrezorSigner: Signer {
         self.chainId = chainId
         self.device = device
         raw = EthereumSignerFfi(chainId: chainId)
-        account = Account(
-            blockchain: .ethereum(chainId),
+        account = WKAccount(
+            blockchain: .evm(EVMBlockchain(chainId: chainId)),
             derivationPath: derivationPath,
             curve: .secp256k1,
             source: device.source,

@@ -27,7 +27,7 @@ struct HardwareDeviceTests {
             let devices = try await manager.scan()
             let info = try #require(devices.first, "requires a connected test device")
             let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
-            let account = try await device.account(.bitcoin)
+            let account = try await device.account(.bitcoin(.mainnet))
             let key = try await device.publicKey(path: account.derivationPath, curve: .secp256k1)
             #expect(account.publicKey.rawBytes == key.rawBytes)
         }

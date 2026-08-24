@@ -130,7 +130,7 @@ struct SuiPKeySignerTests {
         let privateKey = try PrivateKey(curve: .ed25519, rawBytes: Data(repeating: 1, count: 32))
         let signer = try SuiPKeySigner(privateKey: privateKey, derivationPath: Self.derivationPath)
         #expect(signer.curve == .ed25519)
-        #expect(signer.blockchain == .sui(.ed25519))
+        #expect(signer.blockchain == .sui(.mainnet))
     }
 
     @Test func blockchainReflectsTheConfiguredCurve() throws {
@@ -140,7 +140,7 @@ struct SuiPKeySignerTests {
             privateKey: privateKey,
             derivationPath: Self.derivationPath
         )
-        #expect(signer.blockchain == .sui(.secp256k1))
+        #expect(signer.blockchain == .sui(.mainnet))
     }
 
     @Test func initRejectsACurveMismatch() throws {

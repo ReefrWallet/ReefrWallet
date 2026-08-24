@@ -8,7 +8,7 @@ use crate::errors::WalletKitErrorFfi;
 use super::{
     delegate::{DelegateAdapter, HardwareDeviceDelegateFfi},
     device::HardwareDeviceFfi,
-    types::{HardwareDeviceInfoFfi, HardwareTransportKind, HardwareVendorFfi},
+    types::{HardwareDeviceInfoFfi, HardwareTransportKindFfi, HardwareVendorFfi},
 };
 
 /// Discovers and connects to hardware wallets. Trezor is the only vendor
@@ -35,7 +35,7 @@ impl HardwareDeviceManagerFfi {
     pub async fn scan(
         &self,
         vendors: Vec<HardwareVendorFfi>,
-        transports: Vec<HardwareTransportKind>,
+        transports: Vec<HardwareTransportKindFfi>,
     ) -> Result<Vec<HardwareDeviceInfoFfi>, WalletKitErrorFfi> {
         if transports.is_empty() {
             return Err(WalletKitErrorFfi::TransportUnavailable { reason: "no transports requested".to_string() });

@@ -1,6 +1,6 @@
 //! `DerivationScheme`: the HD derivation scheme paired with a given curve.
 
-use crate::common::Curve;
+use crate::common::CurveFfi;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum DerivationScheme {
@@ -9,10 +9,10 @@ pub enum DerivationScheme {
 }
 
 impl DerivationScheme {
-    pub fn for_curve(curve: Curve) -> DerivationScheme {
+    pub fn for_curve(curve: CurveFfi) -> DerivationScheme {
         match curve {
-            Curve::Secp256k1 => DerivationScheme::Bip32,
-            Curve::Ed25519 => DerivationScheme::Slip0010,
+            CurveFfi::Secp256k1 => DerivationScheme::Bip32,
+            CurveFfi::Ed25519 => DerivationScheme::Slip0010,
         }
     }
 }
@@ -23,8 +23,8 @@ mod tests {
 
     #[test]
     fn derivation_scheme_differs_by_curve() {
-        assert_eq!(DerivationScheme::for_curve(Curve::Secp256k1), DerivationScheme::Bip32);
-        assert_eq!(DerivationScheme::for_curve(Curve::Ed25519), DerivationScheme::Slip0010);
+        assert_eq!(DerivationScheme::for_curve(CurveFfi::Secp256k1), DerivationScheme::Bip32);
+        assert_eq!(DerivationScheme::for_curve(CurveFfi::Ed25519), DerivationScheme::Slip0010);
         assert_ne!(DerivationScheme::Bip32, DerivationScheme::Slip0010);
     }
 }

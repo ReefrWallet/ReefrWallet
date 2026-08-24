@@ -1,7 +1,7 @@
 // Shared test helper for constructing `Account`s directly.
 //
 // Normally an `Account` only exists bound to a `Signer` (software) or a
-// `HardwareDevice` (hardware) — `Blockchain` carries no curve/
+// `HardwareDevice` (hardware) — `WKBlockchain` carries no curve/
 // derivation-path logic of its own, and picking the right ones for a
 // chain is that conformer's job. Tests that need a bare `Account` without
 // a signer attached build one directly here, via `Account`'s internal
@@ -16,13 +16,13 @@ enum TestAccountFactory {
     /// Builds a software-sourced `Account` for `blockchain`, deriving a
     /// fresh key with `curve` at `derivationPath`.
     static func makeAccount(
-        blockchain: Blockchain,
+        blockchain: WKBlockchain,
         curve: Curve,
         derivationPath: DerivationPath
-    ) throws -> Account {
+    ) throws -> WKAccount {
         let seed = Mnemonic.generate().toSeed()
         let key = try seed.masterKey(curve: curve).derive(derivationPath)
-        return Account(
+        return WKAccount(
             blockchain: blockchain,
             derivationPath: derivationPath,
             curve: curve,
@@ -60,33 +60,33 @@ enum TestAccountFactory {
         ])
     }
 
-    static func ethereumAccount(chainId: UInt64 = 1, account: UInt32 = 0) throws -> Account {
+    static func ethereumAccount(chainId: UInt64 = 1, account: UInt32 = 0) throws -> WKAccount {
         try makeAccount(
-            blockchain: .ethereum(chainId),
+            blockchain: .evm(EVMBlockchain(chainId: chainId)),
             curve: .secp256k1,
             derivationPath: bip44Path(coinType: 60, account: account)
         )
     }
 
-    static func bitcoinAccount(account: UInt32 = 0) throws -> Account {
+    static func bitcoinAccount(network: BitcoinNetwork, account: UInt32 = 0) throws -> WKAccount {
         try makeAccount(
-            blockchain: .bitcoin,
+            blockchain: .bitcoin(network),
             curve: .secp256k1,
             derivationPath: bip44Path(coinType: 0, account: account)
         )
     }
 
-    static func solanaAccount(account: UInt32 = 0) throws -> Account {
+    static func solanaAccount(network: SolanaNetwork, account: UInt32 = 0) throws -> WKAccount {
         try makeAccount(
-            blockchain: .solana,
+            blockchain: .solana(network),
             curve: .ed25519,
             derivationPath: slip10Path(coinType: 501, account: account)
         )
     }
 
-    static func suiAccount(curve: Curve = .ed25519, account: UInt32 = 0) throws -> Account {
+    static func suiAccount(network: SuiNetwork, curve: Curve = .ed25519, account: UInt32 = 0) throws -> WKAccount {
         try makeAccount(
-            blockchain: .sui(curve),
+            blockchain: .sui(network),
             curve: curve,
             derivationPath: slip10Path(coinType: 784, account: account)
         )

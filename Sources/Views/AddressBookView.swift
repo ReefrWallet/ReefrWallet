@@ -19,13 +19,13 @@ struct AddressBookView {
     @State private var selection: PersistentIdentifier?
 
     @Query
-    private var savedAddresses: [SavedAddress]
+    private var savedAddresses: [SavedAddressModel]
 
     @Environment(\.dismiss) var dismiss
 
-    private let blockchain: Blockchain
+    private let blockchain: WKBlockchain
 
-    init(blockchain: Blockchain, selectedAddress: Binding<String?>? = nil) {
+    init(blockchain: WKBlockchain, selectedAddress: Binding<String?>? = nil) {
         self.blockchain = blockchain
 
         if let selectedAddress {
@@ -41,7 +41,7 @@ struct AddressBookView {
 extension AddressBookView: View {
     var body: some View {
         VStack {
-            Table(of: SavedAddress.self, selection: $selection) {
+            Table(of: SavedAddressModel.self, selection: $selection) {
                 TableColumn("Address", value: \.address)
                 TableColumn("Memo", value: \.memo)
             } rows: {
@@ -86,6 +86,6 @@ private extension AddressBookView {
 }
 
 #Preview {
-    AddressBookView(blockchain: .ethereum(1))
+    AddressBookView(blockchain: .evm(.ethereum(.testnet)))
         .frame(width: 500)
 }

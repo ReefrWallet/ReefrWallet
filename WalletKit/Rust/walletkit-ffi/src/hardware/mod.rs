@@ -15,5 +15,5 @@ pub use delegate::HardwareDeviceDelegateFfi;
 pub use device::HardwareDeviceFfi;
 pub use manager::HardwareDeviceManagerFfi;
 pub use types::{
-    HardwareButtonRequest, HardwareDeviceInfoFfi, HardwareInputRequest, HardwareTransportKind, HardwareVendorFfi,
+    HardwareButtonRequest, HardwareDeviceInfoFfi, HardwareInputRequest, HardwareTransportKindFfi, HardwareVendorFfi,
 };

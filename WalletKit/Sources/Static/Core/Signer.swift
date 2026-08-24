@@ -6,7 +6,6 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 import Foundation
-@_exported import enum WalletKitRust.Blockchain
 
 /// Derives the address for, and signs transactions on behalf of, one
 /// account on one blockchain. A conformer is bound to its key source (a
@@ -17,7 +16,7 @@ public protocol Signer {
     associatedtype Address: BlockchainAddress
 
     /// The account this signer signs for.
-    var account: Account { get }
+    var account: WKAccount { get }
 
     /// Derives this signer's account's address.
     ///
@@ -34,5 +33,5 @@ public protocol Signer {
 
 public extension Signer {
     /// The blockchain this signer is scoped to — ``account``'s blockchain.
-    var blockchain: Blockchain { account.blockchain }
+    var blockchain: WKBlockchain { account.blockchain }
 }

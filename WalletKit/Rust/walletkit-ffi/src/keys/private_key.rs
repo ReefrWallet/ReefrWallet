@@ -7,13 +7,13 @@ use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
-use crate::common::Curve;
+use crate::common::CurveFfi;
 use crate::errors::WalletKitErrorFfi;
 use crate::keys::public_key::PublicKeyFfi;
 
 #[derive(uniffi::Object)]
 pub struct PrivateKeyFfi {
-    curve: Curve,
+    curve: CurveFfi,
     raw_bytes: Zeroizing<[u8; 32]>,
 }
 
@@ -24,7 +24,7 @@ impl std::fmt::Debug for PrivateKeyFfi {
 }
 
 impl PrivateKeyFfi {
-    pub(crate) fn new(curve: Curve, raw_bytes: [u8; 32]) -> PrivateKeyFfi {
+    pub(crate) fn new(curve: CurveFfi, raw_bytes: [u8; 32]) -> PrivateKeyFfi {
         PrivateKeyFfi {
             curve,
             raw_bytes: Zeroizing::new(raw_bytes),
@@ -43,33 +43,33 @@ impl PrivateKeyFfi {
     /// Throws `.signingFailed` if `raw_bytes.len() != 32`, or (secp256k1
     /// only) if the 32 bytes aren't a valid scalar in the curve's order.
     #[uniffi::constructor]
-    pub fn from_raw_bytes(curve: Curve, raw_bytes: Vec<u8>) -> Result<PrivateKeyFfi, WalletKitErrorFfi> {
+    pub fn from_raw_bytes(curve: CurveFfi, raw_bytes: Vec<u8>) -> Result<PrivateKeyFfi, WalletKitErrorFfi> {
         let array: [u8; 32] = raw_bytes.as_slice().try_into().map_err(|_| WalletKitErrorFfi::SigningFailed {
             reason: format!("expected a 32-byte private key, got {} bytes", raw_bytes.len()),
         })?;
-        if curve == Curve::Secp256k1 {
+        if curve == CurveFfi::Secp256k1 {
             secp256k1::SecretKey::from_byte_array(array)
                 .map_err(|err| WalletKitErrorFfi::SigningFailed { reason: err.to_string() })?;
         }
         Ok(PrivateKeyFfi::new(curve, array))
     }
 
-    pub fn curve(&self) -> Curve {
+    pub fn curve(&self) -> CurveFfi {
         self.curve
     }
 
     pub fn public_key(&self) -> Arc<PublicKeyFfi> {
         let public_key = match self.curve {
-            Curve::Secp256k1 => {
+            CurveFfi::Secp256k1 => {
                 let secp = secp256k1::Secp256k1::signing_only();
                 let secret = secp256k1::SecretKey::from_byte_array(*self.raw_bytes)
                     .expect("derived secp256k1 private keys are always valid scalars");
                 let public = secp256k1::PublicKey::from_secret_key(&secp, &secret);
-                PublicKeyFfi::new(Curve::Secp256k1, public.serialize().to_vec())
+                PublicKeyFfi::new(CurveFfi::Secp256k1, public.serialize().to_vec())
             }
-            Curve::Ed25519 => {
+            CurveFfi::Ed25519 => {
                 let signing_key = ed25519_dalek::SigningKey::from_bytes(&self.raw_bytes);
-                PublicKeyFfi::new(Curve::Ed25519, signing_key.verifying_key().to_bytes().to_vec())
+                PublicKeyFfi::new(CurveFfi::Ed25519, signing_key.verifying_key().to_bytes().to_vec())
             }
         };
         Arc::new(public_key)
@@ -79,7 +79,7 @@ impl PrivateKeyFfi {
     /// (ed25519, over the raw message).
     pub fn sign(&self, message: Vec<u8>) -> Result<Vec<u8>, WalletKitErrorFfi> {
         match self.curve {
-            Curve::Secp256k1 => {
+            CurveFfi::Secp256k1 => {
                 let secp = secp256k1::Secp256k1::signing_only();
                 let secret = secp256k1::SecretKey::from_byte_array(*self.raw_bytes)
                     .map_err(|err| WalletKitErrorFfi::SigningFailed { reason: err.to_string() })?;
@@ -87,7 +87,7 @@ impl PrivateKeyFfi {
                 let message = secp256k1::Message::from_digest(digest.into());
                 Ok(secp.sign_ecdsa(message, &secret).serialize_compact().to_vec())
             }
-            Curve::Ed25519 => {
+            CurveFfi::Ed25519 => {
                 let signing_key = ed25519_dalek::SigningKey::from_bytes(&self.raw_bytes);
                 Ok(signing_key.sign(&message).to_bytes().to_vec())
             }
@@ -108,7 +108,7 @@ impl PrivateKeyFfi {
         &self,
         digest: Vec<u8>,
     ) -> Result<RecoverableSignatureFfi, WalletKitErrorFfi> {
-        if self.curve != Curve::Secp256k1 {
+        if self.curve != CurveFfi::Secp256k1 {
             return Err(WalletKitErrorFfi::UnsupportedCurve { curve: self.curve });
         }
         let digest_array: [u8; 32] = digest.as_slice().try_into().map_err(|_| WalletKitErrorFfi::SigningFailed {
@@ -139,10 +139,10 @@ pub struct RecoverableSignatureFfi {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{Curve, MnemonicWordCount, Wordlist};
+    use crate::common::{CurveFfi, MnemonicWordCount, Wordlist};
     use crate::keys::MnemonicFfi;
 
-    fn master_private_key(curve: Curve) -> std::sync::Arc<super::PrivateKeyFfi> {
+    fn master_private_key(curve: CurveFfi) -> std::sync::Arc<super::PrivateKeyFfi> {
         MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English)
             .to_seed("".to_string())
             .master_key(curve)
@@ -155,7 +155,7 @@ mod tests {
         // A fixed, valid secp256k1 scalar — arbitrary, not derived from any
         // mnemonic.
         let raw_bytes = [7u8; 32];
-        let imported = super::PrivateKeyFfi::from_raw_bytes(Curve::Secp256k1, raw_bytes.to_vec()).unwrap();
+        let imported = super::PrivateKeyFfi::from_raw_bytes(CurveFfi::Secp256k1, raw_bytes.to_vec()).unwrap();
 
         // Independently compute the expected public key straight from the
         // secp256k1 crate, without going through `PrivateKeyFfi` (which has
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn from_raw_bytes_rejects_the_wrong_byte_count() {
         assert!(matches!(
-            super::PrivateKeyFfi::from_raw_bytes(Curve::Secp256k1, vec![0u8; 31]),
+            super::PrivateKeyFfi::from_raw_bytes(CurveFfi::Secp256k1, vec![0u8; 31]),
             Err(crate::errors::WalletKitErrorFfi::SigningFailed { .. })
         ));
     }
@@ -181,7 +181,7 @@ mod tests {
         // All-0xff is larger than the secp256k1 curve order, so it isn't a
         // valid private key scalar.
         assert!(matches!(
-            super::PrivateKeyFfi::from_raw_bytes(Curve::Secp256k1, vec![0xffu8; 32]),
+            super::PrivateKeyFfi::from_raw_bytes(CurveFfi::Secp256k1, vec![0xffu8; 32]),
             Err(crate::errors::WalletKitErrorFfi::SigningFailed { .. })
         ));
     }
@@ -190,20 +190,20 @@ mod tests {
     fn from_raw_bytes_accepts_any_32_bytes_for_ed25519() {
         // Unlike secp256k1, ed25519 has no scalar-validity constraint on the
         // raw seed bytes.
-        assert!(super::PrivateKeyFfi::from_raw_bytes(Curve::Ed25519, vec![0xffu8; 32]).is_ok());
+        assert!(super::PrivateKeyFfi::from_raw_bytes(CurveFfi::Ed25519, vec![0xffu8; 32]).is_ok());
     }
 
     #[test]
     fn public_key_matches_the_deriving_extended_keys_public_key() {
         let seed = MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English).to_seed("".to_string());
-        let extended_key = seed.master_key(Curve::Secp256k1);
+        let extended_key = seed.master_key(CurveFfi::Secp256k1);
         let private_key = extended_key.private_key().unwrap();
         assert_eq!(private_key.public_key().raw_bytes(), extended_key.public_key().raw_bytes());
     }
 
     #[test]
     fn sign_produces_a_signature_verifiable_by_its_own_public_key() {
-        let private_key = master_private_key(Curve::Secp256k1);
+        let private_key = master_private_key(CurveFfi::Secp256k1);
         let message = b"sign me".to_vec();
         let signature = private_key.sign(message.clone()).unwrap();
         assert!(private_key.public_key().verify(signature, message));
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn curve_matches_the_deriving_extended_keys_curve() {
-        let private_key = master_private_key(Curve::Ed25519);
-        assert_eq!(private_key.curve(), Curve::Ed25519);
+        let private_key = master_private_key(CurveFfi::Ed25519);
+        assert_eq!(private_key.curve(), CurveFfi::Ed25519);
     }
 }

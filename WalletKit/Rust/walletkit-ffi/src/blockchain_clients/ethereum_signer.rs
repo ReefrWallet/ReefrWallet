@@ -9,7 +9,7 @@ use alloy_primitives::{keccak256, Address as AlloyAddress, Bytes, TxKind, U256};
 use alloy_rlp::{Decodable, Encodable, Header};
 
 use crate::blockchain_clients::ethereum_address::EthereumAddressFfi;
-use crate::common::{BigIntFfi, Curve};
+use crate::common::{BigIntFfi, CurveFfi};
 use crate::errors::WalletKitErrorFfi;
 use crate::keys::{PrivateKeyFfi, PublicKeyFfi};
 
@@ -39,7 +39,7 @@ pub struct EthereumSignatureFfi {
 }
 
 /// EVM chain ID this signer is scoped to (1 = mainnet, 11155111 =
-/// Sepolia, ...) — the value carried by `Blockchain.ethereum(_:)`.
+/// Sepolia, ...) — the value carried by `WKBlockchain.ethereum(_:)`.
 #[derive(Debug, Clone, Copy, uniffi::Object)]
 pub struct EthereumSignerFfi {
     chain_id: u64,
@@ -65,7 +65,7 @@ impl EthereumSignerFfi {
     /// Throws `.unsupportedCurve` for a non-secp256k1 key — there is no
     /// Ethereum address for an ed25519 key.
     pub fn address(&self, public_key: Arc<PublicKeyFfi>) -> Result<Arc<EthereumAddressFfi>, WalletKitErrorFfi> {
-        if public_key.curve() != Curve::Secp256k1 {
+        if public_key.curve() != CurveFfi::Secp256k1 {
             return Err(WalletKitErrorFfi::UnsupportedCurve { curve: public_key.curve() });
         }
         let secp_public_key = secp256k1::PublicKey::from_slice(&public_key.raw_bytes())
@@ -116,7 +116,7 @@ impl EthereumSignerFfi {
         signing_data: Vec<u8>,
         private_key: Arc<PrivateKeyFfi>,
     ) -> Result<EthereumSignatureFfi, WalletKitErrorFfi> {
-        if private_key.curve() != Curve::Secp256k1 {
+        if private_key.curve() != CurveFfi::Secp256k1 {
             return Err(WalletKitErrorFfi::UnsupportedCurve { curve: private_key.curve() });
         }
 
@@ -283,7 +283,7 @@ fn encode_signed_transaction(fields: &SigningFields, v: u64, r: U256, s: U256) -
 mod tests {
     use std::sync::Arc;
 
-    use crate::common::Curve;
+    use crate::common::CurveFfi;
     use crate::keys::PrivateKeyFfi;
 
     use super::*;
@@ -317,7 +317,7 @@ mod tests {
 
     fn private_key_from_bytes(raw: &[u8]) -> Arc<PrivateKeyFfi> {
         let array: [u8; 32] = raw.try_into().expect("test vector private keys are 32 bytes");
-        Arc::new(PrivateKeyFfi::new(Curve::Secp256k1, array))
+        Arc::new(PrivateKeyFfi::new(CurveFfi::Secp256k1, array))
     }
 
     #[test]
@@ -350,20 +350,20 @@ mod tests {
     #[test]
     fn address_rejects_an_ed25519_key() {
         let signer = EthereumSignerFfi::new(1);
-        let private_key = Arc::new(PrivateKeyFfi::new(Curve::Ed25519, [7u8; 32]));
+        let private_key = Arc::new(PrivateKeyFfi::new(CurveFfi::Ed25519, [7u8; 32]));
         assert!(matches!(
             signer.address(private_key.public_key()),
-            Err(WalletKitErrorFfi::UnsupportedCurve { curve: Curve::Ed25519 })
+            Err(WalletKitErrorFfi::UnsupportedCurve { curve: CurveFfi::Ed25519 })
         ));
     }
 
     #[test]
     fn sign_rejects_an_ed25519_key() {
         let signer = EthereumSignerFfi::new(1);
-        let private_key = Arc::new(PrivateKeyFfi::new(Curve::Ed25519, [7u8; 32]));
+        let private_key = Arc::new(PrivateKeyFfi::new(CurveFfi::Ed25519, [7u8; 32]));
         assert!(matches!(
             signer.sign(vec![0xc0], private_key),
-            Err(WalletKitErrorFfi::UnsupportedCurve { curve: Curve::Ed25519 })
+            Err(WalletKitErrorFfi::UnsupportedCurve { curve: CurveFfi::Ed25519 })
         ));
     }
 

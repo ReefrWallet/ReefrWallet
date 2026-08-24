@@ -27,8 +27,8 @@ extension EnvironmentValues {
 }
 
 struct MainView: View {
-    @Query private var allAccounts: [Account]
-    @Query private var keyStores: [KeyStore]
+    @Query private var allAccounts: [AccountModel]
+    @Query private var keyStores: [KeyStoreModel]
 
     @State private var presentedSheet: PresentedSheet?
     @State private var sidebarSelection: PersistentIdentifier?
@@ -39,10 +39,13 @@ struct MainView: View {
                 .environment(\.presentSheet, PresentSheetAction(presentedSheet: $presentedSheet))
                 .environment(\.sidebarSelection, $sidebarSelection)
         } detail: {
-            if let account = allAccounts.first(where: { $0.id == sidebarSelection }) {
-                AccountDetailsView(account: account)
-            } else if let keyStore = keyStores.first(where: { $0.id == sidebarSelection }) {
-                KeyStoreDetailsView(keyStore: keyStore)
+            if let accountModel = allAccounts.first(where: { $0.id == sidebarSelection }),
+               let account = try? Account(model: accountModel),
+               let keyStore = try? KeyStore(model: accountModel.keyStore) {
+                AccountDetailsView(account, keyStore: keyStore)
+            } else if let keyStoreModel = keyStores.first(where: { $0.id == sidebarSelection }),
+                      let keyStore = try? KeyStore(model: keyStoreModel) {
+                KeyStoreDetailsView(keyStore)
             } else if sidebarSelection == nil {
                 Text("No selection")
             } else {
@@ -58,8 +61,9 @@ struct MainView: View {
                 AddKeyStoreView()
                     .environment(\.sidebarSelection, $sidebarSelection)
             case .addWatchOnlyAccount:
-                if let watchOnlyKeyStore = keyStores.first(where: { $0.kind == .watchOnly }) {
-                    AddAccountView(keyStore: watchOnlyKeyStore)
+                if let watchOnlyKeyStore = keyStores.first(where: { $0.kind == .watchOnly }),
+                   let keyStore = try? KeyStore(model: watchOnlyKeyStore) {
+                    AddAccountView(keyStore: keyStore)
                         .environment(\.sidebarSelection, $sidebarSelection)
                 }
             }

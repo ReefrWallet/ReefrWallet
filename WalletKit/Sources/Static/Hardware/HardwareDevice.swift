@@ -44,7 +44,7 @@ public final class HardwareDevice: HardwareDeviceProtocol {
     ///   ``WalletKitError/userRejectedOnDevice`` if the user backs out of
     ///   a PIN/passphrase/confirmation prompt.
     public func publicKey(path: DerivationPath, curve: Curve) async throws -> PublicKey {
-        try await remappingWalletKitError { PublicKey(raw: try await raw.publicKey(path: path, curve: curve)) }
+        try await remappingWalletKitError { PublicKey(raw: try await raw.publicKey(path: path, curve: curve.raw)) }
     }
 
     /// Builds the ``Account`` for `blockchain` at index `account` from the
@@ -54,11 +54,11 @@ public final class HardwareDevice: HardwareDeviceProtocol {
     ///   - blockchain: The blockchain to build the account for.
     ///   - account: The BIP44-style account index.
     /// - Returns: The resulting account, including its derived public key.
-    public func account(_ blockchain: Blockchain, account: UInt32 = 0) async throws -> Account {
+    public func account(_ blockchain: WKBlockchain, account: UInt32 = 0) async throws -> WKAccount {
         let path = try DerivationPath(blockchain, accountIndex: UInt64(account))
         let curve = Self.curve(for: blockchain)
         let key = try await publicKey(path: path, curve: curve)
-        return Account(blockchain: blockchain, derivationPath: path, curve: curve, source: source, publicKey: key)
+        return WKAccount(blockchain: blockchain, derivationPath: path, curve: curve, source: source, publicKey: key)
     }
 
     /// Disconnects from this device and notifies the delegate.
@@ -66,11 +66,11 @@ public final class HardwareDevice: HardwareDeviceProtocol {
         await raw.disconnect()
     }
 
-    private static func curve(for blockchain: Blockchain) -> Curve {
+    private static func curve(for blockchain: WKBlockchain) -> Curve {
         switch blockchain {
-        case .sui(let curve): curve
+        case .sui: .ed25519
         case .solana, .cardano: .ed25519
-        case .bitcoin, .ethereum, .tron: .secp256k1
+        case .bitcoin, .evm, .tron: .secp256k1
         }
     }
 }

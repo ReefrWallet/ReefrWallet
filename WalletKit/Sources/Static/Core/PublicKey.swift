@@ -39,7 +39,7 @@ public final class PublicKey: PublicKeyProtocol {
     }
 
     /// The elliptic curve this key belongs to.
-    public var curve: Curve { raw.curve() }
+    public var curve: Curve { Curve(raw.curve()) }
 
     /// The raw key encoding: compressed SEC1 (33 bytes) for secp256k1,
     /// raw (32 bytes) for ed25519.

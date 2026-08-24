@@ -8,15 +8,14 @@
 
 import Foundation
 import Moya
+import SwiftUI
 
 enum MoralisAPI {
-    // case getMetadata(chain: String, tokens: [String], apiKey: String)
     case listBalances(address: String, chain: String, tokens: [String]?, pageCursor: String?, apiKey: String)
 }
 
 struct MoralisService {
-    let apiKey: String
-
+    private let apiKey: String
     private let provider: MoyaProvider<MoralisAPI>
 
     init(apiKey: String, proxyHost: String? = nil, proxyPort: Int? = nil) {
@@ -25,9 +24,7 @@ struct MoralisService {
         } else {
             .default
         }
-
-        let session = Session(configuration: configuration)
-        self.provider = .init(session: session)
+        self.provider = .init(session: Session(configuration: configuration))
         self.apiKey = apiKey
     }
 
@@ -36,69 +33,50 @@ struct MoralisService {
         tokens: [Token]?,
         pageCursor: String?
     ) async throws -> MoralisPageResponse<MoralisBalance> {
-        guard case let .ethereum(chainId) = account.blockchainConfig.blockchain else {
+        guard case let .evm(network) = account.blockchain else {
             throw Error.invalidData
         }
 
-        let target = MoralisAPI.listBalances(
-            address: account.address,
-            chain: makeChain(chainId),
-            tokens: tokens?.compactMap(\.address),
-            pageCursor: pageCursor,
-            apiKey: apiKey
+        return try await provider.request(
+            .listBalances(
+                address: account.address,
+                chain: makeChain(network.chainId),
+                tokens: tokens?.compactMap(\.address),
+                pageCursor: pageCursor,
+                apiKey: apiKey
+            )
         )
-
-        return try await provider.request(target)
     }
 
-    func makeChain(_ chain: UInt64) -> String {
-        let str = "0x" + String(chain, radix: 16)
-        return str
+    private func makeChain(_ chain: UInt64) -> String {
+        "0x" + String(chain, radix: 16)
     }
 }
 
 extension MoralisAPI: TargetType {
     var path: String {
         switch self {
-        /* case .getMetadata:
-            "/api/v2.2/erc20/metadata" */
         case let .listBalances(owner, _, _, _, _):
             "/api/v2.2/wallets/\(owner)/tokens"
         }
     }
 
-    var method: Moya.Method {
-        .get
-    }
+    var method: Moya.Method { .get }
 
     var task: Task {
         switch self {
-        /*case let .getMetadata(chain, addresses, _):
-            let parameters: [String: Any] = ["chain": chain, "addresses": addresses]
-            return .requestParameters(parameters: parameters, encoding: URLEncoding.queryString)*/
         case let .listBalances(_, chain, tokens, pageCursor, _):
             var parameters: [String: Any] = ["chain": chain, "limit": 100]
-
-            if let tokens, !tokens.isEmpty {
-                parameters["token_addresses"] = tokens
-            }
-
-            if let pageCursor {
-                parameters["cursor"] = pageCursor
-            }
-
+            if let tokens, !tokens.isEmpty { parameters["token_addresses"] = tokens }
+            if let pageCursor { parameters["cursor"] = pageCursor }
             return .requestParameters(parameters: parameters, encoding: URLEncoding.queryString)
         }
     }
 
-    var baseURL: URL {
-        URL(string: "https://deep-index.moralis.io")!
-    }
+    var baseURL: URL { URL(string: "https://deep-index.moralis.io")! }
 
     var headers: [String: String]? {
         switch self {
-        /* case let .getMetadata(_, _, apiKey):
-            ["X-API-Key": apiKey] */
         case let .listBalances(_, _, _, _, apiKey):
             ["X-API-Key": apiKey]
         }

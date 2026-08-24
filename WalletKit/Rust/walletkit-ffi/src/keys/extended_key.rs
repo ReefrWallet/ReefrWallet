@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
-use crate::common::{Curve, DerivationPath, DerivationScheme};
+use crate::common::{CurveFfi, DerivationPath, DerivationScheme};
 use crate::errors::WalletKitErrorFfi;
 use crate::keys::private_key::PrivateKeyFfi;
 use crate::keys::public_key::PublicKeyFfi;
@@ -26,7 +26,7 @@ const ED25519_PUBLIC_KEY_MARKER: u8 = 0x01;
 
 #[derive(Clone, uniffi::Object)]
 pub struct ExtendedKeyFfi {
-    curve: Curve,
+    curve: CurveFfi,
     depth: u8,
     child_index: u32,
     is_hardened: bool,
@@ -49,17 +49,17 @@ impl std::fmt::Debug for ExtendedKeyFfi {
 impl ExtendedKeyFfi {
     /// Derives the master key for `curve` from a BIP39 seed via HMAC-SHA512
     /// with the scheme's standard key ("Bitcoin seed" / "ed25519 seed").
-    pub(crate) fn master(curve: Curve, seed: &[u8]) -> ExtendedKeyFfi {
+    pub(crate) fn master(curve: CurveFfi, seed: &[u8]) -> ExtendedKeyFfi {
         let hmac_key: &[u8] = match curve {
-            Curve::Secp256k1 => b"Bitcoin seed",
-            Curve::Ed25519 => b"ed25519 seed",
+            CurveFfi::Secp256k1 => b"Bitcoin seed",
+            CurveFfi::Ed25519 => b"ed25519 seed",
         };
         let (private_key, chain_code) = hmac_sha512_split(hmac_key, seed);
         Self::from_private_key(curve, 0, 0, false, [0; 4], chain_code, private_key)
     }
 
     fn from_private_key(
-        curve: Curve,
+        curve: CurveFfi,
         depth: u8,
         child_index: u32,
         is_hardened: bool,
@@ -88,8 +88,8 @@ impl ExtendedKeyFfi {
             });
         }
         match self.curve {
-            Curve::Secp256k1 => self.derive_child_secp256k1(index, hardened),
-            Curve::Ed25519 => self.derive_child_ed25519(index, hardened),
+            CurveFfi::Secp256k1 => self.derive_child_secp256k1(index, hardened),
+            CurveFfi::Ed25519 => self.derive_child_ed25519(index, hardened),
         }
     }
 
@@ -118,7 +118,7 @@ impl ExtendedKeyFfi {
                 .add_tweak(&tweak)
                 .map_err(|err| WalletKitErrorFfi::InternalError { message: err.to_string() })?;
             Ok(ExtendedKeyFfi::from_private_key(
-                Curve::Secp256k1,
+                CurveFfi::Secp256k1,
                 self.depth + 1,
                 index,
                 hardened,
@@ -133,7 +133,7 @@ impl ExtendedKeyFfi {
                 .add_exp_tweak(&secp, &tweak)
                 .map_err(|err| WalletKitErrorFfi::InternalError { message: err.to_string() })?;
             Ok(ExtendedKeyFfi {
-                curve: Curve::Secp256k1,
+                curve: CurveFfi::Secp256k1,
                 depth: self.depth + 1,
                 child_index: index,
                 is_hardened: hardened,
@@ -161,7 +161,7 @@ impl ExtendedKeyFfi {
 
         let (child_private_key, chain_code) = hmac_sha512_split(&self.chain_code, &data);
         Ok(ExtendedKeyFfi::from_private_key(
-            Curve::Ed25519,
+            CurveFfi::Ed25519,
             self.depth + 1,
             index,
             true,
@@ -190,8 +190,8 @@ impl ExtendedKeyFfi {
             buf.extend_from_slice(self.private_key.as_ref().expect("checked by caller").as_slice());
         } else {
             match self.curve {
-                Curve::Secp256k1 => buf.extend_from_slice(&self.public_key_bytes),
-                Curve::Ed25519 => {
+                CurveFfi::Secp256k1 => buf.extend_from_slice(&self.public_key_bytes),
+                CurveFfi::Ed25519 => {
                     buf.push(ED25519_PUBLIC_KEY_MARKER);
                     buf.extend_from_slice(&self.public_key_bytes);
                 }
@@ -200,7 +200,7 @@ impl ExtendedKeyFfi {
         bs58::encode(buf).with_check().into_string()
     }
 
-    fn from_serialized_owned(string: &str, curve: Curve) -> Result<ExtendedKeyFfi, WalletKitErrorFfi> {
+    fn from_serialized_owned(string: &str, curve: CurveFfi) -> Result<ExtendedKeyFfi, WalletKitErrorFfi> {
         let invalid = || WalletKitErrorFfi::InvalidDerivationPath { path: string.to_string() };
 
         let data = bs58::decode(string)
@@ -244,11 +244,11 @@ impl ExtendedKeyFfi {
             ))
         } else {
             let public_key_bytes = match curve {
-                Curve::Secp256k1 => {
+                CurveFfi::Secp256k1 => {
                     secp256k1::PublicKey::from_slice(key_field).map_err(|_| invalid())?;
                     key_field.to_vec()
                 }
-                Curve::Ed25519 => {
+                CurveFfi::Ed25519 => {
                     if key_field[0] != ED25519_PUBLIC_KEY_MARKER {
                         return Err(invalid());
                     }
@@ -274,11 +274,11 @@ impl ExtendedKeyFfi {
     /// Imports a serialized extended key string. `curve` disambiguates
     /// formats that don't self-describe their curve.
     #[uniffi::constructor]
-    pub fn from_serialized(string: String, curve: Curve) -> Result<Self, WalletKitErrorFfi> {
+    pub fn from_serialized(string: String, curve: CurveFfi) -> Result<Self, WalletKitErrorFfi> {
         Self::from_serialized_owned(&string, curve)
     }
 
-    pub fn curve(&self) -> Curve {
+    pub fn curve(&self) -> CurveFfi {
         self.curve
     }
 
@@ -352,15 +352,15 @@ fn hmac_sha512_split(key: &[u8], data: &[u8]) -> ([u8; 32], [u8; 32]) {
     (left, right)
 }
 
-fn public_key_bytes_for(curve: Curve, private_key: &[u8; 32]) -> Vec<u8> {
+fn public_key_bytes_for(curve: CurveFfi, private_key: &[u8; 32]) -> Vec<u8> {
     match curve {
-        Curve::Secp256k1 => {
+        CurveFfi::Secp256k1 => {
             let secp = secp256k1::Secp256k1::signing_only();
             let secret = secp256k1::SecretKey::from_byte_array(*private_key)
                 .expect("BIP32 derivation always produces a valid secp256k1 scalar");
             secp256k1::PublicKey::from_secret_key(&secp, &secret).serialize().to_vec()
         }
-        Curve::Ed25519 => {
+        CurveFfi::Ed25519 => {
             let signing_key = ed25519_dalek::SigningKey::from_bytes(private_key);
             signing_key.verifying_key().to_bytes().to_vec()
         }
@@ -373,7 +373,7 @@ mod tests {
     use crate::common::{MnemonicWordCount, Wordlist};
     use crate::keys::MnemonicFfi;
 
-    fn master(curve: Curve) -> Arc<ExtendedKeyFfi> {
+    fn master(curve: CurveFfi) -> Arc<ExtendedKeyFfi> {
         MnemonicFfi::generate(MnemonicWordCount::Words24, Wordlist::English)
             .to_seed("".to_string())
             .master_key(curve)
@@ -381,7 +381,7 @@ mod tests {
 
     #[test]
     fn derive_walks_the_full_requested_path() {
-        let master = master(Curve::Secp256k1);
+        let master = master(CurveFfi::Secp256k1);
         let path = DerivationPath::parse("m/44'/60'/0'/0/0").unwrap();
         let derived = master.derive(path.clone()).unwrap();
         assert_eq!(derived.depth() as usize, path.segments.len());
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn derive_child_increments_depth_by_one() {
-        let master = master(Curve::Secp256k1);
+        let master = master(CurveFfi::Secp256k1);
         let child = master.derive_child(0, true).unwrap();
         assert_eq!(child.depth(), master.depth() + 1);
         assert!(child.is_hardened());
@@ -397,23 +397,23 @@ mod tests {
 
     #[test]
     fn public_only_key_cannot_produce_a_private_key() {
-        let master = master(Curve::Secp256k1);
-        let watch_only = ExtendedKeyFfi::from_serialized(master.serialized_public(), Curve::Secp256k1).unwrap();
+        let master = master(CurveFfi::Secp256k1);
+        let watch_only = ExtendedKeyFfi::from_serialized(master.serialized_public(), CurveFfi::Secp256k1).unwrap();
         assert!(!watch_only.can_derive_private());
         assert!(matches!(watch_only.private_key(), Err(WalletKitErrorFfi::KeyNotFound)));
     }
 
     #[test]
     fn serialized_private_round_trips_to_the_same_public_key() {
-        let master = master(Curve::Secp256k1);
+        let master = master(CurveFfi::Secp256k1);
         let restored =
-            ExtendedKeyFfi::from_serialized(master.serialized_private().unwrap(), Curve::Secp256k1).unwrap();
+            ExtendedKeyFfi::from_serialized(master.serialized_private().unwrap(), CurveFfi::Secp256k1).unwrap();
         assert_eq!(restored.serialized_public(), master.serialized_public());
     }
 
     #[test]
     fn invalid_serialized_string_throws() {
-        let err = ExtendedKeyFfi::from_serialized("not-a-valid-xprv".to_string(), Curve::Secp256k1).unwrap_err();
+        let err = ExtendedKeyFfi::from_serialized("not-a-valid-xprv".to_string(), CurveFfi::Secp256k1).unwrap_err();
         assert!(matches!(err, WalletKitErrorFfi::InvalidDerivationPath { .. }));
     }
 }

@@ -108,7 +108,7 @@ public enum WalletKitError: Error, Equatable {
         case .InvalidPassphrase: self = .invalidPassphrase
         case .InvalidDerivationPath(let path): self = .invalidDerivationPath(path: path)
         case .InvalidAddress(let reason): self = .invalidAddress(reason: reason)
-        case .UnsupportedCurve(let curve): self = .unsupportedCurve(curve: curve)
+        case .UnsupportedCurve(let curve): self = .unsupportedCurve(curve: Curve(curve))
         case .InvalidBigInt(let reason): self = .invalidBigInt(reason: reason)
         case .InvalidSeed(let reason): self = .invalidSeed(reason: reason)
         case .UnsupportedWordCount(let count): self = .unsupportedWordCount(count: count)

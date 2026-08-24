@@ -31,7 +31,7 @@ private struct MockAddress: BlockchainAddress {
 private struct MockSigner: Signer {
     typealias Address = MockAddress
 
-    let account: Account
+    let account: WKAccount
     let addressString: String
     let signHandler: (Data) async throws -> Data
 
@@ -53,9 +53,13 @@ struct SignerTests {
     }
 
     @Test func blockchainDefaultsToTheAccountsBlockchain() throws {
-        let account = try TestAccountFactory.bitcoinAccount()
-        let signer = MockSigner(account: account, addressString: "", signHandler: { data in data })
-        #expect(signer.blockchain == .bitcoin)
+        let account1 = try TestAccountFactory.bitcoinAccount(network: .mainnet)
+        let signer1 = MockSigner(account: account1, addressString: "", signHandler: { data in data })
+        #expect(signer1.blockchain == .bitcoin(.mainnet))
+
+        let account2 = try TestAccountFactory.bitcoinAccount(network: .testnet)
+        let signer2 = MockSigner(account: account2, addressString: "", signHandler: { data in data })
+        #expect(signer2.blockchain == .bitcoin(.testnet))
     }
 
     @Test func signForwardsTheTransaction() async throws {

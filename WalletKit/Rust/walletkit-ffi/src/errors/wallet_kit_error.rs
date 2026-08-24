@@ -3,7 +3,7 @@
 //! the target shape (a single error enum covering both software
 //! key-management and hardware-device failure cases).
 
-use crate::common::Curve;
+use crate::common::CurveFfi;
 use walletkit_hardware::HardwareError;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Error)]
@@ -19,7 +19,7 @@ pub enum WalletKitErrorFfi {
     #[error("invalid address: {reason}")]
     InvalidAddress { reason: String },
     #[error("unsupported curve: {curve:?}")]
-    UnsupportedCurve { curve: Curve },
+    UnsupportedCurve { curve: CurveFfi },
     #[error("invalid big integer: {reason}")]
     InvalidBigInt { reason: String },
     #[error("invalid seed: {reason}")]

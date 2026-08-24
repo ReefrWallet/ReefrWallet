@@ -57,7 +57,7 @@ public struct SuiAddress: BlockchainAddress {
     /// - Throws: ``WalletKitError/unsupportedCurve(curve:)`` if
     ///   `publicKey.curve != curve`.
     public init(publicKey: PublicKey, curve: Curve) throws {
-        raw = try remappingWalletKitError { try SuiSignerFfi(curve: curve).address(publicKey: publicKey.raw) }
+        raw = try remappingWalletKitError { try SuiSignerFfi(curve: curve.raw).address(publicKey: publicKey.raw) }
     }
 
     public static func == (lhs: SuiAddress, rhs: SuiAddress) -> Bool {

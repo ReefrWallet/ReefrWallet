@@ -102,12 +102,12 @@ public final class ExtendedKey: ExtendedKeyProtocol {
     ///   `string` isn't a well-formed serialized extended key.
     public static func fromSerialized(_ string: String, curve: Curve) throws -> ExtendedKey {
         try remappingWalletKitError {
-            ExtendedKey(raw: try ExtendedKeyFfi.fromSerialized(string: string, curve: curve))
+            ExtendedKey(raw: try ExtendedKeyFfi.fromSerialized(string: string, curve: curve.raw))
         }
     }
 
     /// The elliptic curve this key belongs to.
-    public var curve: Curve { raw.curve() }
+    public var curve: Curve { Curve(raw.curve()) }
 
     /// The derivation scheme (BIP32 or SLIP-0010) this key's curve uses.
     public var scheme: DerivationScheme { raw.scheme() }

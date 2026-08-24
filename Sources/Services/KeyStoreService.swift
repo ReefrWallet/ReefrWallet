@@ -1,16 +1,5 @@
-//
-//  KeyStoreService.swift
-//  Reefr Wallet
-//
-//  Created by Andrey Yurkevich on 06.01.26.
-//  Copyright © 2026 Reefr Wallet. All rights reserved.
-//
-
 import Foundation
-import SwiftData
 import WalletKit
-
-// MARK: - KeyStoreService
 
 final class KeyStoreService {
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
@@ -18,8 +7,15 @@ final class KeyStoreService {
 
     @MainActor
     func addLocalKey(_ mnemonic: Mnemonic) async throws {
-        let rawKey = mnemonic.toSeed().exportRaw()
-        let keyStore = KeyStore(.local, name: "Key Store", rawKey: rawKey)
+        let keyStore = KeyStore(
+            deviceId: nil,
+            kind: .local,
+            name: "Local Key",
+            rawKey: mnemonic.toSeed().exportRaw(),
+            transport: nil,
+            vendor: nil
+        )
+
         try await databaseService.insertKeyStore(keyStore)
     }
 
@@ -32,7 +28,15 @@ final class KeyStoreService {
             throw Error.notFound
         }
 
-        let keyStore = KeyStore(device)
+        let keyStore = KeyStore(
+            deviceId: device.id,
+            kind: .trezor,
+            name: device.label ?? "Trezor",
+            rawKey: nil,
+            transport: .usb,
+            vendor: device.vendor
+        )
+
         try await databaseService.insertKeyStore(keyStore)
     }
 

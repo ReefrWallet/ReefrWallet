@@ -17,10 +17,10 @@ public final class EthereumPKeySigner: Signer {
     public typealias Address = EthereumAddress
 
     /// The account this signer signs for.
-    public let account: Account
+    public let account: WKAccount
 
     /// EVM chain ID this signer is scoped to (1 = mainnet, 11155111 =
-    /// Sepolia, ...) — the value carried by `Blockchain.ethereum(_:)`.
+    /// Sepolia, ...) — the value carried by `WKBlockchain.ethereum(_:)`.
     /// ``sign(transaction:)`` rejects a transaction whose embedded EIP-155
     /// chain ID doesn't match this.
     public let chainId: UInt64
@@ -48,8 +48,8 @@ public final class EthereumPKeySigner: Signer {
         self.privateKey = privateKey
 
         raw = EthereumSignerFfi(chainId: chainId)
-        account = Account(
-            blockchain: .ethereum(chainId),
+        account = WKAccount(
+            blockchain: .evm(EVMBlockchain(chainId: chainId)),
             derivationPath: derivationPath,
             curve: .secp256k1,
             source: .software,

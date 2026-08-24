@@ -53,7 +53,7 @@ public final class HardwareDeviceManager: HardwareDeviceManagerProtocol {
         transports: [HardwareTransportKind] = [.usb, .bluetooth]
     ) async throws -> [HardwareDeviceInfo] {
         let infos = try await remappingWalletKitError {
-            try await raw.scan(vendors: vendors.map(\.raw), transports: transports)
+            try await raw.scan(vendors: vendors.map(\.raw), transports: transports.map(\.rawValue))
         }
         return infos.map(HardwareDeviceInfo.init(raw:))
     }

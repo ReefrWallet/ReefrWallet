@@ -102,7 +102,7 @@ mod tests {
             assert_eq!(mnemonic.wordlist(), Wordlist::English, "entropy {entropy_hex}");
             let seed = mnemonic.to_seed("TREZOR".to_string());
             assert_eq!(hex::encode(seed.export_raw()), seed_hex, "entropy {entropy_hex}");
-            let master = seed.master_key(crate::common::Curve::Secp256k1);
+            let master = seed.master_key(crate::common::CurveFfi::Secp256k1);
             assert_eq!(master.serialized_private().unwrap(), master_xprv, "entropy {entropy_hex}");
         }
     }

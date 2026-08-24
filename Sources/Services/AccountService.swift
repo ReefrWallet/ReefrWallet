@@ -1,113 +1,116 @@
-//
-//  AccountService.swift
-//  Reefr Wallet
-//
-//  Created by Andrey Yurkevich on 25.02.26.
-//  Copyright © 2026 Reefr Wallet. All rights reserved.
-//
-
+import Foundation
+import SwiftData
 import WalletKit
 
 final class AccountService {
-    private lazy var blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
 
+    @MainActor
     func makeAccount(
-        _ blockchain: Blockchain,
-        keyStore: KeyStore
+        _ blockchain: WKBlockchain,
+        keyStore: KeyStore,
+        watchOnlyAddress: String? = nil
     ) async throws -> Account {
-        let storedKeyStore = try await databaseService.fetchKeyStore(id: keyStore.id)
-        let blockchainConfig = try await blockchainConfigService.getConfig(for: blockchain)
-        let accountIndex = storedKeyStore.nextAccountIndex(blockchain)
-        let name = "\(blockchainConfig.displayName) #\(accountIndex + 1)"
+        let accountIndex = try await nextAccountIndex(for: blockchain, in: keyStore)
 
-        let account = Account(
-            accountIndex: accountIndex,
-            address: "", // we'll set address later on
-            blockchainConfig: blockchainConfig,
-            keyStore: storedKeyStore,
-            name: name
-        )
+        let address: String
+        let derivationPath: String?
 
-        // Figure out and save own address and derivation path
-        switch storedKeyStore.kind {
+        switch keyStore.kind {
         case .local:
-            try setLocalAddress(account)
+            guard let rawKey = keyStore.rawKey else {
+                throw Error.invalidData
+            }
+
+            let result = try makeLocalAddress(blockchain: blockchain, rawKey: rawKey, accountIndex: accountIndex)
+
+            address = result.address
+            derivationPath = result.derivationPath
         case .trezor:
-            guard let deviceId = storedKeyStore.deviceId else {
-                printError("Missing device id")
+            guard let deviceId = keyStore.deviceId else {
                 throw Error.invalidData
             }
 
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
-            try await setTrezorAddress(account, device: device)
+            let result = try await makeTrezorAddress(blockchain: blockchain, accountIndex: accountIndex, device: device)
+
+            address = result.address
+            derivationPath = result.derivationPath
         case .watchOnly:
-            break
+            guard let watchOnlyAddress else {
+                throw Error.invalidData
+            }
+
+            address = watchOnlyAddress
+            derivationPath = nil
         }
 
-        storedKeyStore.accounts?.append(account)
-        try await databaseService.saveChanges()
+        let account = Account(
+            accountIndex: accountIndex,
+            address: address,
+            blockchain: blockchain,
+            derivationPath: derivationPath,
+            name: "\(blockchain.displayName) #\(accountIndex)"
+        )
 
-        return account
+        return try await databaseService.insertAccount(account, keyStore: keyStore)
     }
 }
 
 private extension AccountService {
-    /// Fills in ``Account``'s derivation path and address
-    func setLocalAddress(_ account: Account) throws {
-        guard let rawKey = account.keyStore?.rawKey else {
-            printError("Missing key data")
-            throw Error.invalidData
-        }
+    struct AddressResult: Sendable {
+        let address: String
+        let derivationPath: String
+    }
 
-        guard let accountIndex = account.accountIndex else {
-            printError("Missing account index")
-            throw Error.invalidData
-        }
-
-        let derivationPath = try DerivationPath(account.blockchainConfig.blockchain, accountIndex: accountIndex)
-        account.derivationPath = derivationPath.string
-
+    func makeLocalAddress(blockchain: WKBlockchain, rawKey: Data, accountIndex: UInt64) throws -> AddressResult {
+        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex)
         let seed = try Seed(rawBytes: rawKey)
 
-        switch account.blockchainConfig.blockchain {
-        case .ethereum:
+        let address: String
+        switch blockchain {
+        case .evm:
             let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
             let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
-            account.address = try signer.address().checksummed
-        case let .sui(curve):
-            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
-            let address = try SuiAddress(publicKey: publicKey, curve: curve)
-            account.address = address.string
+            address = try signer.address().checksummed
+        case .sui:
+            let publicKey = try seed.masterKey(curve: .ed25519).derive(derivationPath).privateKey().publicKey
+            address = try SuiAddress(publicKey: publicKey, curve: .ed25519).string
+        default:
+            throw Error.notImplemented
+        }
+
+        return AddressResult(address: address, derivationPath: derivationPath.string)
+    }
+
+    func makeTrezorAddress(
+        blockchain: WKBlockchain,
+        accountIndex: UInt64,
+        device: HardwareDevice
+    ) async throws -> AddressResult {
+        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex)
+
+        switch blockchain {
+        case .evm:
+            let signer = try await EthereumTrezorSigner(device: device, derivationPath: derivationPath)
+            return AddressResult(address: try signer.address().string, derivationPath: derivationPath.string)
         default:
             throw Error.notImplemented
         }
     }
 
-    /// Fills in ``Account``'s derivation path and address from ``HardwareDevice``
-    func setTrezorAddress(_ account: Account, device: HardwareDevice) async throws {
-        guard let accountIndex = account.accountIndex else {
-            printError("Missing account index")
-            throw Error.invalidData
+    /// Return next account index that has not yet been configured
+    func nextAccountIndex(for blockchain: WKBlockchain, in keyStore: KeyStore) async throws -> UInt64 {
+        if case .watchOnly = keyStore.kind {
+            return 0
         }
 
-        let derivationPath = try DerivationPath(account.blockchainConfig.blockchain, accountIndex: accountIndex)
-        account.derivationPath = derivationPath.string
-
-        switch account.blockchainConfig.blockchain {
-        case .ethereum:
-            do {
-                let signer = try await EthereumTrezorSigner(device: device, derivationPath: derivationPath)
-                account.address = try signer.address().string
-                account.derivationPath = derivationPath.string
-            } catch {
-                printError("Can't create signer: \(error)")
-                throw error
-            }
-
-        default:
-            throw Error.notImplemented
+        guard let keyStoreId = keyStore.id else {
+            throw Error.internalError
         }
+
+        let accounts = try await databaseService.fetchAccounts(keyStoreId: keyStoreId, blockchain: blockchain)
+        return UInt64(accounts.count)
     }
 }

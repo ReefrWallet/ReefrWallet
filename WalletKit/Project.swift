@@ -54,14 +54,7 @@ let walletKit: Target = .target(
         .external(name: "GRPCNIOTransportHTTP2Posix"),
         .target(name: "WalletKitGRPC"),
         .target(name: "WalletKitRust")
-    ],
-    // grpc-swift-nio-transport pulls in swift-nio-ssl's CNIOBoringSSL, a C++
-    // library — its final link step needs libc++, which Xcode only links
-    // in automatically for a target that itself has Objective-C++/C++
-    // sources. This target has none, so any consumer that actually calls
-    // into SuiGRPCClient (and so keeps CNIOBoringSSL's symbols live rather
-    // than dead-stripped) fails to link without this.
-    settings: .settings(base: ["OTHER_LDFLAGS": ["-lc++"]])
+    ]
 )
 
 let walletKitTestsMac: Target = .target(
@@ -87,15 +80,7 @@ let walletKitTestsMac: Target = .target(
         .target(name: "WalletKit"),
         .target(name: "WalletKitRust"),
         .target(name: "WalletKitGRPC")
-    ],
-    // See the matching comment on `walletKit` above — this target links
-    // SuiGRPCClient's own test bundle, independently of WalletKit's link
-    // settings.
-    settings: .settings(base: [
-        "ENABLE_MODULE_VERIFIER": true,
-        "ENABLE_USER_SCRIPT_SANDBOXING": false,
-        "OTHER_LDFLAGS": ["-lc++"]
-    ])
+    ]
 )
 
 /* let walletKitTestsIOS: Target = .target(
@@ -132,6 +117,12 @@ let schemes: [Scheme] = [
 let project = Project(
     name: "WalletKit",
     organizationName: Project.organizationName,
+    settings: .settings(base: [
+        "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": ["gnu11", "gnu++14"],
+        "ENABLE_MODULE_VERIFIER": true,
+        "ENABLE_USER_SCRIPT_SANDBOXING": false,
+        "OTHER_LDFLAGS": ["-lc++"]
+    ]),
     targets: [walletKitRust, walletKitGRPC, walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
     schemes: schemes,
     additionalFiles: [

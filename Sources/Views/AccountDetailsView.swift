@@ -13,6 +13,7 @@ import SwiftUI
 
 struct AccountDetailsView {
     let account: Account
+    let keyStore: KeyStore
 
     @State private var isCopyContractAddressButtonActive = false
     @State private var isCopyWalletAddressButtonActive = false
@@ -22,7 +23,23 @@ struct AccountDetailsView {
     @State private var selection: String?
     @State private var sortOrder: [KeyPathComparator<TableEntry>] = []
 
+    @Query var accountBalances: [BalanceModel]
+
     @AppStorage("AccountBalancesTableConfig") private var columnCustomization: TableColumnCustomization<TableEntry>
+
+    init(_ account: Account, keyStore: KeyStore) {
+        guard let accountId = account.id else {
+            preconditionFailure()
+        }
+
+        let predicate = #Predicate<BalanceModel> { item in
+            item.account.id == accountId
+        }
+        self.account = account
+        self.keyStore = keyStore
+
+        _accountBalances = Query(filter: predicate)
+    }
 }
 
 // MARK: - View
@@ -33,13 +50,13 @@ extension AccountDetailsView: View {
             header
                 .padding()
 
-            if !balances.isEmpty {
+            if !balanceEntries.isEmpty {
                 VStack {
                     HStack(spacing: 4) {
                         Text("Total Value:")
                             .style(.mediumHeader, foreground: .primary)
 
-                        Text(account.usdValue.formatted(.currency(code: "USD")))
+                        Text(usdValue.formatted(.currency(code: "USD")))
                             .style(.mediumHeader, foreground: .primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -109,7 +126,7 @@ private extension AccountDetailsView {
             }
             .customizationID("token")
 
-            TableColumn("Balance", value: \.decimalAmount) { entry in
+            TableColumn("BalanceModel", value: \.decimalAmount) { entry in
                 Text(entry.displayAmount)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
@@ -123,7 +140,7 @@ private extension AccountDetailsView {
             }
             .customizationID("usdValue")
         } rows: {
-            ForEach(balances) { balance in
+            ForEach(balanceEntries) { balance in
                 TableRow(balance)
             }
 
@@ -158,22 +175,20 @@ private extension AccountDetailsView {
             .padding(.bottom, 1)
 
             HStack {
-                Text(account.blockchainConfig.networkName)
+                Text(account.blockchain.name)
 
                 if let derivationPath = account.derivationPath {
                     Text(verbatim: .dot)
                     Text(derivationPath)
                 }
 
-                if let keyStoreName = account.keyStore?.name {
-                    Text(verbatim: .dot)
-                    Text(keyStoreName)
-                }
+                Text(verbatim: .dot)
+                Text(keyStore.name)
             }
             .style(.small, foreground: .secondary)
             .padding(.bottom, 1)
 
-            if let balance = account.nativeBalance {
+            if let balance = try? accountBalances.filter({ $0.token.isNativeToken }).first.map(Balance.init(model:)) {
                 Text("\(balance.decimalAmount.description) \(balance.token.symbol)")
                     .style(.small, foreground: .secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -188,7 +203,7 @@ private extension AccountDetailsView {
 
             Text(verbatim: .dot)
 
-            Text(balance.usdValue.formatted(.currency(code: "USD")))
+            Text(balance.usdValue?.formatted(.currency(code: "USD")) ?? "")
 
             if balance.token.isNativeToken != true, let address = balance.token.address {
                 Text(verbatim: .dot)
@@ -210,24 +225,36 @@ private extension AccountDetailsView {
 // MARK: - Logic
 
 private extension AccountDetailsView {
-    var balances: [TableEntry] {
-        account.balances
+    var balanceEntries: [TableEntry] {
+        accountBalances
             .filter { !$0.token.isHidden }
+            .compactMap { try? Balance(model: $0) }
             .map { TableEntry.balance($0) }
             .sorted(using: sortOrder)
     }
 
     var hiddenBalances: [TableEntry] {
-        account.balances
+        accountBalances
             .filter { $0.token.isHidden }
+            .compactMap { try? Balance(model: $0) }
             .map { TableEntry.balance($0) }
             .sorted(using: sortOrder)
     }
 
     var selectedBalance: Balance? {
-        account.balances.first {
-            selection == "\($0.id)"
+        guard let balance = accountBalances.first(where: { selection == "\($0.id)" }) else {
+            return nil
         }
+
+        return try? Balance(model: balance)
+    }
+
+    var usdValue: Decimal {
+        accountBalances
+            .map { try? Balance(model: $0) }
+            .reduce(Decimal(0)) { partialResult, balance in
+                partialResult + (balance?.usdValue ?? 0)
+            }
     }
 
     func copyToClipboard(_ string: String) {
@@ -270,7 +297,7 @@ private enum TableEntry: Identifiable {
         case .hiddenBalancesTitle:
             "Hidden Tokens"
         case let .balance(balance):
-            balance.token.name ?? balance.token.symbol
+            balance.token.name
         }
     }
 
@@ -279,7 +306,7 @@ private enum TableEntry: Identifiable {
         case .hiddenBalancesTitle:
             ""
         case let .balance(balance):
-            balance.usdValue.formatted(.number.precision(.fractionLength(2)))
+            balance.usdValue?.formatted(.number.precision(.fractionLength(2))) ?? ""
         }
     }
 
@@ -289,7 +316,11 @@ private enum TableEntry: Identifiable {
             // we don't want this selected, so generate new id each time
             UUID().uuidString
         case let .balance(balance):
-            "\(balance.id)"
+            if let id = balance.id {
+                "\(id)"
+            } else {
+                preconditionFailure()
+            }
         }
     }
 
@@ -310,13 +341,12 @@ private enum TableEntry: Identifiable {
         case .hiddenBalancesTitle:
             0
         case let .balance(balance):
-            balance.usdValue
+            balance.usdValue ?? 0
         }
     }
 }
 
-#Preview {
-    AccountDetailsView(account: .mockEth(keyStore: .mockLocal()))
+/* #Preview {
+    AccountDetailsView(account: .mockEth(keyStore: try! .mockLocal()))  // swiftlint:disable:this force_try
         .padding()
-        // .frame(width: 700, height: 400)
-}
+} */

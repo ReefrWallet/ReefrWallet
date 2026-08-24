@@ -1,116 +1,109 @@
-//
-//  BalancesService.swift
-//  Reefr Wallet
-//
-//  Created by Andrey Yurkevich on 17.01.26.
-//  Copyright © 2026 Reefr Wallet. All rights reserved.
-//
-
+import BigInt
 import Foundation
 import SwiftData
-import SwiftUI
 import WalletKit
-
-/// This service fetches account balances from blockchain and saves them in the database
 
 final class BalancesService {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
-    private lazy var blockchainConfigService = DI.injectOrFail(BlockchainConfigService.self)
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
-    // private lazy var priceService = DI.injectOrFail(PriceService.self)
 
-    /// Scan for active accounts and add if necessary
-    @MainActor
-    func scanAccounts(blockchain: Blockchain, keyStore: KeyStore) async throws {
-        guard !keyStore.isWatchOnly else {
-            throw Error.invalidData
+    func usdValue(accountId: PersistentIdentifier) async throws -> Decimal {
+        let balances = try await databaseService.fetchBalances(accountId: accountId)
+
+        guard !balances.isEmpty else {
+            return 0
         }
 
-        let blockchainConfig = try await blockchainConfigService.getConfig(for: blockchain)
-        let storedKeyStore = try await databaseService.fetchKeyStore(id: keyStore.id)
-
-        repeat {
-            let accountIndex = keyStore.nextAccountIndex(blockchainConfig.blockchain)
-            let name = "\(blockchainConfig.displayName) #\(accountIndex + 1)"
-
-            let newAccount = Account(
-                accountIndex: accountIndex,
-                address: "",
-                blockchainConfig: blockchainConfig,
-                keyStore: storedKeyStore,
-                name: name
-            )
-
-            let client = try clientProvider.getClient(newAccount)
-
-            guard try await client.isActiveAccount(newAccount.address) else {
-                return
-            }
-
-            storedKeyStore.accounts?.append(newAccount)
-        } while true
-
-        try await databaseService.saveChanges()
+        return balances.reduce(into: 0) { partialResult, balance in
+            partialResult += (balance.token.usdPrice ?? 0) * Decimal(balance.amount)
+        }
     }
 
-    @MainActor
-    func updateBalances(_ account: Account) async throws {
-        let client =  try clientProvider.getClient(account)
+    func usdValue(keyStoreId: PersistentIdentifier) async throws -> Decimal {
+        var result: Decimal = 0
 
-        if client.isSupported(.allBalances) {
-            try await updateAllBalances(account)
-        } else {
-            try await updateTokenBalances(account)
+        guard let keyStore = try await databaseService.fetchKeyStore(id: keyStoreId) else {
+            throw Error.notFound
         }
 
-        try await databaseService.saveChanges()
-    }
-}
-
-private extension BalancesService {
-    func updateAllBalances(_ account: Account) async throws {
-        let client = try clientProvider.getClient(account)
-
-        for (tokenAddress, amount) in try await client.getAllBalances(account.address) {
-            let token = account.blockchainConfig.tokens.first {
-                $0.address == tokenAddress
-            }
-
-            if let token {
-                account.setBalance(of: token, amount: amount)
-            } else {
-                let tokenInfo = try await client.getTokenInfo(tokenAddress)
-                let token = Token(
-                    address: tokenAddress,
-                    blockchain: account.blockchainConfig,
-                    decimalsCount: tokenInfo.decimals,
-                    isNativeToken: false,
-                    name: tokenInfo.name,
-                    symbol: tokenInfo.symbol
-                )
-
-                account.setBalance(of: token, amount: amount)
-            }
-        }
-
-        try await databaseService.saveChanges()
-    }
-
-    func updateTokenBalances(_ account: Account) async throws {
-        let client = try clientProvider.getClient(account)
-
-        for token in account.blockchainConfig.tokens {
-            let amount = if token.isNativeToken {
-                 try await client.getNativeBalance(account.address)
-            } else if let tokenAddress = token.address {
-                try await client.getBalance(account.address, token: tokenAddress)
-            } else {
+        for account in keyStore.accounts {
+            guard let accountId = account.id else {
                 throw Error.invalidData
             }
 
-            account.setBalance(of: token, amount: amount)
+            try await result += usdValue(accountId: accountId)
         }
 
-        try await databaseService.saveChanges()
+        return result
+    }
+
+    @MainActor // swiftlint:disable:next function_body_length
+    func updateBalances(_ account: Account) async throws {
+        let client = try clientProvider.getClient(blockchain: account.blockchain)
+        let tokens = try await databaseService.fetchTokens(account: account)
+
+        var balances: [Balance] = []
+
+        if client.isSupported(.allBalances) {
+            for (tokenAddress, amount) in try await client.getAllBalances(account.address) {
+                if let token = tokens.first(where: { $0.address == tokenAddress }) {
+                    let usdValue: Decimal? = if let price = token.usdPrice {
+                        price * Decimal(amount)
+                    } else {
+                        nil
+                    }
+
+                    balances.append(Balance(
+                        account: account,
+                        amount: amount,
+                        token: token,
+                        usdValue: usdValue
+                    ))
+                } else {
+                    let tokenInfo = try await client.getTokenInfo(tokenAddress)
+
+                    let token = Token(
+                        address: tokenAddress,
+                        decimalsCount: tokenInfo.decimals,
+                        imageURL: nil,
+                        isHidden: false,
+                        isIncludedInBalance: true,
+                        isNativeToken: false,
+                        name: tokenInfo.name,
+                        symbol: tokenInfo.symbol,
+                        usdPrice: nil
+                    )
+
+                    var usdValue: Decimal?
+
+                    if let price = try? await client.getTokenPrice(tokenAddress) {
+                        usdValue = price * Decimal(amount)
+                    }
+
+                    balances.append(Balance(account: account, amount: amount, token: token, usdValue: usdValue))
+                }
+            }
+        } else {
+            for token in tokens {
+                let amount: BigUInt
+                if token.isNativeToken {
+                    amount = try await client.getNativeBalance(account.address)
+                } else if let address = token.address {
+                    amount = try await client.getBalance(account.address, token: address)
+                } else {
+                    throw Error.invalidData
+                }
+
+                var usdValue: Decimal?
+
+                if let price = try? await client.getTokenPrice(token.address) {
+                    usdValue = price * Decimal(amount)
+                }
+
+                balances.append(Balance(account: account, amount: amount, token: token, usdValue: usdValue))
+            }
+        }
+
+        try await databaseService.updateBalances(account: account, updates: balances)
     }
 }

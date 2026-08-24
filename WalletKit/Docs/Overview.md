@@ -86,7 +86,7 @@ are a later phase and are called out below only as extension points.
   Implements `SuiSignerFfi::address`, backing `SuiPKeySigner.address()`:
   returns a dedicated `SuiAddress` type — Blake2b-256 hash of a one-byte
   scheme flag (`0x00` for `.ed25519`, `0x01` for `.secp256k1` — selected by
-  `SuiPKeySigner.curve`, the `Curve` carried by `Blockchain.sui(_:)`)
+  `SuiPKeySigner.curve`, the `Curve` carried by `WKBlockchain.sui(_:)`)
   followed by the account's raw public key bytes, with no truncation
   (unlike Ethereum, the full 32-byte digest is the address). `SuiAddress`
   conforms to the shared `BlockchainAddress` protocol and has the same
@@ -135,14 +135,14 @@ are a later phase and are called out below only as extension points.
   - SLIP-0010 for ed25519-based chains (Solana, Sui, ...).
   - Supports path-based derivation (`m/44'/60'/0'/0/0`), single-child
     derivation, and xpub/xprv-style serialization for import/export.
-- **DerivationPath / Blockchain** — `Blockchain` is an enum with one case
-  per supported chain (bitcoin, ethereum, tron, solana, cardano, sui). It
-  is still just a chain identifier — it carries no derivation-path logic
-  of its own, and an account's curve and standard
+- **DerivationPath / WKBlockchain** — `WKBlockchain` is an enum with one
+  case per supported chain (bitcoin, ethereum, tron, solana, cardano,
+  sui). It is still just a chain identifier — it carries no
+  derivation-path logic of its own, and an account's curve and standard
   `m/purpose'/coin_type'/account'/change/index` path are read directly
   off `Account.curve`/`Account.derivationPath`, not derived from
-  `Blockchain` — but some cases carry the extra configuration a `Signer`
-  needs beyond the identifier itself:
+  `WKBlockchain` — but some cases carry the extra configuration a
+  `Signer` needs beyond the identifier itself:
   - `.ethereum(UInt64)` carries the EVM chain ID (1 = mainnet, 11155111 =
     Sepolia, ...) — Ethereum's address derivation doesn't need it, but
     `EthereumPKeySigner`/`EthereumTrezorSigner` use it for EIP-155 replay
@@ -155,8 +155,8 @@ are a later phase and are called out below only as extension points.
     so the scheme has to travel with the chain identifier rather than
     being implied by it.
   Every other case is a plain, argument-less identifier. `Account` and
-  `Signer` are built around `Blockchain` either way (callers pass
-  `Blockchain.ethereum(1)`, `.sui(.ed25519)`, `.bitcoin`, etc. rather than
+  `Signer` are built around `WKBlockchain` either way (callers pass
+  `WKBlockchain.ethereum(1)`, `.sui(.ed25519)`, `.bitcoin`, etc. rather than
   a raw string) — a `Signer` conformer fixes its chain's curve internally
   (e.g. `EthereumPKeySigner` always builds a secp256k1 `Account`) and any
   associated configuration for chains that carry one, but takes the
@@ -262,7 +262,7 @@ are a later phase and are called out below only as extension points.
 
 Cardano does not use plain SLIP-0010 — it uses a variant of BIP32-Ed25519
 (CIP-1852 paths, extended 96-byte keys, different child-key derivation
-math). `Blockchain.cardano` is registered now as an identifier case, but
+math). `WKBlockchain.cardano` is registered now as an identifier case, but
 producing a correct `Account.derivationPath` for it requires a dedicated
 derivation path inside `walletkit-keys` (or its own crate) before the
 Cardano chain client can ship. Called out here so it isn't a surprise
@@ -303,7 +303,7 @@ later.
   `Error`, generated from a `thiserror`-based Rust error type.
 - Object types (`Mnemonic`, `Seed`, `ExtendedKey`, `PrivateKey`,
   `PublicKey`) become UniFFI `interface` types → Swift classes;
-  value types (`DerivationPath`, `Blockchain`, enums)
+  value types (`DerivationPath`, `WKBlockchain`, enums)
   become UniFFI `record`/`enum` types → Swift structs/enums.
 - The generated Swift lands in its own module, `WalletKitRust`
   (`Sources/Generated/`, produced by `make walletkit-ffi` — see
@@ -315,12 +315,15 @@ later.
   keeps the raw `*Ffi` handles out of the API a GUI app sees when it
   `import WalletKit`, since Swift has no per-declaration "internal to
   everyone but this other module" visibility to lean on instead. Plain
-  generated value types with no such wrapper (`Curve`, `Blockchain`,
-  `DerivationPath`, `DerivationScheme`, `MnemonicWordCount`, `Wordlist`,
-  `Segment`) are used as-is, extended directly where `WalletKit` adds
-  convenience (e.g. `DerivationPath.init(string:)`); code that needs to
-  name one of those types explicitly needs its own `import WalletKitRust`
-  too, since `WalletKit` doesn't re-export it.
+  generated value types with no such wrapper (`Curve`, `DerivationPath`,
+  `DerivationScheme`, `MnemonicWordCount`, `Wordlist`, `Segment`) are used
+  as-is, extended directly where `WalletKit` adds convenience (e.g.
+  `DerivationPath.init(string:)`); code that needs to name one of those
+  types explicitly needs its own `import WalletKitRust` too, since
+  `WalletKit` doesn't re-export it. `WKBlockchain` is the one exception —
+  it's a `WalletKit`-side `public typealias` for the generated `Blockchain`
+  type, so the app-facing name doesn't collide with the app's own
+  `Blockchain` model type.
 - Both targets are packaged for the GUI app to consume via Tuist/SPM;
   `WalletKit` is the one it actually depends on and imports.
 - Software key derivation/signing is CPU-bound and fast, but

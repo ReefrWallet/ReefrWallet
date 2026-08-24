@@ -69,7 +69,7 @@ public struct HardwareDeviceInfo: Equatable {
     init(raw: HardwareDeviceInfoFfi) {
         id = raw.id
         vendor = HardwareVendor(raw.vendor)
-        transport = raw.transport
+        transport = HardwareTransportKind(rawValue: raw.transport)!
         model = raw.model
         label = raw.label
         firmwareVersion = raw.firmwareVersion
@@ -80,7 +80,7 @@ public struct HardwareDeviceInfo: Equatable {
         HardwareDeviceInfoFfi(
             id: id,
             vendor: vendor.raw,
-            transport: transport,
+            transport: transport.rawValue,
             model: model,
             label: label,
             firmwareVersion: firmwareVersion,

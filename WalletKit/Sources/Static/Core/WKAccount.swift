@@ -1,20 +1,37 @@
 //
-//  Account.swift
+//  WKAccount.swift
 //  WalletKit
 //
 //  Created by Andrey Yurkevich on 16/08/2026.
 //
 
-@_exported import enum WalletKitRust.Curve
 import WalletKitRust
 
-extension Curve: @retroactive CustomStringConvertible {
+/// The elliptic curve a key/derivation scheme is based on.
+public enum Curve: String, Codable, CaseIterable, Sendable {
+    case secp256k1
+    case ed25519
+
+    init(_ raw: CurveFfi) {
+        switch raw {
+        case .secp256k1: self = .secp256k1
+        case .ed25519: self = .ed25519
+        }
+    }
+
+    var raw: CurveFfi {
+        switch self {
+        case .secp256k1: .secp256k1
+        case .ed25519: .ed25519
+        }
+    }
+}
+
+extension Curve: CustomStringConvertible {
     public var description: String {
         switch self {
-        case .secp256k1:
-            "ECDSA Secp256k1"
-        case .ed25519:
-            "Ed25519 (EdDSA)"
+        case .secp256k1: "ECDSA Secp256k1"
+        case .ed25519: "Ed25519 (EdDSA)"
         }
     }
 }
@@ -31,9 +48,9 @@ public enum KeySource: Equatable {
 
 /// A single derived account: a blockchain, a derivation path, and the
 /// public key derived at that path.
-public protocol AccountProtocol: AnyObject {
+public protocol WKAccountProtocol: AnyObject {
     /// The blockchain this account is for.
-    var blockchain: Blockchain { get }
+    var blockchain: WKBlockchain { get }
 
     /// The derivation path this account's public key was derived at.
     var derivationPath: DerivationPath { get }
@@ -50,9 +67,9 @@ public protocol AccountProtocol: AnyObject {
 
 /// A single derived account, produced by a ``Signer`` conformer or a
 /// ``HardwareDevice``.
-public final class Account: AccountProtocol {
+public final class WKAccount: WKAccountProtocol {
     /// The blockchain this account is for.
-    public let blockchain: Blockchain
+    public let blockchain: WKBlockchain
 
     /// The derivation path this account's public key was derived at.
     public let derivationPath: DerivationPath
@@ -67,7 +84,7 @@ public final class Account: AccountProtocol {
     public let publicKey: PublicKey
 
     init(
-        blockchain: Blockchain,
+        blockchain: WKBlockchain,
         derivationPath: DerivationPath,
         curve: Curve,
         source: KeySource,

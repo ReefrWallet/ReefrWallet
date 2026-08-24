@@ -63,7 +63,7 @@ public final class Seed: SeedProtocol {
     /// - Parameter curve: The elliptic curve to derive the master key for.
     /// - Returns: The depth-0 master ``ExtendedKey`` for `curve`.
     public func masterKey(curve: Curve) throws -> ExtendedKey {
-        ExtendedKey(raw: raw.masterKey(curve: curve))
+        ExtendedKey(raw: raw.masterKey(curve: curve.raw))
     }
 
     /// The raw 64-byte seed.

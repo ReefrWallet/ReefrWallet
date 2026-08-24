@@ -23,7 +23,12 @@ extension ServiceContainer {
 
             do {
                 return try ModelContainer(
-                    for: Account.self, Balance.self, BlockchainConfig.self, KeyStore.self, Token.self,
+                    for: AccountModel.self,
+                        BalanceModel.self,
+                        BlockchainModel.self,
+                        KeyStoreModel.self,
+                        TokenModel.self,
+                        SavedAddressModel.self,
                     configurations: configuration
                 )
             } catch {
@@ -41,10 +46,6 @@ extension ServiceContainer {
 
         register(BalancesService.self) {
             BalancesService()
-        }
-
-        register(BlockchainConfigService.self) {
-            BlockchainConfigService()
         }
 
         register(BlockchainClientProvider.self) {

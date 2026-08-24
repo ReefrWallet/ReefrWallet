@@ -7,6 +7,7 @@
 //
 
 import BigInt
+import SwiftData
 import SwiftUI
 import WalletKit
 
@@ -33,8 +34,20 @@ struct TransferView {
 
     @Environment(\.dismiss) private var dismiss
 
+    @Query var accountBalances: [BalanceModel]
+
     init(balance: Balance) {
         self.account = balance.account
+
+        guard let accountId = account.id else {
+            preconditionFailure()
+        }
+
+        let predicate = #Predicate<BalanceModel> { item in
+           item.account.id == accountId
+        }
+
+        _accountBalances = Query(filter: predicate)
         _selectedBalance = .init(initialValue: balance)
     }
 }
@@ -93,7 +106,7 @@ extension TransferView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .sheet(isPresented: $isAddressBookPresented) {
-            let blockchain = selectedBalance.account.blockchainConfig.blockchain
+            let blockchain = selectedBalance.account.blockchain
 
             let selectedAddress = Binding<String?> { nil } set: { address in
                 if let address {
@@ -224,8 +237,8 @@ private extension TransferView {
         Section {
             HStack(spacing: 2) {
                 Picker(selection: $selectedBalance) {
-                    ForEach(account.balances, id: \.self) { balance in
-                        Text(balance.token.name ?? balance.token.symbol)
+                    ForEach(accountBalances, id: \.self) { balance in
+                        Text(balance.token.name)
                             .style(.medium)
                     }
                 } label: {
@@ -235,7 +248,7 @@ private extension TransferView {
 
                 Spacer()
 
-                Text("Balance:")
+                Text("BalanceModel:")
                     .style(.medium, foreground: .secondary)
 
                 Text(verbatim: String(describing: selectedBalance.decimalAmount))
@@ -253,10 +266,11 @@ private extension TransferView {
 // MARK: - Fees
 
 private extension TransferView {
+    @ViewBuilder
     var feesSection: some View {
         Section {
-            switch selectedBalance.account.blockchainConfig.blockchain {
-            case .ethereum:
+            switch account.blockchain {
+            case .evm:
                 evmFeesForm
             case .sui:
                 suiFeesForm
@@ -412,8 +426,8 @@ private extension TransferView {
 
     func validateAddress() -> Bool {
         do {
-            switch selectedBalance.account.blockchainConfig.blockchain {
-            case .ethereum:
+            switch selectedBalance.account.blockchain {
+            case .evm:
                 _ = try EthereumAddress(string: receiverText)
             case .sui:
                 _ = try SuiAddress(string: receiverText)
@@ -457,10 +471,10 @@ private extension TransferView {
 
 // MARK: - Preview
 
-#Preview {
-    let keyStore = KeyStore.mockLocal()
+/* #Preview {
+    let keyStore = try! KeyStoreModel.mockLocal() // swiftlint:disable:this force_try
     let account = keyStore.accounts!.first!
     let balance = account.balances.first!
 
     TransferView(balance: balance)
-}
+} */

@@ -52,11 +52,11 @@ public final class PrivateKey: PrivateKeyProtocol {
     ///   `rawBytes.count != 32`, or (secp256k1 only) if the 32 bytes aren't
     ///   a valid scalar in the curve's order.
     public init(curve: Curve, rawBytes: Data) throws {
-        raw = try remappingWalletKitError { try PrivateKeyFfi.fromRawBytes(curve: curve, rawBytes: rawBytes) }
+        raw = try remappingWalletKitError { try PrivateKeyFfi.fromRawBytes(curve: curve.raw, rawBytes: rawBytes) }
     }
 
     /// The elliptic curve this key belongs to.
-    public var curve: Curve { raw.curve() }
+    public var curve: Curve { Curve(raw.curve()) }
 
     /// The public key corresponding to this private key.
     public var publicKey: PublicKey { PublicKey(raw: raw.publicKey()) }
