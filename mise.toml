@@ -1,5 +1,5 @@
 [tools]
 foundry = "1.7.1"
-sui = "testnet-v1.77.2"
+sui = "testnet-v1.77.3"
 swiftlint = "0.65.0"
 tuist = "4.204.0"

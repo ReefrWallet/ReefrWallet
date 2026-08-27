@@ -6,6 +6,8 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import SwiftUI
+
 public enum EVMBlockchain: Equatable, Hashable, Codable, Sendable {
     case arbitrum(Network)
     case bsc(Network)
@@ -117,6 +119,19 @@ public extension EVMBlockchain {
             name: "EVM Chain \(chainId) Ether",
             isNative: true,
             symbol: "ETH")
+        }
+    }
+
+    var logoImage: Image {
+        switch self {
+        case .arbitrum:
+            Image("arb-logo")
+        case .bsc:
+            Image("bsc-logo")
+        case .custom:
+            Image("eth-logo")
+        case .ethereum:
+            Image("eth-logo")
         }
     }
 
