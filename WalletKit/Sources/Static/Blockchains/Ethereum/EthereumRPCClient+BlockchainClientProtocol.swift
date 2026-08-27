@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  EthereumRPCClient+BlockchainClientProtocol.swift
 //  WalletKit
 //
 //  Created by Andrey Yurkevich on 20/08/2026.
@@ -8,27 +8,31 @@
 
 import BigInt
 
+/// ``BlockchainClientProtocol`` conformance for ``EthereumRPCClient``.
+///
+/// `Address` is inferred as ``EthereumAddress`` from the method signatures.
+/// The `token` parameter in ``getBalance(_:token:)`` and ``getTokenInfo(_:)``
+/// remains a `String` — an ERC-20 contract address string — because the
+/// protocol's `token` parameter is stringly-typed across all chains (on Sui,
+/// token identifiers are coin-type strings, not addresses).
 extension EthereumRPCClient: BlockchainClientProtocol {
-    public func getAllBalances(_ owner: String) async throws -> [String: BigUInt] {
+    public func getAllBalances(_ owner: EthereumAddress) async throws -> [String: BigUInt] {
         throw WalletKitError.unsupportedFeature
     }
 
-    public func getBalance(_ owner: String, token: String) async throws -> BigUInt {
-        let owner = try EthereumAddress(string: owner)
+    public func getBalance(_ owner: EthereumAddress, token: String) async throws -> BigUInt {
         let token = try EthereumAddress(string: token)
         return try await erc20Balance(token: token, owner: owner)
     }
 
-    public func getNativeBalance(_ owner: String) async throws -> BigUInt {
-        let owner = try EthereumAddress(string: owner)
-        return try await nativeBalance(of: owner)
+    public func getNativeBalance(_ owner: EthereumAddress) async throws -> BigUInt {
+        try await nativeBalance(of: owner)
     }
 
     public func getTokenInfo(_ token: String?) async throws -> TokenInfo {
         guard let token else {
             return EVMBlockchain(chainId: chainId).nativeToken
         }
-
         let address = try EthereumAddress(string: token)
         return try await erc20TokenInfo(token: address)
     }
@@ -37,9 +41,7 @@ extension EthereumRPCClient: BlockchainClientProtocol {
         throw WalletKitError.internalError(message: "Not Implemented")
     }
 
-    public func isActiveAccount(_ owner: String) async throws -> Bool {
-        let owner = try EthereumAddress(string: owner)
-
+    public func isActiveAccount(_ owner: EthereumAddress) async throws -> Bool {
         let balance = try await nativeBalance(of: owner)
         guard balance == 0 else {
             return false
@@ -56,6 +58,11 @@ extension EthereumRPCClient: BlockchainClientProtocol {
     public func isSupported(_ feature: BlockchainClientFeature) -> Bool {
         switch feature {
         case .allBalances: false
+        case .feeEstimation: true
         }
     }
+
+    // `estimateFee(for:)` is satisfied by the method defined in
+    // `EthereumRPCClient.swift`, which has access to the private `rpc`
+    // and `parseQuantity` helpers.
 }

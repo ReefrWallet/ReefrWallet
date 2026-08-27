@@ -261,6 +261,85 @@ public struct SuiGRPCClient {
         }
     }
 
+    /// Returns current Sui network fee rates and, when `request.data` is
+    /// non-nil, a per-transaction gas estimate via
+    /// `TransactionExecutionService.simulateTransaction`.
+    ///
+    /// **Rates** are fetched from `LedgerService.getEpoch` as the epoch's
+    /// `reference_gas_price` (MIST per gas unit), returned in
+    /// ``FeeEstimate/gasPrice``. ``FeeEstimate/maxFeePerGas`` and
+    /// ``FeeEstimate/maxPriorityFeePerGas`` are `nil` — Sui has no EIP-1559
+    /// fee model.
+    ///
+    /// **Per-transaction estimate** (when `request.data` is non-nil): the
+    /// BCS-encoded `TransactionData` bytes are passed to
+    /// `simulateTransaction`. The ``FeeEstimate/estimatedFee`` is
+    /// `computation_cost + storage_cost − storage_rebate` (floored at 0) from
+    /// the simulation's `GasCostSummary`. ``FeeEstimate/gasLimit`` is
+    /// `computation_cost ÷ reference_gas_price` (nil if the gas price is 0).
+    ///
+    /// - Parameter request: A ``FeeEstimateRequest`` whose `data` field
+    ///   carries unsigned BCS `TransactionData` bytes, or `nil` for
+    ///   rates-only.
+    /// - Returns: A ``FeeEstimate`` with the reference gas price, plus per-tx
+    ///   fields when `request.data` is non-nil.
+    /// - Throws: ``BlockchainClientError`` on a transport, RPC, or decoding
+    ///   failure.
+    public func estimateFee(for request: FeeEstimateRequest<SuiAddress>?) async throws -> FeeEstimate {
+        let gasPrice = try await referenceGasPrice()
+
+        guard let txBytes = request?.data else {
+            return FeeEstimate(gasPrice: BigUInt(gasPrice))
+        }
+
+        let gasCost = try await simulateGasCost(transactionData: txBytes)
+        // Net fee = computation + storage − rebate, floored at 0 (a negative
+        // net is possible if the rebate exceeds the two cost components, e.g.
+        // for a transaction that deletes many objects).
+        let rawCost = Int64(bitPattern: gasCost.computationCost &+ gasCost.storageCost) - Int64(gasCost.storageRebate)
+        let estimatedFee = BigUInt(max(0, rawCost))
+        let gasLimit: BigUInt? = gasPrice > 0 ? BigUInt(gasCost.computationCost / gasPrice) : nil
+
+        return FeeEstimate(
+            gasPrice: BigUInt(gasPrice),
+            gasLimit: gasLimit,
+            estimatedFee: estimatedFee
+        )
+    }
+
+    /// Fetches the current epoch's `reference_gas_price` (MIST per gas unit)
+    /// via `LedgerService.getEpoch` with a narrow read mask.
+    private func referenceGasPrice() async throws -> UInt64 {
+        try await withLedgerServiceClient { ledger in
+            let request = Sui_Rpc_V2_GetEpochRequest.with {
+                $0.readMask = Google_Protobuf_FieldMask.with { $0.paths = ["reference_gas_price"] }
+            }
+            let response = try await ledger.getEpoch(request: ClientRequest(message: request))
+            return response.epoch.referenceGasPrice
+        }
+    }
+
+    /// Simulates `transactionData` via
+    /// `TransactionExecutionService.simulateTransaction` and returns the
+    /// resulting `GasCostSummary` (`computation_cost`, `storage_cost`,
+    /// `storage_rebate`, `non_refundable_storage_fee`).
+    private func simulateGasCost(transactionData: Data) async throws -> Sui_Rpc_V2_GasCostSummary {
+        try await withTransactionExecutionServiceClient { client in
+            let request = Sui_Rpc_V2_SimulateTransactionRequest.with {
+                $0.transaction = Sui_Rpc_V2_Transaction.with {
+                    $0.bcs = Sui_Rpc_V2_Bcs.with { $0.value = transactionData }
+                }
+                // Request only the gas summary — avoids deserialising the
+                // full object/event lists the node would otherwise populate.
+                $0.readMask = Google_Protobuf_FieldMask.with {
+                    $0.paths = ["transaction.effects.gas_used"]
+                }
+            }
+            let response = try await client.simulateTransaction(request: ClientRequest(message: request))
+            return response.transaction.effects.gasUsed
+        }
+    }
+
     private func transport() throws -> HTTP2ClientTransport.Posix {
         do {
             return try HTTP2ClientTransport.Posix(

@@ -42,7 +42,7 @@ let walletKit: Target = .target(
         .post(
             script: """
                     $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
-                    swiftlint --config ../.swiftlint.yml Sources/Static Project.swift
+                    swiftlint --quiet --config ../.swiftlint.yml Sources/Static Project.swift
                     """,
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
@@ -69,7 +69,7 @@ let walletKitTestsMac: Target = .target(
         .post(
             script: """
                     $HOME/.local/bin/mise -C $SRCROOT x swiftlint -- \\
-                    swiftlint --config ../.swiftlint.yml Tests
+                    swiftlint --quiet --config ../.swiftlint.yml Tests
                     """,
             name: "SwiftLint",
             basedOnDependencyAnalysis: false

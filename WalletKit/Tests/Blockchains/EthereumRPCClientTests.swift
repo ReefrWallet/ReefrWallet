@@ -421,6 +421,30 @@ struct EthereumRPCClientTests {
         }
     }
 
+    // MARK: - estimateFee
+    //
+    // `estimateFee(for:)` fires three concurrent JSON-RPC calls
+    // (eth_gasPrice, eth_maxPriorityFeePerGas, eth_getBlockByNumber) whose
+    // return types differ — `StubURLProtocol` only holds one canned response
+    // and cannot serve them with distinct values, so there are no hermetic
+    // tests for the happy path here. The live mainnet test below exercises
+    // the real request/response round trip instead; Anvil integration tests
+    // in EthereumAnvilTests.swift cover the per-tx estimate leg (eth_estimateGas).
+
+    @Test func estimateFeeRatesOnlyReturnsEIP1559FieldsFromTheLiveMainnet() async throws {
+        await withKnownIssue("requires network access to a live Ethereum mainnet RPC endpoint", isIntermittent: true) {
+            let client = EthereumRPCClient(endpoint: URL(string: "https://ethereum-rpc.publicnode.com")!)
+            let estimate = try await client.estimateFee(for: nil)
+
+            #expect(estimate.gasPrice > 0, "gasPrice should be positive on mainnet")
+            let maxFeePerGas = try #require(estimate.maxFeePerGas)
+            let priorityFee = try #require(estimate.maxPriorityFeePerGas)
+            #expect(maxFeePerGas >= priorityFee, "maxFeePerGas (baseFee×2 + tip) should be ≥ tip alone")
+            #expect(estimate.gasLimit == nil, "rates-only: no per-tx gas limit")
+            #expect(estimate.estimatedFee == nil, "rates-only: no per-tx fee")
+        }
+    }
+
     // MARK: - broadcast
 
     @Test func broadcastSendsTheRawTransactionHexAndReturnsTheHash() async throws {

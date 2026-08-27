@@ -318,6 +318,27 @@ final class SuiNode {
         return largest.reference
     }
 
+    /// Polls until `address` owns at least `minimum` SUI coin objects, up to
+    /// a 30-second timeout.
+    ///
+    /// Needed when the faucet is called multiple times in quick succession:
+    /// the second call returns as soon as the balance is non-zero (which may
+    /// already be true from the first call), so `faucet(_:)` alone doesn't
+    /// guarantee the second coin object has been indexed.
+    ///
+    /// - Throws: ``SuiLaunchError`` if the coin count doesn't reach
+    ///   `minimum` within the timeout.
+    func waitForSuiCoinCount(of address: SuiAddress, atLeast minimum: Int) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+        while ContinuousClock.now < deadline {
+            if let coins = try? await suiCoins(of: address), coins.count >= minimum {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        throw SuiLaunchError(description: "\(address.string) didn't accumulate \(minimum) SUI coins within 30s")
+    }
+
     /// Polls `LedgerService.GetTransaction` for `digest`'s effects, until
     /// it lands in a checkpoint — the ``waitForReceipt(_:)`` analogue for
     /// `AnvilNode`, needed because a broadcast localnet transaction isn't

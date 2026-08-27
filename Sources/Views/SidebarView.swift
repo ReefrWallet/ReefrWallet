@@ -254,7 +254,7 @@ private extension SidebarView {
         } icon: {
             account.blockchain.blockchain.logoImage
                 .resizable()
-                .aspectRatio(contentMode: .fit)
+                .scaledToFit()
                 .frame(width: 16, height: 16)
         }
         .padding(.leading)

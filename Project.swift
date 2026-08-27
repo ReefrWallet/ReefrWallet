@@ -10,7 +10,7 @@ let wallet: Target = .target(
     buildableFolders: ["Sources"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml Sources",
+            script: "$HOME/.local/bin/mise x swiftlint --quiet -- swiftlint --config .swiftlint.yml Sources",
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
         )
@@ -32,7 +32,7 @@ let macOSTests: Target = .target(
     buildableFolders: ["Tests"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml Tests",
+            script: "$HOME/.local/bin/mise x swiftlint --quiet -- swiftlint --config .swiftlint.yml Tests",
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
         )
@@ -50,7 +50,7 @@ let iosTests: Target = .target(
     buildableFolders: ["Tests"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml Tests",
+            script: "$HOME/.local/bin/mise x swiftlint --quiet -- swiftlint --config .swiftlint.yml Tests",
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
         )

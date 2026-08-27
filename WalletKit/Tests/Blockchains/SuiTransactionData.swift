@@ -69,6 +69,75 @@ struct SuiObjectReference {
     let digest: Data
 }
 
+/// An unsigned "transfer an owned `Coin<T>` object" Programmable Transaction
+/// Block. This is the PTB shape for sending any arbitrary coin (e.g. USDC or
+/// another token) that already exists as an owned object, as opposed to the
+/// gas-coin-split shape used for native SUI transfers.
+///
+/// The PTB has two inputs and one command:
+/// - Input 0: `CallArg::Object(ImmOrOwned(coinObject))` — the coin to send.
+/// - Input 1: `CallArg::Pure(recipient.rawBytes)` — the destination address.
+/// - Command 0: `TransferObjects([Input(0)], Input(1))` — move the coin.
+///
+/// The coin object and the gas payment object **must be different objects**;
+/// pass a separate SUI coin as `gasPayment`.
+struct UnsignedCoinObjectTransfer {
+    let sender: SuiAddress
+    /// The `Coin<T>` object to transfer (e.g. a USDC coin object).
+    let coinObject: SuiObjectReference
+    let recipient: SuiAddress
+    /// The SUI coin(s) used to pay for gas — must be different from
+    /// `coinObject`.
+    let gasPayment: [SuiObjectReference]
+    let gasOwner: SuiAddress
+    let gasPrice: UInt64
+    let gasBudget: UInt64
+
+    /// BCS-encoded `TransactionData::V1` with the coin-object-transfer PTB.
+    var transactionDataBcs: Data {
+        var data = Data()
+        data.append(0x00) // TransactionData::V1
+        data.append(0x00) // TransactionKind::ProgrammableTransaction
+
+        // inputs: [Object(ImmOrOwned(coinObject)), Pure(recipient)]
+        data.append(BCS.uleb128(2))
+        // Input 0: CallArg::Object → ObjectArg::ImmOrOwned
+        data.append(0x01) // CallArg::Object
+        data.append(0x00) // ObjectArg::ImmOrOwned
+        data.append(coinObject.objectId)
+        data.append(BCS.u64(coinObject.version))
+        data.append(BCS.byteVector(coinObject.digest))
+        // Input 1: CallArg::Pure → recipient address bytes
+        data.append(0x00) // CallArg::Pure
+        data.append(BCS.byteVector(recipient.rawBytes))
+
+        // commands: [TransferObjects([Input(0)], Input(1))]
+        data.append(BCS.uleb128(1))
+        data.append(0x01) // Command::TransferObjects
+        data.append(BCS.uleb128(1)) // one object to transfer
+        data.append(0x01) // Argument::Input
+        data.append(BCS.u16(0)) // Input(0) = coinObject
+        data.append(0x01) // Argument::Input (the address)
+        data.append(BCS.u16(1)) // Input(1) = recipient
+
+        data.append(sender.rawBytes)
+
+        data.append(BCS.uleb128(gasPayment.count))
+        for reference in gasPayment {
+            data.append(reference.objectId)
+            data.append(BCS.u64(reference.version))
+            data.append(BCS.byteVector(reference.digest))
+        }
+        data.append(gasOwner.rawBytes)
+        data.append(BCS.u64(gasPrice))
+        data.append(BCS.u64(gasBudget))
+
+        data.append(0x00) // TransactionExpiration::None
+
+        return data
+    }
+}
+
 /// An unsigned "split the gas coin and transfer the pieces" Programmable
 /// Transaction Block — the canonical wallet-transfer PTB, and the only
 /// shape this builder models. Produces the raw BCS `TransactionData` bytes
