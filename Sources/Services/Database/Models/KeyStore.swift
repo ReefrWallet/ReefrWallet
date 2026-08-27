@@ -60,7 +60,7 @@ extension KeyStore.Kind: Comparable {
     }
 
     static func < (lhs: KeyStore.Kind, rhs: KeyStore.Kind) -> Bool {
-        lhs.priority < lhs.priority
+        lhs.priority < rhs.priority
     }
 }
 
@@ -97,6 +97,7 @@ final class KeyStoreModel {
         self.name = name
         self.rawKey = rawKey
         self.rawKind = kind.rawValue
+        self.rawTransport = transport?.rawValue
         self.rawVendor = vendor?.rawValue
     }
 }

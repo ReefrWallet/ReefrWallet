@@ -71,6 +71,7 @@ final class AccountModel {
         accountIndex: UInt64? = nil,
         address: String,
         blockchain: BlockchainModel,
+        derivationPath: String? = nil,
         keyStore: KeyStoreModel,
         name: String,
         signatureScheme: Curve? = nil
@@ -83,6 +84,7 @@ final class AccountModel {
         self.address = address
         self.balances = []
         self.blockchain = blockchain
+        self.derivationPath = derivationPath
         self.keyStore = keyStore
         self.name = name
 
@@ -112,6 +114,7 @@ extension AccountModel {
             accountIndex: account.accountIndex,
             address: account.address,
             blockchain: blockchain,
+            derivationPath: account.derivationPath,
             keyStore: keyStore,
             name: account.name,
             signatureScheme: account.signatureScheme
@@ -126,25 +129,6 @@ extension AccountModel: Comparable {
         (lhs.blockchain.blockchain.displayName, lhs.accountIndex ?? 0)
             < (rhs.blockchain.blockchain.displayName, rhs.accountIndex ?? 0)
     }
-}
-
-extension Account {
-    /* var nativeBalance: BalanceModel? {
-        balances.first { $0.token.isNativeToken == true }
-    }
-
-    var systemImage: String {
-        blockchain.systemImage
-    } */
-
-    /* func setBalance(of token: TokenModel, amount: BigUInt) {
-        if let balance = balances.first(where: { $0.token.id == token.id }) {
-            balance.amount = amount
-        } else {
-            let balance = BalanceModel(account: self, amount: amount, token: token)
-            balances.append(balance)
-        }
-    } */
 }
 
 extension AccountModel {

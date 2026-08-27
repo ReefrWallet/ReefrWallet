@@ -29,6 +29,8 @@ struct AddAccountView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
+    private let accountService = DI.injectOrFail(AccountService.self)
+
     init(keyStore: KeyStore) {
         self.keyStore = keyStore
 
@@ -156,7 +158,7 @@ private extension AddAccountView {
             } label: {
                 Text("Add Account")
             }
-            .disabled(selectedNetwork == nil)
+            .disabled(isAddButtonDisabled)
         }
     }
 }
@@ -164,10 +166,27 @@ private extension AddAccountView {
 // MARK: - Logic
 
 private extension AddAccountView {
+    var isAddButtonDisabled: Bool {
+        guard let selectedNetwork else {
+            return true
+        }
+
+        return keyStore.isWatchOnly && !accountService.isValidAddress(trimmedAddress, for: selectedNetwork)
+    }
+
+    var trimmedAddress: String {
+        address.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     @MainActor
     func addAccount(_ blockchain: WKBlockchain, signatureScheme: Curve?) async throws {
-        let accountService = DI.injectOrFail(AccountService.self)
-        let account = try await accountService.makeAccount(blockchain, keyStore: keyStore)
+        let watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
+        let account = try await accountService.makeAccount(
+            blockchain,
+            keyStore: keyStore,
+            signatureScheme: signatureScheme,
+            watchOnlyAddress: watchOnlyAddress
+        )
         sidebarSelection.wrappedValue = account.id
         dismiss()
     }

@@ -46,10 +46,11 @@ struct MainView: View {
             } else if let keyStoreModel = keyStores.first(where: { $0.id == sidebarSelection }),
                       let keyStore = try? KeyStore(model: keyStoreModel) {
                 KeyStoreDetailsView(keyStore)
-            } else if sidebarSelection == nil {
-                Text("No selection")
             } else {
-                preconditionFailure()
+                Text("No selection")
+                    .task(id: sidebarSelection) {
+                        clearInvalidSidebarSelection()
+                    }
             }
         }
         .sheet(item: $presentedSheet) { sheet in
@@ -67,6 +68,30 @@ struct MainView: View {
                         .environment(\.sidebarSelection, $sidebarSelection)
                 }
             }
+        }
+    }
+}
+
+private extension MainView {
+    @MainActor
+    func clearInvalidSidebarSelection() {
+        guard let sidebarSelection else {
+            return
+        }
+
+        let hasSelectedAccount = allAccounts.contains { accountModel in
+            accountModel.id == sidebarSelection
+                && (try? Account(model: accountModel)) != nil
+                && (try? KeyStore(model: accountModel.keyStore)) != nil
+        }
+
+        let hasSelectedKeyStore = keyStores.contains { keyStoreModel in
+            keyStoreModel.id == sidebarSelection
+                && (try? KeyStore(model: keyStoreModel)) != nil
+        }
+
+        if !hasSelectedAccount && !hasSelectedKeyStore {
+            self.sidebarSelection = nil
         }
     }
 }

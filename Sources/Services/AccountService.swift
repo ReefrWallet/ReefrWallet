@@ -6,13 +6,32 @@ final class AccountService {
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
 
+    func isValidAddress(_ address: String, for blockchain: WKBlockchain) -> Bool {
+        do {
+            switch blockchain {
+            case .evm:
+                _ = try EthereumAddress(string: address)
+            case .sui:
+                _ = try SuiAddress(string: address)
+            default:
+                return false
+            }
+
+            return true
+        } catch {
+            return false
+        }
+    }
+
     @MainActor
     func makeAccount(
         _ blockchain: WKBlockchain,
         keyStore: KeyStore,
+        signatureScheme: Curve? = nil,
         watchOnlyAddress: String? = nil
     ) async throws -> Account {
         let accountIndex = try await nextAccountIndex(for: blockchain, in: keyStore)
+        let effectiveSignatureScheme = try makeSignatureScheme(blockchain: blockchain, requested: signatureScheme)
 
         let address: String
         let derivationPath: String?
@@ -23,7 +42,12 @@ final class AccountService {
                 throw Error.invalidData
             }
 
-            let result = try makeLocalAddress(blockchain: blockchain, rawKey: rawKey, accountIndex: accountIndex)
+            let result = try makeLocalAddress(
+                blockchain: blockchain,
+                rawKey: rawKey,
+                accountIndex: accountIndex,
+                signatureScheme: effectiveSignatureScheme
+            )
 
             address = result.address
             derivationPath = result.derivationPath
@@ -38,11 +62,17 @@ final class AccountService {
             address = result.address
             derivationPath = result.derivationPath
         case .watchOnly:
-            guard let watchOnlyAddress else {
+            let trimmedAddress = watchOnlyAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard let trimmedAddress, !trimmedAddress.isEmpty else {
                 throw Error.invalidData
             }
 
-            address = watchOnlyAddress
+            guard isValidAddress(trimmedAddress, for: blockchain) else {
+                throw Error.invalidAddress
+            }
+
+            address = trimmedAddress
             derivationPath = nil
         }
 
@@ -51,7 +81,8 @@ final class AccountService {
             address: address,
             blockchain: blockchain,
             derivationPath: derivationPath,
-            name: "\(blockchain.displayName) #\(accountIndex)"
+            name: "\(blockchain.displayName) #\(accountIndex)",
+            signatureScheme: effectiveSignatureScheme
         )
 
         return try await databaseService.insertAccount(account, keyStore: keyStore)
@@ -64,7 +95,27 @@ private extension AccountService {
         let derivationPath: String
     }
 
-    func makeLocalAddress(blockchain: WKBlockchain, rawKey: Data, accountIndex: UInt64) throws -> AddressResult {
+    func makeSignatureScheme(blockchain: WKBlockchain, requested signatureScheme: Curve?) throws -> Curve? {
+        switch blockchain {
+        case .evm:
+            guard signatureScheme == nil || signatureScheme == .secp256k1 else {
+                throw Error.invalidData
+            }
+
+            return .secp256k1
+        case .sui:
+            return signatureScheme ?? .ed25519
+        default:
+            return nil
+        }
+    }
+
+    func makeLocalAddress(
+        blockchain: WKBlockchain,
+        rawKey: Data,
+        accountIndex: UInt64,
+        signatureScheme: Curve?
+    ) throws -> AddressResult {
         let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex)
         let seed = try Seed(rawBytes: rawKey)
 
@@ -75,8 +126,12 @@ private extension AccountService {
             let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
             address = try signer.address().checksummed
         case .sui:
-            let publicKey = try seed.masterKey(curve: .ed25519).derive(derivationPath).privateKey().publicKey
-            address = try SuiAddress(publicKey: publicKey, curve: .ed25519).string
+            guard let signatureScheme else {
+                throw Error.invalidData
+            }
+
+            let publicKey = try seed.masterKey(curve: signatureScheme).derive(derivationPath).privateKey().publicKey
+            address = try SuiAddress(publicKey: publicKey, curve: signatureScheme).string
         default:
             throw Error.notImplemented
         }

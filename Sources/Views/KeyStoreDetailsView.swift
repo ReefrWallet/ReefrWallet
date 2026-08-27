@@ -43,9 +43,7 @@ private extension KeyStoreDetailsView {
         VStack {
             totalValue
 
-            var accounts = keyStore.accounts
-
-            Table(accounts, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
+            Table(sortedAccounts, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
                 TableColumn("Account", value: \.name) { account in
                     HStack {
                         account.blockchain.logoImage
@@ -64,10 +62,11 @@ private extension KeyStoreDetailsView {
                 }
                 .customizationID("usdValue")
             }
-            .onChange(of: sortOrder) { _, newOrder in
-                accounts.sort(using: newOrder)
-            }
         }
+    }
+
+    var sortedAccounts: [Account] {
+        keyStore.accounts.sorted(using: sortOrder)
     }
 
     var accountsUSDValue: Decimal {
