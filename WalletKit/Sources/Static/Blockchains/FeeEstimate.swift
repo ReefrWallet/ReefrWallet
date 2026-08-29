@@ -29,6 +29,9 @@ import BigInt
 /// `computation_cost + storage_cost − storage_rebate` from the simulated
 /// transaction's gas summary (floored at 0), and ``gasLimit`` is
 /// `computation_cost / gasPrice` (nil if `gasPrice` is 0).
+/// ``grossFee`` is `computation_cost + storage_cost` (before rebate) — use
+/// this as the basis for the gas budget, since the rebate is only credited
+/// after execution and the budget must cover the full gross cost.
 public struct FeeEstimate: Sendable, Equatable {
     /// Current network gas price.
     ///
@@ -68,6 +71,14 @@ public struct FeeEstimate: Sendable, Equatable {
     ///   MIST, floored at 0.
     public let estimatedFee: BigUInt?
 
+    /// Gross transaction cost before storage rebate, in MIST. Sui only —
+    /// `nil` on Ethereum and in rates-only mode.
+    ///
+    /// Equal to `computation_cost + storage_cost`. Use this (not
+    /// ``estimatedFee``) to derive the gas budget: the rebate is credited
+    /// after execution, so the budget must cover the full gross cost.
+    public let grossFee: BigUInt?
+
     /// Creates a fee estimate.
     ///
     /// - Parameters:
@@ -77,17 +88,21 @@ public struct FeeEstimate: Sendable, Equatable {
     ///   - maxPriorityFeePerGas: EIP-1559 validator tip. `nil` on Sui.
     ///   - gasLimit: Estimated gas units. `nil` for rates-only mode.
     ///   - estimatedFee: Total estimated fee. `nil` for rates-only mode.
+    ///   - grossFee: Gross cost before storage rebate (Sui only). `nil` on
+    ///     Ethereum and in rates-only mode.
     public init(
         gasPrice: BigUInt,
         maxFeePerGas: BigUInt? = nil,
         maxPriorityFeePerGas: BigUInt? = nil,
         gasLimit: BigUInt? = nil,
-        estimatedFee: BigUInt? = nil
+        estimatedFee: BigUInt? = nil,
+        grossFee: BigUInt? = nil
     ) {
         self.gasPrice = gasPrice
         self.maxFeePerGas = maxFeePerGas
         self.maxPriorityFeePerGas = maxPriorityFeePerGas
         self.gasLimit = gasLimit
         self.estimatedFee = estimatedFee
+        self.grossFee = grossFee
     }
 }

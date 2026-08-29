@@ -339,15 +339,18 @@ later.
 
 ## Explicitly out of scope for now
 
-- Blockchain-specific logic beyond Ethereum (address derivation +
-  transaction signing) and Sui (address derivation only): transaction
-  *building*, Sui transaction *signing* (BCS encoding + intent-signing
-  wrapper), and address derivation/signing for every chain other than
-  Ethereum/Sui (Bitcoin, Tron, Solana, Cardano remain extension points
-  only — see `Signer` in Clients/). Fee estimation is **in scope** —
+- Blockchain-specific logic beyond Ethereum (address derivation,
+  transaction signing, **transaction building**) and Sui (address
+  derivation, transaction signing, **transaction building**):
+  address derivation/signing for every chain other than Ethereum/Sui
+  (Bitcoin, Tron, Solana, Cardano remain extension points only — see
+  `Signer` in Clients/). Fee estimation is **in scope** —
   ``EthereumRPCClient/estimateFee(for:)`` (via EIP-1559 RPC calls) and
   ``SuiGRPCClient/estimateFee(for:)`` (via `simulateTransaction`) are
-  both implemented.
+  both implemented. Transaction building is **in scope** —
+  ``EthereumTransactionBuilder`` and ``SuiTransactionBuilder`` implement
+  ``BlockchainTransactionBuilderProtocol``; ``AnyBlockchainTransactionBuilder``
+  is the String-based type-eraser ready for the app layer.
 - Hardware-signing for any chain other than Ethereum — Sui's BCS
   transaction encoding and intent-signing wrapper for a hardware trusted
   screen aren't speced yet either, so there's no `SuiTrezorSigner`.

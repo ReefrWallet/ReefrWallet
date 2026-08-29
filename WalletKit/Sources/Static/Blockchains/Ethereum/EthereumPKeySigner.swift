@@ -64,20 +64,24 @@ public final class EthereumPKeySigner: Signer {
         try EthereumAddress(publicKey: account.publicKey)
     }
 
-    /// Signs `transaction` — the RLP-encoded EIP-155 signing data described
-    /// in `EthereumSigner`'s design spec — with ``account``'s key,
-    /// returning the RLP-encoded signed transaction.
+    /// Signs `transaction` — either the `0x02`-prefixed EIP-1559 type-2 signing
+    /// preimage from ``UnsignedEIP1559Transaction/signingData`` or the 9-field
+    /// EIP-155 RLP blob from ``UnsignedLegacyTransaction/signingData`` — with
+    /// ``account``'s key. The transaction type is detected automatically from
+    /// the first byte.
     ///
-    /// - Parameter transaction: The 9-field EIP-155 RLP-encoded
-    ///   `[nonce, gasPrice, gasLimit, to, value, data, chainId, 0, 0]`
-    ///   unsigned transaction blob.
-    /// - Returns: The RLP-encoded signed transaction
-    ///   `[nonce, gasPrice, gasLimit, to, value, data, v, r, s]`, ready to
-    ///   broadcast.
+    /// - Parameter transaction: Unsigned transaction bytes, as returned by
+    ///   ``EthereumTransactionBuilder/buildTransfer(sender:recipient:amount:token:options:)``.
+    /// - Returns: The signed transaction ready to broadcast via
+    ///   ``EthereumRPCClient/broadcast(_:)``.
     /// - Throws: ``WalletKitError/signingFailed(reason:)`` if `transaction`
-    ///   isn't well-formed 9-field EIP-155 RLP or its embedded chain ID
-    ///   doesn't match ``chainId``.
+    ///   is malformed or its embedded chain ID doesn't match ``chainId``.
     public func sign(transaction: Data) async throws -> Data {
-        try remappingWalletKitError { try raw.sign(signingData: transaction, privateKey: privateKey.raw) }
+        if transaction.first == 0x02 {
+            return try remappingWalletKitError {
+                try raw.signEip1559(signingData: transaction, privateKey: privateKey.raw)
+            }
+        }
+        return try remappingWalletKitError { try raw.sign(signingData: transaction, privateKey: privateKey.raw) }
     }
 }

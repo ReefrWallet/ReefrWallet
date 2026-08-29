@@ -1,7 +1,10 @@
 // Process lifecycle + the gRPC/faucet calls SuiLocalnetTests.swift needs
-// beyond what SuiGRPCClient exposes publicly (owned-coin lookup, reference
-// gas price, transaction effects, faucet funding) — the Sui counterpart of
-// AnvilNode.swift.
+// beyond what SuiGRPCClient exposes publicly (reference gas price, transaction
+// effects, faucet funding) — the Sui counterpart of AnvilNode.swift.
+//
+// Owned-coin lookup is now in SuiGRPCClient.ownedCoins(of:coinType:); this
+// file's suiCoins(of:) method delegates to it rather than duplicating the
+// implementation.
 //
 // `sui` isn't installed anywhere on this machine by default; it's pinned
 // in mise.toml (`sui = "testnet-v1.77.2"`) and run via `mise x sui --
@@ -36,45 +39,11 @@ struct SuiLaunchError: Error, CustomStringConvertible {
     let description: String
 }
 
-/// A `(objectId, version, digest)` reference to a specific version of an
-/// on-chain object, decoded from a `ListOwnedObjects`/`GetTransaction`
-/// response — the gRPC API's own `ObjectReference`, but with `digest`
-/// already Base58-decoded to raw bytes as ``SuiObjectReference`` (the
-/// `TransactionData` field it feeds) expects.
-struct SuiOwnedCoin {
-    let reference: SuiObjectReference
-    let balance: UInt64
-}
-
-/// Decodes a Base58 (Bitcoin-alphabet) string to raw bytes — the encoding
-/// Sui's gRPC API uses for object/transaction digests, unlike the `0x`-hex
-/// everywhere else in this codebase.
-private enum Base58 {
-    private static let alphabet = Array("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
-    private static let indexByCharacter = Dictionary(uniqueKeysWithValues: alphabet.enumerated().map { ($1, $0) })
-
-    static func decode(_ string: String) throws -> Data {
-        var bytes: [Int] = [0]
-        for character in string {
-            guard let digit = indexByCharacter[character] else {
-                throw SuiLaunchError(description: "'\(string)' is not valid Base58 (bad character '\(character)')")
-            }
-            var carry = digit
-            for index in 0..<bytes.count {
-                let value = bytes[index] * 58 + carry
-                bytes[index] = value & 0xFF
-                carry = value >> 8
-            }
-            while carry > 0 {
-                bytes.append(carry & 0xFF)
-                carry >>= 8
-            }
-        }
-        let leadingZeros = string.prefix(while: { $0 == "1" }).count
-        let significant = Data(bytes.reversed().map { UInt8($0) })
-        return Data(repeating: 0, count: leadingZeros) + significant
-    }
-}
+// `SuiOwnedCoin` and the local `Base58` enum have been removed; their
+// replacements are `SuiCoinObject` (public, in WalletKit Sources) and
+// `Base58` (internal, Sources/Static/Core/Base58.swift). `suiCoins(of:)`
+// below now delegates to `SuiGRPCClient.ownedCoins(of:coinType:)` instead
+// of reimplementing the gRPC call.
 
 final class SuiNode {
     let rpcPort: UInt16
@@ -287,24 +256,10 @@ final class SuiNode {
     }
 
     /// `address`'s owned native-SUI coin objects, largest balance first.
-    func suiCoins(of address: SuiAddress) async throws -> [SuiOwnedCoin] {
-        try await withStateServiceClient { state in
-            var request = Sui_Rpc_V2_ListOwnedObjectsRequest()
-            request.owner = address.string
-            request.objectType = "0x2::coin::Coin<0x2::sui::SUI>"
-            request.readMask.paths = ["object_id", "version", "digest", "balance"]
-            let response = try await state.listOwnedObjects(request: ClientRequest(message: request))
-            return try response.objects.map { object in
-                SuiOwnedCoin(
-                    reference: SuiObjectReference(
-                        objectId: try self.hexDecoded(object.objectID),
-                        version: object.version,
-                        digest: try Base58.decode(object.digest)
-                    ),
-                    balance: object.balance
-                )
-            }.sorted { $0.balance > $1.balance }
-        }
+    /// Delegates to ``SuiGRPCClient/ownedCoins(of:coinType:)`` on the local
+    /// node client rather than duplicating the gRPC + Base58 logic here.
+    func suiCoins(of address: SuiAddress) async throws -> [SuiCoinObject] {
+        try await client().ownedCoins(of: address, coinType: "0x2::sui::SUI")
     }
 
     /// The largest native-SUI coin `address` owns — used as the sole gas
@@ -380,24 +335,6 @@ final class SuiNode {
         throw SuiLaunchError(description: "\(address.string)'s balance didn't change from \(previous) within 30s")
     }
 
-    private func hexDecoded(_ string: String) throws -> Data {
-        let hex = string.hasPrefix("0x") ? String(string.dropFirst(2)) : string
-        guard hex.count.isMultiple(of: 2) else {
-            throw SuiLaunchError(description: "'\(string)' has an odd number of hex digits")
-        }
-        var data = Data(capacity: hex.count / 2)
-        var index = hex.startIndex
-        while index < hex.endIndex {
-            let next = hex.index(index, offsetBy: 2)
-            guard let byte = UInt8(hex[index..<next], radix: 16) else {
-                throw SuiLaunchError(description: "'\(string)' is not valid hex")
-            }
-            data.append(byte)
-            index = next
-        }
-        return data
-    }
-
     private func transport() throws -> HTTP2ClientTransport.Posix {
         do {
             return try HTTP2ClientTransport.Posix(
@@ -414,14 +351,6 @@ final class SuiNode {
     ) async throws -> Result {
         try await withGRPCClient(transport: try transport()) { grpcClient in
             try await body(Sui_Rpc_V2_LedgerService.Client(wrapping: grpcClient))
-        }
-    }
-
-    private func withStateServiceClient<Result: Sendable>(
-        _ body: @escaping (Sui_Rpc_V2_StateService.Client<HTTP2ClientTransport.Posix>) async throws -> Result
-    ) async throws -> Result {
-        try await withGRPCClient(transport: try transport()) { grpcClient in
-            try await body(Sui_Rpc_V2_StateService.Client(wrapping: grpcClient))
         }
     }
 }

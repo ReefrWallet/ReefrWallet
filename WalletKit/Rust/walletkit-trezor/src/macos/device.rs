@@ -3,8 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use trezor_client::{protos, Trezor};
 use walletkit_hardware::{
-    EthereumSignature, EthereumTxFields, HardwareButtonRequest, HardwareCurve, HardwareDevice as HardwareDeviceTrait,
-    HardwareDeviceDelegate, HardwareDeviceInfo, HardwareError, HardwarePathSegment,
+    EthereumEIP1559Signature, EthereumEIP1559TxFields, EthereumSignature, EthereumTxFields,
+    HardwareButtonRequest, HardwareCurve, HardwareDevice as HardwareDeviceTrait, HardwareDeviceDelegate,
+    HardwareDeviceInfo, HardwareError, HardwarePathSegment,
 };
 
 use super::{interaction::drive_interaction, worker::DeviceWorker};
@@ -74,6 +75,14 @@ impl HardwareDeviceTrait for TrezorDevice {
         fields: EthereumTxFields,
     ) -> Result<EthereumSignature, HardwareError> {
         self.worker.ethereum_sign_tx(path, fields).await
+    }
+
+    async fn ethereum_sign_tx_eip1559(
+        &self,
+        path: Vec<HardwarePathSegment>,
+        fields: EthereumEIP1559TxFields,
+    ) -> Result<EthereumEIP1559Signature, HardwareError> {
+        self.worker.ethereum_sign_tx_eip1559(path, fields).await
     }
 
     async fn disconnect(&self) {
@@ -157,6 +166,68 @@ pub(super) fn ethereum_sign_tx(
     }
     Ok(EthereumSignature {
         v,
+        r: resp.signature_r().to_vec(),
+        s: resp.signature_s().to_vec(),
+    })
+}
+
+/// Runs on the device's worker thread. Sends an `EthereumSignTxEIP1559` message
+/// and drives the same `EthereumTxRequest`/`EthereumTxAck` chunk-streaming loop
+/// as the legacy path. The device returns `signature_v` as `yParity` (0 or 1)
+/// for type-2 — taken directly, no EIP-155 folding.
+pub(super) fn ethereum_sign_tx_eip1559(
+    trezor: &mut Trezor,
+    path: &[HardwarePathSegment],
+    fields: EthereumEIP1559TxFields,
+    delegate: &Arc<dyn HardwareDeviceDelegate>,
+    runtime: &tokio::runtime::Handle,
+) -> Result<EthereumEIP1559Signature, HardwareError> {
+    let EthereumEIP1559TxFields {
+        nonce,
+        max_priority_fee_per_gas,
+        max_fee_per_gas,
+        gas_limit,
+        to,
+        value,
+        mut data,
+        chain_id,
+    } = fields;
+
+    let mut req = protos::EthereumSignTxEIP1559::new();
+    req.address_n = path.iter().map(HardwarePathSegment::to_address_n).collect();
+    req.set_nonce(nonce);
+    req.set_max_priority_fee(max_priority_fee_per_gas);
+    req.set_max_gas_fee(max_fee_per_gas);
+    req.set_gas_limit(gas_limit);
+    req.set_value(value);
+    req.set_chain_id(chain_id);
+    req.set_to(to_field(&to));
+    // access_list left empty — wallet transfers never set one
+
+    req.set_data_length(data.len() as u32);
+    req.set_data_initial_chunk(data.splice(..std::cmp::min(1024, data.len()), []).collect());
+
+    let mut resp = drive_interaction(
+        trezor.call(req, Box::new(|_, m: protos::EthereumTxRequest| Ok(m))),
+        delegate,
+        runtime,
+        &HardwareButtonRequest::ConfirmTransaction,
+    )?;
+
+    while resp.data_length() > 0 {
+        let mut ack = protos::EthereumTxAck::new();
+        ack.set_data_chunk(data.splice(..std::cmp::min(1024, data.len()), []).collect());
+        resp = drive_interaction(
+            trezor.call(ack, Box::new(|_, m: protos::EthereumTxRequest| Ok(m))),
+            delegate,
+            runtime,
+            &HardwareButtonRequest::ConfirmTransaction,
+        )?;
+    }
+
+    // For EIP-1559 the device returns y_parity (0 or 1) directly — no folding.
+    Ok(EthereumEIP1559Signature {
+        y_parity: resp.signature_v() as u64,
         r: resp.signature_r().to_vec(),
         s: resp.signature_s().to_vec(),
     })

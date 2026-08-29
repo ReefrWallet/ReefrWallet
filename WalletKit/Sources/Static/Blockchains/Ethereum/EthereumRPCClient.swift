@@ -14,7 +14,7 @@ import Foundation
 /// transaction. Pairs with ``EthereumPKeySigner``/``EthereumTrezorSigner``,
 /// which produce the signed transaction bytes ``broadcast(_:)`` sends;
 /// this client builds no transactions of its own.
-public struct EthereumRPCClient {
+public struct EthereumRPCClient: Sendable {
     /// The EVM chain ID this client's endpoint is expected to serve —
     /// descriptive only. Unlike signing, reading a balance or broadcasting
     /// to the wrong network is a configuration/UX concern, not a replay-
