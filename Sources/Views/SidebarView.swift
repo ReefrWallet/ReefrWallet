@@ -88,7 +88,7 @@ extension SidebarView: View {
             addMenu
             updateMenu
         }
-        .alert("Confirm Delete AccountModel", isPresented: $deleteAccountAlertPresented) {
+        .alert("Confirm Delete Account", isPresented: $deleteAccountAlertPresented) {
             Button("Delete") {
                 if let deletingAccount {
                     sidebarSelection.wrappedValue = nil
@@ -176,7 +176,7 @@ private extension SidebarView {
         Button {
             addWatchOnlyAccount()
         } label: {
-            Label("Add Watch-Only AccountModel", systemImage: "eye")
+            Label("Add Watch-Only Account", systemImage: "eye")
         }
     }
 
@@ -196,7 +196,7 @@ private extension SidebarView {
                 presentSheet?(.addAccount(keyStore))
             }
         } label: {
-            Label("Add Blockchain AccountModel", systemImage: "person.badge.plus")
+            Label("Add Blockchain Account", systemImage: "person.badge.plus")
         }
         .disabled(keyStore == nil)
     }
