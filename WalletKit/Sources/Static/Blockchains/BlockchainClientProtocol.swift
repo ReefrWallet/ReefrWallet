@@ -100,4 +100,25 @@ public protocol BlockchainClientProtocol {
     /// - Throws: ``BlockchainClientError`` on a transport, RPC, or decoding
     ///   failure.
     func estimateFee(for request: FeeEstimateRequest<Address>?) async throws -> FeeEstimate
+
+    /// Broadcasts a signed transaction and returns its hash / digest.
+    ///
+    /// The meaning of the two parameters differs per chain:
+    ///
+    /// - **Ethereum**: `signature` is the complete signed transaction envelope
+    ///   (as returned by ``Signer/sign(transaction:)``). `transaction`
+    ///   (the unsigned bytes) is unused — pass it through for API symmetry.
+    /// - **Sui**: `transaction` is the unsigned BCS-encoded `TransactionData`
+    ///   and `signature` is the serialized Sui signature returned by
+    ///   ``Signer/sign(transaction:)``.
+    ///
+    /// - Parameters:
+    ///   - transaction: The unsigned transaction bytes (used on Sui; ignored
+    ///     on Ethereum).
+    ///   - signature: The signed transaction envelope (Ethereum) or the
+    ///     serialized Sui signature (Sui).
+    /// - Returns: The transaction hash (Ethereum) or digest (Sui).
+    /// - Throws: ``BlockchainClientError`` on a transport or RPC failure, or
+    ///   when the node rejects the transaction.
+    func broadcast(transaction: Data, signature: Data) async throws -> String
 }

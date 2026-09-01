@@ -54,4 +54,13 @@ extension SuiGRPCClient: BlockchainClientProtocol {
     // `estimateFee(for:)` is satisfied by the method defined in
     // `SuiGRPCClient.swift`, which has access to the private gRPC service
     // wrappers and the `referenceGasPrice`/`simulateGasCost` helpers.
+
+    /// Broadcasts a signed Sui transaction.
+    ///
+    /// `transaction` is the unsigned BCS-encoded `TransactionData` and
+    /// `signature` is the serialized Sui signature returned by
+    /// ``SuiPKeySigner/sign(transaction:)``.
+    public func broadcast(transaction: Data, signature: Data) async throws -> String {
+        try await broadcast(transactionData: transaction, signature: signature)
+    }
 }

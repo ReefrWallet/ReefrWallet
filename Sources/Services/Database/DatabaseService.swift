@@ -191,7 +191,8 @@ actor DatabaseService {
         for update in updates {
             let token: Token
 
-            if let existing = tokens.first(where: { $0.address == update.token.address }) {
+            if var existing = tokens.first(where: { $0.address == update.token.address }) {
+                existing.usdPrice = update.token.usdPrice ?? existing.usdPrice
                 token = existing
             } else {
                 try insertToken(update.token, blockchain: account.blockchain)
@@ -200,7 +201,12 @@ actor DatabaseService {
             }
 
             if let index = balances.firstIndex(where: { $0.token.address == update.token.address }) {
-                balances[index].amount = update.amount
+                balances[index] = Balance(
+                    account: account,
+                    amount: update.amount,
+                    token: token,
+                    usdValue: update.usdValue
+                )
             } else {
                 balances.append(Balance(
                     account: account,

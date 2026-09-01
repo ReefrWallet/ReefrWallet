@@ -20,7 +20,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let address: String
     let blockchain: WKBlockchain
     let derivationPath: String?
-    // let keyStore: KeyStore
+    let keyStoreId: PersistentIdentifier
     let name: String
     let signatureScheme: Curve?
     let usdValue: Decimal
@@ -30,7 +30,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         address: String,
         blockchain: WKBlockchain,
         derivationPath: String?,
-        // keyStore: KeyStore,
+        keyStoreId: PersistentIdentifier,
         name: String,
         signatureScheme: Curve? = nil,
         usdValue: Decimal = .zero
@@ -41,7 +41,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         self.address = address
         self.blockchain = blockchain
         self.derivationPath = derivationPath
-        // self.keyStore = keyStore
+        self.keyStoreId = keyStoreId
         self.name = name
         self.signatureScheme = signatureScheme
         self.usdValue = usdValue
@@ -101,7 +101,7 @@ extension Account {
         address = model.address
         blockchain = model.blockchain.blockchain
         derivationPath = model.derivationPath
-        // keyStore = try KeyStore(model: keyStoreModel)
+        keyStoreId = model.keyStore.id
         name = model.name
         signatureScheme = Curve(rawValue: model.signatureScheme)
         usdValue = model.usdValue

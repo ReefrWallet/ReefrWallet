@@ -90,16 +90,18 @@ public struct SuiTransactionBuilder: BlockchainTransactionBuilderProtocol {
             throw BlockchainTransactionBuilderError.amountTooLarge
         }
 
+        let gasOverride = options.suiGasOverride
+
         // Normalize so that "0x2::sui::SUI" and its full 64-digit equivalent
         // both route to the native path; a malformed type throws decodingFailed.
         let coinType = try MoveTypeTag.canonicalCoinType(token ?? "0x2::sui::SUI")
         if coinType == SuiTransactionBuilder.nativeSuiCoinType {
             return try await buildNativeSuiTransfer(
-                sender: sender, recipient: recipient, amount: amountU64
+                sender: sender, recipient: recipient, amount: amountU64, gasOverride: gasOverride
             )
         } else {
             return try await buildTokenTransfer(
-                sender: sender, recipient: recipient, amount: amountU64, coinType: coinType
+                sender: sender, recipient: recipient, amount: amountU64, coinType: coinType, gasOverride: gasOverride
             )
         }
     }
@@ -108,12 +110,14 @@ public struct SuiTransactionBuilder: BlockchainTransactionBuilderProtocol {
 // MARK: - Private helpers
 
 private extension SuiTransactionBuilder {
+    typealias SuiGasOverride = (budget: UInt64?, price: UInt64?)
+
     func buildNativeSuiTransfer(
         sender: SuiAddress,
         recipient: SuiAddress,
-        amount: UInt64
+        amount: UInt64,
+        gasOverride: SuiGasOverride?
     ) async throws -> Data {
-        let gasPrice = UInt64(try await client.estimateFee(for: nil).gasPrice)
         let suiCoins = try await client.ownedCoins(of: sender, coinType: "0x2::sui::SUI")
         let totalSUI = suiCoins.reduce(UInt64(0)) { $0 &+ $1.balance }
 
@@ -121,6 +125,30 @@ private extension SuiTransactionBuilder {
             throw BlockchainTransactionBuilderError.insufficientFunds(
                 reason: "need \(amount) MIST + gas but \(sender.string) only has \(totalSUI) MIST"
             )
+        }
+
+        // When both budget and price are supplied, skip simulation entirely.
+        if let budget = gasOverride?.budget, let price = gasOverride?.price {
+            let (needed, overflow) = amount.addingReportingOverflow(budget)
+            guard let gasCoins = selectCoins(from: suiCoins, needed: overflow ? .max : needed) else {
+                throw BlockchainTransactionBuilderError.insufficientFunds(
+                    reason: "need \(amount) MIST + \(budget) MIST gas budget but \(sender.string) only has \(totalSUI) MIST"
+                )
+            }
+            return UnsignedSuiTransaction(
+                sender: sender, transfers: [(recipient: recipient, amount: amount)],
+                gasPayment: gasCoins.map(\.reference), gasOwner: sender,
+                gasPrice: price, gasBudget: budget
+            ).transactionDataBcs
+        }
+
+        // The ?? operator wraps its RHS in an @autoclosure which doesn't support
+        // async/await; use explicit if/else instead.
+        let gasPrice: UInt64
+        if let overridePrice = gasOverride?.price {
+            gasPrice = overridePrice
+        } else {
+            gasPrice = UInt64(try await client.estimateFee(for: nil as FeeEstimateRequest<SuiAddress>?).gasPrice)
         }
 
         // Cap simulation budget by available gas so low-balance accounts aren't
@@ -139,7 +167,7 @@ private extension SuiTransactionBuilder {
                 return UnsignedSuiTransaction(
                     sender: sender, transfers: [(recipient: recipient, amount: amount)],
                     gasPayment: refined.map(\.reference), gasOwner: sender,
-                    gasPrice: gasPrice, gasBudget: budget
+                    gasPrice: gasPrice, gasBudget: gasOverride?.budget ?? budget
                 ).transactionDataBcs
             }
             gasCoins = refined
@@ -149,20 +177,21 @@ private extension SuiTransactionBuilder {
         )
     }
 
+    // swiftlint:disable:next function_body_length
     func buildTokenTransfer(
         sender: SuiAddress,
         recipient: SuiAddress,
         amount: UInt64,
-        coinType: String
+        coinType: String,
+        gasOverride: SuiGasOverride?
     ) async throws -> Data {
-        let gasPrice = UInt64(try await client.estimateFee(for: nil).gasPrice)
-
         let allTokenCoins = try await client.ownedCoins(of: sender, coinType: coinType)
         guard !allTokenCoins.isEmpty else {
             throw BlockchainTransactionBuilderError.insufficientFunds(
                 reason: "\(sender.string) owns no coins of type \(coinType)"
             )
         }
+
         // Select the smallest prefix of token coins whose combined balance covers
         // amount — avoids bloating the PTB with redundant inputs.
         guard let tokenCoins = selectCoins(from: allTokenCoins, needed: amount) else {
@@ -181,6 +210,29 @@ private extension SuiTransactionBuilder {
             )
         }
 
+        // When both budget and price are supplied, skip simulation entirely.
+        if let budget = gasOverride?.budget, let price = gasOverride?.price {
+            guard let gasCoins = selectCoins(from: suiCoins, needed: budget) else {
+                throw BlockchainTransactionBuilderError.insufficientFunds(
+                    reason: "need \(budget) MIST gas budget but \(sender.string) only has \(totalSUI) MIST SUI"
+                )
+            }
+            return makeCoinTransferBcs(
+                sender: sender, tokenCoins: tokenCoins, amount: amount, recipient: recipient,
+                gasCoins: gasCoins.map(\.reference), gasOwner: sender,
+                gasPrice: price, gasBudget: budget
+            )
+        }
+
+        // The ?? operator wraps its RHS in an @autoclosure which doesn't support
+        // async/await; use explicit if/else instead.
+        let gasPrice: UInt64
+        if let overridePrice = gasOverride?.price {
+            gasPrice = overridePrice
+        } else {
+            gasPrice = UInt64(try await client.estimateFee(for: nil as FeeEstimateRequest<SuiAddress>?).gasPrice)
+        }
+
         var gasCoins = selectCoins(from: suiCoins,
                                    needed: min(SuiTransactionBuilder.simulationBudget, totalSUI)) ?? suiCoins
 
@@ -193,7 +245,7 @@ private extension SuiTransactionBuilder {
                 return makeCoinTransferBcs(
                     sender: sender, tokenCoins: tokenCoins, amount: amount, recipient: recipient,
                     gasCoins: refined.map(\.reference), gasOwner: sender,
-                    gasPrice: gasPrice, gasBudget: budget
+                    gasPrice: gasPrice, gasBudget: gasOverride?.budget ?? budget
                 )
             }
             gasCoins = refined
@@ -326,5 +378,18 @@ private extension SuiTransactionBuilder {
         let estimate = try await client.estimateFee(for: FeeEstimateRequest(data: transactionBcs))
         let base = estimate.grossFee ?? estimate.estimatedFee ?? estimate.gasPrice
         return max(1, UInt64(base * 2))
+    }
+}
+
+private extension Array where Element == BlockchainTransactionBuilderOptions {
+    /// Extracts the first `.suiGasOverride` from the options array, or `nil`
+    /// if none was supplied.
+    var suiGasOverride: (budget: UInt64?, price: UInt64?)? {
+        for option in self {
+            if case let .suiGasOverride(budget, price) = option {
+                return (budget, price)
+            }
+        }
+        return nil
     }
 }

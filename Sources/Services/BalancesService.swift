@@ -15,7 +15,7 @@ final class BalancesService {
         }
 
         return balances.reduce(into: 0) { partialResult, balance in
-            partialResult += (balance.token.usdPrice ?? 0) * Decimal(balance.amount)
+            partialResult += (balance.token.usdPrice ?? 0) * balance.decimalAmount
         }
     }
 
@@ -46,24 +46,29 @@ final class BalancesService {
 
         if client.isSupported(.allBalances) {
             for (tokenAddress, amount) in try await client.getAllBalances(account.address) {
-                if let token = tokens.first(where: { $0.address == tokenAddress }) {
-                    let usdValue: Decimal? = if let price = token.usdPrice {
-                        price * Decimal(amount)
-                    } else {
-                        nil
+                if var token = tokens.first(where: { $0.address == tokenAddress }) {
+                    if let price = try? await client.getTokenPrice(tokenAddress) {
+                        token.usdPrice = price
                     }
+
+                    let decimalAmount = Decimal(
+                        sign: .plus,
+                        exponent: -Int(token.decimalsCount),
+                        significand: Decimal(amount)
+                    )
 
                     balances.append(Balance(
                         account: account,
                         amount: amount,
                         token: token,
-                        usdValue: usdValue
+                        usdValue: token.usdPrice.map { $0 * decimalAmount }
                     ))
                 } else {
                     let tokenInfo = try await client.getTokenInfo(tokenAddress)
 
                     let token = Token(
                         address: tokenAddress,
+                        blockchain: account.blockchain,
                         decimalsCount: tokenInfo.decimals,
                         imageURL: nil,
                         isHidden: false,
@@ -71,16 +76,21 @@ final class BalancesService {
                         isNativeToken: false,
                         name: tokenInfo.name,
                         symbol: tokenInfo.symbol,
-                        usdPrice: nil
+                        usdPrice: try? await client.getTokenPrice(tokenAddress)
                     )
 
-                    var usdValue: Decimal?
+                    let decimalAmount = Decimal(
+                        sign: .plus,
+                        exponent: -Int(token.decimalsCount),
+                        significand: Decimal(amount)
+                    )
 
-                    if let price = try? await client.getTokenPrice(tokenAddress) {
-                        usdValue = price * Decimal(amount)
-                    }
-
-                    balances.append(Balance(account: account, amount: amount, token: token, usdValue: usdValue))
+                    balances.append(Balance(
+                        account: account,
+                        amount: amount,
+                        token: token,
+                        usdValue: token.usdPrice.map { $0 * decimalAmount }
+                    ))
                 }
             }
         } else {
@@ -94,13 +104,23 @@ final class BalancesService {
                     throw Error.invalidData
                 }
 
-                var usdValue: Decimal?
-
+                var token = token
                 if let price = try? await client.getTokenPrice(token.address) {
-                    usdValue = price * Decimal(amount)
+                    token.usdPrice = price
                 }
 
-                balances.append(Balance(account: account, amount: amount, token: token, usdValue: usdValue))
+                let decimalAmount = Decimal(
+                    sign: .plus,
+                    exponent: -Int(token.decimalsCount),
+                    significand: Decimal(amount)
+                )
+
+                balances.append(Balance(
+                    account: account,
+                    amount: amount,
+                    token: token,
+                    usdValue: token.usdPrice.map { $0 * decimalAmount }
+                ))
             }
         }
 

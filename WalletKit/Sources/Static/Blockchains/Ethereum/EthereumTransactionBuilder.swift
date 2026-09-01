@@ -9,6 +9,8 @@
 import BigInt
 import Foundation
 
+// swiftlint:disable large_tuple
+
 /// A ``BlockchainTransactionBuilderProtocol`` implementation for Ethereum,
 /// backed by an ``EthereumRPCClient``.
 ///
@@ -82,13 +84,15 @@ public struct EthereumTransactionBuilder: BlockchainTransactionBuilderProtocol {
         token: String?,
         options: [BlockchainTransactionBuilderOptions]
     ) async throws -> Data {
-        let useLegacy = options.contains(.legacyEip155)
+        let useLegacy = options.containsLegacyEip155
+        let feeOverride = options.ethereumFeeOverride
 
         if let tokenString = token {
             // ERC-20: rates-only estimate for fee fields; gas is estimated
-            // separately with the calldata in buildERC20Transfer.
+            // separately with the calldata in buildERC20Transfer (unless the
+            // caller has supplied a gasLimit override).
             async let nonceTask = client.nonce(of: sender)
-            async let feeTask = client.estimateFee(for: nil)
+            async let feeTask = client.estimateFee(for: nil as FeeEstimateRequest<EthereumAddress>?)
             let nonce = try await nonceTask
             let fee = try await feeTask
             return try await buildERC20Transfer(
@@ -98,24 +102,31 @@ public struct EthereumTransactionBuilder: BlockchainTransactionBuilderProtocol {
                 tokenString: tokenString,
                 nonce: nonce,
                 fee: fee,
+                feeOverride: feeOverride,
                 useLegacy: useLegacy
             )
         } else {
             // Native ETH: estimate gas with the actual from/to/value so that
             // contract recipients with a payable receive/fallback get the
             // right limit; fall back to 21 000 only if the node omits it.
+            // Skip per-tx gas estimation when the caller has overridden gasLimit.
             async let nonceTask = client.nonce(of: sender)
-            async let feeTask = client.estimateFee(
-                for: FeeEstimateRequest(from: sender, to: recipient, value: amount)
-            )
             let nonce = try await nonceTask
-            let fee = try await feeTask
+            let fee: FeeEstimate
+            if feeOverride?.gasLimit != nil {
+                fee = try await client.estimateFee(for: nil as FeeEstimateRequest<EthereumAddress>?)
+            } else {
+                fee = try await client.estimateFee(
+                    for: FeeEstimateRequest(from: sender, to: recipient, value: amount)
+                )
+            }
             return buildNativeTransfer(
                 sender: sender,
                 recipient: recipient,
                 amount: amount,
                 nonce: nonce,
                 fee: fee,
+                feeOverride: feeOverride,
                 useLegacy: useLegacy
             )
         }
@@ -125,19 +136,23 @@ public struct EthereumTransactionBuilder: BlockchainTransactionBuilderProtocol {
 // MARK: - Private helpers
 
 private extension EthereumTransactionBuilder {
+    typealias EthFeeOverride = (maxFeePerGas: BigUInt?, maxPriorityFeePerGas: BigUInt?, gasLimit: BigUInt?)
+
     func buildNativeTransfer(
         sender: EthereumAddress,
         recipient: EthereumAddress,
         amount: BigUInt,
         nonce: UInt64,
         fee: FeeEstimate,
+        feeOverride: EthFeeOverride?,
         useLegacy: Bool
     ) -> Data {
+        let gasLimit = feeOverride?.gasLimit ?? fee.gasLimit ?? 21_000
         if useLegacy {
             return UnsignedLegacyTransaction(
                 nonce: BigUInt(nonce),
-                gasPrice: fee.gasPrice,
-                gasLimit: fee.gasLimit ?? 21_000,
+                gasPrice: feeOverride?.maxFeePerGas ?? fee.gasPrice,
+                gasLimit: gasLimit,
                 to: recipient,
                 value: amount,
                 data: Data(),
@@ -146,9 +161,9 @@ private extension EthereumTransactionBuilder {
         }
         return UnsignedEIP1559Transaction(
             nonce: BigUInt(nonce),
-            maxPriorityFeePerGas: fee.maxPriorityFeePerGas ?? fee.gasPrice,
-            maxFeePerGas: fee.maxFeePerGas ?? fee.gasPrice,
-            gasLimit: fee.gasLimit ?? 21_000,
+            maxPriorityFeePerGas: feeOverride?.maxPriorityFeePerGas ?? fee.maxPriorityFeePerGas ?? fee.gasPrice,
+            maxFeePerGas: feeOverride?.maxFeePerGas ?? fee.maxFeePerGas ?? fee.gasPrice,
+            gasLimit: gasLimit,
             to: recipient,
             value: amount,
             data: Data(),
@@ -163,6 +178,7 @@ private extension EthereumTransactionBuilder {
         tokenString: String,
         nonce: UInt64,
         fee: FeeEstimate,
+        feeOverride: EthFeeOverride?,
         useLegacy: Bool
     ) async throws -> Data {
         guard let contract = try? EthereumAddress(string: tokenString) else {
@@ -176,16 +192,22 @@ private extension EthereumTransactionBuilder {
             parameters: [.address(recipient), .uint256(amount)]
         )
 
-        let gasEstimate = try await client.estimateFee(
-            for: FeeEstimateRequest(from: sender, to: contract, data: calldata)
-        )
-        // Fall back to a generous upper-bound if the node couldn't estimate.
-        let gasLimit = gasEstimate.gasLimit ?? 100_000
+        // Skip per-tx gas estimation when the caller has overridden gasLimit.
+        let gasLimit: BigUInt
+        if let overrideGasLimit = feeOverride?.gasLimit {
+            gasLimit = overrideGasLimit
+        } else {
+            let gasEstimate = try await client.estimateFee(
+                for: FeeEstimateRequest(from: sender, to: contract, data: calldata)
+            )
+            // Fall back to a generous upper-bound if the node couldn't estimate.
+            gasLimit = gasEstimate.gasLimit ?? 100_000
+        }
 
         if useLegacy {
             return UnsignedLegacyTransaction(
                 nonce: BigUInt(nonce),
-                gasPrice: fee.gasPrice,
+                gasPrice: feeOverride?.maxFeePerGas ?? fee.gasPrice,
                 gasLimit: gasLimit,
                 to: contract,
                 value: 0,
@@ -195,8 +217,8 @@ private extension EthereumTransactionBuilder {
         }
         return UnsignedEIP1559Transaction(
             nonce: BigUInt(nonce),
-            maxPriorityFeePerGas: fee.maxPriorityFeePerGas ?? fee.gasPrice,
-            maxFeePerGas: fee.maxFeePerGas ?? fee.gasPrice,
+            maxPriorityFeePerGas: feeOverride?.maxPriorityFeePerGas ?? fee.maxPriorityFeePerGas ?? fee.gasPrice,
+            maxFeePerGas: feeOverride?.maxFeePerGas ?? fee.maxFeePerGas ?? fee.gasPrice,
             gasLimit: gasLimit,
             to: contract,
             value: 0,
@@ -205,3 +227,23 @@ private extension EthereumTransactionBuilder {
         ).signingData
     }
 }
+
+private extension Array where Element == BlockchainTransactionBuilderOptions {
+    /// Returns `true` when the array contains a `.legacyEip155` option.
+    var containsLegacyEip155: Bool {
+        contains { if case .legacyEip155 = $0 { return true }; return false }
+    }
+
+    /// Extracts the first `.ethereumFeeOverride` from the options array, or
+    /// `nil` if none was supplied.
+    var ethereumFeeOverride: (maxFeePerGas: BigUInt?, maxPriorityFeePerGas: BigUInt?, gasLimit: BigUInt?)? {
+        for option in self {
+            if case let .ethereumFeeOverride(maxFee, maxPriority, gasLimit) = option {
+                return (maxFee, maxPriority, gasLimit)
+            }
+        }
+        return nil
+    }
+}
+
+// swiftlint:enable large_tuple

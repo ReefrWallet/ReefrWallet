@@ -6,6 +6,7 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
 import Foundation
 
 /// A flag passed in the `options` array of
@@ -25,4 +26,18 @@ public enum BlockchainTransactionBuilderOptions: Sendable {
     /// (type-2) transaction. Only meaningful for Ethereum — Sui and future
     /// blockchains ignore this.
     case legacyEip155
+
+    /// Override the EIP-1559 fee fields for an Ethereum transaction.
+    ///
+    /// `nil` sub-fields fall back to the value fetched from the node.
+    /// Only meaningful for Ethereum (EVM) — other chains ignore this.
+    case ethereumFeeOverride(maxFeePerGas: BigUInt?, maxPriorityFeePerGas: BigUInt?, gasLimit: BigUInt?)
+
+    /// Override the gas parameters for a Sui transaction.
+    ///
+    /// When both `budget` and `price` are non-nil the simulate-and-select
+    /// loop is skipped entirely — the supplied values are used directly.
+    /// `nil` sub-fields fall back to the simulated/fetched value.
+    /// Only meaningful for Sui — other chains ignore this.
+    case suiGasOverride(budget: UInt64?, price: UInt64?)
 }

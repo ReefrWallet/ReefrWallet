@@ -76,11 +76,16 @@ final class AccountService {
             derivationPath = nil
         }
 
+        guard let keyStoreId = keyStore.id else {
+            throw Error.invalidData
+        }
+
         let account = Account(
             accountIndex: accountIndex,
             address: address,
             blockchain: blockchain,
             derivationPath: derivationPath,
+            keyStoreId: keyStoreId,
             name: "\(blockchain.displayName) #\(accountIndex)",
             signatureScheme: effectiveSignatureScheme
         )
@@ -116,22 +121,32 @@ private extension AccountService {
         accountIndex: UInt64,
         signatureScheme: Curve?
     ) throws -> AddressResult {
-        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex)
-        let seed = try Seed(rawBytes: rawKey)
-
-        let address: String
+        let curve: Curve
         switch blockchain {
         case .evm:
-            let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
-            let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
-            address = try signer.address().checksummed
+            curve = .secp256k1
         case .sui:
             guard let signatureScheme else {
                 throw Error.invalidData
             }
 
-            let publicKey = try seed.masterKey(curve: signatureScheme).derive(derivationPath).privateKey().publicKey
-            address = try SuiAddress(publicKey: publicKey, curve: signatureScheme).string
+            curve = signatureScheme
+        default:
+            throw Error.notImplemented
+        }
+
+        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: curve)
+        let seed = try Seed(rawBytes: rawKey)
+
+        let address: String
+        switch blockchain {
+        case .evm:
+            let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
+            let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
+            address = try signer.address().checksummed
+        case .sui:
+            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
+            address = try SuiAddress(publicKey: publicKey, curve: curve).string
         default:
             throw Error.notImplemented
         }
@@ -144,7 +159,7 @@ private extension AccountService {
         accountIndex: UInt64,
         device: HardwareDevice
     ) async throws -> AddressResult {
-        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex)
+        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: .secp256k1)
 
         switch blockchain {
         case .evm:
@@ -162,10 +177,18 @@ private extension AccountService {
         }
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.internalError
+            throw Error.invalidData
         }
 
         let accounts = try await databaseService.fetchAccounts(keyStoreId: keyStoreId, blockchain: blockchain)
-        return UInt64(accounts.count)
+        let nextIndex: UInt64 = accounts.reduce(into: 0, { partialResult, account in
+            let accountIndex = account.accountIndex ?? 0
+
+            if accountIndex >= partialResult {
+                partialResult = accountIndex + 1
+            }
+        })
+
+        return nextIndex
     }
 }

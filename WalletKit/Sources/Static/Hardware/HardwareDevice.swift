@@ -55,8 +55,8 @@ public final class HardwareDevice: HardwareDeviceProtocol {
     ///   - account: The BIP44-style account index.
     /// - Returns: The resulting account, including its derived public key.
     public func account(_ blockchain: WKBlockchain, account: UInt32 = 0) async throws -> WKAccount {
-        let path = try DerivationPath(blockchain, accountIndex: UInt64(account))
         let curve = Self.curve(for: blockchain)
+        let path = try DerivationPath(blockchain, accountIndex: UInt64(account), curve: curve)
         let key = try await publicKey(path: path, curve: curve)
         return WKAccount(blockchain: blockchain, derivationPath: path, curve: curve, source: source, publicKey: key)
     }

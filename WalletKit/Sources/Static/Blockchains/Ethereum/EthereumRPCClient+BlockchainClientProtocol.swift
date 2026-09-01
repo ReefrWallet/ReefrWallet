@@ -65,4 +65,12 @@ extension EthereumRPCClient: BlockchainClientProtocol {
     // `estimateFee(for:)` is satisfied by the method defined in
     // `EthereumRPCClient.swift`, which has access to the private `rpc`
     // and `parseQuantity` helpers.
+
+    /// Broadcasts a signed Ethereum transaction.
+    ///
+    /// For Ethereum the signed envelope is self-contained — `transaction`
+    /// (the unsigned bytes) is unused. Pass the signed bytes as `signature`.
+    public func broadcast(transaction: Data, signature: Data) async throws -> String {
+        try await broadcast(signature)
+    }
 }

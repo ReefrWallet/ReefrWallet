@@ -38,6 +38,7 @@ public struct AnyBlockchainClient: Sendable {
     private let _isActiveAccount: @Sendable (String) async throws -> Bool
     private let _isSupported: @Sendable (BlockchainClientFeature) -> Bool
     private let _estimateFee: @Sendable (AnyFeeEstimateRequest?) async throws -> FeeEstimate
+    private let _broadcast: @Sendable (Data, Data) async throws -> String
 
     // MARK: - Initialiser
 
@@ -86,6 +87,9 @@ public struct AnyBlockchainClient: Sendable {
                 data: anyRequest.data
             )
             return try await client.estimateFee(for: typedRequest)
+        }
+        _broadcast = { transaction, signature in
+            try await client.broadcast(transaction: transaction, signature: signature)
         }
     }
 
@@ -164,5 +168,18 @@ public struct AnyBlockchainClient: Sendable {
     ///   decoding failure.
     public func estimateFee(for request: AnyFeeEstimateRequest?) async throws -> FeeEstimate {
         try await _estimateFee(request)
+    }
+
+    /// Broadcasts a signed transaction and returns its hash / digest.
+    ///
+    /// - Parameters:
+    ///   - transaction: The unsigned transaction bytes (used on Sui; ignored
+    ///     on Ethereum).
+    ///   - signature: The signed transaction envelope (Ethereum) or the
+    ///     serialized Sui signature (Sui).
+    /// - Returns: The transaction hash (Ethereum) or digest (Sui).
+    /// - Throws: ``BlockchainClientError`` on a transport or RPC failure.
+    public func broadcast(transaction: Data, signature: Data) async throws -> String {
+        try await _broadcast(transaction, signature)
     }
 }
