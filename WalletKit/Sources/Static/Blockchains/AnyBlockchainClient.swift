@@ -31,6 +31,7 @@ public struct AnyBlockchainClient: Sendable {
     // MARK: - Stored closures (one per protocol requirement)
 
     private let _getAllBalances: @Sendable (String) async throws -> [String: BigUInt]
+    private let _getBalances: @Sendable (String, [String]) async throws -> [String: BigUInt]
     private let _getBalance: @Sendable (String, String) async throws -> BigUInt
     private let _getNativeBalance: @Sendable (String) async throws -> BigUInt
     private let _getTokenInfo: @Sendable (String?) async throws -> TokenInfo
@@ -51,6 +52,10 @@ public struct AnyBlockchainClient: Sendable {
         _getAllBalances = { ownerString in
             let owner = try C.Address(string: ownerString)
             return try await client.getAllBalances(owner)
+        }
+        _getBalances = { ownerString, tokens in
+            let owner = try C.Address(string: ownerString)
+            return try await client.getBalances(owner, tokens: tokens)
         }
         _getBalance = { ownerString, token in
             let owner = try C.Address(string: ownerString)
@@ -105,6 +110,11 @@ public struct AnyBlockchainClient: Sendable {
     ///   mapping to raw balance in the token's smallest unit.
     public func getAllBalances(_ owner: String) async throws -> [String: BigUInt] {
         try await _getAllBalances(owner)
+    }
+
+    /// Returns balances for the requested token identifiers.
+    public func getBalances(_ owner: String, tokens: [String]) async throws -> [String: BigUInt] {
+        try await _getBalances(owner, tokens)
     }
 
     /// Returns `owner`'s balance of the ERC-20/coin at `token`.

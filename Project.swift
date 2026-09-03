@@ -58,6 +58,18 @@ let iosTests: Target = .target(
     dependencies: [.target(name: "ReefrWallet")]
 )
 
+let walletScheme: Scheme = .scheme(
+    name: "ReefrWallet",
+    shared: true,
+    buildAction: .buildAction(targets: [.target("ReefrWallet")]),
+    runAction: .runAction(
+        executable: .executable(.target("ReefrWallet")),
+        arguments: .arguments(launchArguments: [
+            .launchArgument(name: "--drop-accounts", isEnabled: false)
+        ])
+    )
+)
+
 let project = Project(
     name: "ReefrWallet",
     settings: .settings(base: [
@@ -66,9 +78,10 @@ let project = Project(
         "OTHER_LDFLAGS": ["-lc++"]
     ]),
     targets: [wallet, macOSTests], // TODO: iOS tests need signing configured
+    schemes: [walletScheme],
     additionalFiles: [
         "Makefile",
         "Project.swift",
-        "README.md"
+        "*.md"
     ]
 )

@@ -15,9 +15,18 @@
 extension SuiGRPCClient: BlockchainClientProtocol {
     public func getAllBalances(_ owner: SuiAddress) async throws -> [String: BigUInt] {
         let response = try await listAllBalances(of: owner)
+        return response.reduce(into: [String: BigUInt]()) { result, balance in
+            result[balance.coinType] = BigUInt(balance.balance)
+        }
+    }
+
+    public func getBalances(_ owner: SuiAddress, tokens: [String]) async throws -> [String: BigUInt] {
+        let response = try await listAllBalances(of: owner)
         var balances: [String: BigUInt] = [:]
         for balance in response {
-            balances[balance.coinType] = BigUInt(balance.balance)
+            if tokens.isEmpty || tokens.contains(balance.coinType) {
+                balances[balance.coinType] = BigUInt(balance.balance)
+            }
         }
         return balances
     }
@@ -46,6 +55,7 @@ extension SuiGRPCClient: BlockchainClientProtocol {
 
     public func isSupported(_ feature: BlockchainClientFeature) -> Bool {
         switch feature {
+        case .multipleBalances: true
         case .allBalances: true
         case .feeEstimation: true
         }

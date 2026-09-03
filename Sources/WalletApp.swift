@@ -10,7 +10,12 @@ import SwiftData
 import SwiftUI
 
 @main struct WalletApp: App {
-    let databaseService: DatabaseService = DI.injectOrFail(DatabaseService.self)
+    let databaseService: DatabaseService
+
+    init() {
+        self.databaseService = DI.injectOrFail(DatabaseService.self)
+        processStartupOptions()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -22,6 +27,18 @@ import SwiftUI
         #if os(macOS)
         Settings {
             SettingsView()
+        }
+        #endif
+    }
+}
+
+private extension WalletApp {
+    func processStartupOptions() {
+        #if DEBUG
+        if CommandLine.arguments.contains("--drop-accounts") {
+            Task {
+                try? await databaseService.deleteAllAccounts()
+            }
         }
         #endif
     }

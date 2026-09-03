@@ -81,20 +81,33 @@ struct EthereumTrezorSignerTests {
                 derivationPath: derivationPath
             )
 
-            let signTx = try signer.signTx(from: vector.signingDataHex.hexDecoded)
-            #expect(signTx.chainId == vector.chainId)
-
-            // Stands in for a real device signature — no walletkit-trezor
-            // transport exists yet.
+            let signingData = vector.signingDataHex.hexDecoded
             let privateKey = try PrivateKey(curve: .secp256k1, rawBytes: vector.privateKey.hexDecoded)
-            let raw = try EthereumSignerFfi(chainId: vector.chainId).signature(
-                signingData: vector.signingDataHex.hexDecoded,
-                privateKey: privateKey.raw
-            )
-            let signature = EthereumSignature(v: raw.v, r: raw.r, s: raw.s)
+            let ffi = EthereumSignerFfi(chainId: vector.chainId)
 
-            let signed = try signer.signedTransaction(vector.signingDataHex.hexDecoded, signature: signature)
-            #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
+            if signingData.first == 0x02 {
+                let signTx = try signer.signTxEIP1559(from: signingData)
+                #expect(signTx.chainId == vector.chainId)
+
+                // Stands in for a real device signature — no walletkit-trezor
+                // transport exists yet.
+                let raw = try ffi.signatureEip1559(signingData: signingData, privateKey: privateKey.raw)
+                let signature = EthereumEIP1559Signature(yParity: raw.yParity, r: raw.r, s: raw.s)
+
+                let signed = try signer.signedTransactionEIP1559(signingData, signature: signature)
+                #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
+            } else {
+                let signTx = try signer.signTx(from: signingData)
+                #expect(signTx.chainId == vector.chainId)
+
+                // Stands in for a real device signature — no walletkit-trezor
+                // transport exists yet.
+                let raw = try ffi.signature(signingData: signingData, privateKey: privateKey.raw)
+                let signature = EthereumSignature(v: raw.v, r: raw.r, s: raw.s)
+
+                let signed = try signer.signedTransaction(signingData, signature: signature)
+                #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
+            }
         }
     }
 

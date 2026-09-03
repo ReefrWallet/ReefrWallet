@@ -8,7 +8,12 @@ import WalletKit
 /// directly as existentials. The `Any…` type-erasers bridge their concrete
 /// `Address` types to `String` so callers don't need to know the chain type.
 final class BlockchainClientProvider {
-    private var clients: [WKBlockchain: AnyBlockchainClient] = [:]
+    private struct Target: Hashable {
+        let blockchain: WKBlockchain
+        let rpcURL: URL?
+    }
+
+    private var clients: [Target: AnyBlockchainClient] = [:]
     private var builders: [WKBlockchain: AnyBlockchainTransactionBuilder] = [:]
 
     /// Returns the cached ``AnyBlockchainClient`` for `blockchain`, creating
@@ -16,10 +21,11 @@ final class BlockchainClientProvider {
     ///
     /// - Throws: ``WalletKitError`` if the blockchain's endpoint URL is
     ///   invalid or the blockchain is not yet supported.
-    func getClient(blockchain: WKBlockchain) throws -> AnyBlockchainClient {
-        if let client = clients[blockchain] { return client }
-        let client = try makeClient(blockchain: blockchain)
-        clients[blockchain] = client
+    func getClient(blockchain: WKBlockchain, rpcURL: URL? = nil) throws -> AnyBlockchainClient {
+        let target = Target(blockchain: blockchain, rpcURL: rpcURL)
+        if let client = clients[target] { return client }
+        let client = try makeClient(blockchain: blockchain, rpcURL: rpcURL)
+        clients[target] = client
         return client
     }
 
@@ -35,8 +41,8 @@ final class BlockchainClientProvider {
         return builder
     }
 
-    private func makeClient(blockchain: WKBlockchain) throws -> AnyBlockchainClient {
-        let endpoint = blockchain.rpcURL
+    private func makeClient(blockchain: WKBlockchain, rpcURL: URL?) throws -> AnyBlockchainClient {
+        let endpoint = rpcURL ?? blockchain.rpcURL
 
         switch blockchain {
         case let .evm(network):

@@ -16,13 +16,13 @@ struct Token: Hashable, Sendable {
     /// CoinType on sui, contract address on Ethereum. `nil` for native token on ethereum.
     let address: String?
     let blockchain: WKBlockchain?
-    let decimalsCount: UInt8
-    let imageURL: URL?
-    let isHidden: Bool
-    let isIncludedInBalance: Bool?
+    var decimalsCount: UInt8
+    var imageURL: URL?
+    var isHidden: Bool
+    var isIncludedInBalance: Bool?
     let isNativeToken: Bool
-    let name: String
-    let symbol: String
+    var name: String
+    var symbol: String
     var usdPrice: Decimal?
 }
 

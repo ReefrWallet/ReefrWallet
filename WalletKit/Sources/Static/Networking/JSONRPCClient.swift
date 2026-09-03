@@ -21,12 +21,25 @@ struct JSONRPCClient {
         let params: Params
     }
 
+    private struct BatchEnvelope<Params: Encodable>: Encodable {
+        let jsonrpc = "2.0"
+        let id: Int
+        let method: String
+        let params: Params
+    }
+
     private struct ErrorPayload: Decodable {
         let code: Int
         let message: String
     }
 
     private struct ResponseEnvelope<Result: Decodable>: Decodable {
+        let result: Result?
+        let error: ErrorPayload?
+    }
+
+    private struct BatchResponseEnvelope<Result: Decodable>: Decodable {
+        let id: Int
         let result: Result?
         let error: ErrorPayload?
     }
@@ -78,5 +91,48 @@ struct JSONRPCClient {
         }
 
         return result
+    }
+
+    /// Calls the same JSON-RPC method with multiple parameter sets in one HTTP
+    /// request. Individual RPC errors are represented by `nil` at their input
+    /// index so callers can preserve partial-success semantics.
+    func callBatch<Params: Encodable, Result: Decodable>(
+        method: String,
+        params: [Params]
+    ) async throws -> [Result?] {
+        guard !params.isEmpty else { return [] }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(
+            params.enumerated().map { BatchEnvelope(id: $0.offset + 1, method: method, params: $0.element) }
+        )
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw BlockchainClientError.transportError(reason: error.localizedDescription)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw BlockchainClientError.invalidResponse(reason: "unexpected HTTP status \(status)")
+        }
+
+        let envelopes: [BatchResponseEnvelope<Result>]
+        do {
+            envelopes = try JSONDecoder().decode([BatchResponseEnvelope<Result>].self, from: data)
+        } catch {
+            throw BlockchainClientError.decodingFailed(reason: error.localizedDescription)
+        }
+
+        var results = Array<Result?>(repeating: nil, count: params.count)
+        for envelope in envelopes where envelope.id > 0 && envelope.id <= params.count {
+            results[envelope.id - 1] = envelope.error == nil ? envelope.result : nil
+        }
+        return results
     }
 }

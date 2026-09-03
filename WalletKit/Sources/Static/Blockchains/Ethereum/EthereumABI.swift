@@ -19,25 +19,25 @@ import WalletKitRust
 ///   calls this client makes, only need static words.
 public enum EthereumABIValue {
     case address(EthereumAddress)
-    case uint256(BigUInt)
     case bool(Bool)
     case bytes32(Data)
+    case uint256(BigUInt)
 
     var word: Data {
         switch self {
         case .address(let address):
             return Data(repeating: 0, count: 12) + address.rawBytes
-        case .uint256(let value):
-            // Precondition: value fits in 256 bits (32 bytes) — the
-            // caller's responsibility, same as any other uint256 field.
-            let bytes = value.serialize()
-            return Data(repeating: 0, count: 32 - bytes.count) + bytes
         case .bool(let value):
             return Data(repeating: 0, count: 31) + Data([value ? 1 : 0])
         case .bytes32(let value):
             // Precondition: value is exactly 32 bytes — the caller's
             // responsibility, e.g. an already-32-byte ENS namehash.
             return value
+        case .uint256(let value):
+            // Precondition: value fits in 256 bits (32 bytes) — the
+            // caller's responsibility, same as any other uint256 field.
+            let bytes = value.serialize()
+            return Data(repeating: 0, count: 32 - bytes.count) + bytes
         }
     }
 }
@@ -48,6 +48,76 @@ public enum EthereumABIValue {
 /// `latestRoundData`) and is available directly for a caller's own contract
 /// calls via `EthereumRPCClient.call(to:data:)`.
 public enum EthereumABI {
+    private static func word(_ value: BigUInt) -> Data {
+        let bytes = value.serialize()
+        return Data(repeating: 0, count: 32 - bytes.count) + bytes
+    }
+
+    /// Encodes Multicall3's `aggregate3((address,bool,bytes)[])` input for
+    /// read-only calls.
+    static func encodeAggregate3( // swiftlint:disable:next large_tuple
+        _ calls: [(target: EthereumAddress, allowFailure: Bool, callData: Data)]
+    ) -> Data {
+        let encodedCalls = calls.map { call -> Data in
+            let paddedLength = ((call.callData.count + 31) / 32) * 32
+            return EthereumABIValue.address(call.target).word
+                + EthereumABIValue.bool(call.allowFailure).word
+                + word(96)
+                + word(BigUInt(call.callData.count))
+                + call.callData
+                + Data(repeating: 0, count: paddedLength - call.callData.count)
+        }
+        let offsets = calls.indices.reduce(into: Data()) { result, index in
+            // Dynamic-array element offsets are relative to the array's length
+            // word, so the first element follows the length plus all offsets.
+            let offset = 32 + calls.count * 32 + encodedCalls[..<index].reduce(0) { $0 + $1.count }
+            result += word(BigUInt(offset))
+        }
+        return encodeCall(selector: selector("aggregate3((address,bool,bytes)[])"))
+            + word(32)
+            + word(BigUInt(calls.count))
+            + offsets
+            + encodedCalls.reduce(Data(), +)
+    }
+
+    /// Decodes Multicall3's `(bool success, bytes returnData)[]` result.
+    static func decodeAggregate3(_ data: Data) throws -> [(success: Bool, returnData: Data)] {
+        guard let arrayOffset = Int(exactly: decodeUInt256(data.prefix(32))),
+              arrayOffset + 32 <= data.count
+        else {
+            throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has an invalid array offset")
+        }
+        let arrayStart = data.startIndex + arrayOffset
+        let count = Int(exactly: decodeUInt256(data[arrayStart..<arrayStart + 32])) ?? -1
+        guard count >= 0 else {
+            throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has an invalid result count")
+        }
+        let headsStart = arrayStart + 32
+        guard headsStart + count * 32 <= data.endIndex else {
+            throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has truncated result heads")
+        }
+
+        return try (0..<count).map { index in
+            let relativeOffset = Int(exactly: decodeUInt256(data[headsStart + index * 32..<headsStart + (index + 1) * 32])) ?? -1
+            let tupleStart = arrayStart + relativeOffset
+            guard relativeOffset >= 0, tupleStart + 64 <= data.endIndex else {
+                throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has an invalid tuple offset")
+            }
+            let success = decodeBool(data[tupleStart..<tupleStart + 32])
+            let bytesOffset = Int(exactly: decodeUInt256(data[tupleStart + 32..<tupleStart + 64])) ?? -1
+            let lengthStart = tupleStart + bytesOffset
+            guard bytesOffset >= 0, lengthStart + 32 <= data.endIndex else {
+                throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has an invalid return-data offset")
+            }
+            let length = Int(exactly: decodeUInt256(data[lengthStart..<lengthStart + 32])) ?? -1
+            let bytesStart = lengthStart + 32
+            guard length >= 0, bytesStart + length <= data.endIndex else {
+                throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has truncated return data")
+            }
+            return (success, Data(data[bytesStart..<bytesStart + length]))
+        }
+    }
+
     /// Computes the 4-byte function selector for `signature` (e.g.
     /// `"balanceOf(address)"`) — Keccak-256(signature)'s first 4 bytes.
     ///

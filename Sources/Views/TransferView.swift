@@ -357,7 +357,9 @@ private extension TransferView {
                 let fees = try await fetchFees()
                 guard receiverText == snapshot.recipient,
                       decimalAmountText == snapshot.amount,
-                      selectedBalance == snapshot.balance else { return }
+                      selectedBalance == snapshot.balance else {
+                    return
+                }
                 applyFees(fees)
                 refreshNextButtonState()
             } catch {
@@ -491,17 +493,18 @@ private extension TransferView {
             raiseOnExactness: false, raiseOnOverflow: false,
             raiseOnUnderflow: false, raiseOnDivideByZero: false
         )
+
         return scaled == scaled.rounding(accordingToBehavior: handler)
     }
 
     func validateFees() -> Bool {
         switch account.blockchain {
         case .evm:
-            return BigUInt(ethereumMaxPriorityFee) != nil && BigUInt(ethereumMaxFee) != nil
+            BigUInt(ethereumMaxPriorityFee) != nil && BigUInt(ethereumMaxFee) != nil
         case .sui:
-            return UInt64(suiGasBudget) != nil && UInt64(suiGasPrice) != nil
+            UInt64(suiGasBudget) != nil && UInt64(suiGasPrice) != nil
         default:
-            return true
+            false
         }
     }
 
@@ -524,7 +527,7 @@ private extension TransferView {
         feeEstimationTask = Task {
             // Debounce: absorb rapid keystrokes before hitting the network.
             do {
-                try await Task.sleep(for: .seconds(1))
+                try await Task.sleep(for: .seconds(0.5))
             } catch {
                 return  // cancelled during the delay
             }
@@ -532,6 +535,7 @@ private extension TransferView {
             // Snapshot the input that triggered this estimation so we can
             // discard the result if the user changed it while we were waiting.
             let snapshot = (recipient: receiverText, amount: decimalAmountText, balance: selectedBalance)
+
             do {
                 let fees = try await fetchFees()
                 guard receiverText == snapshot.recipient,
@@ -547,14 +551,4 @@ private extension TransferView {
             }
         }
     }
-}
-
-// MARK: - Preview
-
-/* #Preview {
-    let keyStore = try! KeyStoreModel.mockLocal() // swiftlint:disable:this force_try
-    let account = keyStore.accounts!.first!
-    let balance = account.balances.first!
-
-    TransferView(balance: balance)
-} */
+} // swiftlint:disable:this file_length

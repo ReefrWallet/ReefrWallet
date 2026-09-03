@@ -22,6 +22,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let derivationPath: String?
     let keyStoreId: PersistentIdentifier
     let name: String
+    let rpcURLOverride: URL?
     let signatureScheme: Curve?
     let usdValue: Decimal
 
@@ -32,6 +33,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         derivationPath: String?,
         keyStoreId: PersistentIdentifier,
         name: String,
+        rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
         usdValue: Decimal = .zero
     ) {
@@ -43,6 +45,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         self.derivationPath = derivationPath
         self.keyStoreId = keyStoreId
         self.name = name
+        self.rpcURLOverride = rpcURLOverride
         self.signatureScheme = signatureScheme
         self.usdValue = usdValue
     }
@@ -56,7 +59,8 @@ final class AccountModel {
     var address: String
     var derivationPath: String?
     var name: String
-    var signatureScheme: String
+    var rpcURLOverride: String?
+    var signatureScheme: String?
 
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
@@ -74,6 +78,7 @@ final class AccountModel {
         derivationPath: String? = nil,
         keyStore: KeyStoreModel,
         name: String,
+        rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil
     ) {
         guard accountIndex != nil || keyStore.isWatchOnly else {
@@ -87,8 +92,8 @@ final class AccountModel {
         self.derivationPath = derivationPath
         self.keyStore = keyStore
         self.name = name
-
-        self.signatureScheme = signatureScheme?.rawValue ?? ""
+        self.rpcURLOverride = rpcURLOverride?.absoluteString
+        self.signatureScheme = signatureScheme?.rawValue
     }
 }
 
@@ -103,8 +108,19 @@ extension Account {
         derivationPath = model.derivationPath
         keyStoreId = model.keyStore.id
         name = model.name
-        signatureScheme = Curve(rawValue: model.signatureScheme)
         usdValue = model.usdValue
+
+        if let signatureScheme = model.signatureScheme {
+            self.signatureScheme = Curve(rawValue: signatureScheme)
+        } else {
+            self.signatureScheme = nil
+        }
+
+        if let rpcURLOverride = model.rpcURLOverride {
+            self.rpcURLOverride = URL(string: rpcURLOverride)
+        } else {
+            self.rpcURLOverride = nil
+        }
     }
 }
 

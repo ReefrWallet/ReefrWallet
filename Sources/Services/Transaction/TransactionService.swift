@@ -52,15 +52,14 @@ final class TransactionService {
 
             let maxFee = feeEstimate.maxFeePerGas ?? feeEstimate.gasPrice
             let priorityFee = feeEstimate.maxPriorityFeePerGas ?? BigUInt(0)
-            // maxFeePerGas = baseFee × 2 + maxPriorityFeePerGas
             let baseFee = maxFee > priorityFee ? (maxFee - priorityFee) / 2 : BigUInt(0)
+
             return Fees(
                 ethereumBaseFee: baseFee.description,
                 ethereumMaxPriorityFee: priorityFee.description,
                 ethereumMaxFee: maxFee.description,
                 nativeFeeReserve: feeEstimate.estimatedFee?.description  // nil for ERC-20 rates-only
             )
-
         case .sui:
             // Build the unsigned transaction to get a realistic simulation.
             let builder = try clientProvider.getBuilder(blockchain: blockchain)
@@ -79,7 +78,6 @@ final class TransactionService {
                 suiGasPrice: feeEstimate.gasPrice.description,
                 nativeFeeReserve: token.isNativeToken ? grossFee.description : nil
             )
-
         default:
             throw Error.notImplemented
         }
@@ -259,7 +257,6 @@ private extension TransactionService {
             default:
                 throw Error.notImplemented
             }
-
         case .trezor:
             guard let deviceId = keyStore.deviceId else { throw Error.invalidData }
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
@@ -275,7 +272,6 @@ private extension TransactionService {
                 // Trezor signing for non-EVM chains is not yet implemented.
                 throw Error.notImplemented
             }
-
         case .watchOnly:
             throw Error.notSupported
         }

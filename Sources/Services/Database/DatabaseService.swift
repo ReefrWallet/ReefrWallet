@@ -6,9 +6,33 @@ import WalletKit
 actor DatabaseService {
     func deleteAccount(id: PersistentIdentifier) throws {
         let predicate = #Predicate<AccountModel> { $0.id == id }
-        try modelContext.delete(model: AccountModel.self, where: predicate)
+        guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+            throw Error.notFound
+        }
+
+        modelContext.delete(account)
         try modelContext.save()
     }
+
+    #if DEBUG
+    /// Deletes all accounts across every key store, keeping the key stores themselves.
+    ///
+    /// Uses a per-object delete rather than a batch delete: batch delete issues a raw SQL
+    /// delete that tries to nullify the non-optional `AccountModel.keyStore` inverse and
+    /// fails with a "mandatory OTO nullify inverse" error instead of honoring the cascade
+    /// rule declared on `KeyStoreModel.accounts`.
+    func deleteAllAccounts() throws {
+        for account in try modelContext.fetch(FetchDescriptor<AccountModel>()) {
+            modelContext.delete(account)
+        }
+
+        for blockchain in try modelExecutor.modelContext.fetch(FetchDescriptor<BlockchainModel>()) {
+            modelContext.delete(blockchain)
+        }
+
+        try modelContext.save()
+    }
+    #endif
 
     func deleteKeyStore(id: PersistentIdentifier) throws {
         let predicate = #Predicate<KeyStoreModel> { $0.id == id }

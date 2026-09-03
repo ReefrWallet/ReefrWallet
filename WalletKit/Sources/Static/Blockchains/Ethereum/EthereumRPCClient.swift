@@ -91,6 +91,79 @@ public struct EthereumRPCClient: Sendable {
         return EthereumABI.decodeUInt256(word)
     }
 
+    /// Reads multiple ERC-20 balances using one Multicall3 `eth_call`, falling
+    /// back to a JSON-RPC batch when the aggregate contract is unavailable.
+    public func erc20Balances(
+        tokens: [EthereumAddress],
+        owner: EthereumAddress
+    ) async throws -> [String: BigUInt] {
+        guard !tokens.isEmpty else { return [:] }
+
+        let callData = tokens.map { _ in
+            EthereumABI.encodeCall(
+                selector: EthereumABI.selector("balanceOf(address)"),
+                parameters: [.address(owner)]
+            )
+        }
+
+        let calls = zip(tokens, callData).map { (target: $0.0, allowFailure: true, callData: $0.1) }
+        let multicall = try multicall3Address()
+
+        do {
+            let result = try await call(
+                to: multicall,
+                data: EthereumABI.encodeAggregate3(calls)
+            )
+
+            let aggregateResults = try EthereumABI.decodeAggregate3(result)
+
+            guard aggregateResults.count == tokens.count else {
+                throw BlockchainClientError.decodingFailed(reason: "aggregate3 returned an unexpected result count")
+            }
+
+            return aggregateResults.enumerated().reduce(into: [:]) { result, item in
+                guard item.element.success, let word = EthereumABI.words(item.element.returnData).first,
+                      item.element.returnData.count >= 32 else {
+                    return
+                }
+
+                result[tokens[item.offset].string] = EthereumABI.decodeUInt256(word)
+            }
+        } catch {
+            let params = tokens.map { token in
+                EthCallParams(
+                    to: token.string,
+                    data: EthereumABI.encodeCall(
+                        selector: EthereumABI.selector("balanceOf(address)"),
+                        parameters: [.address(owner)]
+                    ).hexEncoded
+                )
+            }
+            let fallback: [String?] = try await rpc.callBatch(method: "eth_call", params: params)
+            return fallback.enumerated().reduce(into: [:]) { result, item in
+                guard let value = item.element else {
+                    return
+                }
+
+                let hex = value.hasPrefix("0x") ? String(value.dropFirst(2)) : value
+
+                guard let amount = BigUInt(hex, radix: 16) else {
+                    return
+                }
+
+                result[tokens[item.offset].string] = amount
+            }
+        }
+    }
+
+    private func multicall3Address() throws -> EthereumAddress {
+        let addresses: [UInt64: String] = [
+            728_126_428: "0x32a4f47a74a6810bd0bf861cabab99656a75de9e"
+        ]
+        let address = addresses[chainId] ?? "0xcA11bde05977b3631167028862bE2a173976CA11"
+        return try EthereumAddress(string: address)
+    }
+
     /// Reads an ERC-20 `token`'s metadata — `name()`, `symbol()`, and
     /// `decimals()`.
     ///

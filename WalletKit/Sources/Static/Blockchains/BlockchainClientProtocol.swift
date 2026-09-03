@@ -14,6 +14,9 @@
 /// using a feature to avoid ``WalletKitError/unsupportedFeature`` errors at
 /// runtime.
 public enum BlockchainClientFeature {
+    /// Bulk balance query for a requested set of token/coin identifiers.
+    case multipleBalances
+
     /// Bulk balance query — ``BlockchainClientProtocol/getAllBalances(_:)``
     /// returns balances for every token/coin the account holds in a single
     /// call. Supported by Sui (``SuiGRPCClient``); not supported by Ethereum
@@ -57,6 +60,11 @@ public protocol BlockchainClientProtocol {
     /// balance queries — check ``isSupported(_:)`` with
     /// ``BlockchainClientFeature/allBalances`` first.
     func getAllBalances(_ owner: Address) async throws -> [String: BigUInt]
+
+    /// Returns `owner`'s balances for the requested ERC-20/coin identifiers.
+    /// Missing entries represent a zero balance or a token that could not be
+    /// read by the underlying chain client.
+    func getBalances(_ owner: Address, tokens: [String]) async throws -> [String: BigUInt]
 
     /// Returns `owner`'s balance of the ERC-20/coin at `token`.
     ///

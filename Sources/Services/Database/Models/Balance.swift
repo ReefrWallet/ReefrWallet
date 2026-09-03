@@ -31,7 +31,7 @@ struct Balance: Equatable, Hashable, Identifiable, Sendable {
 // MARK: - BalanceModel
 
 @Model
-final class BalanceModel: Identifiable/*, Hashable*/ {
+final class BalanceModel: Identifiable {
     var serializedAmount: Data
 
     @Relationship
