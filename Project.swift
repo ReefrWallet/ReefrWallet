@@ -75,7 +75,12 @@ let project = Project(
     settings: .settings(base: [
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
-        "OTHER_LDFLAGS": ["-lc++"]
+        "OTHER_LDFLAGS[sdk=macosx*]": [
+            "-lc++",
+            "-L/opt/homebrew/opt/libusb/lib",
+            "-L/usr/local/opt/libusb/lib",
+            "-lusb-1.0"
+        ]
     ]),
     targets: [wallet, macOSTests], // TODO: iOS tests need signing configured
     schemes: [walletScheme],

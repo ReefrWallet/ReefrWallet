@@ -121,7 +121,12 @@ let project = Project(
         "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": ["gnu11", "gnu++14"],
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
-        "OTHER_LDFLAGS": ["-lc++"]
+        "OTHER_LDFLAGS[sdk=macosx*]": [
+            "-lc++",
+            "-L/opt/homebrew/opt/libusb/lib",
+            "-L/usr/local/opt/libusb/lib",
+            "-lusb-1.0"
+        ]
     ]),
     targets: [walletKitRust, walletKitGRPC, walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
     schemes: schemes,

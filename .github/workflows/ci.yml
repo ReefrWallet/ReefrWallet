@@ -19,7 +19,7 @@ jobs:
         submodules: recursive
     - name: Install protoc and Swift gRPC plugins
       run: |
-        brew install protobuf swift-protobuf grpc-swift
+        brew install protobuf swift-protobuf grpc-swift libusb
         protoc --version
     - name: Run tests
       run: |
