@@ -10,12 +10,10 @@ import Foundation
 
 public extension Encodable {
     func asJSONString(keyEncodingStrategy: JSONEncoder.KeyEncodingStrategy = .useDefaultKeys) throws -> String {
-        let encoded = try encoded(keyEncodingStrategy: keyEncodingStrategy)
-        let json = try JSONSerialization.jsonObject(with: encoded, options: [])
-        let data = try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])
+        let data = try encoded(keyEncodingStrategy: keyEncodingStrategy)
 
         guard let string = String(data: data, encoding: .utf8) else {
-            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Cannot decode blockchain"))
+            throw Error.invalidData
         }
 
         return string

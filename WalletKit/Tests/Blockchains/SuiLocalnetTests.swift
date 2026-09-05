@@ -103,6 +103,112 @@ private func send(
 
 @Suite(.timeLimit(.minutes(5)))
 struct SuiLocalnetTests {
+    // MARK: - Fee estimation
+
+    /// Rates-only: `estimateFee(for: nil)` returns the epoch's reference gas
+    /// price with no per-transaction fields.
+    @Test func estimateFeeRatesOnlyMatchesTheNodeReferenceGasPrice() async throws {
+        let node = try await SuiNode.start()
+        defer { node.stop() }
+
+        let client = SuiGRPCClient(host: "127.0.0.1", port: Int(node.rpcPort), useTLS: false)
+        let estimate = try await client.estimateFee(for: nil)
+        let referenceGasPrice = try await node.referenceGasPrice()
+
+        #expect(estimate.gasPrice == BigUInt(referenceGasPrice))
+        #expect(estimate.maxFeePerGas == nil, "Sui has no EIP-1559 max fee")
+        #expect(estimate.maxPriorityFeePerGas == nil, "Sui has no EIP-1559 priority fee")
+        #expect(estimate.gasLimit == nil, "rates-only: no per-tx gas limit")
+        #expect(estimate.estimatedFee == nil, "rates-only: no per-tx fee")
+    }
+
+    /// Per-tx estimate for a native SUI transfer: the fee is positive and
+    /// the gas price matches the reference gas price.
+    @Test func estimateFeeForANativeSUITransferReturnsAPositiveFee() async throws {
+        let node = try await SuiNode.start()
+        defer { node.stop() }
+
+        let vectors = loadEd25519AddressVectors()
+        let signerA = try makeSigner(privateKeyHex: vectors[0].privateKey)
+        let walletA = try signerA.address()
+        let walletB = try makeSigner(privateKeyHex: vectors[1].privateKey).address()
+
+        let client = SuiGRPCClient(host: "127.0.0.1", port: Int(node.rpcPort), useTLS: false)
+        try await node.faucet(walletA)
+
+        let gasCoin = try await node.largestSuiCoin(of: walletA)
+        let gasPrice = try await node.referenceGasPrice()
+
+        let tx = UnsignedSuiTransaction(
+            sender: walletA,
+            transfers: [(recipient: walletB, amount: 1_000_000_000)],
+            gasPayment: [gasCoin],
+            gasOwner: walletA,
+            gasPrice: gasPrice,
+            gasBudget: 10_000_000
+        )
+
+        let estimate = try await client.estimateFee(
+            for: FeeEstimateRequest(data: tx.transactionDataBcs)
+        )
+
+        #expect(estimate.gasPrice == BigUInt(gasPrice))
+        let estimatedFee = try #require(estimate.estimatedFee)
+        #expect(estimatedFee > 0)
+    }
+
+    /// Per-tx estimate for a coin-object transfer (the PTB shape used for any
+    /// arbitrary `Coin<T>`, e.g. USDC). Funds wallet A twice via the faucet
+    /// to obtain two separate SUI coin objects: one for gas, one to transfer
+    /// (reusing SUI to exercise the PTB shape, which is identical regardless
+    /// of coin type).
+    @Test func estimateFeeForACoinObjectTransferReturnsAPositiveFee() async throws {
+        let node = try await SuiNode.start()
+        defer { node.stop() }
+
+        let vectors = loadEd25519AddressVectors()
+        let signerA = try makeSigner(privateKeyHex: vectors[0].privateKey)
+        let walletA = try signerA.address()
+        let walletB = try makeSigner(privateKeyHex: vectors[1].privateKey).address()
+
+        let client = SuiGRPCClient(host: "127.0.0.1", port: Int(node.rpcPort), useTLS: false)
+
+        // Two faucet calls give two separate coin objects: one for gas,
+        // one to transfer. `waitForSuiCoinCount` ensures both have been
+        // indexed before we proceed (the second `faucet` call may return
+        // as soon as the balance from the first is confirmed).
+        try await node.faucet(walletA)
+        try await node.faucet(walletA)
+        try await node.waitForSuiCoinCount(of: walletA, atLeast: 2)
+
+        let coins = try await node.suiCoins(of: walletA)
+        try #require(coins.count >= 2)
+
+        let gasCoin = coins[0].reference    // largest — used for gas
+        let coinToTransfer = coins[1]       // second — the object being transferred
+        let gasPrice = try await node.referenceGasPrice()
+
+        let tx = UnsignedCoinObjectTransfer(
+            sender: walletA,
+            coinObject: coinToTransfer.reference,
+            recipient: walletB,
+            gasPayment: [gasCoin],
+            gasOwner: walletA,
+            gasPrice: gasPrice,
+            gasBudget: 10_000_000
+        )
+
+        let estimate = try await client.estimateFee(
+            for: FeeEstimateRequest(data: tx.transactionDataBcs)
+        )
+
+        #expect(estimate.gasPrice == BigUInt(gasPrice))
+        let estimatedFee = try #require(estimate.estimatedFee)
+        #expect(estimatedFee > 0)
+    }
+
+    // MARK: - Transfer
+
     @Test func twoWalletsExchangeSUIOnALocalNetwork() async throws {
         let node = try await SuiNode.start()
         defer { node.stop() }

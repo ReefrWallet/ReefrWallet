@@ -14,7 +14,10 @@ mod manager;
 mod path;
 
 pub use delegate::{HardwareButtonRequest, HardwareDeviceDelegate, HardwareInputRequest};
-pub use device::{EthereumSignature, EthereumTxFields, HardwareCurve, HardwareDevice};
+pub use device::{
+    EthereumEIP1559Signature, EthereumEIP1559TxFields, EthereumSignature, EthereumTxFields,
+    HardwareCurve, HardwareDevice,
+};
 pub use error::HardwareError;
 pub use info::{HardwareDeviceInfo, HardwareTransportKind, HardwareVendor};
 pub use manager::HardwareDeviceManager;

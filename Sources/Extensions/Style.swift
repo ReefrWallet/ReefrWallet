@@ -80,18 +80,18 @@ private extension View {
     @ViewBuilder
     func with(size: StyledView.Size?) -> some View {
         switch size {
-        case .largeHeader:
-            font(.system(size: 16, weight: .bold))
-        case .mediumHeader:
-            font(.system(size: 14, weight: .bold))
-        case .smallHeader:
-            font(.system(size: 12, weight: .bold))
         case .large:
             font(.system(size: 16, weight: .regular))
+        case .largeHeader:
+            font(.system(size: 16, weight: .bold))
         case .medium:
             font(.system(size: 14, weight: .regular))
+        case .mediumHeader:
+            font(.system(size: 14, weight: .bold))
         case .small:
             font(.system(size: 12, weight: .regular))
+        case .smallHeader:
+            font(.system(size: 12, weight: .bold))
         case .none:
             self
         }

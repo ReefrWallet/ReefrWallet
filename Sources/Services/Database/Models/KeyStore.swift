@@ -21,6 +21,8 @@ struct KeyStore: Equatable, Hashable, Sendable {
 
     let accounts: [Account]
     let deviceId: String?
+    /// `nil` for newly-created keystores that haven't been persisted yet;
+    /// set after the first fetch from the database.
     let id: PersistentIdentifier?
     let kind: Kind
     let name: String
@@ -30,6 +32,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
 
     init(
         deviceId: String?,
+        id: PersistentIdentifier? = nil,
         kind: Kind,
         name: String,
         rawKey: Data?,
@@ -38,7 +41,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
     ) {
         self.accounts = []
         self.deviceId = deviceId
-        self.id = nil
+        self.id = id
         self.kind = kind
         self.name = name
         self.rawKey = rawKey
@@ -60,7 +63,7 @@ extension KeyStore.Kind: Comparable {
     }
 
     static func < (lhs: KeyStore.Kind, rhs: KeyStore.Kind) -> Bool {
-        lhs.priority < lhs.priority
+        lhs.priority < rhs.priority
     }
 }
 
@@ -97,6 +100,7 @@ final class KeyStoreModel {
         self.name = name
         self.rawKey = rawKey
         self.rawKind = kind.rawValue
+        self.rawTransport = transport?.rawValue
         self.rawVendor = vendor?.rawValue
     }
 }

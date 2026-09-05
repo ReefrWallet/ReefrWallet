@@ -77,7 +77,20 @@ public extension WKBlockchain {
     }
 
     var logoImage: Image {
-        Image("eth-logo") // FIXME
+        switch self {
+        case .bitcoin:
+            Image("btc-logo")
+        case let .evm(chain):
+            chain.logoImage
+        case .tron:
+            Image("trx-logo")
+        case .solana:
+            Image("sol-logo")
+        case .cardano:
+            Image("ada-logo")
+        case .sui:
+            Image("sui-logo")
+        }
     }
 
     var name: String {

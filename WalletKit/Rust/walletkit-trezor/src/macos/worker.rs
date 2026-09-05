@@ -6,8 +6,8 @@ use std::sync::{
 use tokio::sync::oneshot;
 use trezor_client::{protos, AvailableDevice};
 use walletkit_hardware::{
-    EthereumSignature, EthereumTxFields, HardwareButtonRequest, HardwareDeviceDelegate, HardwareError,
-    HardwarePathSegment,
+    EthereumEIP1559Signature, EthereumEIP1559TxFields, EthereumSignature, EthereumTxFields,
+    HardwareButtonRequest, HardwareDeviceDelegate, HardwareError, HardwarePathSegment,
 };
 
 use super::{error::map_trezor_error, interaction::drive_interaction};
@@ -27,6 +27,11 @@ enum Command {
         path: Vec<HardwarePathSegment>,
         fields: EthereumTxFields,
         reply: oneshot::Sender<Result<EthereumSignature, HardwareError>>,
+    },
+    EthereumSignTxEip1559 {
+        path: Vec<HardwarePathSegment>,
+        fields: EthereumEIP1559TxFields,
+        reply: oneshot::Sender<Result<EthereumEIP1559Signature, HardwareError>>,
     },
     Disconnect,
 }
@@ -108,6 +113,16 @@ impl DeviceWorker {
                             super::device::ethereum_sign_tx(&mut trezor, &path, fields, &delegate, &runtime);
                         let _ = reply.send(result);
                     }
+                    Command::EthereumSignTxEip1559 { path, fields, reply } => {
+                        let result = super::device::ethereum_sign_tx_eip1559(
+                            &mut trezor,
+                            &path,
+                            fields,
+                            &delegate,
+                            &runtime,
+                        );
+                        let _ = reply.send(result);
+                    }
                     Command::Disconnect => break,
                 }
             }
@@ -139,6 +154,18 @@ impl DeviceWorker {
         let (reply_tx, reply_rx) = oneshot::channel();
         self.command_tx
             .send(Command::EthereumSignTx { path, fields, reply: reply_tx })
+            .map_err(|_| HardwareError::Disconnected)?;
+        reply_rx.await.map_err(|_| HardwareError::Disconnected)?
+    }
+
+    pub(super) async fn ethereum_sign_tx_eip1559(
+        &self,
+        path: Vec<HardwarePathSegment>,
+        fields: EthereumEIP1559TxFields,
+    ) -> Result<EthereumEIP1559Signature, HardwareError> {
+        let (reply_tx, reply_rx) = oneshot::channel::<Result<EthereumEIP1559Signature, HardwareError>>();
+        self.command_tx
+            .send(Command::EthereumSignTxEip1559 { path, fields, reply: reply_tx })
             .map_err(|_| HardwareError::Disconnected)?;
         reply_rx.await.map_err(|_| HardwareError::Disconnected)?
     }

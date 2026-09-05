@@ -16,7 +16,7 @@ import WalletKit
 struct TransferView {
     private let account: Account
 
-    @State private var amountText = "0"
+    @State private var decimalAmountText = "0"
     @State private var error: String?
     @State private var isAddressBookPresented = false
     @State private var isErrorAlertPresented = false
@@ -27,10 +27,14 @@ struct TransferView {
     @State private var selectedBalance: Balance
 
     @State private var ethereumBaseFee: String = "0"
-    @State private var ethereumPriorityFee: String = "0"
     @State private var ethereumMaxFee: String = "0"
+    @State private var ethereumMaxPriorityFee: String = "0"
+
     @State private var suiGasBudget: String = "0"
     @State private var suiGasPrice: String = "0"
+
+    @State private var nativeFeeReserve: BigUInt?
+    @State private var feeEstimationTask: Task<Void, Never>?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -150,11 +154,23 @@ extension TransferView: View {
         .onChange(of: receiverText) {
             validateInput()
         }
-        .onChange(of: amountText) {
+        .onChange(of: decimalAmountText) {
             validateInput()
         }
         .onChange(of: selectedBalance) {
             validateInput()
+        }
+        .onChange(of: ethereumMaxPriorityFee) {
+            refreshNextButtonState()
+        }
+        .onChange(of: ethereumMaxFee) {
+            refreshNextButtonState()
+        }
+        .onChange(of: suiGasBudget) {
+            refreshNextButtonState()
+        }
+        .onChange(of: suiGasPrice) {
+            refreshNextButtonState()
         }
     }
 }
@@ -181,11 +197,11 @@ private extension TransferView {
         Section {
             LabeledContent {
                 HStack {
-                    TextField("", text: $amountText)
+                    TextField("", text: $decimalAmountText)
                         .style(.medium, foreground: .primary)
 
                     Button {
-                        amountText = "\(selectedBalance.decimalAmount)"
+                        decimalAmountText = maxSendableAmount
                     } label: {
                         Image(systemName: "gauge.with.dots.needle.100percent")
                     }
@@ -285,13 +301,14 @@ private extension TransferView {
         LabeledContent {
             TextField("", text: $ethereumBaseFee)
                 .frame(height: 28)
+                .disabled(true)
         } label: {
             Text("Base fee")
                 .style(.small, foreground: .secondary)
         }
 
         LabeledContent {
-            TextField("", text: $ethereumPriorityFee)
+            TextField("", text: $ethereumMaxPriorityFee)
                 .frame(height: 28)
         } label: {
             Text("Max priority fee")
@@ -333,10 +350,18 @@ private extension TransferView {
     }
 
     func onEstimateFees() {
-        Task {
+        feeEstimationTask?.cancel()
+        feeEstimationTask = Task {
+            let snapshot = (recipient: receiverText, amount: decimalAmountText, balance: selectedBalance)
             do {
-                try await estimateFees()
-                isNextButtonEnabled = true
+                let fees = try await fetchFees()
+                guard receiverText == snapshot.recipient,
+                      decimalAmountText == snapshot.amount,
+                      selectedBalance == snapshot.balance else {
+                    return
+                }
+                applyFees(fees)
+                refreshNextButtonState()
             } catch {
                 printError(error)
                 isNextButtonEnabled = false
@@ -367,41 +392,48 @@ private extension TransferView {
 // MARK: - Logic
 
 private extension TransferView {
-    func estimateFees() async throws {
-        /* let transactionService = DI.injectOrFail(TransactionService.self)
+    func fetchFees() async throws -> Fees {
+        let transactionService = DI.injectOrFail(TransactionService.self)
+        return try await transactionService.estimateFees(
+            token: selectedBalance.token,
+            decimalAmount: decimalAmountText,
+            recipient: receiverText,
+            account: account
+        )
+    }
 
-        let fees: Fees
-
-        switch selectedBalance.account.blockchain.kind {
-        case .evm:
-            let tx = try await transactionService.makeTransaction(
-                token: selectedBalance.token,
-                decimalAmount: amountText,
-                recipient: receiverText,
-                account: account,
-            )
-            fees = try await transactionService.estimateFees(tx, account: account)
-        case .sui:
-            fees = try await transactionService.estimateFees(nil, account: account)
+    var maxSendableAmount: String {
+        guard selectedBalance.token.isNativeToken, let reserve = nativeFeeReserve else {
+            return "\(selectedBalance.decimalAmount)"
         }
+        var divisor = Decimal(1)
+        for _ in 0..<selectedBalance.token.decimalsCount { divisor *= 10 }
+        let feeDecimal = (Decimal(string: reserve.description) ?? 0) / divisor
+        let maxAmount = max(selectedBalance.decimalAmount - feeDecimal, 0)
+        return "\(maxAmount)"
+    }
 
+    func applyFees(_ fees: Fees) {
         ethereumBaseFee = fees.ethereumBaseFee ?? ""
-        ethereumPriorityFee = fees.ethereumPriorityFee ?? ""
+        ethereumMaxPriorityFee = fees.ethereumMaxPriorityFee ?? ""
         ethereumMaxFee = fees.ethereumMaxFee ?? ""
         suiGasBudget = fees.suiGasBudget ?? ""
-        suiGasPrice = fees.suiGasPrice ?? "" */
+        suiGasPrice = fees.suiGasPrice ?? ""
+        nativeFeeReserve = fees.nativeFeeReserve.flatMap { BigUInt($0) }
     }
 
     func sendTransaction() async throws {
-        /* let account = selectedBalance.account
+        let account = selectedBalance.account
+        let databaseService = DI.injectOrFail(DatabaseService.self)
 
-        if let keyStore = selectedBalance.account.keyStore, keyStore.isHardware {
+        let keyStore = try await databaseService.fetchKeyStore(id: selectedBalance.account.keyStoreId)
+        if let keyStore, keyStore.isHardware {
             progress = .signing
         }
 
         let fees = Fees(
             ethereumBaseFee: ethereumBaseFee,
-            ethereumPriorityFee: ethereumPriorityFee,
+            ethereumMaxPriorityFee: ethereumMaxPriorityFee,
             ethereumMaxFee: ethereumMaxFee,
             suiGasBudget: suiGasBudget,
             suiGasPrice: suiGasPrice
@@ -411,7 +443,7 @@ private extension TransferView {
 
         let txData = try await transactionService.makeTransaction(
             token: selectedBalance.token,
-            decimalAmount: amountText,
+            decimalAmount: decimalAmountText,
             recipient: receiverText,
             account: account,
             fees: fees
@@ -421,7 +453,7 @@ private extension TransferView {
 
         progress = .sending
         let receipt = try await transactionService.sendTransaction(txData, txSignature, account: account)
-        printDebug(receipt) */
+        printDebug(receipt)
     }
 
     func validateAddress() -> Bool {
@@ -443,38 +475,80 @@ private extension TransferView {
 
     func validateAmount() -> Bool {
         guard
-            let amount = Decimal(string: amountText),
-            amount >= selectedBalance.decimalAmount
+            let amount = Decimal(string: decimalAmountText),
+            amount > 0,
+            selectedBalance.decimalAmount >= amount
         else {
             return false
         }
 
-        return true
+        // Reject amounts that don't map exactly to a positive base-unit integer.
+        // e.g. 0.0000001 USDC (6 decimals) scales to 0.1 base units → invalid.
+        var multiplier = Decimal(1)
+        let decimals = selectedBalance.token.decimalsCount
+        for _ in 0..<decimals { multiplier *= 10 }
+        let scaled = NSDecimalNumber(decimal: amount * multiplier)
+        let handler = NSDecimalNumberHandler(
+            roundingMode: .down, scale: 0,
+            raiseOnExactness: false, raiseOnOverflow: false,
+            raiseOnUnderflow: false, raiseOnDivideByZero: false
+        )
+
+        return scaled == scaled.rounding(accordingToBehavior: handler)
+    }
+
+    func validateFees() -> Bool {
+        switch account.blockchain {
+        case .evm:
+            BigUInt(ethereumMaxPriorityFee) != nil && BigUInt(ethereumMaxFee) != nil
+        case .sui:
+            UInt64(suiGasBudget) != nil && UInt64(suiGasPrice) != nil
+        default:
+            false
+        }
+    }
+
+    /// Re-evaluates the Next button's enabled state after a manual edit to a
+    /// fee field, without re-triggering fee estimation.
+    func refreshNextButtonState() {
+        isNextButtonEnabled = validateAddress() && validateAmount() && validateFees()
     }
 
     func validateInput() {
+        feeEstimationTask?.cancel()
+        feeEstimationTask = nil
+        nativeFeeReserve = nil
+
         guard validateAddress(), validateAmount() else {
             isNextButtonEnabled = false
             return
         }
 
-        Task {
+        feeEstimationTask = Task {
+            // Debounce: absorb rapid keystrokes before hitting the network.
             do {
-                try await estimateFees()
-                isNextButtonEnabled = true
+                try await Task.sleep(for: .seconds(0.5))
+            } catch {
+                return  // cancelled during the delay
+            }
+
+            // Snapshot the input that triggered this estimation so we can
+            // discard the result if the user changed it while we were waiting.
+            let snapshot = (recipient: receiverText, amount: decimalAmountText, balance: selectedBalance)
+
+            do {
+                let fees = try await fetchFees()
+                guard receiverText == snapshot.recipient,
+                      decimalAmountText == snapshot.amount,
+                      selectedBalance == snapshot.balance else {
+                    return
+                }
+
+                applyFees(fees)
+                refreshNextButtonState()
             } catch {
                 isNextButtonEnabled = false
             }
         }
     }
-}
-
-// MARK: - Preview
-
-/* #Preview {
-    let keyStore = try! KeyStoreModel.mockLocal() // swiftlint:disable:this force_try
-    let account = keyStore.accounts!.first!
-    let balance = account.balances.first!
-
-    TransferView(balance: balance)
-} */
+} // swiftlint:disable:this file_length

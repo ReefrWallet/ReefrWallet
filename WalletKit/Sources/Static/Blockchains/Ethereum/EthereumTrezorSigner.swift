@@ -91,24 +91,67 @@ public final class EthereumTrezorSigner: Signer {
         try remappingWalletKitError { try raw.encodeSigned(signingData: transaction, signature: signature.raw) }
     }
 
+    /// Decodes `transaction` — a `0x02`-prefixed EIP-1559 type-2 signing
+    /// preimage — into the structured fields Trezor's `EthereumSignTxEIP1559`
+    /// message carries.
+    ///
+    /// - Throws: ``WalletKitError/signingFailed(reason:)`` if `transaction`
+    ///   doesn't start with `0x02` or isn't a valid EIP-1559 preimage.
+    public func signTxEIP1559(from transaction: Data) throws -> EthereumEIP1559SignTx {
+        try remappingWalletKitError {
+            try EthereumEIP1559SignTx(raw: try raw.decodeEip1559SigningData(signingData: transaction))
+        }
+    }
+
+    /// Assembles `transaction` and a device-produced EIP-1559 `signature`
+    /// into a broadcastable signed type-2 transaction.
+    ///
+    /// - Throws: ``WalletKitError/signingFailed(reason:)`` if `signature.yParity`
+    ///   isn't 0/1, or `r`/`s` aren't 32 bytes each.
+    public func signedTransactionEIP1559(_ transaction: Data, signature: EthereumEIP1559Signature) throws -> Data {
+        try remappingWalletKitError {
+            try raw.encodeSignedEip1559(signingData: transaction, signature: signature.raw)
+        }
+    }
+
     /// Signs `transaction` on the connected Trezor, showing its decoded
     /// fields on the device's trusted screen for the user to confirm.
+    /// The transaction type is detected from the first byte: `0x02` routes
+    /// through the EIP-1559 `EthereumSignTxEIP1559` message; anything else
+    /// uses the legacy `EthereumSignTx` path.
     ///
-    /// - Parameter transaction: The 9-field EIP-155 RLP-encoded unsigned
-    ///   transaction blob.
-    /// - Returns: The RLP-encoded signed transaction, ready to broadcast.
+    /// - Parameter transaction: Unsigned transaction bytes, as returned by
+    ///   ``EthereumTransactionBuilder/buildTransfer(sender:recipient:amount:token:options:)``.
+    /// - Returns: The signed transaction ready to broadcast.
     /// - Throws: ``WalletKitError/signingFailed(reason:)`` if `transaction`
-    ///   isn't well-formed 9-field EIP-155 RLP or its embedded chain ID
-    ///   doesn't match ``chainId``, ``WalletKitError/deviceDisconnected``
-    ///   if the device has gone away, or
-    ///   ``WalletKitError/userCancelled``/
+    ///   is malformed or its embedded chain ID doesn't match ``chainId``,
+    ///   ``WalletKitError/deviceDisconnected`` if the device has gone away,
+    ///   or ``WalletKitError/userCancelled``/
     ///   ``WalletKitError/userRejectedOnDevice`` if the user backs out of
     ///   a PIN/passphrase/confirmation prompt.
     public func sign(transaction: Data) async throws -> Data {
-        let tx = try remappingWalletKitError { try raw.decodeSigningData(signingData: transaction) }
         guard device.isConnected else {
             throw WalletKitError.deviceDisconnected
         }
+
+        if transaction.first == 0x02 {
+            // EIP-1559 path
+            let tx = try remappingWalletKitError { try raw.decodeEip1559SigningData(signingData: transaction) }
+            let ffiSignature = try await remappingWalletKitError {
+                try await device.raw.ethereumSignTxEip1559(path: account.derivationPath, tx: tx)
+            }
+
+            let signature = EthereumEIP1559Signature(
+                yParity: ffiSignature.yParity,
+                r: ffiSignature.r,
+                s: ffiSignature.s
+            )
+
+            return try signedTransactionEIP1559(transaction, signature: signature)
+        }
+
+        // Legacy EIP-155 path
+        let tx = try remappingWalletKitError { try raw.decodeSigningData(signingData: transaction) }
         let ffiSignature = try await remappingWalletKitError {
             try await device.raw.ethereumSignTx(path: account.derivationPath, tx: tx)
         }

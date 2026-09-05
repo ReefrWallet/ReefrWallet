@@ -28,10 +28,15 @@ private struct EthereumTxVector: Decodable, Sendable, CustomTestStringConvertibl
 
 private func loadTxVectors() -> [EthereumTxVector] {
     let url = Bundle.module.url(forResource: "ethereum-tx", withExtension: "json")!
-    // swiftlint:disable:next force_try
-    let data = try! Data(contentsOf: url)
-    // swiftlint:disable:next force_try
-    return try! JSONDecoder().decode([EthereumTxVector].self, from: data)
+    // swiftlint:disable force_try force_cast
+    let raw = try! Data(contentsOf: url)
+    let all = try! JSONSerialization.jsonObject(with: raw) as! [[String: Any]]
+    let legacyRaw = all.filter { ($0["type"] as? Int) != 2 }
+    return try! JSONDecoder().decode(
+        [EthereumTxVector].self,
+        from: try! JSONSerialization.data(withJSONObject: legacyRaw)
+    )
+    // swiftlint:enable force_try force_cast
 }
 
 private extension String {

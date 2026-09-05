@@ -40,7 +40,7 @@ struct SelectionGroupView: View {
                         if let image = option.image {
                             image
                                 .resizable()
-                                .aspectRatio(contentMode: .fit)
+                                .scaledToFit()
                                 .frame(width: 16, height: 16)
                         }
 

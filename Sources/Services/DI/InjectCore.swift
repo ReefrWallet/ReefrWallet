@@ -64,6 +64,10 @@ extension ServiceContainer {
             KeyStoreService()
         }
 
+        register(TransactionService.self) {
+            TransactionService()
+        }
+
         return self
     }
 }

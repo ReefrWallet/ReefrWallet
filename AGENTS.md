@@ -1,5 +1,7 @@
 # Codex Agent Project Instructions
 
+## General
+- Prefer Xcode mcp over make/xcodebuild
 ## Memory & System Constraints
 - You are working in a codebase that uses Architectural Decision Records (ADRs).
 - Your shared memory resides in the `docs/decisions/` folder.

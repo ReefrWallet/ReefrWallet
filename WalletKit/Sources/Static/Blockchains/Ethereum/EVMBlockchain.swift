@@ -6,13 +6,15 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import SwiftUI
+
 public enum EVMBlockchain: Equatable, Hashable, Codable, Sendable {
     case arbitrum(Network)
     case bsc(Network)
     case ethereum(Network)
     case custom(UInt64)
 
-    init(chainId: UInt64) {
+    public init(chainId: UInt64) {
         switch chainId {
         case 0x1: self = .ethereum(.mainnet)
         case 0xaa36a7: self = .ethereum(.testnet)
@@ -110,13 +112,26 @@ public extension EVMBlockchain {
         switch self {
         case .arbitrum: TokenInfo(decimals: 18, name: "Arbitrum Ether", isNative: true, symbol: "ETH")
         case .bsc: TokenInfo(decimals: 8, name: "Binance Coin", isNative: true, symbol: "BNB")
-        case .ethereum: TokenInfo(decimals: 18, name: "Tron", isNative: true, symbol: "ETH")
+        case .ethereum: TokenInfo(decimals: 18, name: "Ether", isNative: true, symbol: "ETH")
 
         case let .custom(chainId): TokenInfo(
             decimals: 18,
             name: "EVM Chain \(chainId) Ether",
             isNative: true,
             symbol: "ETH")
+        }
+    }
+
+    var logoImage: Image {
+        switch self {
+        case .arbitrum:
+            Image("arb-logo")
+        case .bsc:
+            Image("bsc-logo")
+        case .custom:
+            Image("eth-logo")
+        case .ethereum:
+            Image("eth-logo")
         }
     }
 

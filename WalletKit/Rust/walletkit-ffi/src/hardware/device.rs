@@ -3,7 +3,7 @@ use std::sync::Arc;
 use walletkit_hardware as hw;
 
 use crate::{
-    blockchain_clients::{EthereumSignTxFfi, EthereumSignatureFfi},
+    blockchain_clients::{EthereumEIP1559SignTxFfi, EthereumEIP1559SignatureFfi, EthereumSignTxFfi, EthereumSignatureFfi},
     common::{BigIntFfi, CurveFfi, DerivationPath},
     errors::WalletKitErrorFfi,
     keys::PublicKeyFfi,
@@ -66,6 +66,23 @@ impl HardwareDeviceFfi {
         Ok(EthereumSignatureFfi { v: signature.v, r: signature.r, s: signature.s })
     }
 
+    /// Signs an EIP-1559 (type-2) Ethereum transaction on the device, showing
+    /// `tx`'s fields on its trusted screen for the user to confirm.
+    ///
+    /// Throws `.userCancelled`/`.userRejectedOnDevice` if the user backs out,
+    /// `.deviceDisconnected` if the device goes away mid-signature, or
+    /// `.signingFailed` if the device reports a protocol-level failure.
+    pub async fn ethereum_sign_tx_eip1559(
+        &self,
+        path: DerivationPath,
+        tx: EthereumEIP1559SignTxFfi,
+    ) -> Result<EthereumEIP1559SignatureFfi, WalletKitErrorFfi> {
+        let segments = to_hardware_segments(&path);
+        let fields = to_ethereum_eip1559_tx_fields(tx)?;
+        let signature = self.inner.ethereum_sign_tx_eip1559(segments, fields).await?;
+        Ok(EthereumEIP1559SignatureFfi { y_parity: signature.y_parity, r: signature.r, s: signature.s })
+    }
+
     /// Disconnects from this device.
     pub async fn disconnect(&self) {
         self.inner.disconnect().await
@@ -95,11 +112,23 @@ fn to_ethereum_tx_fields(tx: EthereumSignTxFfi) -> Result<hw::EthereumTxFields, 
     })
 }
 
+fn to_ethereum_eip1559_tx_fields(tx: EthereumEIP1559SignTxFfi) -> Result<hw::EthereumEIP1559TxFields, WalletKitErrorFfi> {
+    Ok(hw::EthereumEIP1559TxFields {
+        nonce: nonnegative_be_bytes(&tx.nonce)?,
+        max_priority_fee_per_gas: nonnegative_be_bytes(&tx.max_priority_fee_per_gas)?,
+        max_fee_per_gas: nonnegative_be_bytes(&tx.max_fee_per_gas)?,
+        gas_limit: nonnegative_be_bytes(&tx.gas_limit)?,
+        to: tx.to,
+        value: nonnegative_be_bytes(&tx.value)?,
+        data: tx.data,
+        chain_id: tx.chain_id,
+    })
+}
+
 /// `BigIntFfi::magnitude_be_bytes` is already the minimal big-endian
-/// encoding the device's wire protocol expects; every EIP-155 field is
-/// non-negative by construction (`EthereumSignerFfi::decode_signing_data`
-/// decodes them from unsigned RLP `U256`s), so this only guards against a
-/// value that shouldn't be able to occur.
+/// encoding the device's wire protocol expects; every field is
+/// non-negative by construction (decoded from unsigned RLP `U256`s),
+/// so this only guards against a value that shouldn't be able to occur.
 fn nonnegative_be_bytes(value: &BigIntFfi) -> Result<Vec<u8>, WalletKitErrorFfi> {
     if value.negative {
         return Err(WalletKitErrorFfi::SigningFailed {
@@ -161,6 +190,29 @@ mod tests {
         assert_eq!(fields.gas_limit, vec![3]);
         assert_eq!(fields.to, Some(vec![0xab; 20]));
         assert_eq!(fields.value, vec![4]);
+        assert_eq!(fields.data, vec![0xde, 0xad]);
+        assert_eq!(fields.chain_id, 11_155_111);
+    }
+
+    #[test]
+    fn to_ethereum_eip1559_tx_fields_converts_every_field() {
+        let tx = EthereumEIP1559SignTxFfi {
+            nonce: BigIntFfi::from(1u64),
+            max_priority_fee_per_gas: BigIntFfi::from(2u64),
+            max_fee_per_gas: BigIntFfi::from(3u64),
+            gas_limit: BigIntFfi::from(4u64),
+            to: Some(vec![0xab; 20]),
+            value: BigIntFfi::from(5u64),
+            data: vec![0xde, 0xad],
+            chain_id: 11_155_111,
+        };
+        let fields = to_ethereum_eip1559_tx_fields(tx).unwrap();
+        assert_eq!(fields.nonce, vec![1]);
+        assert_eq!(fields.max_priority_fee_per_gas, vec![2]);
+        assert_eq!(fields.max_fee_per_gas, vec![3]);
+        assert_eq!(fields.gas_limit, vec![4]);
+        assert_eq!(fields.to, Some(vec![0xab; 20]));
+        assert_eq!(fields.value, vec![5]);
         assert_eq!(fields.data, vec![0xde, 0xad]);
         assert_eq!(fields.chain_id, 11_155_111);
     }

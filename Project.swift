@@ -10,7 +10,7 @@ let wallet: Target = .target(
     buildableFolders: ["Sources"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml Sources",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Sources",
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
         )
@@ -32,7 +32,7 @@ let macOSTests: Target = .target(
     buildableFolders: ["Tests"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml Tests",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Tests",
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
         )
@@ -50,7 +50,7 @@ let iosTests: Target = .target(
     buildableFolders: ["Tests"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --config .swiftlint.yml Tests",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Tests",
             name: "SwiftLint",
             basedOnDependencyAnalysis: false
         )
@@ -58,17 +58,35 @@ let iosTests: Target = .target(
     dependencies: [.target(name: "ReefrWallet")]
 )
 
+let walletScheme: Scheme = .scheme(
+    name: "ReefrWallet",
+    shared: true,
+    buildAction: .buildAction(targets: [.target("ReefrWallet")]),
+    runAction: .runAction(
+        executable: .executable(.target("ReefrWallet")),
+        arguments: .arguments(launchArguments: [
+            .launchArgument(name: "--drop-accounts", isEnabled: false)
+        ])
+    )
+)
+
 let project = Project(
     name: "ReefrWallet",
     settings: .settings(base: [
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
-        "OTHER_LDFLAGS": ["-lc++"]
+        "OTHER_LDFLAGS[sdk=macosx*]": [
+            "-lc++",
+            "-L/opt/homebrew/opt/libusb/lib",
+            "-L/usr/local/opt/libusb/lib",
+            "-lusb-1.0"
+        ]
     ]),
     targets: [wallet, macOSTests], // TODO: iOS tests need signing configured
+    schemes: [walletScheme],
     additionalFiles: [
         "Makefile",
         "Project.swift",
-        "README.md"
+        "*.md"
     ]
 )

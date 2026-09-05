@@ -6,9 +6,33 @@ import WalletKit
 actor DatabaseService {
     func deleteAccount(id: PersistentIdentifier) throws {
         let predicate = #Predicate<AccountModel> { $0.id == id }
-        try modelContext.delete(model: AccountModel.self, where: predicate)
+        guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+            throw Error.notFound
+        }
+
+        modelContext.delete(account)
         try modelContext.save()
     }
+
+    #if DEBUG
+    /// Deletes all accounts across every key store, keeping the key stores themselves.
+    ///
+    /// Uses a per-object delete rather than a batch delete: batch delete issues a raw SQL
+    /// delete that tries to nullify the non-optional `AccountModel.keyStore` inverse and
+    /// fails with a "mandatory OTO nullify inverse" error instead of honoring the cascade
+    /// rule declared on `KeyStoreModel.accounts`.
+    func deleteAllAccounts() throws {
+        for account in try modelContext.fetch(FetchDescriptor<AccountModel>()) {
+            modelContext.delete(account)
+        }
+
+        for blockchain in try modelExecutor.modelContext.fetch(FetchDescriptor<BlockchainModel>()) {
+            modelContext.delete(blockchain)
+        }
+
+        try modelContext.save()
+    }
+    #endif
 
     func deleteKeyStore(id: PersistentIdentifier) throws {
         let predicate = #Predicate<KeyStoreModel> { $0.id == id }
@@ -133,10 +157,26 @@ actor DatabaseService {
 
         let tokenModel = TokenModel(from: token)
         tokenModel.blockchain = blockchainModel
+        tokenModel.imageURL = token.imageURL
+        tokenModel.isIncludedInBalance = token.isIncludedInBalance
+        tokenModel.usdPrice = token.usdPrice
+
         modelContext.insert(tokenModel)
         try modelContext.save()
-
         return tokenModel.persistentModelID
+    }
+
+    @discardableResult
+    func saveBalance(_ balance: Balance) throws -> PersistentIdentifier {
+        try saveBalance(balance, shouldSaveContext: true)
+    }
+
+    func saveBalances(_ balances: [Balance]) throws {
+        for balance in balances {
+            try saveBalance(balance, shouldSaveContext: false)
+        }
+
+        try modelContext.save()
     }
 
     func renameAccount(id: PersistentIdentifier, name: String) throws {
@@ -165,46 +205,43 @@ actor DatabaseService {
             throw Error.invalidData
         }
 
+        guard let account = try fetchAccount(id: accountId) else {
+            throw Error.notFound
+        }
+
         var balances = try fetchBalances(accountId: accountId)
-        let tokens = try fetchTokens(blockchain: account.blockchain)
+        var tokens = try fetchTokens(blockchain: account.blockchain)
 
         for update in updates {
             let token: Token
 
-            if let existing = tokens.first(where: { $0.address == update.token.address }) {
+            if var existing = tokens.first(where: { $0.address == update.token.address }) {
+                existing.usdPrice = update.token.usdPrice ?? existing.usdPrice
                 token = existing
             } else {
-                token = Token(
-                    address: update.token.address,
-                    decimalsCount: update.token.decimalsCount,
-                    imageURL: update.token.imageURL,
-                    isHidden: update.token.isHidden,
-                    isIncludedInBalance: update.token.isIncludedInBalance,
-                    isNativeToken: update.token.isNativeToken,
-                    name: update.token.name,
-                    symbol: update.token.symbol,
-                    usdPrice: update.token.usdPrice
-                )
-
-                try insertToken(token, blockchain: account.blockchain)
+                try insertToken(update.token, blockchain: account.blockchain)
+                tokens.append(update.token)
+                token = update.token
             }
 
             if let index = balances.firstIndex(where: { $0.token.address == update.token.address }) {
-                balances[index].amount = update.amount
-            } else {
-                let usdValue: Decimal? = if let price = token.usdPrice {
-                    price * Decimal(update.amount)
-                } else {
-                    nil
-                }
-
-                balances.append(
-                    Balance(account: account, amount: update.amount, token: token, usdValue: usdValue)
+                balances[index] = Balance(
+                    account: account,
+                    amount: update.amount,
+                    token: token,
+                    usdValue: update.usdValue
                 )
+            } else {
+                balances.append(Balance(
+                    account: account,
+                    amount: update.amount,
+                    token: token,
+                    usdValue: update.usdValue
+                ))
             }
         }
 
-        try modelContext.save()
+        try saveBalances(balances)
     }
 
     func watchOnlyKeyStore() throws -> KeyStore {
@@ -220,5 +257,65 @@ actor DatabaseService {
         try modelContext.save()
 
         return try KeyStore(model: model)
+    }
+}
+
+private extension DatabaseService {
+    @discardableResult
+    func saveBalance(_ balance: Balance, shouldSaveContext: Bool) throws -> PersistentIdentifier {
+        guard let accountId = balance.account.id else {
+            throw Error.invalidData
+        }
+
+        let accountPredicate = #Predicate<AccountModel> { $0.id == accountId }
+        guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: accountPredicate)).first else {
+            throw Error.notFound
+        }
+
+        let serializedBlockchain = try balance.account.blockchain.asJSONString()
+        let tokenAddress = balance.token.address
+        let tokenPredicate = #Predicate<TokenModel> {
+            $0.blockchain?.serialized == serializedBlockchain && $0.address == tokenAddress
+        }
+
+        guard let tokenModel = try modelContext.fetch(FetchDescriptor(predicate: tokenPredicate)).first else {
+            throw Error.notFound
+        }
+
+        tokenModel.decimalsCount = balance.token.decimalsCount
+        tokenModel.imageURL = balance.token.imageURL
+        tokenModel.isIncludedInBalance = balance.token.isIncludedInBalance
+        tokenModel.isNativeToken = balance.token.isNativeToken
+        tokenModel.name = balance.token.name
+        tokenModel.symbol = balance.token.symbol
+        tokenModel.usdPrice = balance.token.usdPrice
+
+        let balanceModel: BalanceModel
+
+        if let balanceId = balance.id {
+            let balancePredicate = #Predicate<BalanceModel> { $0.id == balanceId }
+            balanceModel = try modelContext.fetch(FetchDescriptor(predicate: balancePredicate)).first
+                ?? BalanceModel(account: accountModel, amount: balance.amount, token: tokenModel)
+        } else {
+            let balancePredicate = #Predicate<BalanceModel> {
+                $0.account.id == accountId && $0.token.address == tokenAddress
+            }
+            balanceModel = try modelContext.fetch(FetchDescriptor(predicate: balancePredicate)).first
+                ?? BalanceModel(account: accountModel, amount: balance.amount, token: tokenModel)
+        }
+
+        balanceModel.account = accountModel
+        balanceModel.amount = balance.amount
+        balanceModel.token = tokenModel
+
+        if balanceModel.modelContext == nil {
+            modelContext.insert(balanceModel)
+        }
+
+        if shouldSaveContext {
+            try modelContext.save()
+        }
+
+        return balanceModel.persistentModelID
     }
 }

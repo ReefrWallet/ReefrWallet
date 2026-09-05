@@ -175,4 +175,31 @@ struct EthereumABITests {
             _ = try EthereumABI.decodeInt256Array(data)
         }
     }
+
+    // MARK: - Multicall3 aggregate3
+
+    @Test func encodeAggregate3BuildsDynamicCallArray() {
+        let data = EthereumABI.encodeAggregate3([
+            (target: someAddress, allowFailure: true, callData: Data([0x01, 0x02]))
+        ])
+
+        #expect(data.prefix(4) == EthereumABI.selector("aggregate3((address,bool,bytes)[])"))
+        #expect(data.count == 4 + 32 + 32 + 32 + 96 + 32 + 32)
+    }
+
+    @Test func decodeAggregate3ReadsSuccessFlagsAndReturnData() throws {
+        let first = Data(repeating: 0, count: 31) + Data([1])
+            + word(BigUInt(64)) + word(BigUInt(32)) + Data(repeating: 0, count: 31) + Data([7])
+        let second = Data(repeating: 0, count: 32)
+            + word(BigUInt(64)) + word(BigUInt(0))
+        let data = word(BigUInt(32)) + word(BigUInt(2))
+            + word(BigUInt(96)) + word(BigUInt(224)) + first + second
+
+        let results = try EthereumABI.decodeAggregate3(data)
+        #expect(results.count == 2)
+        #expect(results[0].success)
+        #expect(results[0].returnData == word(BigUInt(7)))
+        #expect(results[1].success == false)
+        #expect(results[1].returnData.isEmpty)
+    }
 }

@@ -16,7 +16,7 @@ struct WebImageView: View {
             AsyncImage(url: url) { image in
                 image
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
+                    .scaledToFit()
             } placeholder: {
                 placeholderView
             }

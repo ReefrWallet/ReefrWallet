@@ -15,13 +15,14 @@ import WalletKit
 struct Token: Hashable, Sendable {
     /// CoinType on sui, contract address on Ethereum. `nil` for native token on ethereum.
     let address: String?
-    let decimalsCount: UInt8
-    let imageURL: URL?
-    let isHidden: Bool
-    let isIncludedInBalance: Bool?
+    let blockchain: WKBlockchain?
+    var decimalsCount: UInt8
+    var imageURL: URL?
+    var isHidden: Bool
+    var isIncludedInBalance: Bool?
     let isNativeToken: Bool
-    let name: String
-    let symbol: String
+    var name: String
+    var symbol: String
     var usdPrice: Decimal?
 }
 
@@ -30,6 +31,7 @@ extension Token: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         address = try container.decodeIfPresent(String.self, forKey: .address)
+        blockchain = try container.decode(WKBlockchain.self, forKey: .blockchain)
         decimalsCount = try container.decode(UInt8.self, forKey: .decimalsCount)
         isNativeToken = try container.decode(Bool.self, forKey: .isNativeToken)
         name = try container.decode(String.self, forKey: .name)
@@ -43,6 +45,7 @@ extension Token: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case address
+        case blockchain
         case decimalsCount
         case imageURL
         case isNativeToken
@@ -101,6 +104,7 @@ final class TokenModel {
 extension Token {
     init(model: TokenModel) {
         address = model.address
+        blockchain = model.blockchain?.blockchain
         decimalsCount = model.decimalsCount
         imageURL = model.imageURL
         isHidden = model.isHidden

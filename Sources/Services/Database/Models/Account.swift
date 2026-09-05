@@ -20,8 +20,9 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let address: String
     let blockchain: WKBlockchain
     let derivationPath: String?
-    // let keyStore: KeyStore
+    let keyStoreId: PersistentIdentifier
     let name: String
+    let rpcURLOverride: URL?
     let signatureScheme: Curve?
     let usdValue: Decimal
 
@@ -30,8 +31,9 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         address: String,
         blockchain: WKBlockchain,
         derivationPath: String?,
-        // keyStore: KeyStore,
+        keyStoreId: PersistentIdentifier,
         name: String,
+        rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
         usdValue: Decimal = .zero
     ) {
@@ -41,8 +43,9 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         self.address = address
         self.blockchain = blockchain
         self.derivationPath = derivationPath
-        // self.keyStore = keyStore
+        self.keyStoreId = keyStoreId
         self.name = name
+        self.rpcURLOverride = rpcURLOverride
         self.signatureScheme = signatureScheme
         self.usdValue = usdValue
     }
@@ -56,7 +59,8 @@ final class AccountModel {
     var address: String
     var derivationPath: String?
     var name: String
-    var signatureScheme: String
+    var rpcURLOverride: String?
+    var signatureScheme: String?
 
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
@@ -71,8 +75,10 @@ final class AccountModel {
         accountIndex: UInt64? = nil,
         address: String,
         blockchain: BlockchainModel,
+        derivationPath: String? = nil,
         keyStore: KeyStoreModel,
         name: String,
+        rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil
     ) {
         guard accountIndex != nil || keyStore.isWatchOnly else {
@@ -83,10 +89,11 @@ final class AccountModel {
         self.address = address
         self.balances = []
         self.blockchain = blockchain
+        self.derivationPath = derivationPath
         self.keyStore = keyStore
         self.name = name
-
-        self.signatureScheme = signatureScheme?.rawValue ?? ""
+        self.rpcURLOverride = rpcURLOverride?.absoluteString
+        self.signatureScheme = signatureScheme?.rawValue
     }
 }
 
@@ -99,10 +106,21 @@ extension Account {
         address = model.address
         blockchain = model.blockchain.blockchain
         derivationPath = model.derivationPath
-        // keyStore = try KeyStore(model: keyStoreModel)
+        keyStoreId = model.keyStore.id
         name = model.name
-        signatureScheme = Curve(rawValue: model.signatureScheme)
         usdValue = model.usdValue
+
+        if let signatureScheme = model.signatureScheme {
+            self.signatureScheme = Curve(rawValue: signatureScheme)
+        } else {
+            self.signatureScheme = nil
+        }
+
+        if let rpcURLOverride = model.rpcURLOverride {
+            self.rpcURLOverride = URL(string: rpcURLOverride)
+        } else {
+            self.rpcURLOverride = nil
+        }
     }
 }
 
@@ -112,6 +130,7 @@ extension AccountModel {
             accountIndex: account.accountIndex,
             address: account.address,
             blockchain: blockchain,
+            derivationPath: account.derivationPath,
             keyStore: keyStore,
             name: account.name,
             signatureScheme: account.signatureScheme
@@ -126,25 +145,6 @@ extension AccountModel: Comparable {
         (lhs.blockchain.blockchain.displayName, lhs.accountIndex ?? 0)
             < (rhs.blockchain.blockchain.displayName, rhs.accountIndex ?? 0)
     }
-}
-
-extension Account {
-    /* var nativeBalance: BalanceModel? {
-        balances.first { $0.token.isNativeToken == true }
-    }
-
-    var systemImage: String {
-        blockchain.systemImage
-    } */
-
-    /* func setBalance(of token: TokenModel, amount: BigUInt) {
-        if let balance = balances.first(where: { $0.token.id == token.id }) {
-            balance.amount = amount
-        } else {
-            let balance = BalanceModel(account: self, amount: amount, token: token)
-            balances.append(balance)
-        }
-    } */
 }
 
 extension AccountModel {

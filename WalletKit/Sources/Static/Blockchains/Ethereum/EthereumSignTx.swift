@@ -62,3 +62,55 @@ public struct EthereumSignature {
 
     var raw: EthereumSignatureFfi { EthereumSignatureFfi(v: v, r: r, s: s) }
 }
+
+// MARK: - EIP-1559
+
+/// The structured fields of an unsigned EIP-1559 (type-2) Ethereum
+/// transaction, decoded from the `0x02`-prefixed signing preimage — what a
+/// hardware device's trusted screen needs to display before it signs.
+/// `to == nil` is a contract-creation transaction.
+public struct EthereumEIP1559SignTx {
+    public let nonce: BigUInt
+    public let maxPriorityFeePerGas: BigUInt
+    public let maxFeePerGas: BigUInt
+    public let gasLimit: BigUInt
+    public let to: EthereumAddress?
+    public let value: BigUInt
+    public let data: Data
+    public let chainId: UInt64
+
+    init(raw: EthereumEip1559SignTxFfi) throws {
+        nonce = BigUInt(raw.nonce)!
+        maxPriorityFeePerGas = BigUInt(raw.maxPriorityFeePerGas)!
+        maxFeePerGas = BigUInt(raw.maxFeePerGas)!
+        gasLimit = BigUInt(raw.gasLimit)!
+        to = try raw.to.map { try EthereumAddress(rawBytes: $0) }
+        value = BigUInt(raw.value)!
+        data = raw.data
+        chainId = raw.chainId
+    }
+}
+
+/// An EIP-1559 signature — `yParity` is the raw secp256k1 recovery id
+/// (0 or 1), without the EIP-155 `chainId * 2 + 35` folding. `r` and `s`
+/// are 32-byte big-endian.
+public struct EthereumEIP1559Signature {
+    /// The raw secp256k1 recovery id: 0 or 1.
+    public let yParity: UInt64
+
+    /// The 32-byte `r` component.
+    public let r: Data
+
+    /// The 32-byte `s` component.
+    public let s: Data
+
+    public init(yParity: UInt64, r: Data, s: Data) {
+        self.yParity = yParity
+        self.r = r
+        self.s = s
+    }
+
+    var raw: EthereumEip1559SignatureFfi {
+        EthereumEip1559SignatureFfi(yParity: yParity, r: r, s: s)
+    }
+}

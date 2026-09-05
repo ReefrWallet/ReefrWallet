@@ -78,8 +78,9 @@ are a later phase and are called out below only as extension points.
   directly and gets its `signature` from the device instead — once a
   device conversation exists (see "Hardware wallet support"). Depends
   only on `walletkit-keys` for `PublicKey`/`PrivateKey` — no networking,
-  no transaction *building*, no gas estimation; those stay out of scope
-  until a later phase (see "Explicitly out of scope for now"). Tested
+  no transaction *building*; that stays out of scope (see "Explicitly out
+  of scope for now"). Fee estimation lives on the Swift RPC/gRPC clients
+  (`EthereumRPCClient`/`SuiGRPCClient`), not in the Rust layer. Tested
   against the shared vectors in `TestVectors/ethereum-address.json` and
   `TestVectors/ethereum-tx.json` (see "Testing strategy").
 - `walletkit-sui` — concrete `walletkit-<chain>` crate.
@@ -338,12 +339,18 @@ later.
 
 ## Explicitly out of scope for now
 
-- Blockchain-specific logic beyond Ethereum (address derivation +
-  transaction signing) and Sui (address derivation only): transaction
-  *building*, fee estimation, RPC/networking, Sui transaction *signing*
-  (BCS encoding + intent-signing wrapper), and address derivation/signing
-  for every chain other than Ethereum/Sui (Bitcoin, Tron, Solana, Cardano
-  remain extension points only — see `Signer` in Clients/).
+- Blockchain-specific logic beyond Ethereum (address derivation,
+  transaction signing, **transaction building**) and Sui (address
+  derivation, transaction signing, **transaction building**):
+  address derivation/signing for every chain other than Ethereum/Sui
+  (Bitcoin, Tron, Solana, Cardano remain extension points only — see
+  `Signer` in Clients/). Fee estimation is **in scope** —
+  ``EthereumRPCClient/estimateFee(for:)`` (via EIP-1559 RPC calls) and
+  ``SuiGRPCClient/estimateFee(for:)`` (via `simulateTransaction`) are
+  both implemented. Transaction building is **in scope** —
+  ``EthereumTransactionBuilder`` and ``SuiTransactionBuilder`` implement
+  ``BlockchainTransactionBuilderProtocol``; ``AnyBlockchainTransactionBuilder``
+  is the String-based type-eraser ready for the app layer.
 - Hardware-signing for any chain other than Ethereum — Sui's BCS
   transaction encoding and intent-signing wrapper for a hardware trusted
   screen aren't speced yet either, so there's no `SuiTrezorSigner`.

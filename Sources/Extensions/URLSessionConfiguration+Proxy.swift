@@ -13,15 +13,19 @@ public extension URLSessionConfiguration {
     static func withProxy(_ host: String, port: Int) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.default
 
-        configuration.connectionProxyDictionary = [
+        var proxyDictionary: [AnyHashable: Any] = [
             kCFNetworkProxiesHTTPEnable: NSNumber(value: true),
             kCFNetworkProxiesHTTPProxy: host,
             kCFNetworkProxiesHTTPPort: NSNumber(value: port)
-            // Add HTTPS proxy settings if needed
-            /* kCFNetworkProxiesHTTPSProxy: host,
-            kCFNetworkProxiesHTTPSEnable: NSNumber(value: true),
-            kCFNetworkProxiesHTTPSPort: NSNumber(value: port) */
-        ] as CFDictionary as? [String: Any]
+        ]
+
+        #if os(macOS) // Add HTTPS proxy settings if needed
+        proxyDictionary[kCFNetworkProxiesHTTPSProxy] = host
+        proxyDictionary[kCFNetworkProxiesHTTPSEnable] = NSNumber(value: true)
+        proxyDictionary[kCFNetworkProxiesHTTPSPort] = NSNumber(value: port)
+        #endif
+
+        configuration.connectionProxyDictionary = proxyDictionary
 
         return configuration
     }
