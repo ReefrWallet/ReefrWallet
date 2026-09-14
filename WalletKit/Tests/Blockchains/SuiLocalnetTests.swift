@@ -101,7 +101,14 @@ private func send(
     return UInt64(charge)
 }
 
-@Suite(.timeLimit(.minutes(5)))
+// `.serialized`: each test spins up its own full local `sui` validator
+// process. Running several concurrently (Swift Testing's default) makes
+// them compete for CPU badly enough that a normally-fast test can blow
+// past the 1-minute time limit — observed directly running this suite
+// alongside SuiTransactionBuilderTests, where a test that passes in ~15s
+// alone failed on "exceeded execution time allowance" when six such
+// validators were starting at once.
+@Suite(.timeLimit(.minutes(1)), .serialized)
 struct SuiLocalnetTests {
     // MARK: - Fee estimation
 

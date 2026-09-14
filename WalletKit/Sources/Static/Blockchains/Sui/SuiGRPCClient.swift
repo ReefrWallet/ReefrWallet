@@ -34,6 +34,7 @@ public struct SuiGRPCClient: Sendable {
     private let host: String
     private let port: Int
     private let useTLS: Bool
+    private let rpcTimeout: Int
 
     /// Creates a client for the gRPC full node at `host`.
     ///
@@ -41,10 +42,18 @@ public struct SuiGRPCClient: Sendable {
     ///   - host: The full node's hostname (or IP address).
     ///   - port: The gRPC port. Defaults to `443`.
     ///   - useTLS: Whether to use TLS. Defaults to `true`.
-    public init(host: String, port: Int = 443, useTLS: Bool = true) {
+    ///   - rpcTimeout: The deadline applied to every RPC, in seconds.
+    public init(host: String, port: Int = 443, useTLS: Bool = true, rpcTimeout: Int = 10) {
         self.host = host
         self.port = port
         self.useTLS = useTLS
+        self.rpcTimeout = rpcTimeout
+    }
+
+    private var callOptions: GRPCCore.CallOptions {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = .seconds(rpcTimeout)
+        return options
     }
 
     /// Reads `address`'s balance of `coinType` — any Sui coin, not just
@@ -62,7 +71,10 @@ public struct SuiGRPCClient: Sendable {
                 $0.owner = address.string
                 $0.coinType = coinType
             }
-            let response = try await client.getBalance(request: ClientRequest(message: request))
+            let response = try await client.getBalance(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.balance.balance
         }
     }
@@ -72,7 +84,10 @@ public struct SuiGRPCClient: Sendable {
             let request = Sui_Rpc_V2_ListBalancesRequest.with {
                 $0.owner = address.string
             }
-            let response = try await client.listBalances(request: ClientRequest(message: request))
+            let response = try await client.listBalances(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.balances
         }
     }
@@ -88,7 +103,10 @@ public struct SuiGRPCClient: Sendable {
             let request = Sui_Rpc_V2_GetCoinInfoRequest.with {
                 $0.coinType = coinType
             }
-            let response = try await client.getCoinInfo(request: ClientRequest(message: request))
+            let response = try await client.getCoinInfo(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return TokenInfo(
                 decimals: UInt8(response.metadata.decimals),
                 name: response.metadata.name,
@@ -122,7 +140,10 @@ public struct SuiGRPCClient: Sendable {
             let request = Sui_Rpc_V2_ListOwnedObjectsRequest.with {
                 $0.owner = owner.string
             }
-            let response = try await client.listOwnedObjects(request: ClientRequest(message: request))
+            let response = try await client.listOwnedObjects(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.objects
         }
     }
@@ -153,7 +174,10 @@ public struct SuiGRPCClient: Sendable {
                     $0.readMask = Google_Protobuf_FieldMask.with { $0.paths = readMask }
                 }
             }
-            let response = try await client.getObject(request: ClientRequest(message: request))
+            let response = try await client.getObject(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.object
         }
     }
@@ -257,7 +281,10 @@ public struct SuiGRPCClient: Sendable {
                 // empty and unusable for a follow-up `GetTransaction` call.
                 $0.readMask.paths = ["digest"]
             }
-            let response = try await client.executeTransaction(request: ClientRequest(message: request))
+            let response = try await client.executeTransaction(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.transaction.digest
         }
     }
@@ -293,7 +320,8 @@ public struct SuiGRPCClient: Sendable {
                     if !pageToken.isEmpty { $0.pageToken = pageToken }
                 }
                 let response = try await stateClient.listOwnedObjects(
-                    request: ClientRequest(message: pageRequest)
+                    request: ClientRequest(message: pageRequest),
+                    options: self.callOptions
                 )
                 let page = try response.objects.map { object in
                     SuiCoinObject(
@@ -370,7 +398,10 @@ public struct SuiGRPCClient: Sendable {
             let request = Sui_Rpc_V2_GetEpochRequest.with {
                 $0.readMask = Google_Protobuf_FieldMask.with { $0.paths = ["reference_gas_price"] }
             }
-            let response = try await ledger.getEpoch(request: ClientRequest(message: request))
+            let response = try await ledger.getEpoch(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.epoch.referenceGasPrice
         }
     }
@@ -391,7 +422,10 @@ public struct SuiGRPCClient: Sendable {
                     $0.paths = ["transaction.effects.gas_used"]
                 }
             }
-            let response = try await client.simulateTransaction(request: ClientRequest(message: request))
+            let response = try await client.simulateTransaction(
+                request: ClientRequest(message: request),
+                options: self.callOptions
+            )
             return response.transaction.effects.gasUsed
         }
     }

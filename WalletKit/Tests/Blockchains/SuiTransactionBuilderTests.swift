@@ -13,7 +13,10 @@ import Foundation
 import Testing
 import WalletKit
 
-@Suite(.timeLimit(.minutes(5)))
+// `.serialized`: see SuiLocalnetTests.swift — each test spins up its own
+// full local `sui` validator, and running several concurrently causes
+// enough CPU contention to blow past the 1-minute time limit.
+@Suite(.timeLimit(.minutes(1)), .serialized)
 struct SuiTransactionBuilderTests {
     // MARK: - Native SUI transfer
 

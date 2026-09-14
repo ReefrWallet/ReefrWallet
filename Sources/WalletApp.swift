@@ -10,11 +10,12 @@ import SwiftData
 import SwiftUI
 
 @main struct WalletApp: App {
-    let databaseService: DatabaseService
+    var databaseService: DatabaseService!
 
     init() {
-        self.databaseService = DI.injectOrFail(DatabaseService.self)
-        processStartupOptions()
+        processPreStartupOptions()
+        databaseService = DI.injectOrFail(DatabaseService.self)
+        processPostStartupOptions()
     }
 
     var body: some Scene {
@@ -33,7 +34,7 @@ import SwiftUI
 }
 
 private extension WalletApp {
-    func processStartupOptions() {
+    func processPostStartupOptions() {
         #if DEBUG
         if CommandLine.arguments.contains("--drop-accounts") {
             Task {
@@ -41,5 +42,12 @@ private extension WalletApp {
             }
         }
         #endif
+    }
+
+    func processPreStartupOptions() {
+        if CommandLine.arguments.contains("--test") {
+            printInfo("Using test service injection mode")
+            Inject.mode = .test
+        }
     }
 }

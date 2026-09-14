@@ -54,13 +54,19 @@ final class BalancesService {
         if client.isSupported(.allBalances) {
             let balances = try await fetchAllBalances(client: client, account: account)
             try await databaseService.updateBalances(account: account, updates: balances)
-
-            try await updateTokenPrices(client: client, tokens: balances.map { $0.token })
         } else {
             let allTokens = try storedTokens + readConfiguredTokens(blockchain: account.blockchain)
                 .filter { token in
                     !storedTokens.contains { $0.address == token.address }
                 }
+
+            let nativeBalance = try await fetchNativeBalance(
+                client: client,
+                account: account,
+                storedTokens: storedTokens
+            )
+
+            try await databaseService.updateBalances(account: account, updates: [nativeBalance])
 
             try await updateTokenBalances(client: client, account: account, tokens: allTokens)
         }
@@ -106,6 +112,35 @@ private extension BalancesService {
         }
 
         return balances
+    }
+
+    func fetchNativeBalance(
+        client: AnyBlockchainClient,
+        account: Account,
+        storedTokens: [Token]
+    ) async throws -> Balance {
+        let amount = try await client.getNativeBalance(account.address)
+
+        let token: Token
+        if let existing = storedTokens.first(where: { $0.isNativeToken }) {
+            token = existing
+        } else {
+            let tokenInfo = try await client.getTokenInfo(nil)
+            token = Token(
+                address: nil,
+                blockchain: account.blockchain,
+                decimalsCount: tokenInfo.decimals,
+                imageURL: nil,
+                isHidden: false,
+                isIncludedInBalance: true,
+                isNativeToken: true,
+                name: tokenInfo.name,
+                symbol: tokenInfo.symbol,
+                usdPrice: nil
+            )
+        }
+
+        return try await makeBalance(account: account, amount: amount, token: token)
     }
 
     func updateBalances(account: Account, client: AnyBlockchainClient, tokens: [Token]) async throws {
@@ -166,8 +201,9 @@ private extension BalancesService {
         if client.isSupported(.multipleBalances) {
             printDebug("Requesting bulk balances for \(account.address)")
             var remainingTokens = tokens
+
             while !remainingTokens.isEmpty {
-                let batch = Array(tokens.prefix(20))
+                let batch = Array(remainingTokens.prefix(20))
 
                 Task.detached {
                     do {

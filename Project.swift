@@ -71,6 +71,18 @@ private let walletScheme: Scheme = .scheme(
     )
 )
 
+private let macOSTestsScheme: Scheme = .scheme(
+    name: macOSTests.name,
+    shared: true,
+    buildAction: .buildAction(targets: [.target(macOSTests.name)]),
+    testAction: .targets(
+        [.testableTarget(target: .target(macOSTests.name))],
+        arguments: .arguments(launchArguments: [
+            .launchArgument(name: "--test", isEnabled: true)
+        ])
+    )
+)
+
 private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/opt/homebrew/opt/libusb/lib") {
     "-L/opt/homebrew/opt/libusb/lib"
 } else if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
@@ -89,7 +101,7 @@ let project = Project(
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
     targets: [wallet, macOSTests], // TODO: iOS tests need signing configured
-    schemes: [walletScheme],
+    schemes: [walletScheme, macOSTestsScheme],
     additionalFiles: [
         "Makefile",
         "Project.swift",

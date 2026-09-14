@@ -12,8 +12,7 @@ import SwiftData
 extension ServiceContainer {
     func registerModelContainer(useInMemoryStore: Bool = false) -> Self {
         register(ModelContainer.self) {
-            let modelURL = URL.applicationSupportDirectory
-                .appending(path: "xyz.reefr.wallet/keystore.sqlite")
+            let modelURL = URL.applicationSupportDirectory.appending(path: "xyz.reefr.wallet/keystore.sqlite")
 
             let configuration = if useInMemoryStore {
                 ModelConfiguration(isStoredInMemoryOnly: useInMemoryStore)

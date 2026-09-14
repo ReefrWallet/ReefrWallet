@@ -53,6 +53,7 @@ private func stubbedResult(_ result: String) -> StubURLProtocol.Session {
     StubURLProtocol.makeSession(response: .success(body: Data(#"{"jsonrpc":"2.0","id":1,"result":"\#(result)"}"#.utf8)))
 }
 
+@Suite(.timeLimit(.minutes(1)))
 struct EthereumRPCClientTests {
     private func makeClient(_ stub: StubURLProtocol.Session, chainId: UInt64 = 1) -> EthereumRPCClient {
         EthereumRPCClient(endpoint: URL(string: "https://example.com/rpc")!, chainId: chainId, session: stub.urlSession)

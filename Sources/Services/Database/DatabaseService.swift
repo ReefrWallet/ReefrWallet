@@ -133,7 +133,6 @@ actor DatabaseService {
 
         let keyStorePredicate = #Predicate<KeyStoreModel> { $0.id == keyStoreId }
         guard let keyStore = try modelContext.fetch(FetchDescriptor(predicate: keyStorePredicate)).first else {
-            printError("Key store not found")
             throw Error.notFound
         }
 

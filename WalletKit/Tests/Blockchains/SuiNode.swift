@@ -96,6 +96,44 @@ private func freeTCPPorts(_ count: Int) throws -> [UInt16] {
 // below now delegates to `SuiGRPCClient.ownedCoins(of:coinType:)` instead
 // of reimplementing the gRPC call.
 
+/// Serializes `SuiNode`'s startup burst (genesis through the first
+/// checkpoint) across the whole test process.
+///
+/// Both `SuiLocalnetTests` and `SuiTransactionBuilderTests` spin up their
+/// own full local `sui` validator, and Swift Testing parallelizes across
+/// suites by default — `.serialized` on a `@Suite` only orders that
+/// suite's own tests, it doesn't stop a *different* suite's tests from
+/// running at the same time. Several concurrent `sui start` processes
+/// mid-genesis compete for CPU badly enough to push an otherwise-fast test
+/// past its 1-minute time limit, so this makes sure at most one node is
+/// starting up at a time, regardless of which suite started it. Only the
+/// startup burst is gated, not each node's whole lifetime: once a node is
+/// ready its steady-state cost is low, and gating the full lifetime would
+/// serialize every test end to end, queueing later ones past their own
+/// time limit instead.
+private actor SuiNodeGate {
+    static let shared = SuiNodeGate()
+
+    private var isBusy = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        guard isBusy else {
+            isBusy = true
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        guard waiters.isEmpty else {
+            waiters.removeFirst().resume()
+            return
+        }
+        isBusy = false
+    }
+}
+
 final class SuiNode {
     let rpcPort: UInt16
     private let faucetPort: UInt16
@@ -167,6 +205,16 @@ final class SuiNode {
         process.standardOutput = logHandle
         process.standardError = logHandle
 
+        // Only the startup burst (genesis + first checkpoints, until
+        // `waitUntilReady()` returns) is gated — that's the heavy, bursty
+        // part. Once a node is up, its steady-state CPU cost is low enough
+        // that letting it run alongside other already-started nodes doesn't
+        // reintroduce the contention `SuiNodeGate` exists to avoid, and
+        // gating the whole lifetime would serialize all six tests end to
+        // end, queueing the last one past its own 1-minute time limit.
+        await SuiNodeGate.shared.acquire()
+        defer { Task { await SuiNodeGate.shared.release() } }
+
         do {
             try process.run()
         } catch {
@@ -228,6 +276,16 @@ final class SuiNode {
         SuiGRPCClient(host: "127.0.0.1", port: Int(rpcPort), useTLS: false)
     }
 
+    /// `CallOptions.defaults` leaves `timeout` at `nil` — a stalled call
+    /// would hang forever, and the bounded `while` loops below (each with
+    /// its own deadline) can't rescue that: `try?` only catches a *thrown*
+    /// error, it doesn't cancel a call that never returns.
+    private static var callOptions: GRPCCore.CallOptions {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = .seconds(10)
+        return options
+    }
+
     private func waitUntilReady() async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(180))
         while ContinuousClock.now < deadline {
@@ -244,7 +302,8 @@ final class SuiNode {
     private func checkpointHeight() async throws -> UInt64 {
         try await withLedgerServiceClient { ledger in
             let response = try await ledger.getServiceInfo(
-                request: ClientRequest(message: Sui_Rpc_V2_GetServiceInfoRequest())
+                request: ClientRequest(message: Sui_Rpc_V2_GetServiceInfoRequest()),
+                options: Self.callOptions
             )
             return response.checkpointHeight
         }
@@ -310,7 +369,10 @@ final class SuiNode {
         try await withLedgerServiceClient { ledger in
             var request = Sui_Rpc_V2_GetEpochRequest()
             request.readMask.paths = ["reference_gas_price"]
-            let response = try await ledger.getEpoch(request: ClientRequest(message: request))
+            let response = try await ledger.getEpoch(
+                request: ClientRequest(message: request),
+                options: Self.callOptions
+            )
             return response.epoch.referenceGasPrice
         }
     }
@@ -375,7 +437,10 @@ final class SuiNode {
             var request = Sui_Rpc_V2_GetTransactionRequest()
             request.digest = digest
             request.readMask.paths = ["effects"]
-            let response = try await ledger.getTransaction(request: ClientRequest(message: request))
+            let response = try await ledger.getTransaction(
+                request: ClientRequest(message: request),
+                options: Self.callOptions
+            )
             return response.transaction.effects
         }
     }

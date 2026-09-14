@@ -5,6 +5,7 @@ import Testing
 import WalletKit
 @testable import ReefrWallet
 
+@Suite(.timeLimit(.minutes(1)))
 struct DatabaseServiceTests {
     @Test
     func keyStoresCanBeInsertedFetchedRenamedAndDeleted() async throws {
