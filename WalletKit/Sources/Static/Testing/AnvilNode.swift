@@ -1,6 +1,7 @@
 #if os(macOS)
 
 import BigInt
+import Darwin
 import Foundation
 
 /// An error raised when the local Anvil test node cannot be started or queried.
@@ -10,6 +11,46 @@ public struct AnvilLaunchError: Error, CustomStringConvertible {
     public init(description: String) {
         self.description = description
     }
+}
+
+/// Binds an ephemeral TCP port via the kernel (port 0) and reads back what it
+/// assigned, so concurrently-running tests each get Anvil listening on a
+/// distinct port instead of racing over one hardcoded default — Swift Testing
+/// parallelizes across suites by default, and two `anvil` processes fighting
+/// over the same port silently attach to whichever one wins the bind, letting
+/// unrelated tests corrupt each other's chain state.
+private func freeTCPPort() throws -> UInt16 {
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    guard fd >= 0 else {
+        throw AnvilLaunchError(description: "socket() failed while allocating a free port")
+    }
+    defer { close(fd) }
+
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_addr.s_addr = INADDR_ANY
+    addr.sin_port = 0
+
+    let bindResult = withUnsafePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+            bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+        }
+    }
+    guard bindResult == 0 else {
+        throw AnvilLaunchError(description: "bind() failed while allocating a free port")
+    }
+
+    var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+    let getResult = withUnsafeMutablePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+            getsockname(fd, $0, &len)
+        }
+    }
+    guard getResult == 0 else {
+        throw AnvilLaunchError(description: "getsockname() failed while allocating a free port")
+    }
+
+    return UInt16(bigEndian: addr.sin_port)
 }
 
 /// The subset of an Ethereum transaction receipt needed by local integration tests.
@@ -35,10 +76,15 @@ public final class AnvilNode {
     }
 
     /// Launches Anvil through the repository's mise-managed Foundry tool.
+    ///
+    /// - Parameter port: Pass an explicit port to pin it; otherwise a free
+    ///   one is allocated per call so concurrently-running tests don't race
+    ///   over the same Anvil instance.
     public static func start(
-        port: UInt16 = 8547,
+        port: UInt16? = nil,
         workingDirectory: URL? = nil
     ) async throws -> AnvilNode {
+        let port = try port ?? freeTCPPort()
         let misePath = NSHomeDirectory() + "/.local/bin/mise"
         guard FileManager.default.fileExists(atPath: misePath) else {
             throw AnvilLaunchError(

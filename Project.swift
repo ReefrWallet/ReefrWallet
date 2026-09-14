@@ -1,6 +1,7 @@
+import Foundation
 import ProjectDescription
 
-let wallet: Target = .target(
+private let wallet: Target = .target(
     name: "ReefrWallet",
     destinations: [.mac, .iPhone, .iPad],
     product: .app,
@@ -22,7 +23,7 @@ let wallet: Target = .target(
     ]
 )
 
-let macOSTests: Target = .target(
+private let macOSTests: Target = .target(
     name: "ReefrWalletTests-macOS",
     destinations: [.mac],
     product: .unitTests,
@@ -40,7 +41,7 @@ let macOSTests: Target = .target(
     dependencies: [.target(name: "ReefrWallet")]
 )
 
-let iosTests: Target = .target(
+private let iosTests: Target = .target(
     name: "ReefrWalletTests-iOS",
     destinations: [.iPhone, .iPad],
     product: .unitTests,
@@ -58,29 +59,34 @@ let iosTests: Target = .target(
     dependencies: [.target(name: "ReefrWallet")]
 )
 
-let walletScheme: Scheme = .scheme(
-    name: "ReefrWallet",
+private let walletScheme: Scheme = .scheme(
+    name: wallet.name,
     shared: true,
-    buildAction: .buildAction(targets: [.target("ReefrWallet")]),
+    buildAction: .buildAction(targets: [.target(wallet.name)]),
     runAction: .runAction(
-        executable: .executable(.target("ReefrWallet")),
+        executable: .executable(.target(wallet.name)),
         arguments: .arguments(launchArguments: [
             .launchArgument(name: "--drop-accounts", isEnabled: false)
         ])
     )
 )
 
+private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/opt/homebrew/opt/libusb/lib") {
+    "-L/opt/homebrew/opt/libusb/lib"
+} else if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
+    "-L/usr/local/opt/libusb/lib"
+} else {
+    fatalError("libusb not installed. Run `brew install libusb`")
+}
+
 let project = Project(
     name: "ReefrWallet",
     settings: .settings(base: [
+        "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
-        "OTHER_LDFLAGS[sdk=macosx*]": [
-            "-lc++",
-            "-L/opt/homebrew/opt/libusb/lib",
-            "-L/usr/local/opt/libusb/lib",
-            "-lusb-1.0"
-        ]
+        "OTHER_LDFLAGS[sdk=macosx*]": ["-lc++", libUsbPathFlag, "-lusb-1.0"],
+        "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
     targets: [wallet, macOSTests], // TODO: iOS tests need signing configured
     schemes: [walletScheme],

@@ -23,16 +23,18 @@ struct HardwareDeviceManagerTests {
     }
 
     @Test func connectRetainsTheProvidedDelegateAndReturnsAConnectedDevice() async throws {
-        let manager = HardwareDeviceManager()
-        let devices = try await manager.scan()
-        guard let info = devices.first else {
-            return
-        }
+        try await withExclusiveHardwareAccess {
+            let manager = HardwareDeviceManager()
+            let devices = try await manager.scan()
+            guard let info = devices.first else {
+                return
+            }
 
-        let delegate = RecordingHardwareDeviceDelegate()
-        let device = try await manager.connect(info, delegate: delegate)
-        #expect(device.info.vendor == info.vendor)
-        #expect(device.info.transport == info.transport)
-        #expect(device.isConnected)
+            let delegate = RecordingHardwareDeviceDelegate()
+            let device = try await manager.connect(info, delegate: delegate)
+            #expect(device.info.vendor == info.vendor)
+            #expect(device.info.transport == info.transport)
+            #expect(device.isConnected)
+        }
     }
 }

@@ -65,73 +65,77 @@ struct EthereumTrezorSignerTests {
     fileprivate static let txVectors: [EthereumTxVector] = loadVectors()
 
     @Test func decodeAndEncodeRoundTripEveryVectorThroughAConnectedDevice() async throws {
-        let manager = HardwareDeviceManager()
-        let devices = try await manager.scan()
-        guard let info = devices.first else {
-            return
-        }
+        try await withExclusiveHardwareAccess {
+            let manager = HardwareDeviceManager()
+            let devices = try await manager.scan()
+            guard let info = devices.first else {
+                return
+            }
 
-        let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
-        let derivationPath = TestAccountFactory.bip44Path(coinType: 60)
+            let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
+            let derivationPath = TestAccountFactory.bip44Path(coinType: 60)
 
-        for vector in Self.txVectors {
-            let signer = try await EthereumTrezorSigner(
-                chainId: vector.chainId,
-                device: device,
-                derivationPath: derivationPath
-            )
+            for vector in Self.txVectors {
+                let signer = try await EthereumTrezorSigner(
+                    chainId: vector.chainId,
+                    device: device,
+                    derivationPath: derivationPath
+                )
 
-            let signingData = vector.signingDataHex.hexDecoded
-            let privateKey = try PrivateKey(curve: .secp256k1, rawBytes: vector.privateKey.hexDecoded)
-            let ffi = EthereumSignerFfi(chainId: vector.chainId)
+                let signingData = vector.signingDataHex.hexDecoded
+                let privateKey = try PrivateKey(curve: .secp256k1, rawBytes: vector.privateKey.hexDecoded)
+                let ffi = EthereumSignerFfi(chainId: vector.chainId)
 
-            if signingData.first == 0x02 {
-                let signTx = try signer.signTxEIP1559(from: signingData)
-                #expect(signTx.chainId == vector.chainId)
+                if signingData.first == 0x02 {
+                    let signTx = try signer.signTxEIP1559(from: signingData)
+                    #expect(signTx.chainId == vector.chainId)
 
-                // Stands in for a real device signature — no walletkit-trezor
-                // transport exists yet.
-                let raw = try ffi.signatureEip1559(signingData: signingData, privateKey: privateKey.raw)
-                let signature = EthereumEIP1559Signature(yParity: raw.yParity, r: raw.r, s: raw.s)
+                    // Stands in for a real device signature — no walletkit-trezor
+                    // transport exists yet.
+                    let raw = try ffi.signatureEip1559(signingData: signingData, privateKey: privateKey.raw)
+                    let signature = EthereumEIP1559Signature(yParity: raw.yParity, r: raw.r, s: raw.s)
 
-                let signed = try signer.signedTransactionEIP1559(signingData, signature: signature)
-                #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
-            } else {
-                let signTx = try signer.signTx(from: signingData)
-                #expect(signTx.chainId == vector.chainId)
+                    let signed = try signer.signedTransactionEIP1559(signingData, signature: signature)
+                    #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
+                } else {
+                    let signTx = try signer.signTx(from: signingData)
+                    #expect(signTx.chainId == vector.chainId)
 
-                // Stands in for a real device signature — no walletkit-trezor
-                // transport exists yet.
-                let raw = try ffi.signature(signingData: signingData, privateKey: privateKey.raw)
-                let signature = EthereumSignature(v: raw.v, r: raw.r, s: raw.s)
+                    // Stands in for a real device signature — no walletkit-trezor
+                    // transport exists yet.
+                    let raw = try ffi.signature(signingData: signingData, privateKey: privateKey.raw)
+                    let signature = EthereumSignature(v: raw.v, r: raw.r, s: raw.s)
 
-                let signed = try signer.signedTransaction(signingData, signature: signature)
-                #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
+                    let signed = try signer.signedTransaction(signingData, signature: signature)
+                    #expect(signed.hexEncoded == vector.signedTxHex, "\(vector.label)")
+                }
             }
         }
     }
 
     @Test func signProducesARealSignedTransactionFromAConnectedDevice() async throws {
-        let manager = HardwareDeviceManager()
-        let devices = try await manager.scan()
-        guard let info = devices.first else {
-            return
+        try await withExclusiveHardwareAccess {
+            let manager = HardwareDeviceManager()
+            let devices = try await manager.scan()
+            guard let info = devices.first else {
+                return
+            }
+
+            let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
+            let signer = try await EthereumTrezorSigner(
+                device: device,
+                derivationPath: TestAccountFactory.bip44Path(coinType: 60)
+            )
+
+            // The connected device's own key won't match the vector's, so
+            // this can't assert byte-for-byte equality against
+            // `signedTxHex` the way the decode/re-encode round trip above
+            // does — only that a real device conversation produces a
+            // well-formed signed transaction (which, since `encodeSigned`
+            // validates `v`/`r`/`s` strictly, also proves the device
+            // returned a valid EIP-155 signature for this chain).
+            let signed = try await signer.sign(transaction: Self.txVectors[0].signingDataHex.hexDecoded)
+            #expect(!signed.isEmpty)
         }
-
-        let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
-        let signer = try await EthereumTrezorSigner(
-            device: device,
-            derivationPath: TestAccountFactory.bip44Path(coinType: 60)
-        )
-
-        // The connected device's own key won't match the vector's, so
-        // this can't assert byte-for-byte equality against
-        // `signedTxHex` the way the decode/re-encode round trip above
-        // does — only that a real device conversation produces a
-        // well-formed signed transaction (which, since `encodeSigned`
-        // validates `v`/`r`/`s` strictly, also proves the device
-        // returned a valid EIP-155 signature for this chain).
-        let signed = try await signer.sign(transaction: Self.txVectors[0].signingDataHex.hexDecoded)
-        #expect(!signed.isEmpty)
     }
 }

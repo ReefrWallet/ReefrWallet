@@ -20,8 +20,10 @@ final class TransactionService {
     /// Estimates network fees for a transfer of `token` from `account` to
     /// `recipient`.
     ///
-    /// - For EVM: fetches current EIP-1559 fee rates; for a native-ETH
-    ///   transfer, also runs `eth_estimateGas` to populate `ethereumBaseFee`.
+    /// - For EVM: fetches current EIP-1559 fee rates and runs
+    ///   `eth_estimateGas` against the actual call (a plain value transfer
+    ///   for native ETH, or the ABI-encoded `transfer(address,uint256)`
+    ///   calldata for an ERC-20) to populate `ethereumBaseFee`.
     /// - For Sui: builds unsigned BCS bytes for the transfer then simulates
     ///   them to produce `suiGasBudget` and `suiGasPrice`.
     func estimateFees(
@@ -36,47 +38,21 @@ final class TransactionService {
 
         switch blockchain {
         case .evm:
-            let feeEstimate: FeeEstimate
-            if token.isNativeToken {
-                let request = AnyFeeEstimateRequest(
-                    from: account.address,
-                    to: recipient,
-                    value: amount
-                )
-                feeEstimate = try await client.estimateFee(for: request)
-            } else {
-                // Rates-only: token contract calldata isn't known without
-                // building the tx first; the builder handles gas estimation.
-                feeEstimate = try await client.estimateFee(for: nil)
-            }
-
-            let maxFee = feeEstimate.maxFeePerGas ?? feeEstimate.gasPrice
-            let priorityFee = feeEstimate.maxPriorityFeePerGas ?? BigUInt(0)
-            let baseFee = maxFee > priorityFee ? (maxFee - priorityFee) / 2 : BigUInt(0)
-
-            return Fees(
-                ethereumBaseFee: baseFee.description,
-                ethereumMaxPriorityFee: priorityFee.description,
-                ethereumMaxFee: maxFee.description,
-                nativeFeeReserve: feeEstimate.estimatedFee?.description  // nil for ERC-20 rates-only
+            return try await estimateEthereumFees(
+                client: client,
+                token: token,
+                amount: amount,
+                recipient: recipient,
+                account: account
             )
         case .sui:
-            // Build the unsigned transaction to get a realistic simulation.
-            let builder = try clientProvider.getBuilder(blockchain: blockchain)
-            let bcs = try await builder.buildTransfer(
-                sender: account.address,
-                recipient: recipient,
+            return try await estimateSuiFees(
+                client: client,
+                blockchain: blockchain,
+                token: token,
                 amount: amount,
-                token: token.isNativeToken ? nil : token.address
-            )
-            let request = AnyFeeEstimateRequest(data: bcs)
-            let feeEstimate = try await client.estimateFee(for: request)
-
-            let grossFee = feeEstimate.grossFee ?? feeEstimate.estimatedFee ?? feeEstimate.gasPrice
-            return Fees(
-                suiGasBudget: grossFee.description,
-                suiGasPrice: feeEstimate.gasPrice.description,
-                nativeFeeReserve: token.isNativeToken ? grossFee.description : nil
+                recipient: recipient,
+                account: account
             )
         default:
             throw Error.notImplemented
@@ -144,6 +120,91 @@ final class TransactionService {
 // MARK: - Private helpers
 
 private extension TransactionService {
+    /// Fetches EIP-1559 fee rates and runs `eth_estimateGas` against the
+    /// actual call (a plain value transfer for native ETH, or the
+    /// ABI-encoded `transfer(address,uint256)` calldata for an ERC-20) to
+    /// populate `ethereumBaseFee`.
+    func estimateEthereumFees(
+        client: AnyBlockchainClient,
+        token: Token,
+        amount: BigUInt,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        let feeEstimate: FeeEstimate
+        if token.isNativeToken {
+            let request = AnyFeeEstimateRequest(
+                from: account.address,
+                to: recipient,
+                value: amount
+            )
+            feeEstimate = try await client.estimateFee(for: request)
+        } else {
+            // Build the real ERC-20 transfer calldata so `eth_estimateGas`
+            // sees the exact call — gas usage varies per token contract
+            // and can't be approximated from rates alone.
+            guard let tokenAddress = token.address else {
+                throw Error.invalidData
+            }
+
+            let contract = try EthereumAddress(string: tokenAddress)
+            let recipientAddress = try EthereumAddress(string: recipient)
+
+            let calldata = EthereumABI.encodeCall(
+                selector: EthereumABI.selector("transfer(address,uint256)"),
+                parameters: [.address(recipientAddress), .uint256(amount)]
+            )
+
+            let request = AnyFeeEstimateRequest(
+                from: account.address,
+                to: contract.string,
+                data: calldata
+            )
+
+            feeEstimate = try await client.estimateFee(for: request)
+        }
+
+        let maxFee = feeEstimate.maxFeePerGas ?? feeEstimate.gasPrice
+        let priorityFee = feeEstimate.maxPriorityFeePerGas ?? BigUInt(0)
+        let baseFee = maxFee > priorityFee ? (maxFee - priorityFee) / 2 : BigUInt(0)
+
+        return Fees(
+            ethereumBaseFee: baseFee.description,
+            ethereumMaxPriorityFee: priorityFee.description,
+            ethereumMaxFee: maxFee.description,
+            nativeFeeReserve: token.isNativeToken ? feeEstimate.estimatedFee?.description : nil
+        )
+    }
+
+    /// Builds unsigned BCS bytes for the transfer then simulates them to
+    /// produce `suiGasBudget` and `suiGasPrice`.
+    func estimateSuiFees(
+        client: AnyBlockchainClient,
+        blockchain: WKBlockchain,
+        token: Token,
+        amount: BigUInt,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        // Build the unsigned transaction to get a realistic simulation.
+        let builder = try clientProvider.getBuilder(blockchain: blockchain)
+        let bcs = try await builder.buildTransfer(
+            sender: account.address,
+            recipient: recipient,
+            amount: amount,
+            token: token.isNativeToken ? nil : token.address
+        )
+        let request = AnyFeeEstimateRequest(data: bcs)
+        let feeEstimate = try await client.estimateFee(for: request)
+
+        let grossFee = feeEstimate.grossFee ?? feeEstimate.estimatedFee ?? feeEstimate.gasPrice
+        return Fees(
+            suiGasBudget: grossFee.description,
+            suiGasPrice: feeEstimate.gasPrice.description,
+            nativeFeeReserve: token.isNativeToken ? grossFee.description : nil
+        )
+    }
+
     /// Builds the ``BlockchainTransactionBuilderOptions`` array that conveys
     /// the user's fee overrides to the transaction builder.
     ///

@@ -28,6 +28,7 @@
 // if `mise`/`sui` can't be found/run, or the node never comes up, this
 // throws a clear, actionable error and the test fails loudly.
 
+import Darwin
 import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2Posix
@@ -37,6 +38,56 @@ import WalletKitGRPC
 
 struct SuiLaunchError: Error, CustomStringConvertible {
     let description: String
+}
+
+/// Binds two distinct ephemeral TCP ports via the kernel (port 0) and reads
+/// back what it assigned, so concurrently-running tests each get their own
+/// `sui start` instance instead of racing over the hardcoded defaults —
+/// Swift Testing parallelizes across suites by default, and a second `sui
+/// start` that loses the port race still passes `waitUntilReady()` (it just
+/// polls the port for a checkpoint height, not that it owns the process
+/// bound there), silently attaching to the first test's network and
+/// corrupting its wallet balances. Both sockets are kept open until both
+/// ports are chosen so the two allocations can't collide with each other.
+private func freeTCPPorts(_ count: Int) throws -> [UInt16] {
+    var fds: [Int32] = []
+    defer { fds.forEach { close($0) } }
+
+    var ports: [UInt16] = []
+    for _ in 0..<count {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else {
+            throw SuiLaunchError(description: "socket() failed while allocating a free port")
+        }
+        fds.append(fd)
+
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_addr.s_addr = INADDR_ANY
+        addr.sin_port = 0
+
+        let bindResult = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bindResult == 0 else {
+            throw SuiLaunchError(description: "bind() failed while allocating a free port")
+        }
+
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let getResult = withUnsafeMutablePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                getsockname(fd, $0, &len)
+            }
+        }
+        guard getResult == 0 else {
+            throw SuiLaunchError(description: "getsockname() failed while allocating a free port")
+        }
+
+        ports.append(UInt16(bigEndian: addr.sin_port))
+    }
+    return ports
 }
 
 // `SuiOwnedCoin` and the local `Base58` enum have been removed; their
@@ -64,11 +115,20 @@ final class SuiNode {
     /// --force-regenesis --with-faucet`, and waits until it's actually
     /// producing checkpoints.
     ///
+    /// - Parameters:
+    ///   - rpcPort: Pass an explicit port to pin it; otherwise a free one is
+    ///     allocated per call so concurrently-running tests don't race over
+    ///     the same `sui` instance.
+    ///   - faucetPort: Same as `rpcPort`, for the faucet's HTTP listener.
     /// - Throws: ``SuiLaunchError`` if `mise`/`sui` can't be found/run, or
     ///   if the node never becomes ready within the timeout — a generous
     ///   one, since a first-ever, not-yet-cached `sui` install has to
     ///   download it (~180 MB) before it can even start.
-    static func start(rpcPort: UInt16 = 9010, faucetPort: UInt16 = 9133) async throws -> SuiNode {
+    static func start(rpcPort: UInt16? = nil, faucetPort: UInt16? = nil) async throws -> SuiNode {
+        let allocatedPorts = try freeTCPPorts(2)
+        let rpcPort = rpcPort ?? allocatedPorts[0]
+        let faucetPort = faucetPort ?? allocatedPorts[1]
+
         let repoRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // Blockchains/
             .deletingLastPathComponent() // Tests/

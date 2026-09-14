@@ -129,7 +129,7 @@ struct JSONRPCClient {
             throw BlockchainClientError.decodingFailed(reason: error.localizedDescription)
         }
 
-        var results = Array<Result?>(repeating: nil, count: params.count)
+        var results: [Result?] = Array(repeating: nil, count: params.count)
         for envelope in envelopes where envelope.id > 0 && envelope.id <= params.count {
             results[envelope.id - 1] = envelope.error == nil ? envelope.result : nil
         }

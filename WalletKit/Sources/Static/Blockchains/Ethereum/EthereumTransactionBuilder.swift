@@ -194,12 +194,14 @@ private extension EthereumTransactionBuilder {
 
         // Skip per-tx gas estimation when the caller has overridden gasLimit.
         let gasLimit: BigUInt
+
         if let overrideGasLimit = feeOverride?.gasLimit {
             gasLimit = overrideGasLimit
         } else {
             let gasEstimate = try await client.estimateFee(
                 for: FeeEstimateRequest(from: sender, to: contract, data: calldata)
             )
+
             // Fall back to a generous upper-bound if the node couldn't estimate.
             gasLimit = gasEstimate.gasLimit ?? 100_000
         }
@@ -214,17 +216,18 @@ private extension EthereumTransactionBuilder {
                 data: calldata,
                 chainId: client.chainId
             ).signingData
+        } else {
+            return UnsignedEIP1559Transaction(
+                nonce: BigUInt(nonce),
+                maxPriorityFeePerGas: feeOverride?.maxPriorityFeePerGas ?? fee.maxPriorityFeePerGas ?? fee.gasPrice,
+                maxFeePerGas: feeOverride?.maxFeePerGas ?? fee.maxFeePerGas ?? fee.gasPrice,
+                gasLimit: gasLimit,
+                to: contract,
+                value: 0,
+                data: calldata,
+                chainId: client.chainId
+            ).signingData
         }
-        return UnsignedEIP1559Transaction(
-            nonce: BigUInt(nonce),
-            maxPriorityFeePerGas: feeOverride?.maxPriorityFeePerGas ?? fee.maxPriorityFeePerGas ?? fee.gasPrice,
-            maxFeePerGas: feeOverride?.maxFeePerGas ?? fee.maxFeePerGas ?? fee.gasPrice,
-            gasLimit: gasLimit,
-            to: contract,
-            value: 0,
-            data: calldata,
-            chainId: client.chainId
-        ).signingData
     }
 }
 

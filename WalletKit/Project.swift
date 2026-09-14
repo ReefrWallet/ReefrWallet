@@ -1,7 +1,8 @@
+import Foundation
 import ProjectDescription
 import ProjectDescriptionHelpers
 
-let walletKitRust: Target = .target(
+private let walletKitRust: Target = .target(
     name: "WalletKitRust",
     destinations: [.mac, .iPhone, .iPad],
     product: .staticFramework,
@@ -14,7 +15,7 @@ let walletKitRust: Target = .target(
     ]
 )
 
-let walletKitGRPC: Target = .target(
+private let walletKitGRPC: Target = .target(
     name: "WalletKitGRPC",
     destinations: [.mac, .iPhone, .iPad],
     product: .staticFramework,
@@ -30,7 +31,7 @@ let walletKitGRPC: Target = .target(
     ]
 )
 
-let walletKit: Target = .target(
+private let walletKit: Target = .target(
     name: "WalletKit",
     destinations: [.mac, .iPhone, .iPad],
     product: .staticFramework,
@@ -57,7 +58,7 @@ let walletKit: Target = .target(
     ]
 )
 
-let walletKitTestsMac: Target = .target(
+private let walletKitTestsMac: Target = .target(
     name: "WalletKitTests-macOS",
     destinations: [.mac],
     product: .unitTests,
@@ -83,7 +84,7 @@ let walletKitTestsMac: Target = .target(
     ]
 )
 
-/* let walletKitTestsIOS: Target = .target(
+/* private let walletKitTestsIOS: Target = .target(
     name: "WalletKitTests-iOS",
     destinations: [.iPhone, .iPad],
     product: .unitTests,
@@ -103,7 +104,7 @@ let walletKitTestsMac: Target = .target(
     ]
 ) */
 
-let schemes: [Scheme] = [
+private let schemes: [Scheme] = [
     .scheme(
         name: walletKit.name,
         buildAction: .buildAction(targets: ["\(walletKit.name)"]),
@@ -114,19 +115,24 @@ let schemes: [Scheme] = [
     )
 ]
 
+private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/opt/homebrew/opt/libusb/lib") {
+    "-L/opt/homebrew/opt/libusb/lib"
+} else if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
+    "-L/usr/local/opt/libusb/lib"
+} else {
+    fatalError("libusb not installed. Run `brew install libusb`")
+}
+
 let project = Project(
     name: "WalletKit",
     organizationName: Project.organizationName,
     settings: .settings(base: [
-        "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": ["gnu11", "gnu++14"],
+        "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
-        "OTHER_LDFLAGS[sdk=macosx*]": [
-            "-lc++",
-            "-L/opt/homebrew/opt/libusb/lib",
-            "-L/usr/local/opt/libusb/lib",
-            "-lusb-1.0"
-        ]
+        "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": ["gnu11", "gnu++14"],
+        "OTHER_LDFLAGS[sdk=macosx*]": ["-lc++", libUsbPathFlag, "-lusb-1.0"],
+        "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
     targets: [walletKitRust, walletKitGRPC, walletKit, /*walletKitTestsIOS,*/ walletKitTestsMac],
     schemes: schemes,

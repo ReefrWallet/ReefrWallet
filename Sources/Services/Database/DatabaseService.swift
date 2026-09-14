@@ -66,6 +66,19 @@ actor DatabaseService {
         return try modelContext.fetch(FetchDescriptor(predicate: predicate)).map(Account.init(model:))
     }
 
+    func fetchBalance(account: Account, token: Token) throws -> Balance? {
+        guard let accountId = account.id else {
+            throw Error.invalidData
+        }
+
+        let tokenAddress = token.address
+        let predicate = #Predicate<BalanceModel> {
+            $0.account.id == accountId && $0.token.address == tokenAddress
+        }
+        let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
+        return try models.first.map(Balance.init(model:))
+    }
+
     func fetchBalances(accountId: PersistentIdentifier) throws -> [Balance] {
         let predicate = #Predicate<BalanceModel> { $0.account.id == accountId }
         let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
@@ -90,6 +103,20 @@ actor DatabaseService {
         }
 
         return accountModel.balances.map { Token(model: $0.token) }
+    }
+
+    func fetchToken(tokenAddress: String, blockchain: WKBlockchain) throws -> Token? {
+        let serializedBlockchain = try blockchain.asJSONString()
+        let predicate = #Predicate<TokenModel> { token in
+            if let address = token.address {
+                return token.blockchain?.serialized == serializedBlockchain
+                    && tokenAddress == address
+            } else {
+                return false
+            }
+        }
+
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate)).first.map(Token.init(model:))
     }
 
     func fetchTokens(blockchain: WKBlockchain) throws -> [Token] {

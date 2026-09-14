@@ -9,7 +9,6 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @AppStorage("MoralisAPIKey") private var moralisAPIKey: String = ""
     @AppStorage("ProxyHost") private var proxyHost: String = ""
     @AppStorage("ProxyPort") private var proxyPort: Int = 9090
     @AppStorage("UseProxy") private var useProxy: Bool = false
@@ -24,10 +23,6 @@ struct SettingsView: View {
 
                 TextField("Proxy Port", value: $proxyPort, format: .number.grouping(.never))
                     .disabled(!useProxy)
-            }
-
-            Section(header: Text("API Keys")) {
-                TextField("Moralis.io", text: $moralisAPIKey)
             }
         }
         .formStyle(.grouped)

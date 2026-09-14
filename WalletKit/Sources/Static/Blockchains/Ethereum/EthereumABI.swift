@@ -98,7 +98,9 @@ public enum EthereumABI {
         }
 
         return try (0..<count).map { index in
-            let relativeOffset = Int(exactly: decodeUInt256(data[headsStart + index * 32..<headsStart + (index + 1) * 32])) ?? -1
+            let relativeOffset = Int(
+                exactly: decodeUInt256(data[headsStart + index * 32..<headsStart + (index + 1) * 32])
+            ) ?? -1
             let tupleStart = arrayStart + relativeOffset
             guard relativeOffset >= 0, tupleStart + 64 <= data.endIndex else {
                 throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has an invalid tuple offset")
@@ -107,7 +109,9 @@ public enum EthereumABI {
             let bytesOffset = Int(exactly: decodeUInt256(data[tupleStart + 32..<tupleStart + 64])) ?? -1
             let lengthStart = tupleStart + bytesOffset
             guard bytesOffset >= 0, lengthStart + 32 <= data.endIndex else {
-                throw BlockchainClientError.decodingFailed(reason: "aggregate3 response has an invalid return-data offset")
+                throw BlockchainClientError.decodingFailed(
+                    reason: "aggregate3 response has an invalid return-data offset"
+                )
             }
             let length = Int(exactly: decodeUInt256(data[lengthStart..<lengthStart + 32])) ?? -1
             let bytesStart = lengthStart + 32

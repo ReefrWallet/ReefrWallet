@@ -12,10 +12,12 @@ struct BalancesServiceTests {
         let repositoryURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
+
         let node = try await AnvilNode.start(
             port: 8548,
             workingDirectory: repositoryURL
         )
+
         defer { node.stop() }
 
         let databaseService = try makeDatabaseService()

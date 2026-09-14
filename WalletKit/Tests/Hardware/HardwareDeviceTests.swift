@@ -12,37 +12,43 @@ import Testing
 
 struct HardwareDeviceTests {
     @Test func sourceReflectsTheDevicesInfo() async throws {
-        let manager = HardwareDeviceManager()
-        let devices = try await manager.scan()
-        guard let info = devices.first else {
-            return
-        }
+        try await withExclusiveHardwareAccess {
+            let manager = HardwareDeviceManager()
+            let devices = try await manager.scan()
+            guard let info = devices.first else {
+                return
+            }
 
-        let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
-        #expect(device.source == .hardware(device.info))
+            let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
+            #expect(device.source == .hardware(device.info))
+        }
     }
 
     @Test func accountAndPublicKeyAgreeOnTheSameProviderAndPath() async throws {
-        let manager = HardwareDeviceManager()
-        let devices = try await manager.scan()
-        guard let info = devices.first else {
-            return
-        }
+        try await withExclusiveHardwareAccess {
+            let manager = HardwareDeviceManager()
+            let devices = try await manager.scan()
+            guard let info = devices.first else {
+                return
+            }
 
-        let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
-        let account = try await device.account(.evm(.ethereum(.mainnet)))
-        let key = try await device.publicKey(path: account.derivationPath, curve: .secp256k1)
-        #expect(account.publicKey.rawBytes == key.rawBytes)
+            let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
+            let account = try await device.account(.evm(.ethereum(.mainnet)))
+            let key = try await device.publicKey(path: account.derivationPath, curve: .secp256k1)
+            #expect(account.publicKey.rawBytes == key.rawBytes)
+        }
     }
 
     @Test func disconnectCompletesForAConnectedDevice() async throws {
-        let manager = HardwareDeviceManager()
-        let devices = try await manager.scan()
-        guard let info = devices.first else {
-            return
-        }
+        try await withExclusiveHardwareAccess {
+            let manager = HardwareDeviceManager()
+            let devices = try await manager.scan()
+            guard let info = devices.first else {
+                return
+            }
 
-        let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
-        await device.disconnect()
+            let device = try await manager.connect(info, delegate: RecordingHardwareDeviceDelegate())
+            await device.disconnect()
+        }
     }
 }
