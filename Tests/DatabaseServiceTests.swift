@@ -70,7 +70,7 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
 
-        let blockchainID = try await service.insertBlockchain(blockchain)
+        _ = try await service.insertBlockchain(blockchain)
 
         await #expect(throws: Error.alreadyExists) {
             try await service.insertBlockchain(blockchain)

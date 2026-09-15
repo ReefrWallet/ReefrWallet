@@ -88,7 +88,9 @@ struct BalancesServiceTests {
         try await databaseService.deleteAccount(id: accountID)
         try await databaseService.deleteKeyStore(id: keyStoreID)
 
-        #expect(try await balancesService.usdValue(accountId: accountID) == 0)
+        await #expect(throws: Error.notFound) {
+            try await balancesService.usdValue(accountId: accountID)
+        }
         await #expect(throws: Error.notFound) {
             try await balancesService.usdValue(keyStoreId: keyStoreID)
         }
