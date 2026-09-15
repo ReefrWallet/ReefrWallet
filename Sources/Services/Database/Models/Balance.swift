@@ -15,6 +15,11 @@ import SwiftData
 struct Balance: Equatable, Hashable, Identifiable, Sendable {
     let account: Account
     var amount: BigUInt
+    /// `Decimal(amount)` shifted by the token's decimals count. Computed once
+    /// here instead of on every access - it's read by the table's sort
+    /// comparator on every comparison of every sort, and the BigUInt->Decimal
+    /// conversion isn't cheap.
+    let decimalAmount: Decimal
     let id: PersistentIdentifier?
     /// `"\(id)"`, computed once here instead of on every SwiftUI diff pass.
     let idString: String?
@@ -28,6 +33,7 @@ struct Balance: Equatable, Hashable, Identifiable, Sendable {
         self.usdValue = usdValue
         id = nil
         idString = nil
+        decimalAmount = Decimal(sign: .plus, exponent: -Int(token.decimalsCount), significand: Decimal(amount))
     }
 }
 
@@ -60,15 +66,7 @@ extension Balance {
         idString = "\(model.id)"
         token = Token(model: model.token)
         usdValue = model.usdValue
-    }
-}
-
-// MARK: - Helpers
-
-extension Balance {
-    var decimalAmount: Decimal {
-        let significand = Decimal(amount)
-        return Decimal(sign: .plus, exponent: -Int(token.decimalsCount), significand: significand)
+        decimalAmount = Decimal(sign: .plus, exponent: -Int(token.decimalsCount), significand: Decimal(amount))
     }
 }
 
