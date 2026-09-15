@@ -15,6 +15,7 @@ struct AccountDetailsView {
     let account: Account
     let keyStore: KeyStore
 
+    @State private var cachedBalances: [Balance] = []
     @State private var isCopyContractAddressButtonActive = false
     @State private var isCopyWalletAddressButtonActive = false
     @State private var isHiddenBalancesExpanded = false
@@ -46,17 +47,18 @@ struct AccountDetailsView {
 
 extension AccountDetailsView: View {
     var body: some View {
-        // Converted once per render and threaded through instead of being
-        // re-derived from `accountBalances` (and re-faulting SwiftData
-        // relationships) separately for the header, table, hidden section,
-        // and total value.
-        let balances = accountBalances.compactMap { try? Balance(model: $0) }
-        let entries = makeEntries(balances.filter { !$0.token.isHidden })
-        let hidden = makeEntries(balances.filter { $0.token.isHidden })
-        let selected = selectedBalance(in: balances)
+        // `cachedBalances` is only rebuilt when the underlying SwiftData
+        // objects change (see `.task(id:)` below), not on every render.
+        // Re-deriving `[Balance]` from `accountBalances` on every body
+        // evaluation (e.g. a table row selection) would re-fault every
+        // TokenModel/AccountModel relationship and redo the BigUInt/Decimal
+        // math for the whole list just to highlight a row.
+        let entries = makeEntries(cachedBalances.filter { !$0.token.isHidden })
+        let hidden = makeEntries(cachedBalances.filter { $0.token.isHidden })
+        let selected = selectedBalance(in: cachedBalances)
 
         VStack(alignment: .leading) {
-            header(balances)
+            header(cachedBalances)
                 .padding()
 
             if !entries.isEmpty {
@@ -65,7 +67,7 @@ extension AccountDetailsView: View {
                         Text("Total Value:")
                             .style(.mediumHeader, foreground: .primary)
 
-                        Text(usdValue(balances).formatted(.currency(code: "USD")))
+                        Text(usdValue(cachedBalances).formatted(.currency(code: "USD")))
                             .style(.mediumHeader, foreground: .primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -92,6 +94,9 @@ extension AccountDetailsView: View {
                 Label("Send", systemImage: "paperplane")
             }
             .disabled(!isSendButtonActive)
+        }
+        .task(id: accountBalances.map(\.id)) {
+            cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
         }
         .onChange(of: selection) {
             if let amount = selected?.decimalAmount, amount > 0 {
