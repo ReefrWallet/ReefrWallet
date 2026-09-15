@@ -145,6 +145,40 @@ extension SidebarView: View {
     }
 }
 
+// MARK: - SidebarAccountRow
+
+/// Narrow, value-type inputs so SwiftUI can skip re-running `body` (and
+/// re-touching `account.blockchain`, a SwiftData relationship fault +
+/// decode) for rows whose selection/editing state didn't change.
+private struct SidebarAccountRow: View {
+    let account: AccountModel
+    let isEditing: Bool
+    let isSelected: Bool
+    @Binding var editingName: String
+    let onStartEditing: () -> Void
+    let onCommitEditing: () -> Void
+
+    var body: some View {
+        Label {
+            if isEditing {
+                TextField(account.name, text: $editingName)
+                    .textFieldStyle(.plain)
+                    .onSubmit(onCommitEditing)
+            } else if isSelected {
+                Text(account.name)
+                    .onTapGesture(perform: onStartEditing)
+            } else {
+                Text(account.name)
+            }
+        } icon: {
+            account.blockchain.blockchain.logoImage
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+        }
+    }
+}
+
 // MARK: - Subviews
 
 private extension SidebarView {
@@ -227,35 +261,29 @@ private extension SidebarView {
     }
 
     func makeAccountItem(_ account: AccountModel) -> some View {
-        Label {
-            if editingId == account.id {
-                TextField(account.name, text: $editingName)
-                    .textFieldStyle(.plain)
-                    .onSubmit {
-                        editingId = nil
+        // `isEditing`/`isSelected` are resolved here, once, into plain Bools
+        // so SidebarAccountRow's inputs are narrow value types. That lets
+        // SwiftUI skip re-running its body (and re-faulting
+        // `account.blockchain` to redraw the icon) for every other row
+        // whenever `sidebarSelection`/`editingId` change elsewhere.
+        SidebarAccountRow(
+            account: account,
+            isEditing: editingId == account.id,
+            isSelected: sidebarSelection.wrappedValue == account.id,
+            editingName: $editingName
+        ) {
+            editingName = account.name
+            editingId = account.id
+        } onCommitEditing: {
+            editingId = nil
 
-                        Task {
-                            do {
-                                try await databaseService.renameAccount(id: account.id, name: editingName)
-                            } catch {
-                                printError(error)
-                            }
-                        }
-                    }
-            } else if sidebarSelection.wrappedValue == account.id {
-                Text(account.name)
-                    .onTapGesture {
-                        editingName = account.name
-                        editingId = account.id
-                    }
-            } else {
-                Text(account.name)
+            Task {
+                do {
+                    try await databaseService.renameAccount(id: account.id, name: editingName)
+                } catch {
+                    printError(error)
+                }
             }
-        } icon: {
-            account.blockchain.blockchain.logoImage
-                .resizable()
-                .scaledToFit()
-                .frame(width: 16, height: 16)
         }
         .padding(.leading)
         .contextMenu {
