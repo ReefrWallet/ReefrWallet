@@ -24,7 +24,6 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let name: String
     let rpcURLOverride: URL?
     let signatureScheme: Curve?
-    let usdValue: Decimal
 
     init(
         accountIndex: UInt64?,
@@ -34,8 +33,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         keyStoreId: PersistentIdentifier,
         name: String,
         rpcURLOverride: URL? = nil,
-        signatureScheme: Curve? = nil,
-        usdValue: Decimal = .zero
+        signatureScheme: Curve? = nil
     ) {
         id = nil
 
@@ -47,7 +45,6 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         self.name = name
         self.rpcURLOverride = rpcURLOverride
         self.signatureScheme = signatureScheme
-        self.usdValue = usdValue
     }
 }
 
@@ -108,7 +105,6 @@ extension Account {
         derivationPath = model.derivationPath
         keyStoreId = model.keyStore.id
         name = model.name
-        usdValue = model.usdValue
 
         if let signatureScheme = model.signatureScheme {
             self.signatureScheme = Curve(rawValue: signatureScheme)
@@ -148,7 +144,12 @@ extension AccountModel: Comparable {
 }
 
 extension AccountModel {
-    var usdValue: Decimal {
+    /// Sums every balance belonging to the account, faulting in each
+    /// balance's `TokenModel` relationship along the way. A method, not a
+    /// property, so call sites don't treat it as a cheap accessor — calling
+    /// it once per balance in the account (instead of once per account)
+    /// turns an O(N) sum into an O(N²) fault storm.
+    func usdValue() -> Decimal {
         balances.reduce(into: 0) { partialResult, balance in
             partialResult += balance.usdValue
         }

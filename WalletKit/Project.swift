@@ -115,12 +115,10 @@ private let schemes: [Scheme] = [
     )
 ]
 
-private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/opt/homebrew/opt/libusb/lib") {
-    "-L/opt/homebrew/opt/libusb/lib"
-} else if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
+private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
     "-L/usr/local/opt/libusb/lib"
 } else {
-    fatalError("libusb not installed. Run `brew install libusb`")
+    "-L/opt/homebrew/opt/libusb/lib"
 }
 
 let project = Project(

@@ -43,7 +43,7 @@ actor DatabaseService {
     func fetchAccount(id: PersistentIdentifier) throws -> Account? {
         let predicate = #Predicate<AccountModel> { $0.id == id }
         let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
-        return try models.first.map(Account.init(model:))
+        return try models.first.map { try Account(model: $0) }
     }
 
     func fetchAccounts(
@@ -63,7 +63,7 @@ actor DatabaseService {
             }
         }
 
-        return try modelContext.fetch(FetchDescriptor(predicate: predicate)).map(Account.init(model:))
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate)).map { try Account(model: $0) }
     }
 
     func fetchBalance(account: Account, token: Token) throws -> Balance? {
@@ -268,6 +268,24 @@ actor DatabaseService {
         }
 
         try saveBalances(balances)
+    }
+
+    func usdValue(accountId: PersistentIdentifier) throws -> Decimal {
+        let predicate = #Predicate<AccountModel> { $0.id == accountId }
+        guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+            throw Error.notFound
+        }
+
+        return accountModel.usdValue()
+    }
+
+    func usdValue(keyStoreId: PersistentIdentifier) throws -> Decimal {
+        let predicate = #Predicate<KeyStoreModel> { $0.id == keyStoreId }
+        guard let keyStoreModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+            throw Error.notFound
+        }
+
+        return keyStoreModel.accounts.reduce(into: 0) { $0 += $1.usdValue() }
     }
 
     func watchOnlyKeyStore() throws -> KeyStore {

@@ -46,25 +46,34 @@ struct AccountDetailsView {
 
 extension AccountDetailsView: View {
     var body: some View {
+        // Converted once per render and threaded through instead of being
+        // re-derived from `accountBalances` (and re-faulting SwiftData
+        // relationships) separately for the header, table, hidden section,
+        // and total value.
+        let balances = accountBalances.compactMap { try? Balance(model: $0) }
+        let entries = makeEntries(balances.filter { !$0.token.isHidden })
+        let hidden = makeEntries(balances.filter { $0.token.isHidden })
+        let selected = selectedBalance(in: balances)
+
         VStack(alignment: .leading) {
-            header
+            header(balances)
                 .padding()
 
-            if !balanceEntries.isEmpty {
+            if !entries.isEmpty {
                 VStack {
                     HStack(spacing: 4) {
                         Text("Total Value:")
                             .style(.mediumHeader, foreground: .primary)
 
-                        Text(usdValue.formatted(.currency(code: "USD")))
+                        Text(usdValue(balances).formatted(.currency(code: "USD")))
                             .style(.mediumHeader, foreground: .primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    balancesTable
+                    balancesTable(entries: entries, hidden: hidden)
 
-                    if let selectedBalance {
-                        detailsBar(selectedBalance)
+                    if let selected {
+                        detailsBar(selected)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                     }
@@ -85,15 +94,15 @@ extension AccountDetailsView: View {
             .disabled(!isSendButtonActive)
         }
         .onChange(of: selection) {
-            if let amount = selectedBalance?.decimalAmount, amount > 0 {
+            if let amount = selected?.decimalAmount, amount > 0 {
                 isSendButtonActive = true
             } else {
                 isSendButtonActive = false
             }
         }
         .sheet(isPresented: $isTransactionSheetPresented) {
-            if let selectedBalance {
-                TransferView(balance: selectedBalance)
+            if let selected {
+                TransferView(balance: selected)
             }
         }
     }
@@ -102,7 +111,7 @@ extension AccountDetailsView: View {
 // MARK: - Subviews
 
 private extension AccountDetailsView {
-    var balancesTable: some View {
+    func balancesTable(entries: [TableEntry], hidden: [TableEntry]) -> some View {
         Table(
             of: TableEntry.self,
             selection: $selection,
@@ -140,13 +149,13 @@ private extension AccountDetailsView {
             }
             .customizationID("usdValue")
         } rows: {
-            ForEach(balanceEntries) { balance in
+            ForEach(entries) { balance in
                 TableRow(balance)
             }
 
-            if !hiddenBalances.isEmpty {
+            if !hidden.isEmpty {
                 DisclosureTableRow(.hiddenBalancesTitle, isExpanded: $isHiddenBalancesExpanded) {
-                    ForEach(hiddenBalances) { balance in
+                    ForEach(hidden) { balance in
                         TableRow(balance)
                     }
                 }
@@ -154,7 +163,7 @@ private extension AccountDetailsView {
         }
     }
 
-    var header: some View {
+    func header(_ balances: [Balance]) -> some View {
         LazyVStack(alignment: .leading) {
             Text(account.name)
                 .style(.largeHeader, foreground: .primary)
@@ -188,7 +197,7 @@ private extension AccountDetailsView {
             .style(.small, foreground: .secondary)
             .padding(.bottom, 1)
 
-            if let balance = try? accountBalances.filter({ $0.token.isNativeToken }).first.map(Balance.init(model:)) {
+            if let balance = balances.first(where: { $0.token.isNativeToken }) {
                 Text("\(balance.decimalAmount.description) \(balance.token.symbol)")
                     .style(.small, foreground: .secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -225,36 +234,26 @@ private extension AccountDetailsView {
 // MARK: - Logic
 
 private extension AccountDetailsView {
-    var balanceEntries: [TableEntry] {
-        accountBalances
-            .filter { !$0.token.isHidden }
-            .compactMap { try? Balance(model: $0) }
+    func makeEntries(_ balances: [Balance]) -> [TableEntry] {
+        balances
             .map { TableEntry.balance($0) }
             .sorted(using: sortOrder)
     }
 
-    var hiddenBalances: [TableEntry] {
-        accountBalances
-            .filter { $0.token.isHidden }
-            .compactMap { try? Balance(model: $0) }
-            .map { TableEntry.balance($0) }
-            .sorted(using: sortOrder)
-    }
-
-    var selectedBalance: Balance? {
-        guard let balance = accountBalances.first(where: { selection == "\($0.id)" }) else {
-            return nil
-        }
-
-        return try? Balance(model: balance)
-    }
-
-    var usdValue: Decimal {
-        accountBalances
-            .map { try? Balance(model: $0) }
-            .reduce(Decimal(0)) { partialResult, balance in
-                partialResult + (balance?.usdValue ?? 0)
+    func selectedBalance(in balances: [Balance]) -> Balance? {
+        balances.first { balance in
+            guard let id = balance.id else {
+                return false
             }
+
+            return selection == "\(id)"
+        }
+    }
+
+    func usdValue(_ balances: [Balance]) -> Decimal {
+        balances.reduce(into: 0) { partialResult, balance in
+            partialResult += (balance.usdValue ?? 0)
+        }
     }
 
     func copyToClipboard(_ string: String) {

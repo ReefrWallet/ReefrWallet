@@ -13,33 +13,11 @@ final class BalancesService {
     }
 
     func usdValue(accountId: PersistentIdentifier) async throws -> Decimal {
-        let balances = try await databaseService.fetchBalances(accountId: accountId)
-
-        guard !balances.isEmpty else {
-            return 0
-        }
-
-        return balances.reduce(into: 0) { partialResult, balance in
-            partialResult += (balance.token.usdPrice ?? 0) * balance.decimalAmount
-        }
+        try await databaseService.usdValue(accountId: accountId)
     }
 
     func usdValue(keyStoreId: PersistentIdentifier) async throws -> Decimal {
-        var result: Decimal = 0
-
-        guard let keyStore = try await databaseService.fetchKeyStore(id: keyStoreId) else {
-            throw Error.notFound
-        }
-
-        for account in keyStore.accounts {
-            guard let accountId = account.id else {
-                throw Error.invalidData
-            }
-
-            try await result += usdValue(accountId: accountId)
-        }
-
-        return result
+        try await databaseService.usdValue(keyStoreId: keyStoreId)
     }
 
     @MainActor

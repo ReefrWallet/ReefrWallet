@@ -76,3 +76,4 @@ WalletKit/Frameworks
 WalletKit/Sources/Generated
 Tuist/ProjectDescriptionHelpers/Project+Version.swift
 .codebase-memory
+/Temp/

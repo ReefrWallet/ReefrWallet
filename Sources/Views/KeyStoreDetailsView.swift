@@ -12,10 +12,11 @@ import SwiftUI
 struct KeyStoreDetailsView: View {
     private let keyStore: KeyStore
 
-    @State private var sortOrder: [KeyPathComparator<Account>] = []
+    @State private var accountRows: [AccountRow] = []
+    @State private var sortOrder: [KeyPathComparator<AccountRow>] = []
 
     @SceneStorage("KeyStoreAccountsTableConfig")
-    private var columnCustomization: TableColumnCustomization<Account>
+    private var columnCustomization: TableColumnCustomization<AccountRow>
 
     init(_ keyStore: KeyStore) {
         self.keyStore = keyStore
@@ -35,6 +36,9 @@ struct KeyStoreDetailsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
+        .task(id: keyStore.id) {
+            await loadAccountRows()
+        }
     }
 }
 
@@ -43,21 +47,21 @@ private extension KeyStoreDetailsView {
         VStack {
             totalValue
 
-            Table(sortedAccounts, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
-                TableColumn("Account", value: \.name) { account in
+            Table(sortedRows, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
+                TableColumn("Account", value: \.account.name) { row in
                     HStack {
-                        account.blockchain.logoImage
+                        row.account.blockchain.logoImage
                             .resizable()
                             .scaledToFit()
                             .frame(width: 16, height: 16)
 
-                        Text("\(account.name)")
+                        Text("\(row.account.name)")
                     }
                 }
                 .customizationID("account")
 
-                TableColumn("USD Value", value: \.usdValue) { account in
-                    Text(account.usdValue.formatted(.number.precision(.fractionLength(2))))
+                TableColumn("USD Value", value: \.usdValue) { row in
+                    Text(row.usdValue.formatted(.number.precision(.fractionLength(2))))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .customizationID("usdValue")
@@ -65,12 +69,12 @@ private extension KeyStoreDetailsView {
         }
     }
 
-    var sortedAccounts: [Account] {
-        keyStore.accounts.sorted(using: sortOrder)
+    var sortedRows: [AccountRow] {
+        accountRows.sorted(using: sortOrder)
     }
 
     var accountsUSDValue: Decimal {
-        keyStore.accounts.reduce(0) { $0 + $1.usdValue }
+        accountRows.reduce(into: 0) { $0 += $1.usdValue }
     }
 
     var header: some View {
@@ -111,4 +115,37 @@ private extension KeyStoreDetailsView {
         }
         .frame(alignment: .leading)
     }
+}
+
+// MARK: - Logic
+
+private extension KeyStoreDetailsView {
+    func loadAccountRows() async {
+        let balancesService = DI.injectOrFail(BalancesService.self)
+
+        var rows: [AccountRow] = []
+        for account in keyStore.accounts {
+            guard let accountId = account.id else {
+                continue
+            }
+
+            let usdValue = (try? await balancesService.usdValue(accountId: accountId)) ?? 0
+            rows.append(AccountRow(account: account, usdValue: usdValue))
+        }
+
+        accountRows = rows
+    }
+}
+
+// MARK: - AccountRow
+
+/// The account's USD value is computed on-site (via `BalancesService`) rather
+/// than carried as a property on `Account`, since summing it requires
+/// faulting in every balance's token relationship — too expensive to embed
+/// in a value type that's converted far more often than that total is needed.
+private struct AccountRow: Identifiable, Hashable {
+    let account: Account
+    let usdValue: Decimal
+
+    var id: PersistentIdentifier? { account.id }
 }

@@ -9,7 +9,7 @@
 import BigInt
 import WalletKit
 
-struct Fees {
+struct Fees: Equatable {
     let ethereumBaseFee: String?
     let ethereumMaxPriorityFee: String?
     let ethereumMaxFee: String?
