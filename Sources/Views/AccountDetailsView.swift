@@ -320,8 +320,8 @@ private enum TableEntry: Identifiable {
             // we don't want this selected, so generate new id each time
             UUID().uuidString
         case let .balance(balance):
-            if let id = balance.id {
-                "\(id)"
+            if let idString = balance.idString {
+                idString
             } else {
                 preconditionFailure()
             }

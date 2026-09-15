@@ -16,6 +16,8 @@ struct Balance: Equatable, Hashable, Identifiable, Sendable {
     let account: Account
     var amount: BigUInt
     let id: PersistentIdentifier?
+    /// `"\(id)"`, computed once here instead of on every SwiftUI diff pass.
+    let idString: String?
     let token: Token
     let usdValue: Decimal?
 
@@ -25,6 +27,7 @@ struct Balance: Equatable, Hashable, Identifiable, Sendable {
         self.token = token
         self.usdValue = usdValue
         id = nil
+        idString = nil
     }
 }
 
@@ -54,6 +57,7 @@ extension Balance {
         amount = model.amount
         account = try Account(model: model.account)
         id = model.id
+        idString = "\(model.id)"
         token = Token(model: model.token)
         usdValue = model.usdValue
     }
