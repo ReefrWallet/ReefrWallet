@@ -32,6 +32,30 @@ actor DatabaseService {
 
         try modelContext.save()
     }
+
+    /// Deletes all balances across every account, keeping the tokens themselves.
+    func deleteAllBalances() throws {
+        for balance in try modelContext.fetch(FetchDescriptor<BalanceModel>()) {
+            modelContext.delete(balance)
+        }
+
+        try modelContext.save()
+    }
+
+    /// Deletes all non-native tokens on every blockchain, keeping each blockchain's mandatory
+    /// native token intact. This respectively deletes all balances from all accounts.
+    func deleteAllTokens() throws {
+        for balance in try modelContext.fetch(FetchDescriptor<BalanceModel>()) {
+            modelContext.delete(balance)
+        }
+
+        let predicate = #Predicate<TokenModel> { !$0.isNativeToken }
+        for token in try modelContext.fetch(FetchDescriptor(predicate: predicate)) {
+            modelContext.delete(token)
+        }
+
+        try modelContext.save()
+    }
     #endif
 
     func deleteKeyStore(id: PersistentIdentifier) throws {

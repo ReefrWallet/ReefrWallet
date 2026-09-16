@@ -33,10 +33,11 @@ final class BalancesService {
             let balances = try await fetchAllBalances(client: client, account: account)
             try await databaseService.updateBalances(account: account, updates: balances)
         } else {
-            let allTokens = try storedTokens + readConfiguredTokens(blockchain: account.blockchain)
+            let allTokens = try (storedTokens + readConfiguredTokens(blockchain: account.blockchain)
                 .filter { token in
                     !storedTokens.contains { $0.address == token.address }
                 }
+            ).filter { !$0.isNativeToken }
 
             let nativeBalance = try await fetchNativeBalance(
                 client: client,
@@ -45,7 +46,6 @@ final class BalancesService {
             )
 
             try await databaseService.updateBalances(account: account, updates: [nativeBalance])
-
             try await updateTokenBalances(client: client, account: account, tokens: allTokens)
         }
     }
@@ -147,7 +147,7 @@ private extension BalancesService {
                     )
                     try await databaseService.saveBalance(balance)
                 }
-            } else {
+            } else if amount > 0 {
                 let tokenInfo = try await client.getTokenInfo(tokenAddress)
                 let token = Token(
                     address: tokenAddress,
@@ -176,26 +176,29 @@ private extension BalancesService {
         account: Account,
         tokens: [Token]
     ) async throws {
-        if client.isSupported(.multipleBalances) {
-            printDebug("Requesting bulk balances for \(account.address)")
-            var remainingTokens = tokens
+        guard client.isSupported(.multipleBalances) else {
+            printDebug("Requesting individual balances for \(account.address)")
+            throw Error.notImplemented // FIXME
+        }
 
+        printDebug("Requesting bulk balances for \(account.address)")
+        var remainingTokens = tokens
+
+        await withTaskGroup(of: Void.self) { group in
             while !remainingTokens.isEmpty {
                 let batch = Array(remainingTokens.prefix(20))
+                remainingTokens.removeFirst(batch.count)
 
-                Task.detached {
+                group.addTask {
                     do {
                         try await self.updateBalances(account: account, client: client, tokens: batch)
                     } catch {
                         printError(error)
                     }
                 }
-
-                remainingTokens.removeFirst(batch.count)
             }
-        } else {
-            printDebug("Requesting individual balances for \(account.address)")
-            throw Error.notImplemented // FIXME
+
+            await group.waitForAll()
         }
     }
 

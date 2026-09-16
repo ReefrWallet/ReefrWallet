@@ -129,6 +129,7 @@ extension AccountModel {
             derivationPath: account.derivationPath,
             keyStore: keyStore,
             name: account.name,
+            rpcURLOverride: account.rpcURLOverride,
             signatureScheme: account.signatureScheme
         )
     }

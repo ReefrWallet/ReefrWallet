@@ -6,16 +6,25 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import CoreGraphics
+import Foundation
 import XCTest
 import XCUIAutomation
 
+private let testMnemonic = "test test test test test test test test test test test junk"
+
 final class SidebarUITests: XCTestCase {
-    func testWindowAppears() {
-        let app = XCUIApplication()
+    private var app: XCUIApplication!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+
+        app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
+        app.launchArguments = ["--test", "--mnemonic", testMnemonic]
         app.launch()
+    }
 
+    func testWindowAppears() {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
-
-        app.terminate()
     }
 }

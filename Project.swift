@@ -87,7 +87,9 @@ private let walletScheme: Scheme = .scheme(
     runAction: .runAction(
         executable: .executable(.target(wallet.name)),
         arguments: .arguments(launchArguments: [
-            .launchArgument(name: "--drop-accounts", isEnabled: false)
+            .launchArgument(name: "--drop-accounts", isEnabled: false),
+            .launchArgument(name: "--drop-balances", isEnabled: false),
+            .launchArgument(name: "--drop-tokens", isEnabled: false)
         ])
     )
 )

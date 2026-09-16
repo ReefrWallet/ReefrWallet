@@ -5,8 +5,8 @@ final class KeyStoreService {
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var deviceManager = HardwareDeviceManager()
 
-    @MainActor
-    func addLocalKey(_ mnemonic: Mnemonic) async throws {
+    @discardableResult @MainActor
+    func addLocalKey(_ mnemonic: Mnemonic) async throws -> KeyStore? {
         let keyStore = KeyStore(
             deviceId: nil,
             kind: .local,
@@ -16,7 +16,8 @@ final class KeyStoreService {
             vendor: nil
         )
 
-        try await databaseService.insertKeyStore(keyStore)
+        let keyStoreId = try await databaseService.insertKeyStore(keyStore)
+        return try await databaseService.fetchKeyStore(id: keyStoreId)
     }
 
     @MainActor

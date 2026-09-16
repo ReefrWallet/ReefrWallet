@@ -14,7 +14,7 @@ final class BlockchainClientProvider {
     }
 
     private var clients: [Target: AnyBlockchainClient] = [:]
-    private var builders: [WKBlockchain: AnyBlockchainTransactionBuilder] = [:]
+    private var builders: [Target: AnyBlockchainTransactionBuilder] = [:]
 
     /// Returns the cached ``AnyBlockchainClient`` for `blockchain`, creating
     /// one on the first call.
@@ -34,10 +34,11 @@ final class BlockchainClientProvider {
     ///
     /// - Throws: ``WalletKitError`` if the blockchain's endpoint URL is
     ///   invalid or the blockchain is not yet supported.
-    func getBuilder(blockchain: WKBlockchain) throws -> AnyBlockchainTransactionBuilder {
-        if let builder = builders[blockchain] { return builder }
-        let builder = try makeBuilder(blockchain: blockchain)
-        builders[blockchain] = builder
+    func getBuilder(blockchain: WKBlockchain, rpcURL: URL? = nil) throws -> AnyBlockchainTransactionBuilder {
+        let target = Target(blockchain: blockchain, rpcURL: rpcURL)
+        if let builder = builders[target] { return builder }
+        let builder = try makeBuilder(blockchain: blockchain, rpcURL: rpcURL)
+        builders[target] = builder
         return builder
     }
 
@@ -59,8 +60,8 @@ final class BlockchainClientProvider {
         }
     }
 
-    private func makeBuilder(blockchain: WKBlockchain) throws -> AnyBlockchainTransactionBuilder {
-        let endpoint = blockchain.rpcURL
+    private func makeBuilder(blockchain: WKBlockchain, rpcURL: URL?) throws -> AnyBlockchainTransactionBuilder {
+        let endpoint = rpcURL ?? blockchain.rpcURL
 
         switch blockchain {
         case let .evm(network):

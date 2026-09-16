@@ -14,8 +14,12 @@ import WalletKit
 
 final class TransactionService {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
-    private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
+    private let databaseService: DatabaseService
+
+    init(databaseService: DatabaseService? = nil) {
+        self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
+    }
 
     /// Estimates network fees for a transfer of `token` from `account` to
     /// `recipient`.
@@ -33,7 +37,7 @@ final class TransactionService {
         account: Account
     ) async throws -> Fees {
         let blockchain = account.blockchain
-        let client = try clientProvider.getClient(blockchain: blockchain)
+        let client = try clientProvider.getClient(blockchain: blockchain, rpcURL: account.rpcURLOverride)
         let amount = try makeAmount(decimalAmount, token: token)
 
         switch blockchain {
@@ -81,7 +85,7 @@ final class TransactionService {
         let tokenId: String? = token.isNativeToken ? nil : token.address
         let options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
 
-        let builder = try clientProvider.getBuilder(blockchain: blockchain)
+        let builder = try clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
         return try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,
@@ -112,7 +116,7 @@ final class TransactionService {
     ///   - account: The sending account.
     /// - Returns: The transaction hash (Ethereum) or digest (Sui).
     func sendTransaction(_ txRequest: Data, _ txSignature: Data, account: Account) async throws -> String {
-        let client = try clientProvider.getClient(blockchain: account.blockchain)
+        let client = try clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
         return try await client.broadcast(transaction: txRequest, signature: txSignature)
     }
 }
@@ -187,7 +191,7 @@ private extension TransactionService {
         account: Account
     ) async throws -> Fees {
         // Build the unsigned transaction to get a realistic simulation.
-        let builder = try clientProvider.getBuilder(blockchain: blockchain)
+        let builder = try clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
         let bcs = try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,

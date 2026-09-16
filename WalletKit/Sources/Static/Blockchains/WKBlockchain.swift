@@ -56,7 +56,7 @@ public extension WKBlockchain {
     }
 
     var displayName: String {
-        name + (isMainnet ? "" : networkName)
+        isMainnet ? name : networkName
     }
 
     var isMainnet: Bool {

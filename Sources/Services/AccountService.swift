@@ -3,8 +3,12 @@ import SwiftData
 import WalletKit
 
 final class AccountService {
-    private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
+    private let databaseService: DatabaseService
+
+    init(databaseService: DatabaseService? = nil) {
+        self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
+    }
 
     func isValidAddress(_ address: String, for blockchain: WKBlockchain) -> Bool {
         do {
@@ -23,10 +27,11 @@ final class AccountService {
         }
     }
 
-    @MainActor
+    @MainActor @discardableResult
     func makeAccount(
         _ blockchain: WKBlockchain,
         keyStore: KeyStore,
+        rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
         watchOnlyAddress: String? = nil
     ) async throws -> Account {
@@ -86,7 +91,8 @@ final class AccountService {
             blockchain: blockchain,
             derivationPath: derivationPath,
             keyStoreId: keyStoreId,
-            name: "\(blockchain.displayName) #\(accountIndex)",
+            name: "\(blockchain.displayName) #\(accountIndex + 1)",
+            rpcURLOverride: rpcURLOverride,
             signatureScheme: effectiveSignatureScheme
         )
 

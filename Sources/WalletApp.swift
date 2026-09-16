@@ -11,19 +11,21 @@ import SwiftUI
 import WalletKit
 
 @main struct WalletApp: App {
-#if DEBUG
     var databaseService: DatabaseService!
+#if DEBUG
+    var accountService: AccountService!
     var keyStoreService: KeyStoreService!
+#endif
 
     init() {
         processPreStartupOptions()
-
         databaseService = DI.injectOrFail(DatabaseService.self)
+#if DEBUG
+        accountService = DI.injectOrFail(AccountService.self)
         keyStoreService = DI.injectOrFail(KeyStoreService.self)
-
+#endif
         processPostStartupOptions()
     }
-#endif
 
     var body: some Scene {
         WindowGroup {
@@ -44,21 +46,35 @@ import WalletKit
 
 private extension WalletApp {
     func processPostStartupOptions() {
-        if CommandLine.arguments.contains("--drop-accounts") {
-            Task {
-                try? await databaseService.deleteAllAccounts()
+        Task {
+            do {
+                if CommandLine.arguments.contains("--drop-accounts") {
+                    try await databaseService.deleteAllAccounts()
+                } else if CommandLine.arguments.contains("--drop-tokens") {
+                    try await databaseService.deleteAllTokens()
+                } else if CommandLine.arguments.contains("--drop-balances") {
+                    try await databaseService.deleteAllBalances()
+                }
+            } catch {
+                printError(error)
             }
-        }
 
-        if let index = CommandLine.arguments.firstIndex(of: "--mnemonic"), CommandLine.arguments.count > index {
-            Task {
-                let seedPhrase = CommandLine.arguments[index]
+            if let index = CommandLine.arguments.firstIndex(of: "--mnemonic"),
+               CommandLine.arguments.count > index + 1 {
+                let seedPhrase = CommandLine.arguments[index + 1]
                 printDebug("Using seed phrase from command-line arguments.")
 
                 do {
                     let mnemonic = try Mnemonic.fromPhrase(seedPhrase)
-                    try await keyStoreService.addLocalKey(mnemonic)
+                    guard let keyStore = try await keyStoreService.addLocalKey(mnemonic) else {
+                        fatalError("Cannot add key store.")
+                    }
                     printInfo("Initialized testing key store.")
+
+                    for _ in 1 ... 3 {
+                        try await accountService.makeAccount(.evm(.ethereum(.testnet)), keyStore: keyStore)
+                    }
+                    printInfo("Initialized testing accounts.")
                 } catch {
                     printError(error)
                 }
