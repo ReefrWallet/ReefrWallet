@@ -8,15 +8,22 @@
 
 import SwiftData
 import SwiftUI
+import WalletKit
 
 @main struct WalletApp: App {
+#if DEBUG
     var databaseService: DatabaseService!
+    var keyStoreService: KeyStoreService!
 
     init() {
         processPreStartupOptions()
+
         databaseService = DI.injectOrFail(DatabaseService.self)
+        keyStoreService = DI.injectOrFail(KeyStoreService.self)
+
         processPostStartupOptions()
     }
+#endif
 
     var body: some Scene {
         WindowGroup {
@@ -25,29 +32,46 @@ import SwiftUI
         .commandsRemoved()
         .modelContainer(databaseService.modelContainer)
 
-        #if os(macOS)
+#if os(macOS)
         Settings {
             SettingsView()
         }
-        #endif
+#endif
     }
 }
 
+#if DEBUG
+
 private extension WalletApp {
     func processPostStartupOptions() {
-        #if DEBUG
         if CommandLine.arguments.contains("--drop-accounts") {
             Task {
                 try? await databaseService.deleteAllAccounts()
             }
         }
-        #endif
+
+        if let index = CommandLine.arguments.firstIndex(of: "--mnemonic"), CommandLine.arguments.count > index {
+            Task {
+                let seedPhrase = CommandLine.arguments[index]
+                printDebug("Using seed phrase from command-line arguments.")
+
+                do {
+                    let mnemonic = try Mnemonic.fromPhrase(seedPhrase)
+                    try await keyStoreService.addLocalKey(mnemonic)
+                    printInfo("Initialized testing key store.")
+                } catch {
+                    printError(error)
+                }
+            }
+        }
     }
 
     func processPreStartupOptions() {
         if CommandLine.arguments.contains("--test") {
-            printInfo("Using test service injection mode")
+            printDebug("Using test service injection mode.")
             Inject.mode = .test
         }
     }
 }
+
+#endif

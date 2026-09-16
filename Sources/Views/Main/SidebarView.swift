@@ -164,37 +164,42 @@ extension SidebarView: View {
 /// decode) for rows whose selection/editing state didn't change.
 private struct SidebarAccountRow: View {
     let account: AccountModel
-    let isEditing: Bool
-    /// A closure, not a captured `Bool`: this row value (and its `Button`'s
-    /// action closure) is only rebuilt when SwiftUI re-renders it on some
-    /// *later* pass, so a `Bool` snapshotted at the last render is stale for
-    /// the very click that's about to flip it — a second click landing
-    /// before that render happens would still see the old value. Calling
-    /// this afresh inside the action reads `sidebarSelection` live, at the
-    /// moment of the click.
-    let isSelected: () -> Bool
     @Binding var editingName: String
+
+    let isEditing: () -> Bool
+    let isSelected: () -> Bool
     let onSelect: () -> Void
     let onStartEditing: () -> Void
     let onCommitEditing: () -> Void
 
     var body: some View {
         Label {
-            if isEditing {
+            if isEditing() {
                 TextField(account.name, text: $editingName)
                     .textFieldStyle(.plain)
                     .onSubmit(onCommitEditing)
+                    .accessibilityIdentifier("sidebar-account-textfield-\(account.name)")
             } else {
-                Button {
-                    if isSelected() {
-                        onStartEditing()
-                    } else {
-                        onSelect()
+                // `.onTapGesture`, not `Button`: a `Button` inside a macOS
+                // `List` row needs an extra click just to make the row/List
+                // the key view before its action fires, so the click right
+                // after selecting only shows the press effect and does
+                // nothing — a third click would be needed to actually start
+                // editing. `.onTapGesture` fires on that very next click.
+                // It's still race-free: this gesture is unconditionally
+                // present whenever not editing, regardless of selection —
+                // only the *behavior* branches on the live `isSelected()`
+                // read inside the handler.
+                Text(account.name)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if isSelected() {
+                            onStartEditing()
+                        } else {
+                            onSelect()
+                        }
                     }
-                } label: {
-                    Text(account.name)
-                }
-                .buttonStyle(.plain)
+                    .accessibilityIdentifier("sidebar-account-label-\(account.name)")
             }
         } icon: {
             account.blockchain.blockchain.logoImage
@@ -287,34 +292,34 @@ private extension SidebarView {
     }
 
     func makeAccountItem(_ account: AccountModel) -> some View {
-        // `isEditing` is resolved here, once, into a plain Bool so
-        // SidebarAccountRow's inputs stay narrow value types, letting
-        // SwiftUI skip re-running its body (and re-faulting
-        // `account.blockchain` to redraw the icon) for every other row
-        // whenever `editingId` changes elsewhere. `isSelected` stays a
-        // closure over the live `sidebarSelection` binding rather than a
-        // snapshotted Bool — see the doc comment on `SidebarAccountRow`.
         SidebarAccountRow(
             account: account,
-            isEditing: editingId == account.id,
-            isSelected: { sidebarSelection.wrappedValue == account.id },
-            editingName: $editingName
-        ) {
-            sidebarSelection.wrappedValue = account.id
-        } onStartEditing: {
-            editingName = account.name
-            editingId = account.id
-        } onCommitEditing: {
-            editingId = nil
+            editingName: $editingName,
+            isEditing: {
+                editingId == account.id
+            },
+            isSelected: {
+                sidebarSelection.wrappedValue == account.id
+            },
+            onSelect: {
+                sidebarSelection.wrappedValue = account.id
+            },
+            onStartEditing: {
+                editingName = account.name
+                editingId = account.id
+            },
+            onCommitEditing: {
+                editingId = nil
 
-            Task {
-                do {
-                    try await databaseService.renameAccount(id: account.id, name: editingName)
-                } catch {
-                    printError(error)
+                Task {
+                    do {
+                        try await databaseService.renameAccount(id: account.id, name: editingName)
+                    } catch {
+                        printError(error)
+                    }
                 }
             }
-        }
+        )
         .padding(.leading)
         .contextMenu {
             makeAccountContextMenu(account)

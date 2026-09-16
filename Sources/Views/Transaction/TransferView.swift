@@ -184,14 +184,17 @@ private extension TransferView {
 // MARK: - Logic
 
 private extension TransferView {
+    /// `true` once both transfer parameters and fees are set.
     var isNextButtonEnabled: Bool {
         parameters != nil && fees != nil
     }
 
+    /// Native reserve required by the last fee estimate, if any. Passed to `TransferParametersView`.
     var nativeFeeReserve: BigUInt? {
         estimatedFees?.nativeFeeReserve.flatMap { BigUInt($0) }
     }
 
+    /// Requests a fee estimate for `parameters` from the transaction service.
     func fetchFees(for parameters: TransferParameters) async throws -> Fees {
         let transactionService = DI.injectOrFail(TransactionService.self)
         return try await transactionService.estimateFees(
@@ -207,6 +210,7 @@ private extension TransferView {
     func estimateFees(for parameters: TransferParameters) async {
         do {
             let fees = try await fetchFees(for: parameters)
+
             guard self.parameters == parameters else {
                 return
             }

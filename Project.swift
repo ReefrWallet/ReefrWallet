@@ -59,6 +59,27 @@ private let iosTests: Target = .target(
     dependencies: [.target(name: "ReefrWallet")]
 )
 
+private let macOSUITests: Target = .target(
+    name: "ReefrWalletUITests-macOS",
+    destinations: [.mac],
+    product: .uiTests,
+    bundleId: "xyz.reefr.wallet.uitests",
+    deploymentTargets: .macOS("15.0"),
+    infoPlist: .default,
+    buildableFolders: ["UITests"],
+    scripts: [
+        .post(
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml UITests",
+            name: "SwiftLint",
+            basedOnDependencyAnalysis: false
+        )
+    ],
+    dependencies: [.target(name: "ReefrWallet")],
+    settings: .settings(base: [
+        "TEST_TARGET_NAME": "ReefrWallet"
+    ])
+)
+
 private let walletScheme: Scheme = .scheme(
     name: wallet.name,
     shared: true,
@@ -83,6 +104,15 @@ private let macOSTestsScheme: Scheme = .scheme(
     )
 )
 
+private let macOSUITestsScheme: Scheme = .scheme(
+    name: macOSUITests.name,
+    shared: true,
+    buildAction: .buildAction(targets: [.target(macOSUITests.name)]),
+    testAction: .targets(
+        [.testableTarget(target: .target(macOSUITests.name))]
+    )
+)
+
 private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
     "-L/usr/local/opt/libusb/lib"
 } else {
@@ -98,8 +128,8 @@ let project = Project(
         "OTHER_LDFLAGS[sdk=macosx*]": ["-lc++", libUsbPathFlag, "-lusb-1.0"],
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
-    targets: [wallet, macOSTests], // TODO: iOS tests need signing configured
-    schemes: [walletScheme, macOSTestsScheme],
+    targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
+    schemes: [walletScheme, macOSTestsScheme, macOSUITestsScheme],
     additionalFiles: [
         "Makefile",
         "Project.swift",
