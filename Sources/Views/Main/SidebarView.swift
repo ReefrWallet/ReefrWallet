@@ -443,8 +443,19 @@ extension SidebarView {
             let balancesService = DI.injectOrFail(BalancesService.self)
 
             for accountModel in allAccounts {
+                guard let account = try? Account(model: accountModel) else {
+                    printError("Cannot create account model")
+                    return
+                }
+
                 do {
-                    try await balancesService.updateBalances(Account(model: accountModel))
+                    try await balancesService.updateBalances(account)
+                } catch {
+                    printError(error)
+                }
+
+                do {
+                    try await balancesService.updateTokenPrices(account)
                 } catch {
                     printError(error)
                 }
