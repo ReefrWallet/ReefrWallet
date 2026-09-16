@@ -37,6 +37,8 @@ struct SidebarView {
 
     @State private var isUpdating = false
 
+    @FocusState private var isAccountsListFocused: Bool
+
     @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
@@ -82,6 +84,16 @@ extension SidebarView: View {
                         }
                 }
                 .frame(maxWidth: .infinity)
+            }
+        }
+        .focused($isAccountsListFocused)
+        .onChange(of: sidebarSelection.wrappedValue) {
+            // Switching accounts/key stores in the sidebar should steal
+            // keyboard focus back from wherever it landed (e.g. the
+            // balances table in AccountDetailsView), so arrow keys keep
+            // navigating this list.
+            if sidebarSelection.wrappedValue != nil {
+                isAccountsListFocused = true
             }
         }
         .toolbar {
@@ -153,8 +165,16 @@ extension SidebarView: View {
 private struct SidebarAccountRow: View {
     let account: AccountModel
     let isEditing: Bool
-    let isSelected: Bool
+    /// A closure, not a captured `Bool`: this row value (and its `Button`'s
+    /// action closure) is only rebuilt when SwiftUI re-renders it on some
+    /// *later* pass, so a `Bool` snapshotted at the last render is stale for
+    /// the very click that's about to flip it — a second click landing
+    /// before that render happens would still see the old value. Calling
+    /// this afresh inside the action reads `sidebarSelection` live, at the
+    /// moment of the click.
+    let isSelected: () -> Bool
     @Binding var editingName: String
+    let onSelect: () -> Void
     let onStartEditing: () -> Void
     let onCommitEditing: () -> Void
 
@@ -164,11 +184,17 @@ private struct SidebarAccountRow: View {
                 TextField(account.name, text: $editingName)
                     .textFieldStyle(.plain)
                     .onSubmit(onCommitEditing)
-            } else if isSelected {
-                Text(account.name)
-                    .onTapGesture(perform: onStartEditing)
             } else {
-                Text(account.name)
+                Button {
+                    if isSelected() {
+                        onStartEditing()
+                    } else {
+                        onSelect()
+                    }
+                } label: {
+                    Text(account.name)
+                }
+                .buttonStyle(.plain)
             }
         } icon: {
             account.blockchain.blockchain.logoImage
@@ -261,17 +287,21 @@ private extension SidebarView {
     }
 
     func makeAccountItem(_ account: AccountModel) -> some View {
-        // `isEditing`/`isSelected` are resolved here, once, into plain Bools
-        // so SidebarAccountRow's inputs are narrow value types. That lets
+        // `isEditing` is resolved here, once, into a plain Bool so
+        // SidebarAccountRow's inputs stay narrow value types, letting
         // SwiftUI skip re-running its body (and re-faulting
         // `account.blockchain` to redraw the icon) for every other row
-        // whenever `sidebarSelection`/`editingId` change elsewhere.
+        // whenever `editingId` changes elsewhere. `isSelected` stays a
+        // closure over the live `sidebarSelection` binding rather than a
+        // snapshotted Bool — see the doc comment on `SidebarAccountRow`.
         SidebarAccountRow(
             account: account,
             isEditing: editingId == account.id,
-            isSelected: sidebarSelection.wrappedValue == account.id,
+            isSelected: { sidebarSelection.wrappedValue == account.id },
             editingName: $editingName
         ) {
+            sidebarSelection.wrappedValue = account.id
+        } onStartEditing: {
             editingName = account.name
             editingId = account.id
         } onCommitEditing: {

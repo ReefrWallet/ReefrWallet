@@ -24,6 +24,8 @@ struct AccountDetailsView {
     @State private var selection: String?
     @State private var sortOrder: [KeyPathComparator<TableEntry>] = []
 
+    @FocusState private var isBalancesTableFocused: Bool
+
     @Query var accountBalances: [BalanceModel]
 
     @AppStorage("AccountBalancesTableConfig") private var columnCustomization: TableColumnCustomization<TableEntry>
@@ -104,6 +106,12 @@ extension AccountDetailsView: View {
             } else {
                 isSendButtonActive = false
             }
+
+            // Selecting a balance should steal keyboard focus from the
+            // sidebar's list so arrow keys navigate this table instead.
+            if selection != nil {
+                isBalancesTableFocused = true
+            }
         }
         .sheet(isPresented: $isTransactionSheetPresented) {
             if let selected {
@@ -140,7 +148,7 @@ private extension AccountDetailsView {
             }
             .customizationID("token")
 
-            TableColumn("BalanceModel", value: \.decimalAmount) { entry in
+            TableColumn("Balance", value: \.decimalAmount) { entry in
                 Text(entry.displayAmount)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
@@ -166,6 +174,7 @@ private extension AccountDetailsView {
                 }
             }
         }
+        .focused($isBalancesTableFocused)
     }
 
     func header(_ balances: [Balance]) -> some View {

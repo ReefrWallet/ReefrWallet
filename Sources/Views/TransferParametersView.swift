@@ -150,7 +150,7 @@ private extension TransferParametersView {
             HStack(spacing: 2) {
                 Picker(selection: $selectedBalanceId) {
                     ForEach(accountBalances, id: \.self) { balance in
-                        Text(balance.token.name)
+                        Text(balance.token.symbol)
                             .style(.medium)
                             .tag(balance.id as PersistentIdentifier?)
                     }
@@ -162,7 +162,7 @@ private extension TransferParametersView {
                 Spacer()
 
                 if let selectedBalance {
-                    Text("BalanceModel:")
+                    Text("Balance:")
                         .style(.medium, foreground: .secondary)
 
                     Text(verbatim: String(describing: selectedBalance.decimalAmount))
