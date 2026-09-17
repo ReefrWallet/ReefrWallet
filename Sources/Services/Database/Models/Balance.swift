@@ -43,7 +43,7 @@ struct Balance: Equatable, Hashable, Identifiable, Sendable {
 final class BalanceModel: Identifiable {
     var serializedAmount: Data
 
-    @Relationship
+    @Relationship(deleteRule: .noAction)
     var account: AccountModel
 
     @Relationship

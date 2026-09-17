@@ -44,24 +44,27 @@ struct DatabaseServiceTests {
         let keyStoreID = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
         let ethereum = WKBlockchain.evm(.ethereum(.mainnet))
-        let account = makeAccount(keyStoreID: keyStoreID, blockchain: ethereum)
 
-        let inserted = try await service.insertAccount(account, keyStore: keyStore)
-        let accountID = try #require(inserted.id)
+        var account = makeAccount(keyStoreID: keyStoreID, blockchain: ethereum)
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
 
-        #expect(try await service.fetchAccount(id: accountID) == inserted)
-        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID) == [inserted])
-        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID, blockchain: ethereum) == [inserted])
+        guard let accountId = account.id else {
+            throw Error.internalError
+        }
+
+        #expect(try await service.fetchAccount(id: accountId) == account)
+        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID) == [account])
+        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID, blockchain: ethereum) == [account])
         #expect(try await service.fetchAccounts(
             keyStoreId: keyStoreID,
             blockchain: .sui(.testnet)
         ).isEmpty)
 
-        try await service.renameAccount(id: accountID, name: "Renamed Account")
-        #expect(try await service.fetchAccount(id: accountID)?.name == "Renamed Account")
+        try await service.renameAccount(id: accountId, name: "Renamed Account")
+        #expect(try await service.fetchAccount(id: accountId)?.name == "Renamed Account")
 
-        try await service.deleteAccount(id: accountID)
-        #expect(try await service.fetchAccount(id: accountID) == nil)
+        try await service.deleteAccount(id: accountId)
+        #expect(try await service.fetchAccount(id: accountId) == nil)
         #expect(try await service.fetchAccounts(keyStoreId: keyStoreID).isEmpty)
     }
 
@@ -89,11 +92,9 @@ struct DatabaseServiceTests {
         let keyStoreID = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
-        let account = try await service.insertAccount(
-            makeAccount(keyStoreID: keyStoreID, blockchain: blockchain),
-            keyStore: keyStore
-        )
-        let accountID = try #require(account.id)
+        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain)
+        let accountID = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountID
 
         let token = makeToken(address: "0x0000000000000000000000000000000000000001")
         _ = try await service.insertToken(token, blockchain: blockchain)
@@ -138,11 +139,9 @@ struct DatabaseServiceTests {
         let keyStoreID = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
-        let account = try await service.insertAccount(
-            makeAccount(keyStoreID: keyStoreID, blockchain: blockchain),
-            keyStore: keyStore
-        )
-        let accountID = try #require(account.id)
+        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain)
+        let accountID = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountID
 
         let existingToken = makeToken(
             address: "0x0000000000000000000000000000000000000001",
@@ -180,16 +179,29 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let keyStoreID = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
-        let account = try await service.insertAccount(
-            makeAccount(keyStoreID: keyStoreID, blockchain: .evm(.ethereum(.mainnet))),
-            keyStore: keyStore
+        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain)
+        let accountID = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountID
+
+        let token = makeToken(address: "0x0000000000000000000000000000000000000001")
+        _ = try await service.insertToken(token, blockchain: blockchain)
+
+        let balance = Balance(
+            account: account,
+            amount: 100,
+            token: token,
+            usdValue: 12.5
         )
+        _ = try await service.saveBalance(balance)
+        #expect(try await service.fetchBalances(accountId: accountID).count == 1)
 
         try await service.deleteAllAccounts()
 
         #expect(try await service.fetchAccounts(keyStoreId: keyStoreID).isEmpty)
         #expect(try await service.fetchKeyStore(id: keyStoreID) != nil)
-        #expect(try await service.fetchAccount(id: try #require(account.id)) == nil)
+        #expect(try await service.fetchAccount(id: accountID) == nil)
+        #expect(try await service.fetchBalances(accountId: accountID).isEmpty)
     }
 
     @Test

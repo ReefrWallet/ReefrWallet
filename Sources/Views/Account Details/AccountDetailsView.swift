@@ -22,13 +22,14 @@ struct AccountDetailsView {
     @State private var isSendButtonActive = false
     @State private var isTransactionSheetPresented = false
     @State private var selection: String?
-    @State private var sortOrder: [KeyPathComparator<TableEntry>] = []
+    @State private var sortOrder: [KeyPathComparator<BalancesTableEntry>] = []
 
     @FocusState private var isBalancesTableFocused: Bool
 
     @Query var accountBalances: [BalanceModel]
 
-    @AppStorage("AccountBalancesTableConfig") private var columnCustomization: TableColumnCustomization<TableEntry>
+    @AppStorage("AccountBalancesTableConfig")
+    private var columnCustomization: TableColumnCustomization<BalancesTableEntry>
 
     init(_ account: Account, keyStore: KeyStore) {
         guard let accountId = account.id else {
@@ -49,12 +50,9 @@ struct AccountDetailsView {
 
 extension AccountDetailsView: View {
     var body: some View {
-        // `cachedBalances` is only rebuilt when the underlying SwiftData
-        // objects change (see `.task(id:)` below), not on every render.
-        // Re-deriving `[Balance]` from `accountBalances` on every body
-        // evaluation (e.g. a table row selection) would re-fault every
-        // TokenModel/AccountModel relationship and redo the BigUInt/Decimal
-        // math for the whole list just to highlight a row.
+        // `cachedBalances` is only rebuilt when the underlying SwiftData objects change, not on every render.
+        // Re-deriving `[Balance]` on every body evaluation (e.g. a table row selection) would re-fault every
+        // TokenModel/AccountModel relationship and redo the BigUInt/Decimal math for the whole list.
         let entries = makeEntries(cachedBalances.filter { !$0.token.isHidden })
         let hidden = makeEntries(cachedBalances.filter { $0.token.isHidden })
         let selected = selectedBalance(in: cachedBalances)
@@ -124,9 +122,10 @@ extension AccountDetailsView: View {
 // MARK: - Subviews
 
 private extension AccountDetailsView {
-    func balancesTable(entries: [TableEntry], hidden: [TableEntry]) -> some View {
+    // swiftlint:disable:next function_body_length
+    func balancesTable(entries: [BalancesTableEntry], hidden: [BalancesTableEntry]) -> some View {
         Table(
-            of: TableEntry.self,
+            of: BalancesTableEntry.self,
             selection: $selection,
             sortOrder: $sortOrder,
             columnCustomization: $columnCustomization
@@ -142,11 +141,20 @@ private extension AccountDetailsView {
                     }
                     .style(.medium, foreground: .primary)
                 case .hiddenBalancesTitle:
-                    Text("Hidden Balances")
+                    Text(entry.displayName)
                         .style(.smallHeader, foreground: .secondary)
+                case .none:
+                    EmptyView()
                 }
             }
             .customizationID("token")
+
+            TableColumn("Price", value: \.usdPrice) { entry in
+                Text(entry.displayUSDPrice)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
+            }
+            .customizationID("balance")
 
             TableColumn("Balance", value: \.decimalAmount) { entry in
                 Text(entry.displayAmount)
@@ -168,6 +176,10 @@ private extension AccountDetailsView {
 
             if !hidden.isEmpty {
                 DisclosureTableRow(.hiddenBalancesTitle, isExpanded: $isHiddenBalancesExpanded) {
+                    Optional<TableRow<BalancesTableEntry>>.none
+                }
+
+                if isHiddenBalancesExpanded {
                     ForEach(hidden) { balance in
                         TableRow(balance)
                     }
@@ -248,9 +260,9 @@ private extension AccountDetailsView {
 // MARK: - Logic
 
 private extension AccountDetailsView {
-    func makeEntries(_ balances: [Balance]) -> [TableEntry] {
+    func makeEntries(_ balances: [Balance]) -> [BalancesTableEntry] {
         balances
-            .map { TableEntry.balance($0) }
+            .map { BalancesTableEntry.balance($0) }
             .sorted(using: sortOrder)
     }
 
@@ -278,84 +290,6 @@ private extension AccountDetailsView {
         #elseif os(iOS)
         UIPasteboard.general.string = string
         #endif
-    }
-}
-
-// MARK: - Table Entry
-
-private enum TableEntry: Identifiable {
-    case hiddenBalancesTitle
-    case balance(Balance)
-
-    var decimalAmount: Decimal {
-        switch self {
-        case .hiddenBalancesTitle:
-            0
-        case let .balance(balance):
-            balance.decimalAmount
-        }
-    }
-
-    var displayAmount: String {
-        switch self {
-        case .hiddenBalancesTitle:
-            ""
-        case let .balance(balance):
-            balance.decimalAmount.formatted(.number)
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case .hiddenBalancesTitle:
-            "Hidden Tokens"
-        case let .balance(balance):
-            balance.token.name
-        }
-    }
-
-    var displayUSDValue: String {
-        switch self {
-        case .hiddenBalancesTitle:
-            ""
-        case let .balance(balance):
-            balance.usdValue?.formatted(.number.precision(.fractionLength(2))) ?? ""
-        }
-    }
-
-    var id: String {
-        switch self {
-        case .hiddenBalancesTitle:
-            // we don't want this selected, so generate new id each time
-            UUID().uuidString
-        case let .balance(balance):
-            if let idString = balance.idString {
-                idString
-            } else {
-                preconditionFailure()
-            }
-        }
-    }
-
-    var isIncludedInBalance: Bool {
-        if case let .balance(balance) = self {
-            if let isIncludedInBalance = balance.token.isIncludedInBalance {
-                return isIncludedInBalance
-            } else {
-                return !balance.token.isHidden
-            }
-        } else {
-            return false
-        }
-    }
-
-    var usdValue: Decimal {
-        switch self {
-        case .hiddenBalancesTitle:
-            0
-        case let .balance(balance):
-            balance.usdValue ?? 0
-        }
     }
 }
 

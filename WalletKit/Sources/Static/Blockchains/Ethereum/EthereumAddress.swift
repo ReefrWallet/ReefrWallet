@@ -67,4 +67,7 @@ public struct EthereumAddress: BlockchainAddress {
     public static func == (lhs: EthereumAddress, rhs: EthereumAddress) -> Bool {
         lhs.rawBytes == rhs.rawBytes
     }
+
+    // swiftlint:disable:next force_try
+    public static let zero = try! EthereumAddress(rawBytes: Data(repeating: 0, count: 20))
 }

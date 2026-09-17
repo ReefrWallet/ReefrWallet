@@ -54,6 +54,7 @@ struct SidebarView {
     @Query(filter: #Predicate<KeyStoreModel> { $0.rawKind == trezorRawKind })
     var hardwareKeyStores: [KeyStoreModel]
 
+    private let accountService = DI.injectOrFail(AccountService.self)
     private let databaseService = DI.injectOrFail(DatabaseService.self)
 }
 
@@ -107,11 +108,7 @@ extension SidebarView: View {
 
                     Task {
                         do {
-                            guard let accountId = deletingAccount.id else {
-                                preconditionFailure()
-                            }
-
-                            try await databaseService.deleteAccount(id: accountId)
+                            try await accountService.deleteAccount(deletingAccount)
                         } catch {
                             printError(error)
                         }
@@ -467,8 +464,12 @@ extension SidebarView {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview {
+    Inject.mode = .preview
+    let databaseService = DI.injectOrFail(DatabaseService.self)
+
     SidebarView()
+        .modelContainer(databaseService.modelContainer)
         .listStyle(.sidebar)
         .frame(width: 350)
-}
+} */

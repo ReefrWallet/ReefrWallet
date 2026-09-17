@@ -13,13 +13,19 @@ import WalletKit
 final class SavedAddressModel {
     var address: String
     var memo: String
+    var serializedBlockchain: String
 
-    @Relationship
-    var blockchain: BlockchainModel
-
-    init(address: String, blockchain: BlockchainModel, memo: String) throws {
+    init(address: String, blockchain: WKBlockchain, memo: String) throws {
         self.address = address
-        self.blockchain = blockchain
+        self.serializedBlockchain = try blockchain.asJSONString()
         self.memo = memo
+    }
+
+    var blockchain: WKBlockchain {
+        guard let blockchain: WKBlockchain = try? serializedBlockchain.decoded() else {
+            preconditionFailure()
+        }
+
+        return blockchain
     }
 }

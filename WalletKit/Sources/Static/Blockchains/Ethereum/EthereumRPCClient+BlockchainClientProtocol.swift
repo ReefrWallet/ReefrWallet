@@ -43,44 +43,23 @@ extension EthereumRPCClient: BlockchainClientProtocol {
     }
 
     public func getTokenPrice(_ token: String?) async throws -> Decimal {
-        let symbol: String
-        if let token {
-            let address = try EthereumAddress(string: token)
-            symbol = try await erc20TokenInfo(token: address).symbol
-        } else {
-            symbol = EVMBlockchain(chainId: chainId).nativeToken.symbol
+        do {
+            return try await getChainlinkPrice(token)
+        } catch {
+            guard let token else {
+                throw error
+            }
+
+            return try await getUniswapPrice(token)
         }
-
-        let feed = try await chainlinkFeedAddress(base: symbol)
-
-        async let round = latestRoundData(feed: feed)
-        async let decimalsData = call(
-            to: feed,
-            data: EthereumABI.encodeCall(selector: EthereumABI.selector("decimals()"))
-        )
-
-        guard let decimalsWord = EthereumABI.words(try await decimalsData).first,
-              let decimals = Int(exactly: EthereumABI.decodeUInt256(decimalsWord))
-        else {
-            throw BlockchainClientError.decodingFailed(reason: "empty or invalid decimals() response for price feed")
-        }
-
-        let answer = try await round.answer
-        guard answer > 0 else {
-            throw BlockchainClientError.decodingFailed(reason: "non-positive price feed answer")
-        }
-
-        return Decimal(sign: .plus, exponent: -decimals, significand: Decimal(answer))
     }
 
     public func isActiveAccount(_ owner: EthereumAddress) async throws -> Bool {
-        let balance = try await nativeBalance(of: owner)
-        guard balance == 0 else {
+        guard try await nativeBalance(of: owner) == 0 else {
             return false
         }
 
-        let nonce = try await nonce(of: owner)
-        guard nonce == 0 else {
+        guard try await nonce(of: owner) == 0 else {
             return false
         }
 

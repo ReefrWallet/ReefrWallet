@@ -23,8 +23,9 @@ extension ServiceContainer: ModuleInjecting {
     }
 }
 
-enum Inject {
+struct Inject {
     enum InjectionMode {
+        case preview
         case standard
         case test
     }
@@ -34,27 +35,30 @@ enum Inject {
     static var mode: InjectionMode = .standard {
         didSet {
             switch mode {
+            case .preview:
+                printDebug("Using preview DI mode")
+                container = Inject.buildInMemoryContainer()
             case .standard:
+                printDebug("Using standard DI mode")
                 container = Inject.buildDefaultContainer()
             case .test:
-                container = Inject.buildTestContainer()
+                printDebug("Using test DI mode")
+                container = Inject.buildInMemoryContainer()
             }
         }
     }
 
-    fileprivate static func buildDefaultContainer() -> ServiceContainer {
+    private static func buildDefaultContainer() -> ServiceContainer {
         let container = ServiceContainer()
             .registerModelContainer()
             .registerCore()
-
         return container
     }
 
-    public static var buildTestContainer: () -> ServiceContainer = {
+    private static var buildInMemoryContainer: () -> ServiceContainer = {
         let container = ServiceContainer()
             .registerModelContainer(useInMemoryStore: true)
             .registerCore()
-
         return container
     }
 }

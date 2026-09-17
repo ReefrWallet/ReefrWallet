@@ -26,11 +26,10 @@ struct BalancesServiceTests {
         let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
         let blockchain = WKBlockchain.evm(.custom(node.chainId))
-        let account = try await databaseService.insertAccount(
-            makeAccount(keyStoreID: keyStoreID, blockchain: blockchain, endpointURL: node.endpoint),
-            keyStore: keyStore
-        )
-        let accountID = try #require(account.id)
+        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain, endpointURL: node.endpoint)
+        let accountID = try await databaseService.insertAccount(account, keyStore: keyStore)
+        account.id = accountID
+
         let address = try EthereumAddress(string: account.address)
         let nativeAmount = BigUInt(5_000_000_000_000_000_000)
 
@@ -75,14 +74,14 @@ struct BalancesServiceTests {
         let balancesService = BalancesService(databaseService: databaseService)
         let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
-        let account = try await databaseService.insertAccount(
-            makeAccount(
-                keyStoreID: keyStoreID,
-                blockchain: .evm(.custom(31_337)),
-                endpointURL: URL(string: "http://localhost:8548")!
-            ),
-            keyStore: keyStore
+        
+        var account = makeAccount(
+            keyStoreID: keyStoreID,
+            blockchain: .evm(.custom(31_337)),
+            endpointURL: URL(string: "http://localhost:8548")!
         )
+
+        account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
         let accountID = try #require(account.id)
 
         try await databaseService.deleteAccount(id: accountID)

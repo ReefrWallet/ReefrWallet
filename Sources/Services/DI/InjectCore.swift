@@ -14,10 +14,14 @@ extension ServiceContainer {
         register(ModelContainer.self) {
             let modelURL = URL.applicationSupportDirectory.appending(path: "xyz.reefr.wallet/keystore.sqlite")
 
-            let configuration = if useInMemoryStore {
-                ModelConfiguration(isStoredInMemoryOnly: useInMemoryStore)
+            let configuration: ModelConfiguration
+
+            if useInMemoryStore {
+                printDebug("Using in-memory SQLite store")
+                configuration = ModelConfiguration(isStoredInMemoryOnly: useInMemoryStore)
             } else {
-                ModelConfiguration(url: modelURL)
+                printDebug("Using SQLite store at \(modelURL.path)")
+                configuration = ModelConfiguration(url: modelURL)
             }
 
             do {
@@ -52,7 +56,21 @@ extension ServiceContainer {
         }
 
         register(DatabaseService.self) {
-            DatabaseService(modelContainer: DI.injectOrFail(ModelContainer.self))
+            let databaseService = DatabaseService(modelContainer: DI.injectOrFail(ModelContainer.self))
+
+            if case .preview = Inject.mode {
+                Task {
+                    printDebug("Generating mock preview data...")
+
+                    do {
+                        try await databaseService.mockPreviewData()
+                    } catch {
+                        printError(error)
+                    }
+                }
+            }
+
+            return databaseService
         }
 
         register(HardwareService.self) {

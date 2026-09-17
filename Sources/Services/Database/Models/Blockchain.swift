@@ -19,7 +19,7 @@ final class BlockchainModel {
     @Relationship(deleteRule: .cascade)
     var nativeToken: TokenModel
 
-    @Relationship(deleteRule: .cascade, inverse: \TokenModel.blockchain)
+    @Relationship(deleteRule: .cascade)
     var tokens: [TokenModel]
 
     init(blockchain: WKBlockchain) throws {

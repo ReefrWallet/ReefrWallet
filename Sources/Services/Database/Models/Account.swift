@@ -62,10 +62,10 @@ final class AccountModel {
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
 
-    @Relationship
+    @Relationship(deleteRule: .noAction)
     var blockchain: BlockchainModel
 
-    @Relationship
+    @Relationship(deleteRule: .noAction)
     var keyStore: KeyStoreModel
 
     init(

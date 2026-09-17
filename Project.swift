@@ -84,24 +84,16 @@ private let walletScheme: Scheme = .scheme(
     name: wallet.name,
     shared: true,
     buildAction: .buildAction(targets: [.target(wallet.name)]),
+    testAction: .targets(
+        ["\(macOSTests.name)"],
+        options: .options(coverage: true, codeCoverageTargets: ["\(wallet.name)"])
+    ),
     runAction: .runAction(
         executable: .executable(.target(wallet.name)),
         arguments: .arguments(launchArguments: [
             .launchArgument(name: "--drop-accounts", isEnabled: false),
             .launchArgument(name: "--drop-balances", isEnabled: false),
             .launchArgument(name: "--drop-tokens", isEnabled: false)
-        ])
-    )
-)
-
-private let macOSTestsScheme: Scheme = .scheme(
-    name: macOSTests.name,
-    shared: true,
-    buildAction: .buildAction(targets: [.target(macOSTests.name)]),
-    testAction: .targets(
-        [.testableTarget(target: .target(macOSTests.name))],
-        arguments: .arguments(launchArguments: [
-            .launchArgument(name: "--test", isEnabled: true)
         ])
     )
 )
@@ -131,7 +123,7 @@ let project = Project(
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
     targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
-    schemes: [walletScheme, macOSTestsScheme, macOSUITestsScheme],
+    schemes: [walletScheme, macOSUITestsScheme],
     additionalFiles: [
         "Makefile",
         "Project.swift",

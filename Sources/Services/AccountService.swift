@@ -10,6 +10,14 @@ final class AccountService {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
     }
 
+    func deleteAccount(_ account: Account) async throws {
+        guard let accountId = account.id else {
+            throw Error.invalidData
+        }
+
+        try await databaseService.deleteAccount(id: accountId)
+    }
+
     func isValidAddress(_ address: String, for blockchain: WKBlockchain) -> Bool {
         do {
             switch blockchain {
@@ -85,7 +93,7 @@ final class AccountService {
             throw Error.invalidData
         }
 
-        let account = Account(
+        var account = Account(
             accountIndex: accountIndex,
             address: address,
             blockchain: blockchain,
@@ -96,7 +104,8 @@ final class AccountService {
             signatureScheme: effectiveSignatureScheme
         )
 
-        return try await databaseService.insertAccount(account, keyStore: keyStore)
+        account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
+        return account
     }
 }
 

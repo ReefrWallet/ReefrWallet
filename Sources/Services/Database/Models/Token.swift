@@ -70,10 +70,10 @@ final class TokenModel {
     var symbol: String
     var usdPrice: Decimal?
 
-    @Relationship
+    @Relationship(deleteRule: .cascade, inverse: \BalanceModel.token)
     var balances: [BalanceModel]?
 
-    @Relationship
+    @Relationship(deleteRule: .noAction, inverse: \BlockchainModel.tokens)
     var blockchain: BlockchainModel?
 
     init(

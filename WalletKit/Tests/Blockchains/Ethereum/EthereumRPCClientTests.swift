@@ -53,6 +53,25 @@ private func stubbedResult(_ result: String) -> StubURLProtocol.Session {
     StubURLProtocol.makeSession(response: .success(body: Data(#"{"jsonrpc":"2.0","id":1,"result":"\#(result)"}"#.utf8)))
 }
 
+/// `id`'s current USD price from CoinGecko's public, keyless
+/// `/simple/price` endpoint — reference data from a source entirely
+/// independent of both the RPC node and the on-chain contracts under
+/// test, unlike comparing Chainlink and Uniswap only against each other.
+/// Keyless is rate-limited to ~5 calls/min on a shared IP pool, which is
+/// why every call site wraps this in the same `withKnownIssue` used for
+/// this file's other live-network tests.
+private func coinGeckoUSDPrice(_ id: String) async throws -> Decimal {
+    let url = URL(string: "https://api.coingecko.com/api/v3/simple/price?ids=\(id)&vs_currencies=usd")!
+    let (data, _) = try await URLSession.shared.data(from: url)
+    let prices = try JSONDecoder().decode([String: [String: Decimal]].self, from: data)
+
+    guard let price = prices[id]?["usd"] else {
+        throw BlockchainClientError.decodingFailed(reason: "CoinGecko response missing \(id)'s USD price")
+    }
+
+    return price
+}
+
 @Suite(.timeLimit(.minutes(1)))
 struct EthereumRPCClientTests {
     private func makeClient(_ stub: StubURLProtocol.Session, chainId: UInt64 = 1) -> EthereumRPCClient {
@@ -366,6 +385,89 @@ struct EthereumRPCClientTests {
         }
     }
 
+    // MARK: - uniswapGetPool
+    //
+    // With `fee` omitted, `uniswapGetPool` scans every standard fee tier
+    // concurrently and picks the pool with the most liquidity — see the
+    // "(live mainnet)" tests below for coverage of that scan/selection,
+    // which needs each tier's `getPool`/`liquidity()` calls to return
+    // distinct values StubURLProtocol's single canned response can't give.
+
+    @Test func uniswapGetPoolReturnsTheDecodedPoolAddress() async throws {
+        let stub = stubbedResult(word(someOtherAddress.rawBytes).hexEncoded)
+        let pool = try await makeClient(stub).uniswapGetPool(token: someAddress)
+        #expect(pool == someOtherAddress)
+    }
+
+    @Test func uniswapGetPoolThrowsDecodingFailedWhenNoPoolExists() async throws {
+        // The Factory returns the zero address when no pool exists for
+        // the requested token/quote/fee combination.
+        let client = makeClient(stubbedResult(word(Data(repeating: 0, count: 20)).hexEncoded))
+        await #expect(throws: BlockchainClientError.self) {
+            _ = try await client.uniswapGetPool(token: someAddress)
+        }
+    }
+
+    @Test func uniswapGetPoolThrowsDecodingFailedOnAnEmptyResponse() async throws {
+        let client = makeClient(stubbedResult("0x"))
+        await #expect(throws: BlockchainClientError.self) {
+            _ = try await client.uniswapGetPool(token: someAddress)
+        }
+    }
+
+    @Test func uniswapGetPoolForwardsAProvidedQuoteFeeAndFactory() async throws {
+        // Zero-address-response trick, as elsewhere in this file, isolates
+        // the single call so the captured envelope reflects the
+        // caller-supplied factory/quote/fee rather than the defaults.
+        let stub = stubbedResult(word(Data(repeating: 0, count: 20)).hexEncoded)
+        let client = makeClient(stub)
+        await #expect(throws: BlockchainClientError.self) {
+            _ = try await client.uniswapGetPool(
+                token: someAddress,
+                quote: someOtherAddress,
+                fee: 500,
+                factory: someOtherAddress
+            )
+        }
+
+        let envelope = try capturedEnvelope(stub)
+        let params = try #require(envelope["params"] as? [Any])
+        let callObject = try #require(params[0] as? [String: Any])
+        #expect(callObject["to"] as? String == someOtherAddress.string)
+
+        let expectedData = EthereumABI.encodeCall(
+            selector: EthereumABI.selector("getPool(address,address,uint24)"),
+            parameters: [.address(someAddress), .address(someOtherAddress), .uint256(BigUInt(500))]
+        )
+        #expect(callObject["data"] as? String == expectedData.hexEncoded)
+    }
+
+    // MARK: - uniswapGetPool (live mainnet)
+    //
+    // Anyone can create a Uniswap V3 pool at any fee tier, including empty
+    // decoy/abandoned pools that would otherwise win by being checked
+    // first — this is what actually happened for a real token (ONDO)
+    // whose default 0.3% and 1% USDC pools both exist but have zero
+    // active liquidity, producing a nonsensical price. Verifying the
+    // multi-tier scan picks the pool with real liquidity needs each
+    // tier's `getPool`/`liquidity()` calls to return distinct values, one
+    // more concurrent-distinct-response case StubURLProtocol can't give.
+
+    @Test func uniswapGetPoolOfWETHPicksTheHighestLiquidityFeeTierOnTheLiveMainnet() async throws {
+        await withKnownIssue("requires network access to a live Ethereum mainnet RPC endpoint", isIntermittent: true) {
+            let client = EthereumRPCClient(endpoint: URL(string: "https://ethereum-rpc.publicnode.com")!)
+            let weth = try EthereumAddress(string: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+
+            let pool = try await client.uniswapGetPool(token: weth)
+
+            // The USDC/WETH 0.05% pool has been Uniswap V3's deepest
+            // WETH/USDC venue for years — the same pool the
+            // uniswapV3TWAPPrice live tests below use directly.
+            let expectedPool = try EthereumAddress(string: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640")
+            #expect(pool == expectedPool)
+        }
+    }
+
     // MARK: - uniswapV3TWAPPrice
 
     @Test func uniswapV3TWAPPriceThrowsWhenPeriodIsZero() async throws {
@@ -419,6 +521,110 @@ struct EthereumRPCClientTests {
             await #expect(throws: BlockchainClientError.self) {
                 _ = try await client.uniswapV3TWAPPrice(token: dai, pool: pool)
             }
+        }
+    }
+
+    // MARK: - Live mainnet prices vs external reference data
+    //
+    // `uniswapV3TWAPPriceOfWETHAgreesWithChainlinksETHPriceWithinOnePercent
+    // OnTheLiveMainnet` only checks Chainlink and Uniswap against each
+    // other, so a bug shared by both (e.g. the same wrong pool or feed)
+    // could still slip through. The two CoinGecko tests below check each
+    // individually against CoinGecko's aggregated, volume-weighted price
+    // instead — a ground truth independent of both the RPC node and the
+    // on-chain contracts.
+
+    @Test func uniswapV3TWAPPriceOfWETHAgreesWithChainlinksETHPriceWithinOnePercentOnTheLiveMainnet() async throws {
+        await withKnownIssue("requires network access to a live Ethereum mainnet RPC endpoint", isIntermittent: true) {
+            let client = EthereumRPCClient(endpoint: URL(string: "https://ethereum-rpc.publicnode.com")!)
+            let weth = try EthereumAddress(string: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+            let pool = try EthereumAddress(string: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640") // USDC/WETH 0.05%
+
+            // WETH has no Chainlink feed of its own (no "weth-usd.data.eth"
+            // ENS name), but it wraps ETH 1:1 by contract invariant, so
+            // Chainlink's ETH/USD feed (via the nil-token native-asset
+            // path) is the correct independent reference to check the
+            // Uniswap TWAP against.
+            let chainlinkPrice = try await client.getChainlinkPrice(nil)
+            let uniswapPrice = try await client.uniswapV3TWAPPrice(token: weth, pool: pool)
+
+            let difference = abs(Decimal(uniswapPrice) - chainlinkPrice) / chainlinkPrice
+            #expect(
+                difference < 0.01,
+                "Chainlink (\(chainlinkPrice)) and Uniswap TWAP (\(uniswapPrice)) ETH/USD prices differ by more than 1%"
+            )
+        }
+    }
+
+    @Test func uniswapV3TWAPPriceOfWETHAgreesWithCoinGeckosETHPriceWithinOnePercentOnTheLiveMainnet() async throws {
+        await withKnownIssue(
+            "requires network access to a live Ethereum mainnet RPC endpoint and CoinGecko",
+            isIntermittent: true
+        ) {
+            let client = EthereumRPCClient(endpoint: URL(string: "https://ethereum-rpc.publicnode.com")!)
+            let weth = try EthereumAddress(string: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+            let pool = try EthereumAddress(string: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640") // USDC/WETH 0.05%
+
+            let uniswapPrice = try await client.uniswapV3TWAPPrice(token: weth, pool: pool)
+            let coinGeckoPrice = try await coinGeckoUSDPrice("ethereum")
+
+            let difference = abs(Decimal(uniswapPrice) - coinGeckoPrice) / coinGeckoPrice
+            #expect(
+                difference < 0.01,
+                "Uniswap TWAP (\(uniswapPrice)) and CoinGecko (\(coinGeckoPrice)) ETH/USD prices differ by more than 1%"
+            )
+        }
+    }
+
+    @Test func chainlinkPriceOfETHAgreesWithCoinGeckosETHPriceWithinOnePercentOnTheLiveMainnet() async throws {
+        await withKnownIssue(
+            "requires network access to a live Ethereum mainnet RPC endpoint and CoinGecko",
+            isIntermittent: true
+        ) {
+            let client = EthereumRPCClient(endpoint: URL(string: "https://ethereum-rpc.publicnode.com")!)
+
+            let chainlinkPrice = try await client.getChainlinkPrice(nil)
+            let coinGeckoPrice = try await coinGeckoUSDPrice("ethereum")
+
+            let difference = abs(chainlinkPrice - coinGeckoPrice) / coinGeckoPrice
+            #expect(
+                difference < 0.01,
+                "Chainlink (\(chainlinkPrice)) and CoinGecko (\(coinGeckoPrice)) ETH/USD prices differ by more than 1%"
+            )
+        }
+    }
+
+    // MARK: - getUniswapPrice / getTokenPrice (live mainnet)
+    //
+    // WETH has no Chainlink feed under a "weth-usd.data.eth" ENS name, so
+    // `getTokenPrice` genuinely exercises its Uniswap fallback for it —
+    // unlike the stablecoin feeds above, this is real end-to-end coverage
+    // (pool lookup -> TWAP) that a canned response can't stand in for.
+    // `withKnownIssue(isIntermittent: true)` keeps a lack of network
+    // access (sandboxed CI, offline dev) from failing these, same as
+    // every other live-mainnet test in this file.
+
+    @Test func getUniswapPriceOfWETHIsARealisticETHPriceOnTheLiveMainnet() async throws {
+        await withKnownIssue("requires network access to a live Ethereum mainnet RPC endpoint", isIntermittent: true) {
+            let client = EthereumRPCClient(endpoint: EVMBlockchain.ethereum(.mainnet).rpcURL)
+            let weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+
+            let price = try await client.getUniswapPrice(weth)
+
+            // Broad bounds, as with uniswapV3TWAPPrice's live-mainnet
+            // test above — only meant to catch a gross unit/decimal
+            // error, not to track ETH's actual price.
+            #expect(price > 100 && price < 100_000, "WETH/USDC price \(price) is outside a realistic range")
+        }
+    }
+
+    @Test func getTokenPriceOfWETHFallsBackFromChainlinkToUniswapOnTheLiveMainnet() async throws {
+        await withKnownIssue("requires network access to a live Ethereum mainnet RPC endpoint", isIntermittent: true) {
+            let client = EthereumRPCClient(endpoint: EVMBlockchain.ethereum(.mainnet).rpcURL)
+            let weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+
+            let price = try await client.getTokenPrice(weth)
+            #expect(price > 100 && price < 100_000, "WETH price \(price) is outside a realistic range")
         }
     }
 

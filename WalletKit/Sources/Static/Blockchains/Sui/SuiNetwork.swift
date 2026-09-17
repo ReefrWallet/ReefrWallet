@@ -18,8 +18,8 @@ public enum SuiNetwork: Equatable, Hashable, Codable, Sendable {
 
     public var name: String {
         switch self {
-        case .mainnet: "Mainnet"
-        case .testnet: "Testnet"
+        case .mainnet: "Sui Mainnet"
+        case .testnet: "Sui Testnet"
         }
     }
 

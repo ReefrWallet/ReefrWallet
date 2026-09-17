@@ -46,8 +46,10 @@ private struct TransactionFixture {
     let sender: Account
     let recipient: Account
     let mockUSDCAddress: EthereumAddress
+    let secondTokenAddress: EthereumAddress
     let senderNativeAmount: BigUInt
     let senderUSDCAmount: BigUInt
+    let recipientSecondTokenAmount: BigUInt
 
     // swiftlint:disable:next function_body_length
     static func make() async throws -> TransactionFixture {
@@ -61,6 +63,10 @@ private struct TransactionFixture {
 
         let deployer = try await makeFundedDeployer(node: node, blockchain: blockchain)
         let mockUSDCAddress = try await deployMockUSDC(deployer: deployer)
+        // A second, distinct mock ERC-20 — only the recipient holds this one,
+        // and only it (never USDC) is funded there, so the recipient has a
+        // non-zero balance in a token other than the one being transferred.
+        let secondTokenAddress = try await deployMockUSDC(deployer: deployer)
 
         // Sender: `.local` keystore, so it can actually sign.
         let senderKeyStore = try await makeLocalKeyStore(
@@ -91,6 +97,7 @@ private struct TransactionFixture {
         let senderAddress = try EthereumAddress(string: sender.address)
         let senderNativeAmount = BigUInt(5_000_000_000_000_000_000)
         let senderUSDCAmount = BigUInt(200_000_000) // 200 USDC
+        let recipientSecondTokenAmount = BigUInt(75_000_000) // 75 of the second token
 
         try await fundWallet(
             deployer: deployer,
@@ -100,10 +107,33 @@ private struct TransactionFixture {
             usdc: senderUSDCAmount
         )
 
+        try await mintMockUSDC(
+            deployer: deployer,
+            mockUSDCAddress: secondTokenAddress,
+            wallet: recipientAddress,
+            amount: recipientSecondTokenAmount
+        )
+
         try await registerMockUSDCToken(
             databaseService: databaseService,
             blockchain: blockchain,
             mockUSDCAddress: mockUSDCAddress
+        )
+
+        try await databaseService.insertToken(
+            Token(
+                address: secondTokenAddress.checksummed,
+                blockchain: blockchain,
+                decimalsCount: 6,
+                imageURL: nil,
+                isHidden: false,
+                isIncludedInBalance: true,
+                isNativeToken: false,
+                name: "Mock Second Token",
+                symbol: "MOCK2",
+                usdPrice: nil
+            ),
+            blockchain: blockchain
         )
 
         try await balancesService.updateBalances(sender)
@@ -123,8 +153,10 @@ private struct TransactionFixture {
             sender: sender,
             recipient: recipient,
             mockUSDCAddress: mockUSDCAddress,
+            secondTokenAddress: secondTokenAddress,
             senderNativeAmount: senderNativeAmount,
-            senderUSDCAmount: senderUSDCAmount
+            senderUSDCAmount: senderUSDCAmount,
+            recipientSecondTokenAmount: recipientSecondTokenAmount
         )
     }
 
@@ -139,15 +171,23 @@ private struct TransactionFixture {
         let recipientId = try #require(recipient.id)
         let recipientBalances = try await databaseService.fetchBalances(accountId: recipientId)
         let recipientNative = try #require(recipientBalances.first { $0.token.isNativeToken })
-        let recipientUSDC = try #require(recipientBalances.first { $0.token.address == mockUSDCAddress.checksummed })
+        let recipientSecondToken = try #require(
+            recipientBalances.first { $0.token.address == secondTokenAddress.checksummed }
+        )
         #expect(recipientNative.amount == 0)
-        #expect(recipientUSDC.amount == 0)
+        #expect(recipientSecondToken.amount == recipientSecondTokenAmount)
+        // Zero-balance tokens aren't persisted, so no USDC balance row exists yet.
+        #expect(!recipientBalances.contains { $0.token.address == mockUSDCAddress.checksummed })
 
         // Cross-check against the chain directly.
         #expect(try await client.getNativeBalance(sender.address) == senderNativeAmount)
         #expect(try await client.getBalance(sender.address, token: mockUSDCAddress.checksummed) == senderUSDCAmount)
         #expect(try await client.getNativeBalance(recipient.address) == 0)
         #expect(try await client.getBalance(recipient.address, token: mockUSDCAddress.checksummed) == 0)
+        #expect(
+            try await client.getBalance(recipient.address, token: secondTokenAddress.checksummed)
+                == recipientSecondTokenAmount
+        )
     }
 
     /// Estimates, builds, signs, and sends a mock-USDC transfer from

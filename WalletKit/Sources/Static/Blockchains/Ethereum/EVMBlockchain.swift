@@ -111,12 +111,12 @@ public extension EVMBlockchain {
     var nativeToken: TokenInfo {
         switch self {
         case .arbitrum: TokenInfo(decimals: 18, name: "Arbitrum Ether", isNative: true, symbol: "ETH")
-        case .bsc: TokenInfo(decimals: 8, name: "Binance Coin", isNative: true, symbol: "BNB")
+        case .bsc: TokenInfo(decimals: 18, name: "Binance Coin", isNative: true, symbol: "BNB")
         case .ethereum: TokenInfo(decimals: 18, name: "Ether", isNative: true, symbol: "ETH")
 
         case let .custom(chainId): TokenInfo(
             decimals: 18,
-            name: "EVM Chain \(chainId) Ether",
+            name: "Chain-\(chainId) Ether",
             isNative: true,
             symbol: "ETH")
         }

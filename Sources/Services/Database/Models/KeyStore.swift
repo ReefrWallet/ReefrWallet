@@ -23,7 +23,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
     let deviceId: String?
     /// `nil` for newly-created keystores that haven't been persisted yet;
     /// set after the first fetch from the database.
-    let id: PersistentIdentifier?
+    var id: PersistentIdentifier?
     let kind: Kind
     let name: String
     let rawKey: Data?
