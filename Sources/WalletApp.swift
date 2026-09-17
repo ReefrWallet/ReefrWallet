@@ -12,6 +12,7 @@ import WalletKit
 
 @main struct WalletApp: App {
     var databaseService: DatabaseService!
+    var transactionSyncService: TransactionSyncService!
 #if DEBUG
     var accountService: AccountService!
     var keyStoreService: KeyStoreService!
@@ -20,11 +21,16 @@ import WalletKit
     init() {
         processPreStartupOptions()
         databaseService = DI.injectOrFail(DatabaseService.self)
+        transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
 #if DEBUG
         accountService = DI.injectOrFail(AccountService.self)
         keyStoreService = DI.injectOrFail(KeyStoreService.self)
 #endif
         processPostStartupOptions()
+        let syncService = transactionSyncService!
+        Task {
+            await syncService.startAll()
+        }
     }
 
     var body: some Scene {

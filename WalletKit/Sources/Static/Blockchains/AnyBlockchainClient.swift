@@ -40,6 +40,8 @@ public struct AnyBlockchainClient: Sendable {
     private let _isSupported: @Sendable (BlockchainClientFeature) -> Bool
     private let _estimateFee: @Sendable (AnyFeeEstimateRequest?) async throws -> FeeEstimate
     private let _broadcast: @Sendable (Data, Data) async throws -> String
+    private let _transactionHistory: @Sendable (String, BlockchainTransactionHistoryRequest) async throws -> BlockchainTransactionPage
+    private let _transactionHeads: @Sendable (String) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error>
 
     // MARK: - Initialiser
 
@@ -95,6 +97,18 @@ public struct AnyBlockchainClient: Sendable {
         }
         _broadcast = { transaction, signature in
             try await client.broadcast(transaction: transaction, signature: signature)
+        }
+        _transactionHistory = { ownerString, request in
+            let owner = try C.Address(string: ownerString)
+            return try await client.transactionHistory(owner, request: request)
+        }
+        _transactionHeads = { ownerString in
+            guard let owner = try? C.Address(string: ownerString) else {
+                return AsyncThrowingStream { continuation in
+                    continuation.finish(throwing: WalletKitError.invalidAddress(reason: "Invalid account address"))
+                }
+            }
+            return client.transactionHeads(owner)
         }
     }
 
@@ -191,5 +205,17 @@ public struct AnyBlockchainClient: Sendable {
     /// - Throws: ``BlockchainClientError`` on a transport or RPC failure.
     public func broadcast(transaction: Data, signature: Data) async throws -> String {
         try await _broadcast(transaction, signature)
+    }
+
+    /// Returns one bounded page of normalised account activity.
+    public func transactionHistory(
+        _ owner: String,
+        request: BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage {
+        try await _transactionHistory(owner, request)
+    }
+
+    public func transactionHeads(_ owner: String) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error> {
+        _transactionHeads(owner)
     }
 }

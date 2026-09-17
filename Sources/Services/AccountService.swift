@@ -4,6 +4,7 @@ import WalletKit
 
 final class AccountService {
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
+    private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
     private let databaseService: DatabaseService
 
     init(databaseService: DatabaseService? = nil) {
@@ -15,6 +16,7 @@ final class AccountService {
             throw Error.invalidData
         }
 
+        await transactionSyncService.stop(account)
         try await databaseService.deleteAccount(id: accountId)
     }
 
@@ -105,6 +107,7 @@ final class AccountService {
         )
 
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
+        await transactionSyncService.start(account)
         return account
     }
 }

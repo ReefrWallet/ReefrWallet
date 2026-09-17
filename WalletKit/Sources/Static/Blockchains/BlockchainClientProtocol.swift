@@ -31,6 +31,12 @@ public enum BlockchainClientFeature {
     /// for the reference gas price and `TransactionExecutionService.
     /// simulateTransaction` for the per-tx estimate).
     case feeEstimation
+
+    /// The node can page through transactions affecting an account.
+    case transactionHistory
+
+    /// The node can stream newly observed transactions or blocks affecting an account.
+    case transactionSubscription
 }
 
 /// The common interface shared by every blockchain client in WalletKit.
@@ -129,4 +135,30 @@ public protocol BlockchainClientProtocol {
     /// - Throws: ``BlockchainClientError`` on a transport or RPC failure, or
     ///   when the node rejects the transaction.
     func broadcast(transaction: Data, signature: Data) async throws -> String
+
+    /// Returns one bounded page of account activity. The cursor is opaque and
+    /// must be persisted unchanged by callers.
+    func transactionHistory(
+        _ owner: Address,
+        request: BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage
+
+    /// Streams newly observed heads when the node supports a live transport.
+    func transactionHeads(_ owner: Address) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error>
+}
+
+public extension BlockchainClientProtocol {
+    /// Clients opt in when their node exposes a safe account-history API.
+    func transactionHistory(
+        _ owner: Address,
+        request: BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage {
+        throw WalletKitError.unsupportedFeature
+    }
+
+    func transactionHeads(_ owner: Address) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error> {
+        AsyncThrowingStream { continuation in
+            continuation.finish(throwing: WalletKitError.unsupportedFeature)
+        }
+    }
 }

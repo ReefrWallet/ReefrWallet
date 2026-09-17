@@ -106,6 +106,9 @@ private extension BalancesServiceTests {
                 KeyStoreModel.self,
                 TokenModel.self,
                 SavedAddressModel.self,
+                WalletTransactionModel.self,
+                WalletTransactionEffectModel.self,
+                WalletTransactionSyncStateModel.self,
             configurations: configuration
         )
 

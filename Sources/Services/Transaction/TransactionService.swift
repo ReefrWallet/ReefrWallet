@@ -15,6 +15,7 @@ import WalletKit
 final class TransactionService {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
+    private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
     private let databaseService: DatabaseService
 
     init(databaseService: DatabaseService? = nil) {
@@ -117,7 +118,9 @@ final class TransactionService {
     /// - Returns: The transaction hash (Ethereum) or digest (Sui).
     func sendTransaction(_ txRequest: Data, _ txSignature: Data, account: Account) async throws -> String {
         let client = try clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
-        return try await client.broadcast(transaction: txRequest, signature: txSignature)
+        let identifier = try await client.broadcast(transaction: txRequest, signature: txSignature)
+        await transactionSyncService.recordBroadcast(identifier: identifier, account: account)
+        return identifier
     }
 }
 

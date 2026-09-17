@@ -28,8 +28,11 @@ func makeDatabaseService() throws -> DatabaseService {
             BalanceModel.self,
             BlockchainModel.self,
             KeyStoreModel.self,
-            TokenModel.self,
-            SavedAddressModel.self,
+        TokenModel.self,
+        SavedAddressModel.self,
+        WalletTransactionModel.self,
+        WalletTransactionEffectModel.self,
+        WalletTransactionSyncStateModel.self,
         configurations: configuration
     )
 

@@ -71,6 +71,8 @@ extension EthereumRPCClient: BlockchainClientProtocol {
         case .multipleBalances: true
         case .allBalances: false
         case .feeEstimation: true
+        case .transactionHistory: true
+        case .transactionSubscription: true
         }
     }
 

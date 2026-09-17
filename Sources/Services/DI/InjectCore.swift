@@ -32,6 +32,9 @@ extension ServiceContainer {
                         KeyStoreModel.self,
                         TokenModel.self,
                         SavedAddressModel.self,
+                        WalletTransactionModel.self,
+                        WalletTransactionEffectModel.self,
+                        WalletTransactionSyncStateModel.self,
                     configurations: configuration
                 )
             } catch {
@@ -83,6 +86,10 @@ extension ServiceContainer {
 
         register(TransactionService.self) {
             TransactionService()
+        }
+
+        register(TransactionSyncService.self) {
+            TransactionSyncService()
         }
 
         return self

@@ -87,6 +87,50 @@ struct DatabaseServiceTests {
     }
 
     @Test
+    func transactionsUpsertEffectsAndPersistSyncState() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreID = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreID)
+        var account = makeAccount(keyStoreID: keyStoreID, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+
+        let transaction = BlockchainTransaction(
+            identifier: "0xtransaction",
+            blockHeight: 42,
+            blockHash: "0xblock",
+            timestamp: Date(timeIntervalSince1970: 1),
+            sender: account.address,
+            status: .confirmed,
+            effects: [
+                BlockchainTransactionEffect(
+                    index: 0,
+                    kind: .nativeTransfer,
+                    amount: "100",
+                    from: account.address,
+                    to: "0x0000000000000000000000000000000000000002"
+                )
+            ]
+        )
+        try await service.saveTransactions([transaction, transaction], for: account)
+
+        let stored = try await service.fetchTransactions(accountId: try #require(account.id))
+        #expect(stored.count == 1)
+        #expect(stored[0].effects.count == 1)
+        #expect(stored[0].effects[0].amount == "100")
+
+        var state = try await service.transactionSyncState(accountId: try #require(account.id))
+        state.initialBackfillHead = 42
+        state.currentHead = 43
+        state.descendingCursor = Data([1, 2])
+        try await service.saveTransactionSyncState(state)
+
+        let restored = try await service.transactionSyncState(accountId: try #require(account.id))
+        #expect(restored.initialBackfillHead == 42)
+        #expect(restored.currentHead == 43)
+        #expect(restored.descendingCursor == Data([1, 2]))
+    }
+
+    @Test
     func balancesCanBeSavedFetchedInBatchesAndUpdated() async throws {
         let service = try makeDatabaseService()
         let keyStoreID = try await service.insertKeyStore(makeKeyStore())
@@ -241,6 +285,9 @@ extension DatabaseServiceTests {
             KeyStoreModel.self,
             TokenModel.self,
             SavedAddressModel.self,
+            WalletTransactionModel.self,
+            WalletTransactionEffectModel.self,
+            WalletTransactionSyncStateModel.self,
             configurations: configuration
         )
 

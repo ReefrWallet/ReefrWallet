@@ -58,6 +58,8 @@ extension SuiGRPCClient: BlockchainClientProtocol {
         case .multipleBalances: true
         case .allBalances: true
         case .feeEstimation: true
+        case .transactionHistory: true
+        case .transactionSubscription: true
         }
     }
 
