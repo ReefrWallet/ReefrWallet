@@ -7,9 +7,15 @@
 
 import ProjectDescription
 
+private let workspaceName = "ReefrWallet"
+
 let workspace =  Workspace(
-    name: "ReefrWallet",
+    name: workspaceName,
     projects: [".", "WalletKit"],
+    schemes: [
+        .scheme(name: "\(workspaceName)-Workspace", hidden: true),
+        .scheme(name: "Generate Project", hidden: false),
+    ],
     additionalFiles: [
         ".github/**/*",
         ".swiftlint.yml",

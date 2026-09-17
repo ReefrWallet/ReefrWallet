@@ -1,6 +1,8 @@
 import Foundation
 import ProjectDescription
 
+// MARK: Targets
+
 private let wallet: Target = .target(
     name: "ReefrWallet",
     destinations: [.mac, .iPhone, .iPad],
@@ -80,12 +82,14 @@ private let macOSUITests: Target = .target(
     ])
 )
 
+// MARK: Schemes
+
 private let walletScheme: Scheme = .scheme(
     name: wallet.name,
     shared: true,
     buildAction: .buildAction(targets: [.target(wallet.name)]),
     testAction: .targets(
-        ["\(macOSTests.name)"],
+        ["\(iosTests.name)", "\(macOSTests.name)", "\(macOSUITests.name)"],
         options: .options(coverage: true, codeCoverageTargets: ["\(wallet.name)"])
     ),
     runAction: .runAction(
@@ -98,14 +102,7 @@ private let walletScheme: Scheme = .scheme(
     )
 )
 
-private let macOSUITestsScheme: Scheme = .scheme(
-    name: macOSUITests.name,
-    shared: true,
-    buildAction: .buildAction(targets: [.target(macOSUITests.name)]),
-    testAction: .targets(
-        [.testableTarget(target: .target(macOSUITests.name))]
-    )
-)
+// MARK: - Project
 
 private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
     "-L/usr/local/opt/libusb/lib"
@@ -123,7 +120,7 @@ let project = Project(
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
     targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
-    schemes: [walletScheme, macOSUITestsScheme],
+    schemes: [walletScheme],
     additionalFiles: [
         "docs/**/*",
         "Makefile",

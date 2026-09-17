@@ -1,7 +1,7 @@
 # Codex Agent Project Instructions
 
 ## General
-- Prefer Xcode mcp over make/xcodebuild
+- Prefer Xcode mcp tools over make/xcodebuild
 - Prefer codebase-memory-mcp to files search
 - Be as succinct and concise as possible in decisions logs and other documentation you produce. Don't overexplain.
 ## Memory & System Constraints

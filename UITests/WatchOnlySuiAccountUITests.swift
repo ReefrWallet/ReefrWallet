@@ -11,17 +11,10 @@ import Foundation
 import XCTest
 import XCUIAutomation
 
-/// A real Sui testnet address expected to hold at least a native SUI
-/// balance (and possibly other coin balances). Used to reproduce, against
-/// live testnet data, a bug where balances that exist in the database
-/// never render in `AccountDetailsView`.
+/// A real Sui testnet address expected to hold at least a native SUI balance
 private let suiTestnetAddress = "0x72e49ba9922e7641d6bd23c1f6fd6e30c195634485b8427c8fba8a98de6c03b0"
 
-/// A real Sui testnet address holding only a non-native coin (USDC), no
-/// native SUI balance. Used to reproduce a related bug: an account whose
-/// only balances are unpriced (and therefore hidden) coins showed "Zero
-/// Balances" instead of a balances table with a reachable "Hidden
-/// Balances" disclosure.
+/// A real Sui testnet address holding only a non-native coin (USDC)
 private let usdcOnlySuiTestnetAddress = "0x0394a0edf52d7164a995311b56031a7e8262dff33566edcbd7b1279d380cf0bd"
 
 final class WatchOnlySuiAccountUITests: XCTestCase {
@@ -31,10 +24,6 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
         continueAfterFailure = false
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
-        // `--test` runs the app against a fresh in-memory SwiftData store
-        // (see `Inject.InjectionMode.test`), so accounts and their
-        // balances are always created from scratch — no stale on-disk
-        // data from a previous run can mask (or fake) the bug.
         app.launchArguments = ["--test"]
         app.launch()
     }
@@ -68,11 +57,8 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
         addWatchOnlyAccount(address: usdcOnlySuiTestnetAddress)
         triggerBalancesUpdate()
 
-        // This account holds no native SUI — its only balance is an
-        // unpriced coin, which is hidden from the main entries list. The
-        // balances table (and its "Hidden Balances" disclosure) must
-        // still render instead of falling back to "Zero Balances".
         let hiddenDisclosureRow = app.firstDescendant(withIdentifier: "balances-table-hidden-disclosure-row")
+
         XCTAssertTrue(
             hiddenDisclosureRow.waitForExistence(timeout: 10),
             "The Hidden Balances disclosure row itself should be visible for \(usdcOnlySuiTestnetAddress)."
@@ -96,6 +82,27 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
             usdcBalanceLabel.waitForExistence(timeout: 5),
             "USDC balance should be visible once the Hidden Balances disclosure is expanded."
         )
+    }
+
+    func testAccountDetailsTabsSwitchBetweenBalancesAndTransactions() {
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+
+        addWatchOnlyAccount(address: suiTestnetAddress)
+        triggerBalancesUpdate()
+
+        let totalValueLabel = app.staticTexts["Total Value:"]
+        XCTAssertTrue(totalValueLabel.waitForExistence(timeout: 10))
+
+        let transactionsTab = app
+            .descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Transactions"))
+            .firstMatch
+        XCTAssertTrue(transactionsTab.waitForExistence(timeout: 5))
+        transactionsTab.click()
+
+        let transactionsLabel = app.staticTexts["0 Transactions"]
+        XCTAssertTrue(transactionsLabel.waitForExistence(timeout: 5))
+        XCTAssertFalse(totalValueLabel.exists)
     }
 }
 
@@ -154,6 +161,7 @@ private extension WatchOnlySuiAccountUITests {
             predicate: NSPredicate(format: "exists == false"),
             object: submitButton
         )
+
         wait(for: [sheetDismissed], timeout: 5)
     }
 
