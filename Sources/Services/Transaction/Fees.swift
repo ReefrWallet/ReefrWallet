@@ -11,6 +11,7 @@ import WalletKit
 
 struct Fees: Equatable {
     let ethereumBaseFee: String?
+    let ethereumGasPrice: String?
     let ethereumMaxPriorityFee: String?
     let ethereumMaxFee: String?
     let suiGasBudget: String?
@@ -22,6 +23,7 @@ struct Fees: Equatable {
 
     init(
         ethereumBaseFee: String? = nil,
+        ethereumGasPrice: String? = nil,
         ethereumMaxPriorityFee: String? = nil,
         ethereumMaxFee: String? = nil,
         suiGasBudget: String? = nil,
@@ -29,6 +31,7 @@ struct Fees: Equatable {
         nativeFeeReserve: String? = nil
     ) {
         self.ethereumBaseFee = ethereumBaseFee
+        self.ethereumGasPrice = ethereumGasPrice
         self.ethereumMaxPriorityFee = ethereumMaxPriorityFee
         self.ethereumMaxFee = ethereumMaxFee
         self.suiGasBudget = suiGasBudget

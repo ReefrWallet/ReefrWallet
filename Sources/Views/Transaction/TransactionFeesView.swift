@@ -70,7 +70,7 @@ private extension TransactionFeesView {
             TextField("", text: $ethereumMaxPriorityFee)
                 .frame(height: 28)
         } label: {
-            Text("Max priority fee")
+            Text("Max priority fee per gas")
                 .style(.small, foreground: .secondary)
         }
 
@@ -81,23 +81,42 @@ private extension TransactionFeesView {
             Text("Max fee per gas")
                 .style(.small, foreground: .secondary)
         }
+
+        /* LabeledContent {
+            TextField("", text: $transactionCost)
+                .frame(height: 28)
+                .disabled(true)
+        } label: {
+            Text("Transaction cost (USD)")
+                .style(.small, foreground: .secondary)
+        } */
     }
 
     @ViewBuilder
     var suiFeesForm: some View {
         LabeledContent {
             TextField("", text: $suiGasPrice)
+                .disabled(true)
         } label: {
-            Text("Gas price")
+            Text("Gas price (MIST)")
                 .style(.small, foreground: .secondary)
         }
 
         LabeledContent {
             TextField("", text: $suiGasBudget)
         } label: {
-            Text("Gas limit")
+            Text("Gas budget")
                 .style(.small, foreground: .secondary)
         }
+
+        /* LabeledContent {
+            TextField("", text: $transactionCost)
+                .frame(height: 28)
+                .disabled(true)
+        } label: {
+            Text("Transaction cost (USD)")
+                .style(.small, foreground: .secondary)
+        } */
     }
 }
 

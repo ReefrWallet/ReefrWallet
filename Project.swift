@@ -125,6 +125,7 @@ let project = Project(
     targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
     schemes: [walletScheme, macOSUITestsScheme],
     additionalFiles: [
+        "docs/**/*",
         "Makefile",
         "Project.swift",
         "*.md"

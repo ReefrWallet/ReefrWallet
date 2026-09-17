@@ -2,6 +2,8 @@
 
 ## General
 - Prefer Xcode mcp over make/xcodebuild
+- Prefer codebase-memory-mcp to files search
+- Be as succinct and concise as possible in decisions logs and other documentation you produce. Don't overexplain.
 ## Memory & System Constraints
 - You are working in a codebase that uses Architectural Decision Records (ADRs).
 - Your shared memory resides in the `docs/decisions/` folder.
