@@ -1,5 +1,6 @@
 import Foundation
 import ProjectDescription
+import ProjectDescriptionHelpers
 
 // MARK: Targets
 
@@ -9,6 +10,7 @@ private let wallet: Target = .target(
     product: .app,
     bundleId: "xyz.reefr.wallet",
     deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
+    infoPlist: .extendingDefault(with: Project.commonInfoPlist),
     resources: ["Resources/**/*"],
     buildableFolders: ["Sources"],
     scripts: [
@@ -19,7 +21,6 @@ private let wallet: Target = .target(
         )
     ],
     dependencies: [
-        .external(name: "Moya"),
         .external(name: "SwiftyBeaver"),
         .project(target: "WalletKit", path: "WalletKit")
     ]
@@ -76,7 +77,17 @@ private let macOSUITests: Target = .target(
             basedOnDependencyAnalysis: false
         )
     ],
-    dependencies: [.target(name: "ReefrWallet")],
+    dependencies: [
+        .target(name: "ReefrWallet"),
+        .project(target: "WalletKit", path: "WalletKit"),
+        .project(target: "WalletKitGRPC", path: "WalletKit"),
+        .project(target: "WalletKitRust", path: "WalletKit"),
+        .external(name: "BigInt"),
+        .external(name: "GRPCCore"),
+        .external(name: "GRPCNIOTransportHTTP2Posix"),
+        .external(name: "SwiftProtobuf"),
+        .external(name: "GRPCProtobuf")
+    ],
     settings: .settings(base: [
         "TEST_TARGET_NAME": "ReefrWallet"
     ])
@@ -112,6 +123,7 @@ private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/usr/loc
 
 let project = Project(
     name: "ReefrWallet",
+    organizationName: Project.organizationName,
     settings: .settings(base: [
         "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,

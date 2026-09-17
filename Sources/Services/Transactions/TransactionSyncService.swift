@@ -21,9 +21,14 @@ actor TransactionSyncService {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private let databaseService: DatabaseService
     private var tasks: [PersistentIdentifier: Task<Void, Never>] = [:]
+    private let transactionHistorySources: [any TransactionHistorySource]
 
-    init(databaseService: DatabaseService? = nil) {
+    init(
+        databaseService: DatabaseService? = nil,
+        transactionHistorySources: [any TransactionHistorySource] = [BlockscoutTransactionHistorySource()]
+    ) {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
+        self.transactionHistorySources = transactionHistorySources
     }
 
     func startAll() async {
@@ -110,8 +115,9 @@ private extension TransactionSyncService {
                 return
             }
 
-            let page = try await client.transactionHistory(
-                account.address,
+            let page = try await transactionHistory(
+                account: account,
+                client: client,
                 request: BlockchainTransactionHistoryRequest(
                     cursor: state.descendingCursor,
                     direction: .descending,
@@ -213,6 +219,18 @@ private extension TransactionSyncService {
                 return
             }
         }
+    }
+
+    func transactionHistory(
+        account: Account,
+        client: AnyBlockchainClient,
+        request: BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage {
+        if let source = transactionHistorySources.first(where: { $0.supports(account) }) {
+            return try await source.transactionHistory(account: account, request: request)
+        }
+
+        return try await client.transactionHistory(account.address, request: request)
     }
 
     func commit(_ page: BlockchainTransactionPage, account: Account, track: Track) async throws {

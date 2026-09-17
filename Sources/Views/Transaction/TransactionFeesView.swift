@@ -24,6 +24,7 @@ struct TransactionFeesView {
     @State private var ethereumBaseFee = ""
     @State private var ethereumMaxFee = ""
     @State private var ethereumMaxPriorityFee = ""
+    @State private var nativeTokenPriceUSD: Decimal?
     @State private var suiGasBudget = ""
     @State private var suiGasPrice = ""
 }
@@ -48,6 +49,9 @@ extension TransactionFeesView: View {
         }
         .onChange(of: validatedFees, initial: true) { _, newValue in
             fees = newValue
+        }
+        .task {
+            await loadNativeTokenPrice()
         }
     }
 }
@@ -82,14 +86,14 @@ private extension TransactionFeesView {
                 .style(.small, foreground: .secondary)
         }
 
-        /* LabeledContent {
-            TextField("", text: $transactionCost)
+        LabeledContent {
+            TextField("", text: transactionCost)
                 .frame(height: 28)
                 .disabled(true)
         } label: {
             Text("Transaction cost (USD)")
                 .style(.small, foreground: .secondary)
-        } */
+        }
     }
 
     @ViewBuilder
@@ -109,14 +113,14 @@ private extension TransactionFeesView {
                 .style(.small, foreground: .secondary)
         }
 
-        /* LabeledContent {
-            TextField("", text: $transactionCost)
+        LabeledContent {
+            TextField("", text: transactionCost)
                 .frame(height: 28)
                 .disabled(true)
         } label: {
             Text("Transaction cost (USD)")
                 .style(.small, foreground: .secondary)
-        } */
+        }
     }
 }
 
@@ -129,6 +133,40 @@ private extension TransactionFeesView {
         ethereumMaxFee = estimate?.ethereumMaxFee ?? ""
         suiGasBudget = estimate?.suiGasBudget ?? ""
         suiGasPrice = estimate?.suiGasPrice ?? ""
+    }
+
+    /// Fetches the native token's USD price via the blockchain's WalletKit
+    /// client, used to convert `estimatedFees.nativeFeeReserve` into a USD cost.
+    func loadNativeTokenPrice() async {
+        do {
+            let client = try DI.injectOrFail(BlockchainClientProvider.self).getClient(blockchain: blockchain)
+            nativeTokenPriceUSD = try await client.getTokenPrice(nil)
+        } catch {
+            printError(error)
+            nativeTokenPriceUSD = nil
+        }
+    }
+
+    /// Total network fee, converted from the chain's smallest unit into a
+    /// formatted USD string. Empty when the estimate or price isn't available
+    /// yet (e.g. Sui pricing isn't implemented in WalletKit).
+    var transactionCost: Binding<String> {
+        guard
+            let nativeFeeReserve = estimatedFees?.nativeFeeReserve,
+            let feeAmount = BigUInt(nativeFeeReserve),
+            let nativeTokenPriceUSD
+        else {
+            return .constant("")
+        }
+
+        let decimalFee = Decimal(
+            sign: .plus,
+            exponent: -Int(blockchain.nativeToken.decimals),
+            significand: Decimal(feeAmount)
+        )
+
+        let cost = decimalFee * nativeTokenPriceUSD
+        return .constant(cost.formatted(.currency(code: "USD")))
     }
 
     var validatedFees: Fees? {

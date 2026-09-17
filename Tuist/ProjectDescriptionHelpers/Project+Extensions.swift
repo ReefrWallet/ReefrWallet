@@ -17,7 +17,7 @@ public extension Project {
     static let commonInfoPlist: [String: Plist.Value] = [
         "CFBundleShortVersionString": "\(currentVersion)",
         "CFBundleVersion": "\(currentBuildNumber)",
-        "NSHumanReadableCopyright": "© \(currentYear) Reefr Wallet. All rights reserved."
+        "NSHumanReadableCopyright": "Copyright © \(currentYear) Reefr Wallet"
     ]
 }
 

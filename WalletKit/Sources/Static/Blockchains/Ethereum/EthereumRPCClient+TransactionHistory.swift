@@ -47,6 +47,7 @@ private struct EVMLogFilter: Encodable {
 private struct EVMHistoryLog: Codable {
     let address: String
     let blockHash: String?
+    let blockNumber: String?
     let data: String
     let logIndex: String?
     let topics: [String]
@@ -71,7 +72,7 @@ extension EthereumRPCClient {
     /// Pages direct account transactions from standard EVM full-block RPC
     /// responses. The cursor always retains the original range boundary, so a
     /// resumed descending scan cannot silently jump to a newer chain head.
-    public func transactionHistory(
+    public func transactionHistory( // swiftlint:disable:this function_body_length
         _ owner: EthereumAddress,
         request: BlockchainTransactionHistoryRequest
     ) async throws -> BlockchainTransactionPage {
@@ -80,93 +81,114 @@ extension EthereumRPCClient {
         let lowerBound = cursor?.lowerBound ?? request.lowerBound ?? 0
         let upperBound = cursor?.upperBound ?? request.upperBound ?? currentHead
         let direction = cursor?.direction ?? request.direction
-        var block = cursor?.nextBlock ?? (direction == .descending ? upperBound : lowerBound)
+        let block = cursor?.nextBlock ?? (direction == .descending ? upperBound : lowerBound)
 
         guard lowerBound <= upperBound else {
-            return BlockchainTransactionPage(transactions: [], nextCursor: nil, reachedBoundary: true, head: currentHead)
+            return BlockchainTransactionPage(
+                transactions: [],
+                nextCursor: nil,
+                reachedBoundary: true,
+                head: currentHead
+            )
+        }
+
+        let blockLimit = max(1, min(Int(request.limit), 10))
+        let blocks = historyBlocks(
+            from: block,
+            direction: direction,
+            lowerBound: lowerBound,
+            limit: blockLimit,
+            upperBound: upperBound
+        )
+        let fetchedBlocks: [EVMHistoryBlock?] = try await rpc.callBatch(
+            method: "eth_getBlockByNumber",
+            params: blocks.map {
+                EVMBlockRequest(
+                    block: "0x" + String($0, radix: 16),
+                    includeTransactions: true
+                )
+            }
+        )
+        let effectsByBlock: [UInt64: [(transactionHash: String, effect: BlockchainTransactionEffect)]]
+
+        do {
+            effectsByBlock = try await tokenEffects(owner: owner.string, blocks: blocks)
+        } catch {
+            // Token-log filtering is an optional enrichment. Public RPC nodes
+            // can reject unscoped log queries, but native transfers remain
+            // discoverable from the block's transaction list.
+            effectsByBlock = [:]
         }
 
         var transactions: [BlockchainTransaction] = []
-        let blockLimit = max(1, min(Int(request.limit), 32))
-        var scanned = 0
 
-        while scanned < blockLimit, block >= lowerBound, block <= upperBound {
-            let value = "0x" + String(block, radix: 16)
-            let fetched: EVMHistoryBlock? = try await rpc.call(
-                method: "eth_getBlockByNumber",
-                params: EVMBlockRequest(block: value, includeTransactions: true)
-            )
+        for (block, fetched) in zip(blocks, fetchedBlocks) {
+            guard let fetched else {
+                continue
+            }
 
-            if let fetched {
-                let timestamp = try fetched.timestamp.flatMap(parseEVMQuantity).map { Date(timeIntervalSince1970: TimeInterval($0)) }
-                let blockHash = fetched.hash
-                var records: [String: BlockchainTransaction] = [:]
-                for transaction in fetched.transactions where matches(owner: owner.string, transaction: transaction) {
-                    let rawPayload = try? JSONEncoder().encode(transaction)
-                    records[transaction.hash] = BlockchainTransaction(
-                        identifier: transaction.hash,
+            let timestamp = try fetched
+                .timestamp
+                .flatMap(parseEVMQuantity)
+                .map { Date(timeIntervalSince1970: TimeInterval($0)) }
+
+            let blockHash = fetched.hash
+            var records: [String: BlockchainTransaction] = [:]
+
+            for transaction in fetched.transactions where matches(owner: owner.string, transaction: transaction) {
+                let rawPayload = try? JSONEncoder().encode(transaction)
+                records[transaction.hash] = BlockchainTransaction(
+                    identifier: transaction.hash,
+                    blockHeight: block,
+                    blockHash: blockHash,
+                    timestamp: timestamp,
+                    transactionIndex: try transaction.transactionIndex.flatMap(parseEVMQuantity),
+                    sender: transaction.from,
+                    recipient: transaction.to,
+                    status: .unconfirmed,
+                    rawPayload: rawPayload
+                )
+            }
+
+            for effect in effectsByBlock[block, default: []] {
+                if let current = records[effect.transactionHash] {
+                    records[effect.transactionHash] = BlockchainTransaction(
+                        identifier: current.identifier,
+                        blockHeight: current.blockHeight,
+                        blockHash: current.blockHash,
+                        timestamp: current.timestamp,
+                        transactionIndex: current.transactionIndex,
+                        sender: current.sender,
+                        recipient: current.recipient,
+                        status: current.status,
+                        rawPayload: current.rawPayload,
+                        effects: current.effects + [effect.effect]
+                    )
+                } else {
+                    records[effect.transactionHash] = BlockchainTransaction(
+                        identifier: effect.transactionHash,
                         blockHeight: block,
                         blockHash: blockHash,
                         timestamp: timestamp,
-                        transactionIndex: try transaction.transactionIndex.flatMap(parseEVMQuantity),
-                        sender: transaction.from,
-                        recipient: transaction.to,
                         status: .unconfirmed,
-                        rawPayload: rawPayload
+                        effects: [effect.effect]
                     )
                 }
-                for effect in try await tokenEffects(owner: owner.string, block: block) {
-                    if let current = records[effect.transactionHash] {
-                        records[effect.transactionHash] = BlockchainTransaction(
-                            identifier: current.identifier,
-                            blockHeight: current.blockHeight,
-                            blockHash: current.blockHash,
-                            timestamp: current.timestamp,
-                            transactionIndex: current.transactionIndex,
-                            sender: current.sender,
-                            recipient: current.recipient,
-                            status: current.status,
-                            rawPayload: current.rawPayload,
-                            effects: current.effects + [effect.effect]
-                        )
-                    } else {
-                        records[effect.transactionHash] = BlockchainTransaction(
-                            identifier: effect.transactionHash,
-                            blockHeight: block,
-                            blockHash: blockHash,
-                            timestamp: timestamp,
-                            status: .unconfirmed,
-                            effects: [effect.effect]
-                        )
-                    }
-                }
-                transactions.append(contentsOf: records.values)
             }
 
-            scanned += 1
-            if direction == .descending {
-                if block == 0 { break }
-                block -= 1
-            } else {
-                if block == UInt64.max { break }
-                block += 1
-            }
+            transactions.append(contentsOf: records.values)
         }
 
-        let reachedBoundary: Bool
-        switch direction {
-        case .descending: reachedBoundary = block < lowerBound
-        case .ascending: reachedBoundary = block > upperBound
-        }
-
+        let reachedBoundary = blocks.last == (direction == .descending ? lowerBound : upperBound)
         let nextCursor = reachedBoundary ? nil : try JSONEncoder().encode(
             EVMHistoryCursor(
-                nextBlock: block,
+                nextBlock: direction == .descending ? block - UInt64(blocks.count) : block + UInt64(blocks.count),
                 upperBound: upperBound,
                 lowerBound: lowerBound,
                 direction: direction
             )
         )
+
         return BlockchainTransactionPage(
             transactions: transactions,
             nextCursor: nextCursor,
@@ -178,7 +200,9 @@ extension EthereumRPCClient {
     /// Subscribes to standard `eth_subscribe` / `newHeads` notifications.
     /// An HTTP-only endpoint reports an unsupported feature to the caller,
     /// which can continue using bounded forward polling.
-    public func transactionHeads(_ owner: EthereumAddress) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error> {
+    public func transactionHeads(
+        _ owner: EthereumAddress
+    ) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error> {
         guard let websocketURL = websocketEndpoint else {
             return AsyncThrowingStream { continuation in
                 continuation.finish(throwing: WalletKitError.unsupportedFeature)
@@ -189,6 +213,7 @@ extension EthereumRPCClient {
             let task = Task {
                 let socket = rpc.session.webSocketTask(with: websocketURL)
                 socket.resume()
+
                 defer { socket.cancel(with: .goingAway, reason: nil) }
 
                 do {
@@ -198,19 +223,26 @@ extension EthereumRPCClient {
                         "method": "eth_subscribe",
                         "params": ["newHeads"]
                     ]
+
                     try await socket.send(.data(JSONSerialization.data(withJSONObject: payload)))
 
                     while !Task.isCancelled {
                         let message = try await socket.receive()
                         let data: Data
+
                         switch message {
                         case let .data(value): data = value
                         case let .string(value): data = Data(value.utf8)
                         @unknown default: continue
                         }
-                        guard let response = try? JSONDecoder().decode(EVMHeadSubscriptionResponse.self, from: data),
-                              let head = response.params?.result
-                        else { continue }
+
+                        guard
+                            let response = try? JSONDecoder().decode(EVMHeadSubscriptionResponse.self, from: data),
+                            let head = response.params?.result
+                        else {
+                            continue
+                        }
+
                         continuation.yield(
                             BlockchainTransactionHead(
                                 height: try parseEVMQuantity(head.number),
@@ -219,6 +251,7 @@ extension EthereumRPCClient {
                             )
                         )
                     }
+
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -240,26 +273,86 @@ private extension EthereumRPCClient {
         return transaction.from.lowercased() == owner || transaction.to?.lowercased() == owner
     }
 
-    func tokenEffects(owner: String, block: UInt64) async throws -> [(transactionHash: String, effect: BlockchainTransactionEffect)] {
-        let blockTag = "0x" + String(block, radix: 16)
+    func historyBlocks(
+        from block: UInt64,
+        direction: BlockchainTransactionScanDirection,
+        lowerBound: UInt64,
+        limit: Int,
+        upperBound: UInt64
+    ) -> [UInt64] {
+        var blocks: [UInt64] = []
+        var nextBlock = block
+
+        while blocks.count < limit, nextBlock >= lowerBound, nextBlock <= upperBound {
+            blocks.append(nextBlock)
+
+            switch direction {
+            case .descending:
+                guard nextBlock > lowerBound else {
+                    return blocks
+                }
+
+                nextBlock -= 1
+            case .ascending:
+                guard nextBlock < upperBound else {
+                    return blocks
+                }
+
+                nextBlock += 1
+            }
+        }
+
+        return blocks
+    }
+
+    func tokenEffects(
+        owner: String,
+        blocks: [UInt64]
+    ) async throws -> [UInt64: [(transactionHash: String, effect: BlockchainTransactionEffect)]] {
+        guard let lowerBound = blocks.min(), let upperBound = blocks.max() else {
+            return [:]
+        }
+
+        let fromBlock = "0x" + String(lowerBound, radix: 16)
+        let toBlock = "0x" + String(upperBound, radix: 16)
         let ownerTopic = "0x" + String(repeating: "0", count: 24) + owner.drop0xPrefix().lowercased()
         let transfer = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
         let approval = "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
 
         async let sent: [EVMHistoryLog] = logs(
-            EVMLogFilter(fromBlock: blockTag, toBlock: blockTag, topics: [transfer, ownerTopic, nil])
+            EVMLogFilter(fromBlock: fromBlock, toBlock: toBlock, topics: [transfer, ownerTopic, nil])
         )
+
         async let received: [EVMHistoryLog] = logs(
-            EVMLogFilter(fromBlock: blockTag, toBlock: blockTag, topics: [transfer, nil, ownerTopic])
+            EVMLogFilter(fromBlock: fromBlock, toBlock: toBlock, topics: [transfer, nil, ownerTopic])
         )
+
         async let approvals: [EVMHistoryLog] = logs(
-            EVMLogFilter(fromBlock: blockTag, toBlock: blockTag, topics: [approval, ownerTopic, nil])
+            EVMLogFilter(fromBlock: fromBlock, toBlock: toBlock, topics: [approval, ownerTopic, nil])
         )
 
         let sentLogs = try await sent
         let receivedLogs = try await received
         let approvalLogs = try await approvals
-        return (sentLogs + receivedLogs).map(makeTransferEffect) + approvalLogs.map(makeApprovalEffect)
+        var effectsByBlock: [UInt64: [(transactionHash: String, effect: BlockchainTransactionEffect)]] = [:]
+
+        for log in sentLogs + receivedLogs {
+            guard let blockNumber = try log.blockNumber.map(parseEVMQuantity) else {
+                continue
+            }
+
+            effectsByBlock[blockNumber, default: []].append(makeTransferEffect(log))
+        }
+
+        for log in approvalLogs {
+            guard let blockNumber = try log.blockNumber.map(parseEVMQuantity) else {
+                continue
+            }
+
+            effectsByBlock[blockNumber, default: []].append(makeApprovalEffect(log))
+        }
+
+        return effectsByBlock
     }
 
     func logs(_ filter: EVMLogFilter) async throws -> [EVMHistoryLog] {
@@ -308,12 +401,14 @@ private extension EthereumRPCClient {
 
     var websocketEndpoint: URL? {
         guard var components = URLComponents(url: rpc.endpoint, resolvingAgainstBaseURL: false) else { return nil }
+
         switch components.scheme?.lowercased() {
         case "https": components.scheme = "wss"
         case "http": components.scheme = "ws"
         case "wss", "ws": break
         default: return nil
         }
+
         return components.url
     }
 }
@@ -326,8 +421,10 @@ private extension String {
 
 private func parseEVMQuantity(_ value: String) throws -> UInt64 {
     let digits = value.hasPrefix("0x") ? String(value.dropFirst(2)) : value
+
     guard let quantity = UInt64(digits, radix: 16) else {
         throw BlockchainClientError.decodingFailed(reason: "invalid EVM quantity: \(value)")
     }
+
     return quantity
 }

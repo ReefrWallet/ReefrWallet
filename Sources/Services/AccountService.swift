@@ -3,6 +3,7 @@ import SwiftData
 import WalletKit
 
 final class AccountService {
+    private lazy var balancesService = DI.injectOrFail(BalancesService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
     private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
     private let databaseService: DatabaseService
@@ -37,7 +38,7 @@ final class AccountService {
         }
     }
 
-    @MainActor @discardableResult
+    @MainActor @discardableResult // swiftlint:disable:next function_body_length
     func makeAccount(
         _ blockchain: WKBlockchain,
         keyStore: KeyStore,
@@ -108,6 +109,13 @@ final class AccountService {
 
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
         await transactionSyncService.start(account)
+
+        do {
+            try await balancesService.updateBalances(account)
+        } catch {
+            printError(error)
+        }
+
         return account
     }
 }

@@ -509,7 +509,13 @@ extension SuiGRPCClient {
 
         let result: ([Sui_Rpc_V2_ExecutedTransaction], Data?, Bool) = try await withLedgerServiceClient { ledger in
             let grpcRequest = Sui_Rpc_V2_ListTransactionsRequest.with {
-                $0.startCheckpoint = lowerBound
+                // Public full nodes can prune their earliest checkpoints. Leave
+                // the initial zero lower bound unset so the node uses its
+                // retained-history boundary instead of rejecting the request.
+                if lowerBound > 0 {
+                    $0.startCheckpoint = lowerBound
+                }
+
                 $0.endCheckpoint = upperBound + 1
                 $0.filter = Self.transactionFilter(owner)
                 $0.options = Sui_Rpc_V2_QueryOptions.with {

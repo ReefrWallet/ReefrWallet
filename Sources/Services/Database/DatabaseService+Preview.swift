@@ -58,6 +58,7 @@ extension DatabaseService {
         return keyStore
     }
 
+    // swiftlint:disable:next function_body_length
     func mockPreviewData() throws {
         let keyStore = try mockKeyStore(kind: .watchOnly)
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))

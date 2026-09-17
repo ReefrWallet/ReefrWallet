@@ -74,7 +74,7 @@ struct BalancesServiceTests {
         let balancesService = BalancesService(databaseService: databaseService)
         let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreID)
-        
+
         var account = makeAccount(
             keyStoreID: keyStoreID,
             blockchain: .evm(.custom(31_337)),

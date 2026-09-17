@@ -33,6 +33,7 @@ struct AccountTransactionsView: View {
     var body: some View {
         VStack {
             Text("\(transactions.count) Transactions")
+                .accessibilityIdentifier("account-transactions-count")
                 .style(.mediumHeader, foreground: .primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -47,6 +48,7 @@ struct AccountTransactionsView: View {
 
                 TableColumn("Hash") { transaction in
                     Text(transactionHash(transaction))
+                        .accessibilityIdentifier("transaction-hash-\(transactionHash(transaction))")
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }

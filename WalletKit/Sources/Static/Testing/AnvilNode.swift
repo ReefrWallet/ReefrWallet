@@ -21,9 +21,11 @@ public struct AnvilLaunchError: Error, CustomStringConvertible {
 /// unrelated tests corrupt each other's chain state.
 private func freeTCPPort() throws -> UInt16 {
     let fd = socket(AF_INET, SOCK_STREAM, 0)
+
     guard fd >= 0 else {
         throw AnvilLaunchError(description: "socket() failed while allocating a free port")
     }
+
     defer { close(fd) }
 
     var addr = sockaddr_in()
@@ -36,16 +38,19 @@ private func freeTCPPort() throws -> UInt16 {
             bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
         }
     }
+
     guard bindResult == 0 else {
         throw AnvilLaunchError(description: "bind() failed while allocating a free port")
     }
 
     var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+
     let getResult = withUnsafeMutablePointer(to: &addr) {
         $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
             getsockname(fd, $0, &len)
         }
     }
+
     guard getResult == 0 else {
         throw AnvilLaunchError(description: "getsockname() failed while allocating a free port")
     }
@@ -64,7 +69,7 @@ public struct TransactionReceipt: Decodable {
 /// A local Foundry Anvil node used by integration tests.
 public final class AnvilNode {
     public let endpoint: URL
-    public let chainId: UInt64 = 31_337
+    public let chainId: UInt64 = 0xaa36a7
 
     private let process: Process
     private let rpc: JSONRPCClient
@@ -86,6 +91,7 @@ public final class AnvilNode {
     ) async throws -> AnvilNode {
         let port = try port ?? freeTCPPort()
         let misePath = NSHomeDirectory() + "/.local/bin/mise"
+
         guard FileManager.default.fileExists(atPath: misePath) else {
             throw AnvilLaunchError(
                 description: "mise not found at \(misePath) — this repo's other tooling requires it too"
@@ -95,12 +101,13 @@ public final class AnvilNode {
         let sourceRoot = workingDirectory?.path
             ?? ProcessInfo.processInfo.environment["SRCROOT"]
             ?? FileManager.default.currentDirectoryPath
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: misePath)
         process.currentDirectoryURL = URL(fileURLWithPath: sourceRoot)
         process.arguments = [
             "-C", sourceRoot, "x", "foundry", "--",
-            "anvil", "--port", String(port), "--chain-id", "31337"
+            "anvil", "--port", String(port), "--chain-id", String(0xaa36a7)
         ]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
@@ -115,6 +122,7 @@ public final class AnvilNode {
 
         let endpoint = URL(string: "http://127.0.0.1:\(port)")!
         let node = AnvilNode(process: process, endpoint: endpoint)
+
         try await node.waitUntilReady()
         return node
     }
@@ -134,6 +142,7 @@ public final class AnvilNode {
             if let _: String = try? await rpc.call(method: "eth_blockNumber", params: [String]()) {
                 return
             }
+
             try? await Task.sleep(for: .milliseconds(200))
         }
 
@@ -161,10 +170,13 @@ public final class AnvilNode {
             method: "eth_getBalance",
             params: [address.string, "latest"]
         )
+
         let body = hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
+
         guard let balance = BigUInt(body, radix: 16) else {
             throw BlockchainClientError.decodingFailed(reason: "invalid quantity hex: \(hex)")
         }
+
         return balance
     }
 
@@ -173,20 +185,80 @@ public final class AnvilNode {
             method: "eth_getTransactionCount",
             params: [address.string, "pending"]
         )
+
         let body = hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
+
         guard let count = BigUInt(body, radix: 16) else {
             throw BlockchainClientError.decodingFailed(reason: "invalid quantity hex: \(hex)")
         }
+
         return count
     }
 
     public func gasPrice() async throws -> BigUInt {
         let hex: String = try await rpc.call(method: "eth_gasPrice", params: [String]())
         let body = hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
+
         guard let price = BigUInt(body, radix: 16) else {
             throw BlockchainClientError.decodingFailed(reason: "invalid quantity hex: \(hex)")
         }
+
         return price
+    }
+
+    /// Sends and confirms a legacy transaction using the supplied signer.
+    ///
+    /// This keeps nonce lookup, signing, broadcast, and confirmation in the
+    /// node fixture so integration and UI tests exercise the same transaction
+    /// path without duplicating JSON-RPC plumbing.
+    public func send(
+        signer: EthereumPKeySigner,
+        to: EthereumAddress?,
+        value: BigUInt = 0,
+        data: Data = Data(),
+        gasLimit: BigUInt
+    ) async throws -> String {
+        let sender = try signer.address()
+
+        let transaction = UnsignedLegacyTransaction(
+            nonce: try await transactionCount(of: sender),
+            gasPrice: try await gasPrice(),
+            gasLimit: gasLimit,
+            to: to,
+            value: value,
+            data: data,
+            chainId: chainId
+        )
+
+        let signed = try await signer.sign(transaction: transaction.signingData)
+        let hash = try await EthereumRPCClient(endpoint: endpoint, chainId: chainId).broadcast(signed)
+        let receipt = try await waitForReceipt(hash)
+
+        guard receipt.status == "0x1" else {
+            throw AnvilLaunchError(description: "transaction \(hash) reverted")
+        }
+
+        return hash
+    }
+
+    /// Mints an ERC-20 token through a test token's `mint(address,uint256)` method.
+    /// The token contract is intentionally supplied by the caller so this works
+    /// with any test ERC-20 fixture, not a hard-coded deployment.
+    public func faucetERC20(
+        signer: EthereumPKeySigner,
+        token: EthereumAddress,
+        recipient: EthereumAddress,
+        amount: BigUInt
+    ) async throws -> String {
+        try await send(
+            signer: signer,
+            to: token,
+            data: EthereumABI.encodeCall(
+                selector: EthereumABI.selector("mint(address,uint256)"),
+                parameters: [.address(recipient), .uint256(amount)]
+            ),
+            gasLimit: 100_000
+        )
     }
 
     /// Polls until Anvil returns a receipt for the transaction.
