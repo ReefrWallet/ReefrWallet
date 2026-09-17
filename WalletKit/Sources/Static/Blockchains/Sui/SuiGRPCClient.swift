@@ -24,12 +24,6 @@ import WalletKitGRPC
 /// `Sources/gRPC/sui-rpc-api-v2` submodule and compiled by `make sui-grpc`
 /// into `WalletKitGRPC`), unlike Ethereum's plain JSON-RPC over
 /// `URLSession` (``EthereumRPCClient``/``JSONRPCClient``).
-///
-/// - Note: Each call opens a fresh connection for the duration of that
-///   one RPC (via `withGRPCClient`) rather than holding a long-lived
-///   connection open across calls — simple and correct, at the cost of
-///   not reusing a connection between repeated calls from the same
-///   client instance.
 public struct SuiGRPCClient: Sendable {
     private let host: String
     private let port: Int
@@ -71,10 +65,12 @@ public struct SuiGRPCClient: Sendable {
                 $0.owner = address.string
                 $0.coinType = coinType
             }
+
             let response = try await client.getBalance(
                 request: ClientRequest(message: request),
                 options: self.callOptions
             )
+
             return response.balance.balance
         }
     }
@@ -84,10 +80,12 @@ public struct SuiGRPCClient: Sendable {
             let request = Sui_Rpc_V2_ListBalancesRequest.with {
                 $0.owner = address.string
             }
+
             let response = try await client.listBalances(
                 request: ClientRequest(message: request),
                 options: self.callOptions
             )
+
             return response.balances
         }
     }
@@ -103,14 +101,19 @@ public struct SuiGRPCClient: Sendable {
             let request = Sui_Rpc_V2_GetCoinInfoRequest.with {
                 $0.coinType = coinType
             }
+
             let response = try await client.getCoinInfo(
                 request: ClientRequest(message: request),
                 options: self.callOptions
             )
+
+            let isNative = try MoveTypeTag.canonicalCoinType(coinType)
+                == MoveTypeTag.canonicalCoinType("0x2::sui::SUI")
+
             return TokenInfo(
                 decimals: UInt8(response.metadata.decimals),
                 name: response.metadata.name,
-                isNative: response.metadata.id == "0x2::sui::SUI", // 
+                isNative: isNative,
                 symbol: response.metadata.symbol
             )
         }

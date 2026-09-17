@@ -117,7 +117,7 @@ private extension BalancesService {
                     imageURL: nil,
                     isHidden: false,
                     isIncludedInBalance: true,
-                    isNativeToken: false,
+                    isNativeToken: tokenInfo.isNative,
                     name: tokenInfo.name,
                     symbol: tokenInfo.symbol,
                     usdPrice: nil

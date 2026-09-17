@@ -12,7 +12,7 @@ import WalletKit
 
 // MARK: - AddAccountView
 
-struct AddAccountView: View {
+struct AddAccountView {
     let keyStore: KeyStore
 
     @State private var address = ""
@@ -53,7 +53,7 @@ struct AddAccountView: View {
 
 // MARK: - View
 
-extension AddAccountView {
+extension AddAccountView: View {
     var body: some View {
         VStack {
             Text("Add Blockchain Account")
@@ -68,6 +68,7 @@ extension AddAccountView {
                             Text(blockchain.name).tag(blockchain)
                         }
                     }
+                    .accessibilityIdentifier("add-account-blockchain-picker")
 
                     if selectedBlockchain != .evm(.custom(0)) {
                         Picker("Network", selection: $selectedNetwork) {
@@ -75,12 +76,13 @@ extension AddAccountView {
                                 Text("\(blockchain.networkName)").tag(blockchain)
                             }
                         }
+                        .accessibilityIdentifier("add-account-network-picker")
                     }
 
                     if case .evm = selectedBlockchain {
                         TextField("ChainId", text: $customChainId)
                             .disabled(selectedBlockchain != .evm(.custom(0)))
-                    } else if case .sui = selectedBlockchain {
+                    } else if case .sui = selectedBlockchain, !keyStore.isWatchOnly {
                         Picker("Key Scheme", selection: $selectedKeyScheme) {
                             ForEach(Curve.allCases, id: \.self) { scheme in
                                 Text(scheme.description).tag(scheme)
@@ -94,6 +96,7 @@ extension AddAccountView {
                         TextField("Watch Address", text: $address)
                             .disabled(selectedNetwork == nil)
                             .padding(.vertical)
+                            .accessibilityIdentifier("add-account-watch-address-field")
                     }
                 }
             }
@@ -159,6 +162,7 @@ private extension AddAccountView {
                 Text("Add Account")
             }
             .disabled(isAddButtonDisabled)
+            .accessibilityIdentifier("add-account-submit-button")
         }
     }
 }

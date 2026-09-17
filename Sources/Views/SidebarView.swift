@@ -232,6 +232,7 @@ private extension SidebarView {
         } label: {
             Label("Add", systemImage: "plus")
         }
+        .accessibilityIdentifier("sidebar-add-menu")
     }
 
     var addWatchOnlyAccountMenuItem: some View {
@@ -240,6 +241,7 @@ private extension SidebarView {
         } label: {
             Label("Add Watch-Only Account", systemImage: "eye")
         }
+        .accessibilityIdentifier("sidebar-add-watch-only-account-item")
     }
 
     var updateMenu: some View {
@@ -250,6 +252,7 @@ private extension SidebarView {
                 .symbolEffect(.rotate, value: isUpdating)
         }
         .disabled(allAccounts.isEmpty || isUpdating)
+        .accessibilityIdentifier("sidebar-update-button")
     }
 
     func addAccountMenuItem(keyStore: KeyStore?) -> some View {

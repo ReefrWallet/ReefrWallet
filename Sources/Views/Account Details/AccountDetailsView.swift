@@ -61,7 +61,7 @@ extension AccountDetailsView: View {
             header(cachedBalances)
                 .padding()
 
-            if !entries.isEmpty {
+            if !entries.isEmpty || !hidden.isEmpty {
                 VStack {
                     HStack(spacing: 4) {
                         Text("Total Value:")
@@ -143,6 +143,7 @@ private extension AccountDetailsView {
                 case .hiddenBalancesTitle:
                     Text(entry.displayName)
                         .style(.smallHeader, foreground: .secondary)
+                        .accessibilityIdentifier("balances-table-hidden-disclosure-row")
                 case .none:
                     EmptyView()
                 }
@@ -210,7 +211,7 @@ private extension AccountDetailsView {
             .padding(.bottom, 1)
 
             HStack {
-                Text(account.blockchain.name)
+                Text(account.blockchain.networkName)
 
                 if let derivationPath = account.derivationPath {
                     Text(verbatim: .dot)

@@ -187,10 +187,6 @@ private extension AccountService {
 
     /// Return next account index that has not yet been configured
     func nextAccountIndex(for blockchain: WKBlockchain, in keyStore: KeyStore) async throws -> UInt64 {
-        if case .watchOnly = keyStore.kind {
-            return 0
-        }
-
         guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
