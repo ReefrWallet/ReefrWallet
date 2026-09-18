@@ -141,7 +141,7 @@ private struct TransactionFixture {
 
         // Use BlockchainClientProvider directly as an independent oracle,
         // separate from the DB-backed BalancesService/TransactionService path.
-        let client = try BlockchainClientProvider().getClient(blockchain: blockchain, rpcURL: node.endpoint)
+        let client = try await BlockchainClientProvider().getClient(blockchain: blockchain, rpcURL: node.endpoint)
 
         return TransactionFixture(
             node: node,

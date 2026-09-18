@@ -38,7 +38,7 @@ final class TransactionService {
         account: Account
     ) async throws -> Fees {
         let blockchain = account.blockchain
-        let client = try clientProvider.getClient(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let client = try await clientProvider.getClient(blockchain: blockchain, rpcURL: account.rpcURLOverride)
         let amount = try makeAmount(decimalAmount, token: token)
 
         switch blockchain {
@@ -86,7 +86,7 @@ final class TransactionService {
         let tokenId: String? = token.isNativeToken ? nil : token.address
         let options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
 
-        let builder = try clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let builder = try await clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
         return try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,
@@ -117,7 +117,7 @@ final class TransactionService {
     ///   - account: The sending account.
     /// - Returns: The transaction hash (Ethereum) or digest (Sui).
     func sendTransaction(_ txRequest: Data, _ txSignature: Data, account: Account) async throws -> String {
-        let client = try clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
+        let client = try await clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
         let identifier = try await client.broadcast(transaction: txRequest, signature: txSignature)
         await transactionSyncService.recordBroadcast(identifier: identifier, account: account)
         return identifier
@@ -194,7 +194,7 @@ private extension TransactionService {
         account: Account
     ) async throws -> Fees {
         // Build the unsigned transaction to get a realistic simulation.
-        let builder = try clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let builder = try await clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
         let bcs = try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,
@@ -306,10 +306,10 @@ private extension TransactionService {
             let seed = try Seed(rawBytes: rawKey)
 
             switch account.blockchain {
-            case let .evm(network):
+            case let .evm(chain):
                 let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
                 return try EthereumPKeySigner(
-                    chainId: network.chainId,
+                    chainId: chain.chainId,
                     privateKey: privateKey,
                     derivationPath: derivationPath
                 )
@@ -330,9 +330,9 @@ private extension TransactionService {
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
 
             switch account.blockchain {
-            case let .evm(network):
+            case let .evm(chain):
                 return try await EthereumTrezorSigner(
-                    chainId: network.chainId,
+                    chainId: chain.chainId,
                     device: device,
                     derivationPath: derivationPath
                 )

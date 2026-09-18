@@ -1,33 +1,3 @@
-// Process lifecycle + the gRPC/faucet calls SuiLocalnetTests.swift needs
-// beyond what SuiGRPCClient exposes publicly (reference gas price, transaction
-// effects, faucet funding) — the Sui counterpart of AnvilNode.swift.
-//
-// Owned-coin lookup is now in SuiGRPCClient.ownedCoins(of:coinType:); this
-// file's suiCoins(of:) method delegates to it rather than duplicating the
-// implementation.
-//
-// `sui` isn't installed anywhere on this machine by default; it's pinned
-// in mise.toml (`sui = "testnet-v1.77.2"`) and run via `mise x sui --
-// sui ...`, invoked through mise's own absolute path for the same reason
-// AnvilNode.swift gives: an Xcode.app-launched test process doesn't
-// reliably inherit a dev shell's PATH. Unlike Anvil, more than one `sui`
-// version can be installed side by side (this machine has both
-// `testnet-latest` and the pinned `testnet-v1.77.2`), so the binary path
-// is resolved once via `mise which sui` (config-anchored to this repo's
-// mise.toml) rather than guessed.
-//
-// `sui start --force-regenesis` always writes its genesis/keystore/DB
-// under `$HOME/.sui/sui_config` — there's no flag to redirect that when
-// combined with `--force-regenesis` (`--network.config` explicitly
-// rejects that combination, since it expects a directory `sui genesis`
-// already populated). So `HOME` is overridden to a per-run temporary
-// directory for the launched process only, which sandboxes the network's
-// state without touching the invoking user's real `~/.sui`.
-//
-// No `withKnownIssue` gating, matching AnvilNode.swift/EthereumAnvilTests:
-// if `mise`/`sui` can't be found/run, or the node never comes up, this
-// throws a clear, actionable error and the test fails loudly.
-
 import Darwin
 import Foundation
 import GRPCCore
@@ -424,11 +394,6 @@ public final class SuiNode {
     /// Polls until `address` owns at least `minimum` SUI coin objects, up to
     /// a 30-second timeout.
     ///
-    /// Needed when the faucet is called multiple times in quick succession:
-    /// the second call returns as soon as the balance is non-zero (which may
-    /// already be true from the first call), so `faucet(_:)` alone doesn't
-    /// guarantee the second coin object has been indexed.
-    ///
     /// - Throws: ``SuiLaunchError`` if the coin count doesn't reach
     ///   `minimum` within the timeout.
     public func waitForSuiCoinCount(of address: SuiAddress, atLeast minimum: Int) async throws {
@@ -515,4 +480,4 @@ public final class SuiNode {
             try await body(Sui_Rpc_V2_LedgerService.Client(wrapping: grpcClient))
         }
     }
-}
+} // swiftlint:disable:this file_length

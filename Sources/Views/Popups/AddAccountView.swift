@@ -26,6 +26,9 @@ struct AddAccountView {
     @State private var selectedKeyScheme: Curve?
     @State private var selectedNetwork: WKBlockchain?
 
+    @State private var customEndpointURL: String = ""
+    @State private var useCustomEndpoint: Bool = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
@@ -43,8 +46,8 @@ struct AddAccountView {
         self.selectedNetwork = networks.first
         self.selectedBlockchain = selectedBlockchain
 
-        if case let .evm(network) = selectedBlockchain {
-            customChainId = "\(network.chainId)"
+        if case let .evm(chain) = selectedBlockchain {
+            customChainId = "\(chain.chainId)"
         } else {
             customChainId = ""
         }
@@ -70,7 +73,7 @@ extension AddAccountView: View {
                     }
                     .accessibilityIdentifier("add-account-blockchain-picker")
 
-                    if selectedBlockchain != .evm(.custom(0)) {
+                    if !selectedBlockchain.isCustomEVM {
                         Picker("Network", selection: $selectedNetwork) {
                             ForEach(networks, id: \.self) { blockchain in
                                 Text("\(blockchain.networkName)").tag(blockchain)
@@ -79,9 +82,9 @@ extension AddAccountView: View {
                         .accessibilityIdentifier("add-account-network-picker")
                     }
 
-                    if case .evm = selectedBlockchain {
+                    if selectedBlockchain.isCustomEVM {
                         TextField("ChainId", text: $customChainId)
-                            .disabled(selectedBlockchain != .evm(.custom(0)))
+                            .disabled(!selectedBlockchain.isCustomEVM)
                     } else if case .sui = selectedBlockchain, !keyStore.isWatchOnly {
                         Picker("Key Scheme", selection: $selectedKeyScheme) {
                             ForEach(Curve.allCases, id: \.self) { scheme in
@@ -89,6 +92,34 @@ extension AddAccountView: View {
                             }
                         }
                     }
+                }
+
+                Section {
+                    let displayedRpcUrl: Binding<String> = .init(get: {
+                        if useCustomEndpoint, !customEndpointURL.isEmpty {
+                            customEndpointURL
+                        } else {
+                            selectedNetwork?.rpcURL.absoluteString ?? ""
+                        }
+                    }, set: { newValue in
+                        if useCustomEndpoint {
+                            customEndpointURL = newValue
+                        }
+                    })
+
+                    let customRPCEnabled: Binding<Bool> = .init(
+                        get: { selectedBlockchain.isCustomEVM || useCustomEndpoint },
+                        set: { useCustomEndpoint = $0 }
+                    )
+
+                    TextField("RPC URL", text: displayedRpcUrl)
+                        .disabled(!customRPCEnabled.wrappedValue)
+                        .padding(.top)
+
+                    Toggle(isOn: customRPCEnabled) {
+                        Text("Custom RPC Endpoint")
+                    }
+                    .disabled(selectedBlockchain.isCustomEVM)
                 }
 
                 if keyStore.isWatchOnly {

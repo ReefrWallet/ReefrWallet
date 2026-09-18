@@ -83,7 +83,7 @@ private extension WalletApp {
 
                     let accountConfigurations: [(WKBlockchain, URL?)] = [
                         (.sui(.testnet), commandLineURL(after: "--sui-rpc-url")),
-                        (.evm(.ethereum(.testnet)), commandLineURL(after: "--evm-rpc-url"))
+                        (.evm(.ethereum(.sepolia)), commandLineURL(after: "--evm-rpc-url"))
                     ]
 
                     for (blockchain, rpcURL) in accountConfigurations {

@@ -36,29 +36,45 @@ struct AccountTransactionsView: View {
                 .accessibilityIdentifier("account-transactions-count")
                 .style(.mediumHeader, foreground: .primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading)
 
             Table(transactions) {
-                TableColumn("Index") { transaction in
-                    Text(transaction.transactionIndex.map(String.init) ?? "")
-                }
-
-                TableColumn("Date") { transaction in
-                    Text(transaction.timestamp?.formatted(date: .abbreviated, time: .shortened) ?? "")
-                }
-
                 TableColumn("Hash") { transaction in
                     Text(transactionHash(transaction))
                         .accessibilityIdentifier("transaction-hash-\(transactionHash(transaction))")
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
+
+                TableColumn("Method") { transaction in
+                    Text(method(transaction))
+                }
+
+                TableColumn("Block") { transaction in
+                    Text(transaction.blockHeight.map(String.init) ?? "")
+                }
+
+                TableColumn("From") { transaction in
+                    Text(transaction.sender ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                TableColumn("To") { transaction in
+                    Text(transaction.recipient ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
         }
-        .padding(.leading)
     }
 }
 
 private extension AccountTransactionsView {
+    func method(_ transaction: WalletTransactionModel) -> String {
+        transaction.effects.first?.kind ?? ""
+    }
+
     func transactionHash(_ transaction: WalletTransactionModel) -> String {
         transaction.stableID
             .split(separator: "|", maxSplits: 2)

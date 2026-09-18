@@ -28,7 +28,7 @@ struct TransactionSyncServiceTests {
         }
     }
 
-    @Test
+    @Test // swiftlint:disable:next function_body_length
     func syncsWatchOnlyEthereumSepoliaTransactions() async throws {
         let addresses = [
             "0x69267E677d8C23414Ff802301fcA99442Aafe366",
@@ -46,7 +46,7 @@ struct TransactionSyncServiceTests {
             Account(
                 accountIndex: nil,
                 address: address,
-                blockchain: .evm(.ethereum(.testnet)),
+                blockchain: .evm(.ethereum(.sepolia)),
                 derivationPath: nil,
                 keyStoreId: keyStoreID,
                 name: "Ethereum Sepolia Watch-Only #\(index + 1)"
@@ -111,10 +111,10 @@ struct TransactionSyncServiceTests {
         let defaultSource = BlockscoutTransactionHistorySource()
 
         #expect(defaultSource.supports(.evm(.arbitrum(.mainnet))))
-        #expect(defaultSource.supports(.evm(.arbitrum(.testnet))))
+        #expect(defaultSource.supports(.evm(.arbitrum(.sepolia))))
         #expect(!defaultSource.supports(.evm(.bsc(.mainnet))))
         #expect(defaultSource.supports(.evm(.ethereum(.mainnet))))
-        #expect(defaultSource.supports(.evm(.ethereum(.testnet))))
+        #expect(defaultSource.supports(.evm(.ethereum(.sepolia))))
 
         let customEndpoint = URL(string: "https://explorer.example.com/api/v2")!
         let customSource = BlockscoutTransactionHistorySource(apiBaseURLs: [
@@ -322,7 +322,7 @@ private struct TransactionSyncFixture {
             value: 1_000_000_000_000_000,
             gasLimit: 21000
         )
-        
+
         let tokenOneToTwo = try await anvilNode.send(
             signer: firstSigner,
             to: token,

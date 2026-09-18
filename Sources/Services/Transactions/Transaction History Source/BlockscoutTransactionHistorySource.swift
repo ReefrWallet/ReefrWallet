@@ -68,11 +68,11 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
 
 private extension BlockscoutTransactionHistorySource {
     func apiBaseURL(for blockchain: WKBlockchain) -> URL? {
-        guard case let .evm(evmBlockchain) = blockchain else {
+        guard case let .evm(chain) = blockchain else {
             return nil
         }
 
-        return apiBaseURLs[evmBlockchain.chainId]
+        return apiBaseURLs[chain.chainId]
     }
 }
 

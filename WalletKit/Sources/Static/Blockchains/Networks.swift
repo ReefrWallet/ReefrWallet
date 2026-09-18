@@ -86,7 +86,7 @@ public enum TronNetwork: Codable, Equatable, Hashable, Sendable {
     public var name: String {
         switch self {
         case .mainnet: "Mainnet"
-        case .testnet: "Nile Testnet"
+        case .testnet: "Nile"
         }
     }
 

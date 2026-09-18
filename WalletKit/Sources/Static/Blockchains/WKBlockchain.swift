@@ -55,8 +55,17 @@ public extension WKBlockchain {
         }
     }
 
+    /// E. g. "Ethereum Mainnet" or "Ethereum Sepolia"
     var displayName: String {
-        isMainnet ? name : networkName
+        [name, networkName].joined(separator: " ")
+    }
+
+    var isCustomEVM: Bool {
+        if case let .evm(chain) = self, case .custom = chain {
+            true
+        } else {
+            false
+        }
     }
 
     var isMainnet: Bool {
@@ -104,6 +113,7 @@ public extension WKBlockchain {
         }
     }
 
+    /// E. g. "Mainnet" or "Sepolia"
     var networkName: String {
         switch self {
         case let .bitcoin(network): network.name

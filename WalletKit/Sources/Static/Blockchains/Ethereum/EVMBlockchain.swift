@@ -9,17 +9,17 @@
 import SwiftUI
 
 public enum EVMBlockchain: Equatable, Hashable, Codable, Sendable {
-    case arbitrum(Network)
-    case bsc(Network)
-    case ethereum(Network)
+    case arbitrum(ArbitrumNetwork)
+    case bsc(BinanceNetwork)
+    case ethereum(EthereumNetwork)
     case custom(UInt64)
 
     public init(chainId: UInt64) {
         switch chainId {
         case 0x1: self = .ethereum(.mainnet)
-        case 0xaa36a7: self = .ethereum(.testnet)
+        case 0xaa36a7: self = .ethereum(.sepolia)
         case 0xa4b1: self = .arbitrum(.mainnet)
-        case 0x66eee: self = .arbitrum(.testnet)
+        case 0x66eee: self = .arbitrum(.sepolia)
         case 0x38: self = .bsc(.mainnet)
         case 0x61: self = .bsc(.testnet)
         default: self = .custom(chainId)
@@ -28,7 +28,19 @@ public enum EVMBlockchain: Equatable, Hashable, Codable, Sendable {
 }
 
 public extension EVMBlockchain {
-    enum Network: Equatable, Hashable, Codable, Sendable {
+    enum ArbitrumNetwork: Equatable, Hashable, Codable, Sendable {
+        case mainnet
+        case sepolia
+
+        var name: String {
+            switch self {
+            case .mainnet: "Mainnet"
+            case .sepolia: "Sepolia"
+            }
+        }
+    }
+
+    enum BinanceNetwork: Equatable, Hashable, Codable, Sendable {
         case mainnet
         case testnet
 
@@ -36,6 +48,18 @@ public extension EVMBlockchain {
             switch self {
             case .mainnet: "Mainnet"
             case .testnet: "Testnet"
+            }
+        }
+    }
+
+    enum EthereumNetwork: Equatable, Hashable, Codable, Sendable {
+        case mainnet
+        case sepolia
+
+        var name: String {
+            switch self {
+            case .mainnet: "Mainnet"
+            case .sepolia: "Sepolia"
             }
         }
     }
@@ -47,15 +71,15 @@ public extension EVMBlockchain {
             .evm(.arbitrum(.mainnet)),
             .evm(.bsc(.mainnet)),
             .evm(.ethereum(.mainnet)),
-            .evm(.custom(0))
+            .evm(.custom(1))
         ]
     }
 
     var allNetworks: [WKBlockchain] {
         switch self {
-        case .arbitrum: [.evm(.arbitrum(.mainnet)), .evm(.arbitrum(.testnet))]
+        case .arbitrum: [.evm(.arbitrum(.mainnet)), .evm(.arbitrum(.sepolia))]
         case .bsc: [.evm(.bsc(.mainnet)), .evm(.bsc(.testnet))]
-        case .ethereum: [.evm(.ethereum(.mainnet)), .evm(.ethereum(.testnet))]
+        case .ethereum: [.evm(.ethereum(.mainnet)), .evm(.ethereum(.sepolia))]
         case let .custom(chainId): [.evm(.custom(chainId))]
         }
     }
@@ -65,7 +89,7 @@ public extension EVMBlockchain {
         case let .arbitrum(network):
             switch network {
             case .mainnet: 0xa4b1
-            case .testnet: 0x66eee
+            case .sepolia: 0x66eee
             }
         case let .bsc(network):
             switch network {
@@ -75,7 +99,7 @@ public extension EVMBlockchain {
         case let .ethereum(network):
             switch network {
             case .mainnet: 0x1
-            case .testnet: 0xaa36a7
+            case .sepolia: 0xaa36a7
             }
         case let .custom(chainId):
             chainId
@@ -95,6 +119,19 @@ public extension EVMBlockchain {
         }
     }
 
+    var logoImage: Image {
+        switch self {
+        case .arbitrum:
+            Image("arb-logo")
+        case .bsc:
+            Image("bsc-logo")
+        case .custom:
+            Image("eth-logo")
+        case .ethereum:
+            Image("eth-logo")
+        }
+    }
+
     var name: String {
         switch self {
         case .arbitrum:
@@ -102,7 +139,7 @@ public extension EVMBlockchain {
         case .bsc:
             "BSC"
         case .custom:
-            "Custom EVM"
+            "Other EVM"
         case .ethereum:
             "Ethereum"
         }
@@ -122,29 +159,16 @@ public extension EVMBlockchain {
         }
     }
 
-    var logoImage: Image {
-        switch self {
-        case .arbitrum:
-            Image("arb-logo")
-        case .bsc:
-            Image("bsc-logo")
-        case .custom:
-            Image("eth-logo")
-        case .ethereum:
-            Image("eth-logo")
-        }
-    }
-
     var networkName: String {
         switch self {
         case let .arbitrum(network):
-            "Arbitrum \(network.name)"
+            network.name
         case let .bsc(network):
-            "BSC \(network.name)"
+            network.name
         case let .custom(chainId):
-            "Custom EVM" + (chainId > 0 ? " (id \(chainId))" : "")
+            "(\(chainId))"
         case let .ethereum(network):
-            "Ethereum \(network.name)"
+            network.name
         }
     }
 
@@ -153,7 +177,7 @@ public extension EVMBlockchain {
         case let .arbitrum(network):
             switch network {
             case .mainnet: URL(string: "https://arbitrum-one-rpc.publicnode.com")!
-            case .testnet: URL(string: "https://arbitrum-sepolia-rpc.publicnode.com")!
+            case .sepolia: URL(string: "https://arbitrum-sepolia-rpc.publicnode.com")!
             }
         case let .bsc(network):
             switch network {
@@ -163,7 +187,7 @@ public extension EVMBlockchain {
         case let .ethereum(network):
             switch network {
             case .mainnet: URL(string: "https://ethereum-rpc.publicnode.com")!
-            case .testnet: URL(string: "https://ethereum-sepolia-rpc.publicnode.com")!
+            case .sepolia: URL(string: "https://ethereum-sepolia-rpc.publicnode.com")!
             }
         case .custom:
             URL(string: "https://localhost")!
@@ -172,7 +196,9 @@ public extension EVMBlockchain {
 
     func isSameBlockchain(as other: EVMBlockchain) -> Bool {
         switch (self, other) {
-        case (.arbitrum, .arbitrum), (.bsc, .bsc), (.ethereum, .ethereum):
+        case (.arbitrum, .arbitrum),
+             (.bsc, .bsc),
+             (.ethereum, .ethereum):
             true
         case let (.custom(chainId), .custom(otherChainId)):
             chainId == otherChainId

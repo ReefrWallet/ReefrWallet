@@ -51,7 +51,7 @@ extension AccountDetailsView: View {
             TabView {
                 AccountBalancesView(balances: cachedBalances, selection: $selection)
                     .tabItem {
-                        Label("Balances", systemImage: "chart.bar")
+                        Label("Token Balances", systemImage: "chart.bar")
                     }
 
                 AccountTransactionsView(account)
@@ -110,7 +110,7 @@ private extension AccountDetailsView {
             .padding(.bottom, 1)
 
             HStack {
-                Text(account.blockchain.networkName)
+                Text(account.blockchain.displayName)
 
                 if let derivationPath = account.derivationPath {
                     Text(verbatim: .dot)
@@ -155,8 +155,3 @@ private extension AccountDetailsView {
         #endif
     }
 }
-
-/* #Preview {
-    AccountDetailsView(account: .mockEth(keyStore: try! .mockLocal()))  // swiftlint:disable:this force_try
-        .padding()
-} */

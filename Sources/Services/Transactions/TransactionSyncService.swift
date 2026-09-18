@@ -83,7 +83,7 @@ private extension TransactionSyncService {
 
     func synchronize(_ account: Account) async {
         do {
-            let client = try clientProvider.getClient(
+            let client = try await clientProvider.getClient(
                 blockchain: account.blockchain,
                 rpcURL: account.rpcURLOverride
             )

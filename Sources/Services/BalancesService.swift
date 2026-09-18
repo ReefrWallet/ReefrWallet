@@ -15,7 +15,7 @@ final class BalancesService {
     }
 
     func updateBalances(_ account: Account) async throws {
-        let client = try clientProvider.getClient(
+        let client = try await clientProvider.getClient(
             blockchain: account.blockchain,
             rpcURL: account.rpcURLOverride
         )
@@ -44,7 +44,7 @@ final class BalancesService {
     }
 
     func updateTokenPrices(_ account: Account) async throws {
-        let client = try clientProvider.getClient(
+        let client = try await clientProvider.getClient(
             blockchain: account.blockchain,
             rpcURL: account.rpcURLOverride
         )

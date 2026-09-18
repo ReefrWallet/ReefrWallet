@@ -96,24 +96,31 @@ final class AccountService {
             throw Error.invalidData
         }
 
+        let name = blockchain.isCustomEVM
+            ? blockchain.displayName
+            : (blockchain.isMainnet ? blockchain.name : blockchain.networkName)
+
         var account = Account(
             accountIndex: accountIndex,
             address: address,
             blockchain: blockchain,
             derivationPath: derivationPath,
             keyStoreId: keyStoreId,
-            name: "\(blockchain.displayName) #\(accountIndex + 1)",
+            name: "\(name) #\(accountIndex + 1)",
             rpcURLOverride: rpcURLOverride,
             signatureScheme: effectiveSignatureScheme
         )
 
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
-        await transactionSyncService.start(account)
 
-        do {
-            try await balancesService.updateBalances(account)
-        } catch {
-            printError(error)
+        Task.detached {
+            await self.transactionSyncService.start(account)
+
+            do {
+                try await self.balancesService.updateBalances(account)
+            } catch {
+                printError("Cannot update balances: \(error)")
+            }
         }
 
         return account

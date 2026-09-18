@@ -38,6 +38,7 @@ struct AccountBalancesView: View {
                         .style(.mediumHeader, foreground: .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.leading)
 
                 balancesTable(entries: entries, hidden: hidden)
 
@@ -47,7 +48,6 @@ struct AccountBalancesView: View {
                         .padding()
                 }
             }
-            .padding(.leading)
         } else {
             Text("Zero Balances")
                 .style(.medium, foreground: .secondary)

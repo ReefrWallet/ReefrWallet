@@ -3,11 +3,7 @@ import WalletKit
 
 /// Caches and vends ``AnyBlockchainClient`` and
 /// ``AnyBlockchainTransactionBuilder`` instances, one per ``WKBlockchain``.
-/// Both ``BlockchainClientProtocol`` and ``BlockchainTransactionBuilderProtocol``
-/// have `associatedtype Address`, making them PATs that cannot be used
-/// directly as existentials. The `Any…` type-erasers bridge their concrete
-/// `Address` types to `String` so callers don't need to know the chain type.
-final class BlockchainClientProvider {
+actor BlockchainClientProvider {
     private struct Target: Hashable {
         let blockchain: WKBlockchain
         let rpcURL: URL?
@@ -46,8 +42,8 @@ final class BlockchainClientProvider {
         let endpoint = rpcURL ?? blockchain.rpcURL
 
         switch blockchain {
-        case let .evm(network):
-            return AnyBlockchainClient(EthereumRPCClient(endpoint: endpoint, chainId: network.chainId))
+        case let .evm(chain):
+            return AnyBlockchainClient(EthereumRPCClient(endpoint: endpoint, chainId: chain.chainId))
         case .sui:
             guard let host = endpoint.host else {
                 throw WalletKitError.invalidAddress(reason: "Invalid Sui endpoint: \(endpoint)")
@@ -64,8 +60,8 @@ final class BlockchainClientProvider {
         let endpoint = rpcURL ?? blockchain.rpcURL
 
         switch blockchain {
-        case let .evm(network):
-            let client = EthereumRPCClient(endpoint: endpoint, chainId: network.chainId)
+        case let .evm(chain):
+            let client = EthereumRPCClient(endpoint: endpoint, chainId: chain.chainId)
             return AnyBlockchainTransactionBuilder(EthereumTransactionBuilder(client: client))
         case .sui:
             guard let host = endpoint.host else {

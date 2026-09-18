@@ -40,8 +40,13 @@ public struct AnyBlockchainClient: Sendable {
     private let _isSupported: @Sendable (BlockchainClientFeature) -> Bool
     private let _estimateFee: @Sendable (AnyFeeEstimateRequest?) async throws -> FeeEstimate
     private let _broadcast: @Sendable (Data, Data) async throws -> String
-    private let _transactionHistory: @Sendable (String, BlockchainTransactionHistoryRequest) async throws -> BlockchainTransactionPage
-    private let _transactionHeads: @Sendable (String) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error>
+    private let _transactionHeads: @Sendable (
+        String
+    ) -> AsyncThrowingStream<BlockchainTransactionHead, any Swift.Error>
+    private let _transactionHistory: @Sendable (
+        String,
+        BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage
 
     // MARK: - Initialiser
 
@@ -50,7 +55,7 @@ public struct AnyBlockchainClient: Sendable {
     ///
     /// - Parameter client: Any ``BlockchainClientProtocol`` conformer. The
     ///   client is captured by value (it's typically a struct).
-    public init<C: BlockchainClientProtocol>(_ client: C) {
+    public init<C: BlockchainClientProtocol>(_ client: C) { // swiftlint:disable:this function_body_length
         _getAllBalances = { ownerString in
             let owner = try C.Address(string: ownerString)
             return try await client.getAllBalances(owner)

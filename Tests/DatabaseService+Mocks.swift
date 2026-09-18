@@ -10,7 +10,7 @@ extension DatabaseService {
         name: String = "Test Key Store"
     ) throws -> KeyStore {
         let rawKey = mnemonic.toSeed().exportRaw()
-        
+
         let id = try insertKeyStore(KeyStore(
             deviceId: nil,
             kind: .local,

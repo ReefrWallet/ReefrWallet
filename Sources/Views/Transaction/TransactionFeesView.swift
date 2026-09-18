@@ -139,7 +139,7 @@ private extension TransactionFeesView {
     /// client, used to convert `estimatedFees.nativeFeeReserve` into a USD cost.
     func loadNativeTokenPrice() async {
         do {
-            let client = try DI.injectOrFail(BlockchainClientProvider.self).getClient(blockchain: blockchain)
+            let client = try await DI.injectOrFail(BlockchainClientProvider.self).getClient(blockchain: blockchain)
             nativeTokenPriceUSD = try await client.getTokenPrice(nil)
         } catch {
             printError(error)

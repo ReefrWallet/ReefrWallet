@@ -1,24 +1,3 @@
-// Tests for Sources/Static/Blockchains/Ethereum/EthereumRPCClient.swift —
-// the JSON-RPC method names/params each API sends, and the response
-// decoding (including its `BlockchainClientError` failure modes). Uses
-// StubURLProtocol so these exercise the real `URLSession`/`JSONRPCClient`
-// pipeline without a real network call.
-//
-// `erc20TokenInfoFetchesUSDCsMetadataFromTheLiveMainnet` and
-// `chainlinkFeedPriceForAStablecoinIsWithinOnePercentOfOneDollar` are the
-// exceptions: they hit a real public mainnet RPC endpoint. Unlike every
-// other method here, `erc20TokenInfo(token:)` fires three concurrent
-// `eth_call`s (name/symbol/decimals) over one `StubURLProtocol.Session`,
-// which only holds a single canned response and captures a single
-// last-request/body — not enough to give each of the three calls its own
-// distinct response; real USDC — a stable, well-known contract whose
-// metadata isn't going to change — sidesteps that rather than extending the
-// stub for one test. The Chainlink feed price test is a genuine end-to-end
-// check (ENS resolution -> feed address -> live oracle price) that a canned
-// response can't stand in for. `withKnownIssue(isIntermittent: true)` keeps
-// a lack of network access (sandboxed CI, offline dev) from failing these,
-// per the same reasoning as SuiGRPCClientTests.
-
 import BigInt
 import Foundation
 import Testing
@@ -72,7 +51,7 @@ private func coinGeckoUSDPrice(_ id: String) async throws -> Decimal {
     return price
 }
 
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.timeLimit(.minutes(1))) // swiftlint:disable:next type_body_length
 struct EthereumRPCClientTests {
     private func makeClient(_ stub: StubURLProtocol.Session, chainId: UInt64 = 1) -> EthereumRPCClient {
         EthereumRPCClient(endpoint: URL(string: "https://example.com/rpc")!, chainId: chainId, session: stub.urlSession)
@@ -678,4 +657,4 @@ struct EthereumRPCClientTests {
             #expect(error == .rpcError(code: -32000, message: "nonce too low"))
         }
     }
-}
+} // swiftlint:disable:this file_length

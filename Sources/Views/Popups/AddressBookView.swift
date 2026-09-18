@@ -86,6 +86,6 @@ private extension AddressBookView {
 }
 
 #Preview {
-    AddressBookView(blockchain: .evm(.ethereum(.testnet)))
+    AddressBookView(blockchain: .evm(.ethereum(.sepolia)))
         .frame(width: 500)
 }

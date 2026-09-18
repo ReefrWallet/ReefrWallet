@@ -118,6 +118,7 @@ struct EthereumPKeySignerTests {
             privateKey: privateKey,
             derivationPath: Self.derivationPath
         )
+
         await #expect(throws: WalletKitError.self) {
             _ = try await signer.sign(transaction: vector.signingDataHex.hexDecoded)
         }
@@ -133,7 +134,8 @@ struct EthereumPKeySignerTests {
             privateKey: privateKey,
             derivationPath: Self.derivationPath
         )
-        #expect(sepolia.blockchain == .evm(.ethereum(.testnet)))
+
+        #expect(sepolia.blockchain == .evm(.ethereum(.sepolia)))
     }
 
     @Test func initRejectsAnEd25519Key() throws {
