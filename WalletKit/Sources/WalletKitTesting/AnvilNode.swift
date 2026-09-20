@@ -3,6 +3,7 @@
 import BigInt
 import Darwin
 import Foundation
+import WalletKit
 
 /// An error raised when the local Anvil test node cannot be started or queried.
 public struct AnvilLaunchError: Error, CustomStringConvertible {
@@ -72,12 +73,16 @@ public final class AnvilNode {
     public let chainId: UInt64 = 0xaa36a7
 
     private let process: Process
-    private let rpc: JSONRPCClient
+    private let rpc: AnvilRPCClient
+    private let workingDirectory: URL
+    private let logHandle: FileHandle
 
-    private init(process: Process, endpoint: URL) {
+    private init(process: Process, endpoint: URL, workingDirectory: URL, logHandle: FileHandle) {
         self.process = process
         self.endpoint = endpoint
-        rpc = JSONRPCClient(endpoint: endpoint)
+        rpc = AnvilRPCClient(endpoint: endpoint)
+        self.workingDirectory = workingDirectory
+        self.logHandle = logHandle
     }
 
     /// Launches Anvil through the repository's mise-managed Foundry tool.
@@ -90,38 +95,54 @@ public final class AnvilNode {
         workingDirectory: URL? = nil
     ) async throws -> AnvilNode {
         let port = try port ?? freeTCPPort()
-        let misePath = NSHomeDirectory() + "/.local/bin/mise"
-
-        guard FileManager.default.fileExists(atPath: misePath) else {
+        guard let misePath = MiseTool.path else {
             throw AnvilLaunchError(
-                description: "mise not found at \(misePath) — this repo's other tooling requires it too"
+                description: "mise was not found in PATH or the host user's .local/bin directory"
             )
         }
 
         let sourceRoot = workingDirectory?.path
             ?? ProcessInfo.processInfo.environment["SRCROOT"]
-            ?? FileManager.default.currentDirectoryPath
+            ?? URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .path
+
+        let anvilPath = try resolveAnvilBinaryPath(misePath: misePath, sourceRoot: sourceRoot)
+        let processWorkingDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("anvil-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: processWorkingDirectory, withIntermediateDirectories: true)
+        let logURL = processWorkingDirectory.appendingPathComponent("anvil.log")
+        FileManager.default.createFile(atPath: logURL.path, contents: nil)
+        let logHandle = try FileHandle(forWritingTo: logURL)
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: misePath)
+        process.executableURL = URL(fileURLWithPath: anvilPath)
         process.currentDirectoryURL = URL(fileURLWithPath: sourceRoot)
+        process.environment = MiseTool.processEnvironment
         process.arguments = [
-            "-C", sourceRoot, "x", "foundry", "--",
-            "anvil", "--port", String(port), "--chain-id", String(0xaa36a7)
+            "--port", String(port), "--chain-id", String(0xaa36a7)
         ]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
+        process.standardOutput = logHandle
+        process.standardError = logHandle
 
         do {
             try process.run()
         } catch {
             throw AnvilLaunchError(
-                description: "failed to launch mise at \(misePath): \(error.localizedDescription)"
+                description: "failed to launch anvil at \(anvilPath): \(error.localizedDescription)"
             )
         }
 
         let endpoint = URL(string: "http://127.0.0.1:\(port)")!
-        let node = AnvilNode(process: process, endpoint: endpoint)
+        let node = AnvilNode(
+            process: process,
+            endpoint: endpoint,
+            workingDirectory: processWorkingDirectory,
+            logHandle: logHandle
+        )
 
         try await node.waitUntilReady()
         return node
@@ -129,10 +150,69 @@ public final class AnvilNode {
 
     public func stop() {
         process.terminate()
+        process.waitUntilExit()
+        try? logHandle.close()
+        try? FileManager.default.removeItem(at: workingDirectory)
     }
 
     deinit {
-        process.terminate()
+        if process.isRunning {
+            process.terminate()
+        }
+
+        try? logHandle.close()
+        try? FileManager.default.removeItem(at: workingDirectory)
+    }
+
+    private static func resolveAnvilBinaryPath(misePath: String, sourceRoot: String) throws -> String {
+        func run(_ arguments: [String]) throws -> String {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: misePath)
+            process.arguments = arguments
+            process.environment = MiseTool.processEnvironment
+
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
+
+            do {
+                try process.run()
+            } catch {
+                throw AnvilLaunchError(
+                    description: "failed to run mise \(arguments.joined(separator: " ")): \(error.localizedDescription)"
+                )
+            }
+
+            process.waitUntilExit()
+
+            let output = String(
+                data: outputPipe.fileHandleForReading.readDataToEndOfFile(),
+                encoding: .utf8
+            )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let errorOutput = String(
+                data: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+                encoding: .utf8
+            )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            guard process.terminationStatus == 0 else {
+                let details = errorOutput.isEmpty ? output : errorOutput
+                throw AnvilLaunchError(
+                    description: "mise \(arguments.joined(separator: " ")) failed (status \(process.terminationStatus)): \(details)"
+                )
+            }
+
+            return output
+        }
+
+        _ = try run(["-C", sourceRoot, "x", "foundry", "--", "true"])
+        let path = try run(["-C", sourceRoot, "which", "anvil"])
+
+        guard !path.isEmpty else {
+            throw AnvilLaunchError(description: "mise returned an empty path for anvil")
+        }
+
+        return path
     }
 
     private func waitUntilReady() async throws {
@@ -146,7 +226,12 @@ public final class AnvilNode {
             try? await Task.sleep(for: .milliseconds(200))
         }
 
-        throw AnvilLaunchError(description: "anvil never became ready on \(endpoint) within 60s")
+        let logURL = workingDirectory.appendingPathComponent("anvil.log")
+        let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? "(no log)"
+        let status = process.isRunning ? "still running" : "exited with status \(process.terminationStatus)"
+        throw AnvilLaunchError(
+            description: "anvil never became ready on \(endpoint) within 30s (\(status)). Log tail:\n\(log.suffix(2000))"
+        )
     }
 
     /// Sets an account's native-token balance using Anvil's cheat-code RPC method.
@@ -275,6 +360,58 @@ public final class AnvilNode {
         }
 
         throw AnvilLaunchError(description: "no receipt for \(transactionHash) within 10s")
+    }
+}
+
+private struct AnvilRPCClient {
+    private let endpoint: URL
+
+    init(endpoint: URL) {
+        self.endpoint = endpoint
+    }
+
+    func call<Params: Encodable, Result: Decodable>(
+        method: String,
+        params: Params
+    ) async throws -> Result {
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(Request(method: method, params: params))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+            throw AnvilLaunchError(description: "unexpected HTTP response while calling \(method)")
+        }
+
+        let envelope = try JSONDecoder().decode(Response<Result>.self, from: data)
+
+        if let error = envelope.error {
+            throw AnvilLaunchError(description: "\(method) failed: \(error.message)")
+        }
+
+        guard let result = envelope.result else {
+            throw AnvilLaunchError(description: "\(method) returned no result")
+        }
+
+        return result
+    }
+
+    private struct Request<Params: Encodable>: Encodable {
+        let jsonrpc = "2.0"
+        let id = 1
+        let method: String
+        let params: Params
+    }
+
+    private struct Response<Result: Decodable>: Decodable {
+        let result: Result?
+        let error: ErrorPayload?
+    }
+
+    private struct ErrorPayload: Decodable {
+        let message: String
     }
 }
 

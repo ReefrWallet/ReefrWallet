@@ -18,6 +18,7 @@ extension DatabaseService {
                 SortDescriptor(\WalletTransactionModel.transactionIndex, order: .reverse)
             ]
         )
+
         return try modelContext.fetch(descriptor).map(WalletTransaction.init(model:))
     }
 
@@ -34,17 +35,24 @@ extension DatabaseService {
         return WalletTransactionSyncState(accountId: accountId)
     }
 
-    func saveTransactions(_ transactions: [BlockchainTransaction], for account: Account) throws {
-        guard let accountId = account.id else { throw Error.invalidData }
+    func saveTransactions( // swiftlint:disable:this function_body_length
+        _ transactions: [BlockchainTransaction],
+        for account: Account
+    ) throws {
+        guard let accountId = account.id else {
+            throw Error.invalidData
+        }
+
         let accountPredicate = #Predicate<AccountModel> { $0.id == accountId }
+
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: accountPredicate)).first else {
             throw Error.notFound
         }
 
         for chainTransaction in transactions {
             let transaction = try WalletTransaction(account: account, transaction: chainTransaction)
-            let transactionStableID = transaction.stableID
-            let transactionPredicate = #Predicate<WalletTransactionModel> { $0.stableID == transactionStableID }
+            let transactionStableId = transaction.stableId
+            let transactionPredicate = #Predicate<WalletTransactionModel> { $0.stableId == transactionStableId }
             let model = try modelContext.fetch(FetchDescriptor(predicate: transactionPredicate)).first
                 ?? WalletTransactionModel(account: accountModel, transaction: transaction)
 
@@ -62,8 +70,8 @@ extension DatabaseService {
             }
 
             for effect in transaction.effects {
-                let effectStableID = effect.stableID
-                let effectPredicate = #Predicate<WalletTransactionEffectModel> { $0.stableID == effectStableID }
+                let effectStableId = effect.stableId
+                let effectPredicate = #Predicate<WalletTransactionEffectModel> { $0.stableId == effectStableId }
                 let effectModel = try modelContext.fetch(FetchDescriptor(predicate: effectPredicate)).first
                     ?? WalletTransactionEffectModel(transaction: model, effect: effect)
                 effectModel.effectIndex = effect.index
@@ -77,6 +85,15 @@ extension DatabaseService {
 
                 if effectModel.modelContext == nil {
                     modelContext.insert(effectModel)
+                }
+
+                if effect.kind == .tokenTransfer, let tokenAddress = effect.assetIdentifier {
+                    try linkBalance(
+                        to: effectModel,
+                        tokenAddress: tokenAddress,
+                        account: accountModel,
+                        blockchain: account.blockchain
+                    )
                 }
             }
         }
@@ -108,5 +125,56 @@ extension DatabaseService {
         model.historyBoundary = state.historyBoundary
         model.lastError = state.lastError
         try modelContext.save()
+    }
+
+    func linkTransactionTokens(for account: Account) throws {
+        guard let accountID = account.id else {
+            throw Error.invalidData
+        }
+
+        let predicate = #Predicate<WalletTransactionModel> { $0.account.id == accountID }
+        let transactions = try modelContext.fetch(FetchDescriptor(predicate: predicate))
+
+        for transaction in transactions {
+            for effect in transaction.effects {
+                guard effect.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue,
+                      let tokenAddress = effect.assetIdentifier
+                else {
+                    continue
+                }
+
+                try linkBalance(
+                    to: effect,
+                    tokenAddress: tokenAddress,
+                    account: transaction.account,
+                    blockchain: account.blockchain
+                )
+            }
+        }
+
+        try modelContext.save()
+    }
+}
+
+private extension DatabaseService {
+    func linkBalance(
+        to effect: WalletTransactionEffectModel,
+        tokenAddress: String,
+        account: AccountModel,
+        blockchain: WKBlockchain
+    ) throws {
+        let serializedBlockchain = try blockchain.asJSONString()
+        let accountId = account.id
+        let balancePredicate = #Predicate<BalanceModel> {
+            $0.account.id == accountId
+            && $0.token.address == tokenAddress
+            && $0.token.blockchain?.serialized == serializedBlockchain
+        }
+
+        guard let balance = try modelContext.fetch(FetchDescriptor(predicate: balancePredicate)).first else {
+            return
+        }
+
+        effect.balance = balance
     }
 }

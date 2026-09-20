@@ -6,9 +6,19 @@ import WalletKit
 
 // MARK: - BalancesService
 
-final class BalancesService {
+/// Fetches and persists balances. Per-token refresh requests go through a
+/// debounced queue (see ``enqueueBalanceUpdate(account:tokenAddress:blockchain:)``)
+/// so bursts of transaction-sync activity collapse into one round of RPC
+/// calls instead of one per discovered transfer. ``updateBalances(_:)``
+/// bypasses the queue for callers (namely the UI) that want an immediate,
+/// full resync of every configured/stored token.
+actor BalancesService {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private let databaseService: DatabaseService
+
+    private var flushTask: Task<Void, Never>?
+    private var queuedAccountRefreshes: [PersistentIdentifier: Account] = [:]
+    private var queuedTokenUpdates: [BalanceUpdateKey: Account] = [:]
 
     init(databaseService: DatabaseService? = nil) {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
@@ -20,12 +30,11 @@ final class BalancesService {
             rpcURL: account.rpcURLOverride
         )
 
-        let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
-
         if client.isSupported(.allBalances) {
             let balances = try await fetchAllBalances(client: client, account: account)
             try await databaseService.updateBalances(account: account, updates: balances)
         } else {
+            let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
             let allTokens = try (storedTokens + readConfiguredTokens(blockchain: account.blockchain)
                 .filter { token in
                     !storedTokens.contains { $0.address == token.address }
@@ -39,7 +48,11 @@ final class BalancesService {
             )
 
             try await databaseService.updateBalances(account: account, updates: [nativeBalance])
-            try await updateTokenBalances(client: client, account: account, tokens: allTokens)
+            try await updateTokenBalances(
+                client: client,
+                account: account,
+                tokenAddresses: allTokens.compactMap(\.address)
+            )
         }
     }
 
@@ -85,6 +98,104 @@ final class BalancesService {
     func usdValue(keyStoreId: PersistentIdentifier) async throws -> Decimal {
         try await databaseService.usdValue(keyStoreId: keyStoreId)
     }
+
+    /// Enqueues a balance refresh for a single token (`tokenAddress == nil`
+    /// means the chain's native asset) instead of updating it inline. The
+    /// queue only drains once a full second passes without a new call here,
+    /// and a repeat request for the same account+token replaces whatever was
+    /// already queued for it — so a burst of transaction-sync activity
+    /// collapses into one round of RPC calls per account instead of one per
+    /// discovered transfer. Accounts whose client can fetch every balance in
+    /// a single call skip the per-token queue entirely: any of that
+    /// account's already-queued token updates are dropped in favor of one
+    /// queued full refresh.
+    func enqueueBalanceUpdate(account: Account, tokenAddress: String?, blockchain: WKBlockchain) async {
+        guard let accountId = account.id else {
+            return
+        }
+
+        let client = try? await clientProvider.getClient(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+
+        if client?.isSupported(.allBalances) == true {
+            queuedTokenUpdates = queuedTokenUpdates.filter { $0.key.accountId != accountId }
+            queuedAccountRefreshes[accountId] = account
+        } else {
+            queuedTokenUpdates[BalanceUpdateKey(accountId: accountId, tokenAddress: tokenAddress)] = account
+        }
+
+        scheduleFlush()
+    }
+}
+
+// MARK: - Update queue
+
+private struct BalanceUpdateKey: Hashable {
+    let accountId: PersistentIdentifier
+    let tokenAddress: String?
+}
+
+private extension BalancesService {
+    func scheduleFlush() {
+        flushTask?.cancel()
+        flushTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await self?.flushQueue()
+        }
+    }
+
+    func flushQueue() async {
+        let accountRefreshes = queuedAccountRefreshes
+        let tokenUpdates = queuedTokenUpdates
+        queuedAccountRefreshes.removeAll()
+        queuedTokenUpdates.removeAll()
+
+        for account in accountRefreshes.values {
+            do {
+                try await updateBalances(account)
+            } catch {
+                printError(error)
+            }
+        }
+
+        for (_, keys) in Dictionary(grouping: tokenUpdates.keys, by: \.accountId) {
+            guard let account = keys.first.flatMap({ tokenUpdates[$0] }) else {
+                continue
+            }
+
+            do {
+                try await flushTokenUpdates(account: account, tokenAddresses: keys.map(\.tokenAddress))
+            } catch {
+                printError(error)
+            }
+        }
+    }
+
+    func flushTokenUpdates(account: Account, tokenAddresses: [String?]) async throws {
+        let client = try await clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
+
+        if tokenAddresses.contains(nil) {
+            let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
+            let nativeBalance = try await fetchNativeBalance(
+                client: client,
+                account: account,
+                storedTokens: storedTokens
+            )
+            try await databaseService.updateBalances(account: account, updates: [nativeBalance])
+        }
+
+        let addresses = tokenAddresses.compactMap { $0 }
+
+        guard !addresses.isEmpty else {
+            return
+        }
+
+        try await updateTokenBalances(client: client, account: account, tokenAddresses: addresses)
+    }
 }
 
 // MARK: - Private
@@ -107,8 +218,13 @@ private extension BalancesService {
             ) {
                 balances.append(try await makeBalance(account: account, amount: amount, token: token))
             } else {
-                // get info and save new token record
-                let tokenInfo = try await client.getTokenInfo(tokenAddress)
+                // A node can report a coin that this endpoint cannot describe
+                // (for example, a package coin from another localnet). Skip
+                // that asset so a valid native balance still reaches the UI.
+                guard let tokenInfo = try? await client.getTokenInfo(tokenAddress) else {
+                    printDebug("Skipping balance for unsupported token \(tokenAddress) on \(account.name)")
+                    continue
+                }
 
                 let token = Token(
                     address: tokenAddress,
@@ -159,16 +275,12 @@ private extension BalancesService {
         return try await makeBalance(account: account, amount: amount, token: token)
     }
 
-    func updateBalance(account: Account, client: AnyBlockchainClient, token: Token) async throws {
-        guard let tokenAddress = token.address else {
-            throw Error.invalidData
-        }
-
+    func updateBalance(account: Account, client: AnyBlockchainClient, tokenAddress: String) async throws {
         let amount = try await client.getBalance(account.address, token: tokenAddress)
 
         if var storedBalance: Balance = try await databaseService.fetchBalance(
             account: account,
-            token: token
+            tokenAddress: tokenAddress
         ) {
             storedBalance.amount = amount
             try await databaseService.saveBalance(storedBalance)
@@ -201,11 +313,8 @@ private extension BalancesService {
         }
     }
 
-    func updateBalances(account: Account, client: AnyBlockchainClient, tokens: [Token]) async throws {
-        let balances = try await client.getBalances(
-            account.address,
-            tokens: tokens.map { $0.address ?? "" }
-        )
+    func updateBalances(account: Account, client: AnyBlockchainClient, tokenAddresses: [String]) async throws {
+        let balances = try await client.getBalances(account.address, tokens: tokenAddresses)
 
         for (tokenAddress, amount) in balances {
             if let storedToken = try await databaseService.fetchToken(
@@ -214,7 +323,7 @@ private extension BalancesService {
             ) {
                 if var storedBalance: Balance = try await databaseService.fetchBalance(
                     account: account,
-                    token: storedToken
+                    tokenAddress: tokenAddress
                 ) {
                     // Update stored balance for token
                     storedBalance.amount = amount
@@ -257,22 +366,22 @@ private extension BalancesService {
     func updateIndividualBalances(
         client: AnyBlockchainClient,
         account: Account,
-        tokens: [Token]
+        tokenAddresses: [String]
     ) async throws {
         printDebug("Requesting individual balances for \(account.address)")
-        var remainingTokens = tokens
+        var remainingAddresses = tokenAddresses
 
         await withTaskGroup(of: Void.self) { group in
-            while !remainingTokens.isEmpty {
-                guard let token = Array(remainingTokens.prefix(1)).first else {
+            while !remainingAddresses.isEmpty {
+                guard let tokenAddress = Array(remainingAddresses.prefix(1)).first else {
                     fatalError()
                 }
 
-                remainingTokens.removeFirst(tokens.count)
+                remainingAddresses.removeFirst(tokenAddresses.count)
 
                 group.addTask {
                     do {
-                        try await self.updateBalance(account: account, client: client, token: token)
+                        try await self.updateBalance(account: account, client: client, tokenAddress: tokenAddress)
                     } catch {
                         printError(error)
                     }
@@ -284,24 +393,24 @@ private extension BalancesService {
     func updateTokenBalances(
         client: AnyBlockchainClient,
         account: Account,
-        tokens: [Token]
+        tokenAddresses: [String]
     ) async throws {
         guard client.isSupported(.multipleBalances) else {
-            try await updateIndividualBalances(client: client, account: account, tokens: tokens)
+            try await updateIndividualBalances(client: client, account: account, tokenAddresses: tokenAddresses)
             return
         }
 
         printDebug("Requesting bulk balances for \(account.address)")
-        var remainingTokens = tokens
+        var remainingAddresses = tokenAddresses
 
         await withTaskGroup(of: Void.self) { group in
-            while !remainingTokens.isEmpty {
-                let batch = Array(remainingTokens.prefix(20))
-                remainingTokens.removeFirst(batch.count)
+            while !remainingAddresses.isEmpty {
+                let batch = Array(remainingAddresses.prefix(20))
+                remainingAddresses.removeFirst(batch.count)
 
                 group.addTask {
                     do {
-                        try await self.updateBalances(account: account, client: client, tokens: batch)
+                        try await self.updateBalances(account: account, client: client, tokenAddresses: batch)
                     } catch {
                         printError(error)
                     }

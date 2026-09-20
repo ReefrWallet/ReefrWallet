@@ -33,6 +33,7 @@ struct AccountBalancesView: View {
                 HStack(spacing: 4) {
                     Text("Total Value:")
                         .style(.mediumHeader, foreground: .primary)
+                        .accessibilityIdentifier("account-total-value-label")
 
                     Text(usdValue(balances).formatted(.currency(code: "USD")))
                         .style(.mediumHeader, foreground: .primary)
@@ -48,10 +49,12 @@ struct AccountBalancesView: View {
                         .padding()
                 }
             }
+            .accessibilityIdentifier("account-balances-content")
         } else {
             Text("Zero Balances")
                 .style(.medium, foreground: .secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .accessibilityIdentifier("account-zero-balances")
         }
     }
 }

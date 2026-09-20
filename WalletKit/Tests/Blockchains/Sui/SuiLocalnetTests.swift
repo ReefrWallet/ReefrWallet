@@ -21,6 +21,7 @@
 import Foundation
 import Testing
 import WalletKit
+import WalletKitTesting
 
 private struct SuiAddressVector: Decodable {
     let label: String
@@ -180,13 +181,11 @@ struct SuiLocalnetTests {
 
         let client = SuiGRPCClient(host: "127.0.0.1", port: Int(node.rpcPort), useTLS: false)
 
-        // Two faucet calls give two separate coin objects: one for gas,
-        // one to transfer. `waitForSuiCoinCount` ensures both have been
-        // indexed before we proceed (the second `faucet` call may return
-        // as soon as the balance from the first is confirmed).
+        // Two faucet calls give two separate coin objects: one for gas and
+        // one to transfer. `faucet(_:)` returns only once the new object is
+        // indexed, so both are available before we continue.
         try await node.faucet(walletA)
         try await node.faucet(walletA)
-        try await node.waitForSuiCoinCount(of: walletA, atLeast: 2)
 
         let coins = try await node.suiCoins(of: walletA)
         try #require(coins.count >= 2)
@@ -244,7 +243,7 @@ struct SuiLocalnetTests {
         )
 
         let afterA = try await node.waitForBalanceChange(of: walletA, from: beforeA)
-        let afterB = try await client.nativeBalance(of: walletB)
+        let afterB = try await node.waitForBalanceChange(of: walletB, from: beforeB)
         #expect(afterA == beforeA - transferAmount - feeAtoB)
         #expect(afterB == beforeB + transferAmount)
 
@@ -256,7 +255,7 @@ struct SuiLocalnetTests {
         )
 
         let finalB = try await node.waitForBalanceChange(of: walletB, from: afterB)
-        let finalA = try await client.nativeBalance(of: walletA)
+        let finalA = try await node.waitForBalanceChange(of: walletA, from: afterA)
         #expect(finalB == afterB - returnAmount - feeBtoA)
         #expect(finalA == afterA + returnAmount)
     }

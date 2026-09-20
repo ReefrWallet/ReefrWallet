@@ -35,6 +35,7 @@ private struct EVMHistoryTransaction: Codable {
     let hash: String
     let from: String
     let to: String?
+    let value: String?
     let transactionIndex: String?
 }
 
@@ -146,7 +147,8 @@ extension EthereumRPCClient {
                     sender: transaction.from,
                     recipient: transaction.to,
                     status: .unconfirmed,
-                    rawPayload: rawPayload
+                    rawPayload: rawPayload,
+                    effects: nativeTransferEffect(transaction).map { [$0] } ?? []
                 )
             }
 
@@ -271,6 +273,24 @@ private extension EthereumRPCClient {
     func matches(owner: String, transaction: EVMHistoryTransaction) -> Bool {
         let owner = owner.lowercased()
         return transaction.from.lowercased() == owner || transaction.to?.lowercased() == owner
+    }
+
+    func nativeTransferEffect(_ transaction: EVMHistoryTransaction) -> BlockchainTransactionEffect? {
+        guard
+            let value = transaction.value,
+            let amount = BigUInt(value.drop0xPrefix(), radix: 16),
+            amount > 0
+        else {
+            return nil
+        }
+
+        return BlockchainTransactionEffect(
+            index: 0,
+            kind: .nativeTransfer,
+            amount: amount.description,
+            from: transaction.from,
+            to: transaction.to
+        )
     }
 
     func historyBlocks(

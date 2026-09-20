@@ -18,12 +18,10 @@ extension DatabaseService {
     }
     #endif
 
-    func fetchBalance(account: Account, token: Token) throws -> Balance? {
+    func fetchBalance(account: Account, tokenAddress: String?) throws -> Balance? {
         guard let accountId = account.id else {
             throw Error.invalidData
         }
-
-        let tokenAddress = token.address
 
         return try modelContext
             .fetch(FetchDescriptor(
@@ -111,21 +109,7 @@ private extension DatabaseService {
 
         let serializedBlockchain = try balance.account.blockchain.asJSONString()
         let tokenAddress = balance.token.address
-        let tokenPredicate = #Predicate<TokenModel> {
-            $0.blockchain?.serialized == serializedBlockchain && $0.address == tokenAddress
-        }
-
-        guard let tokenModel = try modelContext.fetch(FetchDescriptor(predicate: tokenPredicate)).first else {
-            throw Error.notFound
-        }
-
-        tokenModel.decimalsCount = balance.token.decimalsCount
-        tokenModel.imageURL = balance.token.imageURL
-        tokenModel.isIncludedInBalance = balance.token.isIncludedInBalance
-        tokenModel.isNativeToken = balance.token.isNativeToken
-        tokenModel.name = balance.token.name
-        tokenModel.symbol = balance.token.symbol
-        tokenModel.usdPrice = balance.token.usdPrice
+        let tokenModel = try upsertTokenModel(balance.token, serializedBlockchain: serializedBlockchain)
 
         let balanceModel: BalanceModel
 

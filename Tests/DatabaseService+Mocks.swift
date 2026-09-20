@@ -1,6 +1,6 @@
 import Foundation
 @testable import ReefrWallet
-import WalletKit
+import WalletKitTesting
 
 extension DatabaseService {
     /// Creates a local test keystore from a known mnemonic so every generated

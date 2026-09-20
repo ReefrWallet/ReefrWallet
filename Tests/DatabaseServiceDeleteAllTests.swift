@@ -10,7 +10,7 @@
 import BigInt
 import Foundation
 import Testing
-import WalletKit
+import WalletKitTesting
 @testable import ReefrWallet
 
 @Suite(.timeLimit(.minutes(1)))

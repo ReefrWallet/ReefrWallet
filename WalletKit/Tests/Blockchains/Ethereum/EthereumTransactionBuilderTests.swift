@@ -17,6 +17,7 @@ import BigInt
 import Foundation
 import Testing
 import WalletKit
+import WalletKitTesting
 
 @Suite(.timeLimit(.minutes(1)))
 struct EthereumTransactionBuilderTests {

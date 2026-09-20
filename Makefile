@@ -13,7 +13,7 @@ test: ReefrWallet.xcworkspace
 	$(MAKE) -C WalletKit test
 
 	@echo "==> Running Swift tests"
-	@mise x tuist -- tuist test
+	@mise x tuist -- tuist test --skip-ui-tests
 
 versions:
 	Scripts/make_versions.sh

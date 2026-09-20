@@ -8,7 +8,7 @@
 import BigInt
 import Foundation
 import SwiftData
-import WalletKit
+import WalletKitTesting
 @testable import ReefrWallet
 
 // MARK: - Node & database

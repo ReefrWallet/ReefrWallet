@@ -105,10 +105,17 @@ private extension WalletApp {
     }
 
     func processPreStartupOptions() {
-        if commandLineFlag("--test") {
+        if commandLineFlag("--test") || isRunningXCTest {
             printDebug("Using test service injection mode.")
             Inject.mode = .test
         }
+    }
+
+    /// Xcode sets this environment variable on any process it launches to host XCTest,
+    /// including plain unit tests that don't receive the app's own launch arguments.
+    /// Detecting it here keeps every test run off the real on-disk store automatically.
+    var isRunningXCTest: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     func commandLineFlag(_ parameter: String) -> Bool {

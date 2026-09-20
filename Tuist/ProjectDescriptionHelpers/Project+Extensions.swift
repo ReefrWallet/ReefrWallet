@@ -15,6 +15,7 @@ public extension Project {
     static let organizationName = "Reefr Wallet"
 
     static let commonInfoPlist: [String: Plist.Value] = [
+        "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
         "CFBundleShortVersionString": "\(currentVersion)",
         "CFBundleVersion": "\(currentBuildNumber)",
         "NSHumanReadableCopyright": "Copyright © \(currentYear) Reefr Wallet"

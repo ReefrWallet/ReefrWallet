@@ -12,6 +12,7 @@ import BigInt
 import Foundation
 import Testing
 import WalletKit
+import WalletKitTesting
 
 // `.serialized`: see SuiLocalnetTests.swift — each test spins up its own
 // full local `sui` validator, and running several concurrently causes
@@ -50,7 +51,7 @@ struct SuiTransactionBuilderTests {
         let effects = try await node.waitForEffects(digest)
         #expect(effects.status.success, "native SUI transfer should succeed")
 
-        let afterB = try await client.nativeBalance(of: walletB)
+        let afterB = try await node.waitForBalanceChange(of: walletB, from: beforeB)
         #expect(afterB == beforeB + transferAmount)
 
         let afterA = try await node.waitForBalanceChange(of: walletA, from: beforeA)
@@ -85,10 +86,9 @@ struct SuiTransactionBuilderTests {
         let client = SuiGRPCClient(host: "127.0.0.1", port: Int(node.rpcPort), useTLS: false)
         let builder = SuiTransactionBuilder(client: client)
 
-        // Two faucet calls produce two separate SUI coin objects.
+        // Two faucet calls each wait for their own SUI coin object to index.
         try await node.faucet(walletA)
         try await node.faucet(walletA)
-        try await node.waitForSuiCoinCount(of: walletA, atLeast: 2)
 
         let coins = try await node.suiCoins(of: walletA)
         try #require(coins.count >= 2)
@@ -109,7 +109,7 @@ struct SuiTransactionBuilderTests {
         let effects = try await node.waitForEffects(digest)
         #expect(effects.status.success, "native SUI transfer using multiple gas coins should succeed")
 
-        let afterB = try await client.nativeBalance(of: walletB)
+        let afterB = try await node.waitForBalanceChange(of: walletB, from: beforeB)
         #expect(afterB == beforeB + transferAmount)
     }
 }

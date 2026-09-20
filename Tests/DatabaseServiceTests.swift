@@ -2,7 +2,7 @@ import BigInt
 import Foundation
 import SwiftData
 import Testing
-import WalletKit
+import WalletKitTesting
 @testable import ReefrWallet
 
 @Suite(.timeLimit(.minutes(1)))
@@ -93,6 +93,7 @@ struct DatabaseServiceTests {
         let keyStore = makeKeyStore(id: keyStoreID)
         var account = makeAccount(keyStoreID: keyStoreID, blockchain: .evm(.ethereum(.mainnet)))
         account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let token = makeToken(address: "0x0000000000000000000000000000000000000001")
 
         let transaction = BlockchainTransaction(
             identifier: "0xtransaction",
@@ -108,6 +109,14 @@ struct DatabaseServiceTests {
                     amount: "100",
                     from: account.address,
                     to: "0x0000000000000000000000000000000000000002"
+                ),
+                BlockchainTransactionEffect(
+                    index: 1,
+                    kind: .tokenTransfer,
+                    assetIdentifier: token.address,
+                    amount: "25",
+                    from: account.address,
+                    to: "0x0000000000000000000000000000000000000002"
                 )
             ]
         )
@@ -115,8 +124,18 @@ struct DatabaseServiceTests {
 
         let stored = try await service.fetchTransactions(accountId: try #require(account.id))
         #expect(stored.count == 1)
-        #expect(stored[0].effects.count == 1)
-        #expect(stored[0].effects[0].amount == "100")
+        #expect(stored[0].effects.count == 2)
+        #expect(stored[0].effects.contains { effect in
+            effect.kind == .nativeTransfer && effect.amount == "100"
+        })
+        #expect(stored[0].effects.allSatisfy { $0.balance == nil })
+
+        _ = try await service.insertToken(token, blockchain: account.blockchain)
+        try await service.saveBalance(Balance(account: account, amount: 25, token: token, usdValue: nil))
+        try await service.linkTransactionTokens(for: account)
+
+        let linked = try await service.fetchTransactions(accountId: try #require(account.id))
+        #expect(linked[0].effects.compactMap(\.balance).map(\.token.address) == [token.address])
 
         var state = try await service.transactionSyncState(accountId: try #require(account.id))
         state.initialBackfillHead = 42

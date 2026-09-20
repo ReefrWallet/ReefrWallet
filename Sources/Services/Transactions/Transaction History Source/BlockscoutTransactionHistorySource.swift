@@ -1,15 +1,7 @@
+import BigInt
 import Foundation
 import Moya
 import WalletKit
-
-protocol TransactionHistorySource {
-    func supports(_ account: Account) -> Bool
-
-    func transactionHistory(
-        account: Account,
-        request: BlockchainTransactionHistoryRequest
-    ) async throws -> BlockchainTransactionPage
-}
 
 struct BlockscoutTransactionHistorySource: TransactionHistorySource {
     private let apiBaseURLs: [UInt64: URL]
@@ -55,6 +47,7 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
                 pagination: pagination
             )
         )
+
         let transactions = response.items.map(\.blockchainTransaction)
 
         return BlockchainTransactionPage(
@@ -146,6 +139,7 @@ private struct BlockscoutTransaction: Codable {
     let hash: String
     let timestamp: String
     let to: BlockscoutAddress?
+    let value: String
 
     var blockchainTransaction: BlockchainTransaction {
         BlockchainTransaction(
@@ -155,7 +149,22 @@ private struct BlockscoutTransaction: Codable {
             sender: from.hash,
             recipient: to?.hash,
             status: .confirmed,
-            rawPayload: try? JSONEncoder().encode(self)
+            rawPayload: try? JSONEncoder().encode(self),
+            effects: nativeTransferEffect.map { [$0] } ?? []
+        )
+    }
+
+    private var nativeTransferEffect: BlockchainTransactionEffect? {
+        guard let amount = BigUInt(value), amount > 0 else {
+            return nil
+        }
+
+        return BlockchainTransactionEffect(
+            index: 0,
+            kind: .nativeTransfer,
+            amount: amount.description,
+            from: from.hash,
+            to: to?.hash
         )
     }
 }

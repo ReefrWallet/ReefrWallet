@@ -26,6 +26,7 @@ import BigInt
 import Foundation
 import Testing
 import WalletKit
+import WalletKitTesting
 
 private struct EthereumAddressVector: Decodable {
     let label: String

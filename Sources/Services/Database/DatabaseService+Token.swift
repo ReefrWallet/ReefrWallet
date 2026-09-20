@@ -55,20 +55,45 @@ extension DatabaseService {
             .map(Token.init(model:))
     }
 
+    /// Fetches the token matching `token.address` on `blockchain`, updating it in place, or
+    /// creates one. The lookup and write happen within a single non-suspending actor call, so
+    /// this is safe to call from concurrent sync tracks that raced to discover the same token:
+    /// whichever call lands second finds and updates the row the first one created instead of
+    /// inserting a duplicate.
+    @discardableResult
+    func upsertTokenModel(_ token: Token, serializedBlockchain: String) throws -> TokenModel {
+        let tokenAddress = token.address
+        let predicate = #Predicate<TokenModel> {
+            $0.blockchain?.serialized == serializedBlockchain && $0.address == tokenAddress
+        }
+
+        let tokenModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first
+            ?? TokenModel(from: token)
+
+        if tokenModel.modelContext == nil {
+            tokenModel.blockchain = try modelContext
+                .fetch(FetchDescriptor(
+                    predicate: #Predicate<BlockchainModel> { $0.serialized == serializedBlockchain }
+                ))
+                .first
+            modelContext.insert(tokenModel)
+        }
+
+        tokenModel.decimalsCount = token.decimalsCount
+        tokenModel.imageURL = token.imageURL
+        tokenModel.isIncludedInBalance = token.isIncludedInBalance
+        tokenModel.isNativeToken = token.isNativeToken
+        tokenModel.name = token.name
+        tokenModel.symbol = token.symbol
+        tokenModel.usdPrice = token.usdPrice
+
+        return tokenModel
+    }
+
     @discardableResult
     func insertToken(_ token: Token, blockchain: WKBlockchain) throws -> PersistentIdentifier {
         let serializedBlockchain = try blockchain.asJSONString()
-        let blockchainModel = try modelContext
-            .fetch(FetchDescriptor(predicate: #Predicate<BlockchainModel> { $0.serialized == serializedBlockchain }))
-            .first
-
-        let tokenModel = TokenModel(from: token)
-        tokenModel.blockchain = blockchainModel
-        tokenModel.imageURL = token.imageURL
-        tokenModel.isIncludedInBalance = token.isIncludedInBalance
-        tokenModel.usdPrice = token.usdPrice
-
-        modelContext.insert(tokenModel)
+        let tokenModel = try upsertTokenModel(token, serializedBlockchain: serializedBlockchain)
         try modelContext.save()
         return tokenModel.persistentModelID
     }

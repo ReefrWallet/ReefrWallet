@@ -13,8 +13,18 @@ struct SettingsView: View {
     @AppStorage("ProxyPort") private var proxyPort: Int = 9090
     @AppStorage("UseProxy") private var useProxy: Bool = false
 
+    @AppStorage("EtherscanAPIKey") private var etherscanAPIKey: String = ""
+
     var body: some View {
         Form {
+            Section(header: Text("Transaction History")) {
+                TextField("Etherscan API Key", text: $etherscanAPIKey)
+
+                Text("Used for EVM history backfill. Falls back to Blockscout when empty.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section(header: Text("Proxy Settings")) {
                 Toggle("Use Proxy", isOn: $useProxy)
 

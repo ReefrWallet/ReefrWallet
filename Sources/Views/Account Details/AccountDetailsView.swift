@@ -68,7 +68,11 @@ extension AccountDetailsView: View {
             }
             .disabled(!isSendButtonActive)
         }
-        .task(id: accountBalances.map(\.id)) {
+        // Balance refreshes update `BalanceModel` in place, so its persistent
+        // identifier does not change when the on-chain amount changes. Include
+        // the serialized amount in the task identity so the cached value list
+        // is rebuilt after every successful blockchain refresh.
+        .task(id: balanceRefreshID) {
             cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
         }
         .onChange(of: selection) {
@@ -89,6 +93,12 @@ extension AccountDetailsView: View {
 // MARK: - Subviews
 
 private extension AccountDetailsView {
+    var balanceRefreshID: [String] {
+        accountBalances.map { balance in
+            "\(balance.persistentModelID)-\(balance.serializedAmount.base64EncodedString())"
+        }
+    }
+
     func header(_ balances: [Balance]) -> some View {
         LazyVStack(alignment: .leading) {
             Text(account.name)

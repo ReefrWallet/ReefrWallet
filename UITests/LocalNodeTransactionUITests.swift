@@ -1,7 +1,19 @@
 import BigInt
 import Foundation
 import XCTest
-import WalletKit
+import WalletKitTesting
+
+/// Expected values for one row of the account transactions table.
+///
+/// `recipient` is `nil` when the chain doesn't populate a top-level "To" —
+/// Sui balance changes can touch several addresses, so only the per-effect
+/// `to` carries that information, and the table's "To" column stays blank.
+private struct ExpectedTransaction {
+    let identifier: String
+    let method: String
+    let sender: String
+    let recipient: String?
+}
 
 /// End-to-end transaction-history UI coverage against ephemeral local nodes.
 @MainActor
@@ -10,7 +22,7 @@ final class LocalNodeTransactionUITests: XCTestCase {
     private var app: XCUIApplication!
     private var anvilNode: AnvilNode!
     private var suiNode: SuiNode!
-    private var transactionIdentifiers: [String] = []
+    private var expectedTransactions: [ExpectedTransaction] = []
     private var isSuiTest = false
 
     override func setUp() async throws {
@@ -20,9 +32,9 @@ final class LocalNodeTransactionUITests: XCTestCase {
         anvilNode = try await AnvilNode.start()
         suiNode = try await SuiNode.start()
 
-        let evmTransactionIdentifiers = try await prepareEVMTransactions(node: anvilNode)
-        let suiTransactionIdentifiers = try await prepareSuiTransactions(node: suiNode)
-        transactionIdentifiers = isSuiTest ? suiTransactionIdentifiers : evmTransactionIdentifiers
+        let evmTransactions = try await prepareEVMTransactions(node: anvilNode)
+        let suiTransactions = try await prepareSuiTransactions(node: suiNode)
+        expectedTransactions = isSuiTest ? suiTransactions : evmTransactions
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = [
@@ -54,6 +66,7 @@ final class LocalNodeTransactionUITests: XCTestCase {
 
     private func launchAndAssertTransactions() {
         app.launch()
+        app.activate()
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
@@ -78,18 +91,55 @@ final class LocalNodeTransactionUITests: XCTestCase {
             XCTAssertTrue(transactionCount.waitForExistence(timeout: 10))
             XCTAssertEqual(transactionCount.label, "2 Transactions")
 
-            for identifier in transactionIdentifiers {
-                XCTAssertTrue(
-                    app.descendants(matching: .any)["transaction-hash-\(identifier)"].waitForExistence(timeout: 10),
-                    "Expected captured transaction identifier \(identifier)"
-                )
+            for expected in expectedTransactions {
+                assertRow(matches: expected, timeout: 10)
             }
 
             sleep(10)
         }
     }
 
-    private func prepareEVMTransactions(node: AnvilNode) async throws -> [String] {
+    private func assertRow(matches expected: ExpectedTransaction, timeout: TimeInterval) {
+        let hashCell = app.descendants(matching: .any)["transaction-hash-\(expected.identifier)"]
+
+        XCTAssertTrue(
+            hashCell.waitForExistence(timeout: timeout),
+            "Expected captured transaction identifier \(expected.identifier)"
+        )
+
+        let methodCell = app.descendants(matching: .any)["transaction-method-\(expected.identifier)"]
+        XCTAssertTrue(methodCell.waitForExistence(timeout: timeout))
+        XCTAssertEqual(methodCell.label, expected.method, "Unexpected method for \(expected.identifier)")
+
+        let blockCell = app.descendants(matching: .any)["transaction-block-\(expected.identifier)"]
+        XCTAssertTrue(blockCell.waitForExistence(timeout: timeout))
+        XCTAssertNotNil(
+            UInt64(blockCell.label),
+            "Expected a numeric block height for \(expected.identifier), got '\(blockCell.label)'"
+        )
+
+        let fromCell = app.descendants(matching: .any)["transaction-from-\(expected.identifier)"]
+        XCTAssertTrue(fromCell.waitForExistence(timeout: timeout))
+        XCTAssertEqual(
+            fromCell.label.lowercased(), expected.sender.lowercased(),
+            "Unexpected sender for \(expected.identifier)"
+        )
+
+        let toCell = app.descendants(matching: .any)["transaction-to-\(expected.identifier)"]
+        XCTAssertTrue(toCell.waitForExistence(timeout: timeout))
+
+        guard let recipient = expected.recipient else {
+            XCTAssertTrue(toCell.label.isEmpty, "Expected no recipient for \(expected.identifier)")
+            return
+        }
+
+        XCTAssertEqual(
+            toCell.label.lowercased(), recipient.lowercased(),
+            "Unexpected recipient for \(expected.identifier)"
+        )
+    }
+
+    private func prepareEVMTransactions(node: AnvilNode) async throws -> [ExpectedTransaction] {
         let seed = try Mnemonic.fromPhrase(mnemonic).toSeed()
 
         let signers = try (0 ..< 2).map { index in
@@ -123,14 +173,27 @@ final class LocalNodeTransactionUITests: XCTestCase {
             gasLimit: 21_000
         )
 
-        return [first, second]
+        return [
+            ExpectedTransaction(
+                identifier: first,
+                method: "nativeTransfer",
+                sender: addresses[0].string,
+                recipient: addresses[1].string
+            ),
+            ExpectedTransaction(
+                identifier: second,
+                method: "nativeTransfer",
+                sender: addresses[1].string,
+                recipient: addresses[0].string
+            )
+        ]
     }
 
-    private func prepareSuiTransactions(node: SuiNode) async throws -> [String] {
+    private func prepareSuiTransactions(node: SuiNode) async throws -> [ExpectedTransaction] {
         let seed = try Mnemonic.fromPhrase(mnemonic).toSeed()
 
         let keys = try (0 ..< 2).map { index in
-            let accountPath = try DerivationPath(string: "m/44'/784'/\(index)'/0'/0'")
+            let accountPath = try DerivationPath(string: "m/44'/784'/0'/0'/\(index)'")
             let key = try seed.masterKey(curve: .ed25519).derive(accountPath).privateKey()
 
             return try SuiPKeySigner(
@@ -161,7 +224,7 @@ final class LocalNodeTransactionUITests: XCTestCase {
         node: SuiNode,
         signer: SuiPKeySigner,
         recipient: SuiAddress
-    ) async throws -> String {
+    ) async throws -> ExpectedTransaction {
         let sender = try signer.address()
 
         let transaction = UnsignedSuiTransaction(
@@ -179,10 +242,17 @@ final class LocalNodeTransactionUITests: XCTestCase {
         let digest = try await client.broadcast(transactionData: bcs, signature: signature)
         _ = try await node.waitForEffects(digest)
 
-        return digest
+        // Sui doesn't set a single top-level recipient: a transaction can move
+        // balances to several addresses, so only the effect carries `to`.
+        return ExpectedTransaction(
+            identifier: digest,
+            method: "balanceChange",
+            sender: sender.string,
+            recipient: nil
+        )
     }
 
     private func accountName(number: Int) -> String {
-        isSuiTest ? "Sui Testnet #\(number)" : "Ethereum Testnet #\(number)"
+        isSuiTest ? "Testnet #\(number)" : "Sepolia #\(number)"
     }
 }

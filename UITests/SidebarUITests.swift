@@ -22,6 +22,7 @@ final class SidebarUITests: XCTestCase {
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = ["--test", "--mnemonic", testMnemonic]
         app.launch()
+        app.activate()
     }
 
     func testWindowAppears() {

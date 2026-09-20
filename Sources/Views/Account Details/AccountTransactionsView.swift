@@ -39,29 +39,33 @@ struct AccountTransactionsView: View {
                 .padding(.leading)
 
             Table(transactions) {
-                TableColumn("Hash") { transaction in
-                    Text(transactionHash(transaction))
-                        .accessibilityIdentifier("transaction-hash-\(transactionHash(transaction))")
+                TableColumn("Digest") { transaction in
+                    Text(transaction.identifier)
+                        .accessibilityIdentifier("transaction-hash-\(transaction.identifier)")
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
 
                 TableColumn("Method") { transaction in
                     Text(method(transaction))
+                        .accessibilityIdentifier("transaction-method-\(transaction.identifier)")
                 }
 
                 TableColumn("Block") { transaction in
                     Text(transaction.blockHeight.map(String.init) ?? "")
+                        .accessibilityIdentifier("transaction-block-\(transaction.identifier)")
                 }
 
                 TableColumn("From") { transaction in
                     Text(transaction.sender ?? "")
+                        .accessibilityIdentifier("transaction-from-\(transaction.identifier)")
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
 
                 TableColumn("To") { transaction in
                     Text(transaction.recipient ?? "")
+                        .accessibilityIdentifier("transaction-to-\(transaction.identifier)")
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
@@ -73,12 +77,5 @@ struct AccountTransactionsView: View {
 private extension AccountTransactionsView {
     func method(_ transaction: WalletTransactionModel) -> String {
         transaction.effects.first?.kind ?? ""
-    }
-
-    func transactionHash(_ transaction: WalletTransactionModel) -> String {
-        transaction.stableID
-            .split(separator: "|", maxSplits: 2)
-            .last
-            .map(String.init) ?? transaction.stableID
     }
 }

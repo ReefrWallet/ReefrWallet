@@ -13,10 +13,11 @@ import WalletKit
 struct WalletTransaction: Identifiable, Sendable {
     let id: PersistentIdentifier?
     let accountId: PersistentIdentifier
-    let stableID: String
+    let stableId: String
     let chainIdentifier: String
     let blockHeight: UInt64?
     let blockHash: String?
+    let identifier: String
     let timestamp: Date?
     let transactionIndex: UInt64?
     let sender: String?
@@ -26,46 +27,52 @@ struct WalletTransaction: Identifiable, Sendable {
     let effects: [WalletTransactionEffect]
 
     init(account: Account, transaction: BlockchainTransaction) throws {
-        guard let accountId = account.id else { throw Error.invalidData }
+        guard let accountId = account.id else {
+            throw Error.invalidData
+        }
+
         self.id = nil
         self.accountId = accountId
         chainIdentifier = try account.blockchain.asJSONString()
-        let stableID = "\(accountId)|\(chainIdentifier)|\(transaction.identifier)"
-        self.stableID = stableID
+        let stableId = "\(accountId)|\(chainIdentifier)|\(transaction.identifier)"
+        self.stableId = stableId
         blockHeight = transaction.blockHeight
         blockHash = transaction.blockHash
+        identifier = transaction.identifier
         timestamp = transaction.timestamp
         transactionIndex = transaction.transactionIndex
         sender = transaction.sender
         recipient = transaction.recipient
         status = transaction.status
         rawPayload = transaction.rawPayload
-        effects = transaction.effects.map { WalletTransactionEffect(transactionID: stableID, effect: $0) }
+        effects = transaction.effects.map { WalletTransactionEffect(transactionId: stableId, effect: $0) }
     }
 
-    init(model: WalletTransactionModel) {
+    init(model: WalletTransactionModel) throws {
         id = model.id
         accountId = model.account.id
-        stableID = model.stableID
+        stableId = model.stableId
         chainIdentifier = model.chainIdentifier
         blockHeight = model.blockHeight
         blockHash = model.blockHash
+        identifier = model.identifier
         timestamp = model.timestamp
         transactionIndex = model.transactionIndex
         sender = model.sender
         recipient = model.recipient
         status = BlockchainTransactionStatus(rawValue: model.status) ?? .unconfirmed
         rawPayload = model.rawPayload
-        effects = model.effects.map(WalletTransactionEffect.init(model:))
+        effects = try model.effects.map(WalletTransactionEffect.init(model:))
     }
 }
 
 @Model
 final class WalletTransactionModel {
-    @Attribute(.unique) var stableID: String
+    @Attribute(.unique) var stableId: String
     var chainIdentifier: String
     var blockHeight: UInt64?
     var blockHash: String?
+    var identifier: String
     var timestamp: Date?
     var transactionIndex: UInt64?
     var sender: String?
@@ -80,10 +87,11 @@ final class WalletTransactionModel {
     var effects: [WalletTransactionEffectModel]
 
     init(account: AccountModel, transaction: WalletTransaction) {
-        stableID = transaction.stableID
+        stableId = transaction.stableId
         chainIdentifier = transaction.chainIdentifier
         blockHeight = transaction.blockHeight
         blockHash = transaction.blockHash
+        identifier = transaction.identifier
         timestamp = transaction.timestamp
         transactionIndex = transaction.transactionIndex
         sender = transaction.sender

@@ -117,12 +117,18 @@ extension SuiGRPCClient {
                         }
                         try await service.subscribeTransactions(
                             request: ClientRequest(message: request),
-                            options: self.callOptions
+                            options: .defaults
                         ) { response in
-                            for try await message in response.messages where message.watermark.hasCheckpoint {
-                                continuation.yield(
-                                    BlockchainTransactionHead(height: message.watermark.checkpoint)
-                                )
+                            for try await message in response.messages {
+                                if message.transaction.hasCheckpoint {
+                                    continuation.yield(
+                                        BlockchainTransactionHead(height: message.transaction.checkpoint)
+                                    )
+                                } else if message.watermark.hasCheckpoint {
+                                    continuation.yield(
+                                        BlockchainTransactionHead(height: message.watermark.checkpoint)
+                                    )
+                                }
                             }
                         }
                     }

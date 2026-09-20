@@ -15,15 +15,27 @@ enum ObjectScope {
 
 final class ServiceContainer {
     private var factories: [String: (ObjectScope, () -> Any)] = [:]
+    private let lock = NSRecursiveLock()
     private var singletons: [String: Any] = [:]
 
     func register<T>(_ type: T.Type, scope: ObjectScope = .container, factory: @escaping () -> T) {
         let key = String(describing: type)
+
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+
         factories[key] = (scope, factory)
     }
 
     func resolve<T>(_ type: T.Type) -> T? {
         let key = String(describing: type)
+
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
 
         if let (scope, factory) = factories[key] {
             switch scope {

@@ -1,43 +1,13 @@
-// Process lifecycle + the gRPC/faucet calls SuiLocalnetTests.swift needs
-// beyond what SuiGRPCClient exposes publicly (reference gas price, transaction
-// effects, faucet funding) — the Sui counterpart of AnvilNode.swift.
-//
-// Owned-coin lookup is now in SuiGRPCClient.ownedCoins(of:coinType:); this
-// file's suiCoins(of:) method delegates to it rather than duplicating the
-// implementation.
-//
-// `sui` isn't installed anywhere on this machine by default; it's pinned
-// in mise.toml (`sui = "testnet-v1.77.2"`) and run via `mise x sui --
-// sui ...`, invoked through mise's own absolute path for the same reason
-// AnvilNode.swift gives: an Xcode.app-launched test process doesn't
-// reliably inherit a dev shell's PATH. Unlike Anvil, more than one `sui`
-// version can be installed side by side (this machine has both
-// `testnet-latest` and the pinned `testnet-v1.77.2`), so the binary path
-// is resolved once via `mise which sui` (config-anchored to this repo's
-// mise.toml) rather than guessed.
-//
-// `sui start --force-regenesis` always writes its genesis/keystore/DB
-// under `$HOME/.sui/sui_config` — there's no flag to redirect that when
-// combined with `--force-regenesis` (`--network.config` explicitly
-// rejects that combination, since it expects a directory `sui genesis`
-// already populated). So `HOME` is overridden to a per-run temporary
-// directory for the launched process only, which sandboxes the network's
-// state without touching the invoking user's real `~/.sui`.
-//
-// No `withKnownIssue` gating, matching AnvilNode.swift/EthereumAnvilTests:
-// if `mise`/`sui` can't be found/run, or the node never comes up, this
-// throws a clear, actionable error and the test fails loudly.
-
 import Darwin
 import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2Posix
-import Testing
-@testable import WalletKit
+
+import WalletKit
 import WalletKitGRPC
 
-struct SuiLaunchError: Error, CustomStringConvertible {
-    let description: String
+public struct SuiLaunchError: Error, CustomStringConvertible {
+    public let description: String
 }
 
 /// Binds two distinct ephemeral TCP ports via the kernel (port 0) and reads
@@ -54,11 +24,14 @@ private func freeTCPPorts(_ count: Int) throws -> [UInt16] {
     defer { fds.forEach { close($0) } }
 
     var ports: [UInt16] = []
+
     for _ in 0..<count {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
+
         guard fd >= 0 else {
             throw SuiLaunchError(description: "socket() failed while allocating a free port")
         }
+
         fds.append(fd)
 
         var addr = sockaddr_in()
@@ -71,30 +44,28 @@ private func freeTCPPorts(_ count: Int) throws -> [UInt16] {
                 bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
+
         guard bindResult == 0 else {
             throw SuiLaunchError(description: "bind() failed while allocating a free port")
         }
 
         var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+
         let getResult = withUnsafeMutablePointer(to: &addr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 getsockname(fd, $0, &len)
             }
         }
+
         guard getResult == 0 else {
             throw SuiLaunchError(description: "getsockname() failed while allocating a free port")
         }
 
         ports.append(UInt16(bigEndian: addr.sin_port))
     }
+
     return ports
 }
-
-// `SuiOwnedCoin` and the local `Base58` enum have been removed; their
-// replacements are `SuiCoinObject` (public, in WalletKit Sources) and
-// `Base58` (internal, Sources/Static/Core/Base58.swift). `suiCoins(of:)`
-// below now delegates to `SuiGRPCClient.ownedCoins(of:coinType:)` instead
-// of reimplementing the gRPC call.
 
 /// Serializes `SuiNode`'s startup burst (genesis through the first
 /// checkpoint) across the whole test process.
@@ -105,7 +76,7 @@ private func freeTCPPorts(_ count: Int) throws -> [UInt16] {
 /// suite's own tests, it doesn't stop a *different* suite's tests from
 /// running at the same time. Several concurrent `sui start` processes
 /// mid-genesis compete for CPU badly enough to push an otherwise-fast test
-/// past its 1-minute time limit, so this makes sure at most one node is
+/// past its test time limit, so this makes sure at most one node is
 /// starting up at a time, regardless of which suite started it. Only the
 /// startup burst is gated, not each node's whole lifetime: once a node is
 /// ready its steady-state cost is low, and gating the full lifetime would
@@ -117,25 +88,29 @@ private actor SuiNodeGate {
     private var isBusy = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
 
-    func acquire() async {
+    public func acquire() async {
         guard isBusy else {
             isBusy = true
             return
         }
+
         await withCheckedContinuation { waiters.append($0) }
     }
 
-    func release() {
+    public func release() {
         guard waiters.isEmpty else {
             waiters.removeFirst().resume()
             return
         }
+
         isBusy = false
     }
 }
 
-final class SuiNode {
-    let rpcPort: UInt16
+public final class SuiNode {
+    private static let localnetTimeout: Duration = .seconds(10)
+
+    public let rpcPort: UInt16
     private let faucetPort: UInt16
     private let process: Process
     private let workingDirectory: URL
@@ -159,10 +134,8 @@ final class SuiNode {
     ///     the same `sui` instance.
     ///   - faucetPort: Same as `rpcPort`, for the faucet's HTTP listener.
     /// - Throws: ``SuiLaunchError`` if `mise`/`sui` can't be found/run, or
-    ///   if the node never becomes ready within the timeout — a generous
-    ///   one, since a first-ever, not-yet-cached `sui` install has to
-    ///   download it (~180 MB) before it can even start.
-    static func start(rpcPort: UInt16? = nil, faucetPort: UInt16? = nil) async throws -> SuiNode {
+    ///   if the node never becomes ready within 10 seconds.
+    public static func start(rpcPort: UInt16? = nil, faucetPort: UInt16? = nil) async throws -> SuiNode {
         let allocatedPorts = try freeTCPPorts(2)
         let rpcPort = rpcPort ?? allocatedPorts[0]
         let faucetPort = faucetPort ?? allocatedPorts[1]
@@ -172,10 +145,9 @@ final class SuiNode {
             .deletingLastPathComponent() // Tests/
             .deletingLastPathComponent() // WalletKit/
 
-        let misePath = NSHomeDirectory() + "/.local/bin/mise"
-        guard FileManager.default.fileExists(atPath: misePath) else {
+        guard let misePath = MiseTool.path else {
             throw SuiLaunchError(
-                description: "mise not found at \(misePath) — this repo's other tooling requires it too"
+                description: "mise was not found in PATH or the host user's .local/bin directory"
             )
         }
 
@@ -183,6 +155,7 @@ final class SuiNode {
 
         let workingDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("sui-localnet-\(UUID().uuidString)")
+
         try FileManager.default.createDirectory(at: workingDirectory, withIntermediateDirectories: true)
 
         let logURL = workingDirectory.appendingPathComponent("sui.log")
@@ -198,6 +171,7 @@ final class SuiNode {
             "--committee-size", "1",
             "-q"
         ]
+
         // `sui start --force-regenesis` always writes under
         // `$HOME/.sui/sui_config` — overriding HOME for just this process
         // sandboxes that without touching the real `~/.sui`.
@@ -211,7 +185,7 @@ final class SuiNode {
         // that letting it run alongside other already-started nodes doesn't
         // reintroduce the contention `SuiNodeGate` exists to avoid, and
         // gating the whole lifetime would serialize all six tests end to
-        // end, queueing the last one past its own 1-minute time limit.
+        // end, queueing the last one past its own time limit.
         await SuiNodeGate.shared.acquire()
         defer { Task { await SuiNodeGate.shared.release() } }
 
@@ -228,6 +202,7 @@ final class SuiNode {
             workingDirectory: workingDirectory,
             logHandle: logHandle
         )
+
         try await node.waitUntilReady()
         return node
     }
@@ -242,14 +217,19 @@ final class SuiNode {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: misePath)
             process.arguments = arguments
+            process.environment = MiseTool.processEnvironment
+
             let pipe = Pipe()
             process.standardOutput = pipe
             process.standardError = Pipe()
+
             try process.run()
             process.waitUntilExit()
+
             guard process.terminationStatus == 0 else {
                 throw SuiLaunchError(description: "\(misePath) \(arguments.joined(separator: " ")) failed")
             }
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
@@ -258,7 +238,7 @@ final class SuiNode {
         return try run(["-C", repoRoot.path, "which", "sui"])
     }
 
-    func stop() {
+    public func stop() {
         process.terminate()
         process.waitUntilExit()
         try? logHandle.close()
@@ -269,6 +249,7 @@ final class SuiNode {
         if process.isRunning {
             process.terminate()
         }
+
         try? FileManager.default.removeItem(at: workingDirectory)
     }
 
@@ -282,21 +263,24 @@ final class SuiNode {
     /// error, it doesn't cancel a call that never returns.
     private static var callOptions: GRPCCore.CallOptions {
         var options = GRPCCore.CallOptions.defaults
-        options.timeout = .seconds(10)
+        options.timeout = localnetTimeout
         return options
     }
 
     private func waitUntilReady() async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(180))
+        let deadline = ContinuousClock.now.advanced(by: Self.localnetTimeout)
+
         while ContinuousClock.now < deadline {
             if let height = try? await checkpointHeight(), height > 0 {
                 return
             }
             try? await Task.sleep(for: .milliseconds(200))
         }
+
         let log = (try? String(contentsOf: workingDirectory.appendingPathComponent("sui.log"), encoding: .utf8))
             ?? "(no log)"
-        throw SuiLaunchError(description: "sui never became ready within 180s. Log tail:\n\(log.suffix(2000))")
+
+        throw SuiLaunchError(description: "sui never became ready within 10s. Log tail:\n\(log.suffix(2000))")
     }
 
     private func checkpointHeight() async throws -> UInt64 {
@@ -305,23 +289,27 @@ final class SuiNode {
                 request: ClientRequest(message: Sui_Rpc_V2_GetServiceInfoRequest()),
                 options: Self.callOptions
             )
+
             return response.checkpointHeight
         }
     }
 
-    /// Requests SUI from the local faucet for `address`, then polls
-    /// ``SuiGRPCClient/nativeBalance(of:)`` until it's non-zero — sidesteps
-    /// having to parse the faucet's response body, whose shape has drifted
-    /// across `sui` versions (`/gas` vs. `/v1/gas`, `coins_sent` vs.
-    /// `transferredGasObjects`), the same "read the result back instead of
-    /// trusting the response" trick `AnvilNode.setBalance` uses for
-    /// `anvil_setBalance`'s ambiguous return.
-    func faucet(_ address: SuiAddress) async throws {
+    /// Requests SUI from the local faucet for `address`, then waits for one
+    /// more owned SUI coin object than the address held before the request.
+    /// This sidesteps the faucet response body's version-dependent shape
+    /// (`/gas` vs. `/v1/gas`, `coins_sent` vs. `transferredGasObjects`) and
+    /// ensures a second request has indexed its own object rather than merely
+    /// observing the first request's already-visible balance.
+    public func faucet(_ address: SuiAddress) async throws {
+        let previousCoins = try await suiCoins(of: address)
+        let previousCoinCount = previousCoins.count
         var lastStatus = -1
+
         for path in ["/gas", "/v1/gas"] {
             let url = URL(string: "http://127.0.0.1:\(faucetPort)\(path)")!
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
+            request.timeoutInterval = 10
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(FaucetRequest(recipient: address.string))
 
@@ -329,12 +317,15 @@ final class SuiNode {
                   let httpResponse = response as? HTTPURLResponse else {
                 continue
             }
+
             lastStatus = httpResponse.statusCode
+
             if (200..<300).contains(httpResponse.statusCode) {
-                try await waitForNonZeroBalance(of: address)
+                try await waitForSuiCoinCount(of: address, atLeast: previousCoinCount + 1)
                 return
             }
         }
+
         throw SuiLaunchError(description: "faucet request for \(address.string) failed (tried /gas, /v1/gas; last HTTP status \(lastStatus))")
     }
 
@@ -342,6 +333,7 @@ final class SuiNode {
         struct Recipient: Encodable {
             let recipient: String
         }
+
         let fixedAmountRequest: Recipient
 
         enum CodingKeys: String, CodingKey {
@@ -353,26 +345,17 @@ final class SuiNode {
         }
     }
 
-    private func waitForNonZeroBalance(of address: SuiAddress) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
-        while ContinuousClock.now < deadline {
-            if let balance = try? await client().nativeBalance(of: address), balance > 0 {
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(200))
-        }
-        throw SuiLaunchError(description: "faucet funding for \(address.string) didn't take effect within 30s")
-    }
-
     /// The current epoch's reference gas price, for building a transaction.
-    func referenceGasPrice() async throws -> UInt64 {
+    public func referenceGasPrice() async throws -> UInt64 {
         try await withLedgerServiceClient { ledger in
             var request = Sui_Rpc_V2_GetEpochRequest()
             request.readMask.paths = ["reference_gas_price"]
+
             let response = try await ledger.getEpoch(
                 request: ClientRequest(message: request),
                 options: Self.callOptions
             )
+
             return response.epoch.referenceGasPrice
         }
     }
@@ -380,7 +363,7 @@ final class SuiNode {
     /// `address`'s owned native-SUI coin objects, largest balance first.
     /// Delegates to ``SuiGRPCClient/ownedCoins(of:coinType:)`` on the local
     /// node client rather than duplicating the gRPC + Base58 logic here.
-    func suiCoins(of address: SuiAddress) async throws -> [SuiCoinObject] {
+    public func suiCoins(of address: SuiAddress) async throws -> [SuiCoinObject] {
         try await client().ownedCoins(of: address, coinType: "0x2::sui::SUI")
     }
 
@@ -388,32 +371,31 @@ final class SuiNode {
     /// payment object for the split-and-transfer PTBs this suite builds.
     ///
     /// - Throws: ``SuiLaunchError`` if `address` owns no SUI coins.
-    func largestSuiCoin(of address: SuiAddress) async throws -> SuiObjectReference {
+    public func largestSuiCoin(of address: SuiAddress) async throws -> SuiObjectReference {
         guard let largest = try await suiCoins(of: address).first else {
             throw SuiLaunchError(description: "\(address.string) owns no SUI coins")
         }
+
         return largest.reference
     }
 
     /// Polls until `address` owns at least `minimum` SUI coin objects, up to
-    /// a 30-second timeout.
-    ///
-    /// Needed when the faucet is called multiple times in quick succession:
-    /// the second call returns as soon as the balance is non-zero (which may
-    /// already be true from the first call), so `faucet(_:)` alone doesn't
-    /// guarantee the second coin object has been indexed.
+    /// a 10-second timeout.
     ///
     /// - Throws: ``SuiLaunchError`` if the coin count doesn't reach
     ///   `minimum` within the timeout.
-    func waitForSuiCoinCount(of address: SuiAddress, atLeast minimum: Int) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+    public func waitForSuiCoinCount(of address: SuiAddress, atLeast minimum: Int) async throws {
+        let deadline = ContinuousClock.now.advanced(by: Self.localnetTimeout)
+
         while ContinuousClock.now < deadline {
             if let coins = try? await suiCoins(of: address), coins.count >= minimum {
                 return
             }
+
             try? await Task.sleep(for: .milliseconds(200))
         }
-        throw SuiLaunchError(description: "\(address.string) didn't accumulate \(minimum) SUI coins within 30s")
+
+        throw SuiLaunchError(description: "\(address.string) didn't accumulate \(minimum) SUI coins within 10s")
     }
 
     /// Polls `LedgerService.GetTransaction` for `digest`'s effects, until
@@ -421,15 +403,18 @@ final class SuiNode {
     /// `AnvilNode`, needed because a broadcast localnet transaction isn't
     /// necessarily final the instant `broadcast(transactionData:signature:)`
     /// returns.
-    func waitForEffects(_ digest: String) async throws -> Sui_Rpc_V2_TransactionEffects {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+    public func waitForEffects(_ digest: String) async throws -> Sui_Rpc_V2_TransactionEffects {
+        let deadline = ContinuousClock.now.advanced(by: Self.localnetTimeout)
+
         while ContinuousClock.now < deadline {
             if let effects = try? await getEffects(digest) {
                 return effects
             }
+
             try? await Task.sleep(for: .milliseconds(200))
         }
-        throw SuiLaunchError(description: "no effects for \(digest) within 30s")
+
+        throw SuiLaunchError(description: "no effects for \(digest) within 10s")
     }
 
     private func getEffects(_ digest: String) async throws -> Sui_Rpc_V2_TransactionEffects {
@@ -437,10 +422,12 @@ final class SuiNode {
             var request = Sui_Rpc_V2_GetTransactionRequest()
             request.digest = digest
             request.readMask.paths = ["effects"]
+
             let response = try await ledger.getTransaction(
                 request: ClientRequest(message: request),
                 options: Self.callOptions
             )
+
             return response.transaction.effects
         }
     }
@@ -449,15 +436,18 @@ final class SuiNode {
     /// differs from `previous` — the balance index updates on checkpoint
     /// commit, slightly after `waitForEffects(_:)` sees the transaction's
     /// own effects.
-    func waitForBalanceChange(of address: SuiAddress, from previous: UInt64) async throws -> UInt64 {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+    public func waitForBalanceChange(of address: SuiAddress, from previous: UInt64) async throws -> UInt64 {
+        let deadline = ContinuousClock.now.advanced(by: Self.localnetTimeout)
+
         while ContinuousClock.now < deadline {
             if let balance = try? await client().nativeBalance(of: address), balance != previous {
                 return balance
             }
+
             try? await Task.sleep(for: .milliseconds(200))
         }
-        throw SuiLaunchError(description: "\(address.string)'s balance didn't change from \(previous) within 30s")
+
+        throw SuiLaunchError(description: "\(address.string)'s balance didn't change from \(previous) within 10s")
     }
 
     private func transport() throws -> HTTP2ClientTransport.Posix {

@@ -9,7 +9,7 @@ import WalletKit
 
 struct WalletTransactionEffect: Identifiable, Sendable {
     let id: PersistentIdentifier?
-    let stableID: String
+    let stableId: String
     let index: UInt64
     let kind: BlockchainTransactionEffect.Kind
     let assetIdentifier: String?
@@ -17,10 +17,11 @@ struct WalletTransactionEffect: Identifiable, Sendable {
     let sender: String?
     let recipient: String?
     let rawPayload: Data?
+    let balance: Balance?
 
-    init(transactionID: String, effect: BlockchainTransactionEffect) {
+    init(transactionId: String, effect: BlockchainTransactionEffect) {
         id = nil
-        stableID = "\(transactionID)|\(effect.index)|\(effect.kind.rawValue)"
+        stableId = "\(transactionId)|\(effect.index)|\(effect.kind.rawValue)"
         index = effect.index
         kind = effect.kind
         assetIdentifier = effect.assetIdentifier
@@ -28,11 +29,12 @@ struct WalletTransactionEffect: Identifiable, Sendable {
         sender = effect.from
         recipient = effect.to
         rawPayload = effect.rawPayload
+        balance = nil
     }
 
-    init(model: WalletTransactionEffectModel) {
+    init(model: WalletTransactionEffectModel) throws {
         id = model.id
-        stableID = model.stableID
+        stableId = model.stableId
         index = model.effectIndex
         kind = BlockchainTransactionEffect.Kind(rawValue: model.kind) ?? .unknown
         assetIdentifier = model.assetIdentifier
@@ -40,12 +42,13 @@ struct WalletTransactionEffect: Identifiable, Sendable {
         sender = model.sender
         recipient = model.recipient
         rawPayload = model.rawPayload
+        balance = try model.balance.map(Balance.init(model:))
     }
 }
 
 @Model
 final class WalletTransactionEffectModel {
-    @Attribute(.unique) var stableID: String
+    @Attribute(.unique) var stableId: String
     var effectIndex: UInt64
     var kind: String
     var assetIdentifier: String?
@@ -57,8 +60,11 @@ final class WalletTransactionEffectModel {
     @Relationship(deleteRule: .noAction)
     var transaction: WalletTransactionModel
 
+    @Relationship(deleteRule: .noAction)
+    var balance: BalanceModel?
+
     init(transaction: WalletTransactionModel, effect: WalletTransactionEffect) {
-        stableID = effect.stableID
+        stableId = effect.stableId
         effectIndex = effect.index
         kind = effect.kind.rawValue
         assetIdentifier = effect.assetIdentifier

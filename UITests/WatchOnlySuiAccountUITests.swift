@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-import WalletKit
+import WalletKitTesting
 
 /// Verifies that mnemonic-derived Sui accounts display balances from an ephemeral local node.
 @MainActor
@@ -39,10 +39,11 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
 
     func testMnemonicSuiAccountsDisplayLocalBalances() {
         app.launch()
+        app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
         for accountNumber in 1 ... 2 {
-            let account = app.staticTexts["Sui Testnet #\(accountNumber)"]
+            let account = app.firstDescendant(withIdentifier: "sidebar-account-label-Testnet #\(accountNumber)")
             XCTAssertTrue(account.waitForExistence(timeout: 20))
             account.click()
 
@@ -50,20 +51,22 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
             XCTAssertTrue(updateButton.waitForExistence(timeout: 10))
             updateButton.click()
 
+            let balances = app.firstDescendant(withIdentifier: "account-balances-content")
+            let zeroBalances = app.firstDescendant(withIdentifier: "account-zero-balances")
             XCTAssertTrue(
-                app.staticTexts["Total Value:"].waitForExistence(timeout: 20),
+                balances.waitForExistence(timeout: 20),
                 "Sui Testnet account #\(accountNumber) should display its local-node balance."
             )
-
-            XCTAssertFalse(app.staticTexts["Zero Balances"].exists)
+            XCTAssertFalse(zeroBalances.exists)
         }
     }
 
     func testMnemonicSuiAccountDetailsTabsSwitch() {
         app.launch()
+        app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
-        let account = app.staticTexts["Sui Testnet #1"]
+        let account = app.firstDescendant(withIdentifier: "sidebar-account-label-Testnet #1")
         XCTAssertTrue(account.waitForExistence(timeout: 20))
         account.click()
 
@@ -75,14 +78,14 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
         transactionsTab.click()
 
         XCTAssertTrue(app.staticTexts["0 Transactions"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Total Value:"].exists)
+        XCTAssertFalse(app.firstDescendant(withIdentifier: "account-total-value-label").exists)
     }
 
     private func fundMnemonicAccounts(node: SuiNode) async throws {
         let seed = try Mnemonic.fromPhrase(mnemonic).toSeed()
 
         for index in 0 ..< 2 {
-            let path = try DerivationPath(string: "m/44'/784'/\(index)'/0'/0'")
+            let path = try DerivationPath(string: "m/44'/784'/0'/0'/\(index)'")
             let key = try seed.masterKey(curve: .ed25519).derive(path).privateKey()
 
             let signer = try SuiPKeySigner(

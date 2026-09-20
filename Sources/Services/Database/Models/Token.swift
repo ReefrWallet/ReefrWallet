@@ -59,6 +59,11 @@ extension Token: Decodable {
 
 @Model
 final class TokenModel {
+    /// Guards against duplicate rows when concurrent sync tracks race to discover the
+    /// same token: SwiftData upserts into the existing row on a constraint match instead
+    /// of inserting a second one.
+    #Unique<TokenModel>([\.address, \.blockchain])
+
     /// `nil` for native tokens
     var address: String?
     var decimalsCount: UInt8

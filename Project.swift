@@ -2,6 +2,16 @@ import Foundation
 import ProjectDescription
 import ProjectDescriptionHelpers
 
+private let testEnvironmentVariables: [String: EnvironmentVariable] = {
+    guard case let .string(apiKey)? = Environment.etherscanApiKey else {
+        return [:]
+    }
+
+    return [
+        "ETHERSCAN_API_KEY": .environmentVariable(value: apiKey, isEnabled: true)
+    ]
+}()
+
 // MARK: Targets
 
 private let wallet: Target = .target(
@@ -10,7 +20,7 @@ private let wallet: Target = .target(
     product: .app,
     bundleId: "xyz.reefr.wallet",
     deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
-    infoPlist: .extendingDefault(with: Project.commonInfoPlist),
+    infoPlist: .dictionary(Project.commonInfoPlist),
     resources: ["Resources/**/*"],
     buildableFolders: ["Sources"],
     scripts: [
@@ -41,7 +51,11 @@ private let macOSTests: Target = .target(
             basedOnDependencyAnalysis: false
         )
     ],
-    dependencies: [.target(name: "ReefrWallet")]
+    dependencies: [
+        .target(name: "ReefrWallet"),
+        .project(target: "WalletKitTesting", path: "WalletKit")
+    ],
+    environmentVariables: testEnvironmentVariables
 )
 
 private let iosTests: Target = .target(
@@ -70,6 +84,9 @@ private let macOSUITests: Target = .target(
     deploymentTargets: .macOS("15.0"),
     infoPlist: .default,
     buildableFolders: ["UITests"],
+    entitlements: .dictionary([
+        "com.apple.security.network.server": .boolean(true)
+    ]),
     scripts: [
         .post(
             script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml UITests",
@@ -79,9 +96,7 @@ private let macOSUITests: Target = .target(
     ],
     dependencies: [
         .target(name: "ReefrWallet"),
-        .project(target: "WalletKit", path: "WalletKit"),
-        .project(target: "WalletKitGRPC", path: "WalletKit"),
-        .project(target: "WalletKitRust", path: "WalletKit"),
+        .project(target: "WalletKitTesting", path: "WalletKit"),
         .external(name: "BigInt"),
         .external(name: "GRPCCore"),
         .external(name: "GRPCNIOTransportHTTP2Posix"),
@@ -101,6 +116,7 @@ private let walletScheme: Scheme = .scheme(
     buildAction: .buildAction(targets: [.target(wallet.name)]),
     testAction: .targets(
         ["\(iosTests.name)", "\(macOSTests.name)", "\(macOSUITests.name)"],
+        arguments: .arguments(environmentVariables: testEnvironmentVariables),
         options: .options(coverage: true, codeCoverageTargets: ["\(wallet.name)"])
     ),
     runAction: .runAction(
@@ -108,7 +124,8 @@ private let walletScheme: Scheme = .scheme(
         arguments: .arguments(launchArguments: [
             .launchArgument(name: "--drop-accounts", isEnabled: false),
             .launchArgument(name: "--drop-balances", isEnabled: false),
-            .launchArgument(name: "--drop-tokens", isEnabled: false)
+            .launchArgument(name: "--drop-tokens", isEnabled: false),
+            .launchArgument(name: "--drop-transactions", isEnabled: false),
         ])
     )
 )
@@ -134,7 +151,7 @@ let project = Project(
     targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
     schemes: [walletScheme],
     additionalFiles: [
-        "docs/**/*",
+        "Docs/**/*",
         "Makefile",
         "Project.swift",
         "*.md"
