@@ -8,6 +8,50 @@ import WalletKitTesting
 // swiftlint:disable type_body_length
 @Suite(.timeLimit(.minutes(3)), .serialized)
 struct TransactionSyncServiceTests {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["TRONGRID_API_KEY"] != nil))
+    func syncsWatchOnlyNileTransactions() async throws {
+        let apiKey = try #require(ProcessInfo.processInfo.environment["TRONGRID_API_KEY"])
+        let previousAPIKey = UserDefaults.standard.string(forKey: "TronGridAPIKey")
+        UserDefaults.standard.set(apiKey, forKey: "TronGridAPIKey")
+        defer { UserDefaults.standard.set(previousAPIKey, forKey: "TronGridAPIKey") }
+
+        let databaseService = try makeDatabaseService()
+        let keyStore = try await databaseService.watchOnlyKeyStore()
+        guard let keyStoreID = keyStore.id else {
+            throw Error.invalidData
+        }
+
+        var account = Account(
+            accountIndex: nil,
+            address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",
+            blockchain: .tron(.testnet),
+            derivationPath: nil,
+            keyStoreId: keyStoreID,
+            name: "Funded Nile Watch-Only"
+        )
+        account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
+        let accountID = try #require(account.id)
+
+        let service = TransactionSyncService(databaseService: databaseService)
+        await service.start(account)
+        defer { Task { await service.stop(account) } }
+
+        let deadline = ContinuousClock.now.advanced(by: .seconds(50))
+        while ContinuousClock.now < deadline {
+            if !(try await databaseService.fetchTransactions(accountId: accountID)).isEmpty {
+                return
+            }
+            try await Task.sleep(for: .milliseconds(500))
+        }
+
+        let transactions = try await databaseService.fetchTransactions(accountId: accountID)
+        let syncState = try await databaseService.transactionSyncState(accountId: accountID)
+        #expect(
+            !transactions.isEmpty,
+            "No Nile transactions were saved for \(account.address). Sync error: \(syncState.lastError ?? "none")"
+        )
+    }
+
     @Test
     func capturesTwoWayLocalEthereumAndSuiTransfers() async throws {
         let fixture = try await TransactionSyncFixture.make()

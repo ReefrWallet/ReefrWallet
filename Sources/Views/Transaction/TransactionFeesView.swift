@@ -28,6 +28,7 @@ struct TransactionFeesView {
     @State private var suiGasBudget = ""
     @State private var suiGasPrice = ""
     @State private var bitcoinFeeRate = ""
+    @State private var tronFeeLimit = ""
 }
 
 // MARK: - View
@@ -43,6 +44,8 @@ extension TransactionFeesView: View {
                 suiFeesForm
             case .bitcoin:
                 bitcoinFeesForm
+            case .tron:
+                tronFeesForm
             default:
                 EmptyView()
             }
@@ -144,6 +147,20 @@ private extension TransactionFeesView {
                 .style(.small, foreground: .secondary)
         }
     }
+
+    @ViewBuilder
+    var tronFeesForm: some View {
+        LabeledContent {
+            TextField("", text: $tronFeeLimit)
+        } label: {
+            Text("TRC-20 fee limit (SUN)")
+                .style(.small, foreground: .secondary)
+        }
+
+        Text("This caps Energy and Bandwidth spending. It does not increase transaction priority.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
 }
 
 // MARK: - Logic
@@ -156,6 +173,7 @@ private extension TransactionFeesView {
         suiGasBudget = estimate?.suiGasBudget ?? ""
         suiGasPrice = estimate?.suiGasPrice ?? ""
         bitcoinFeeRate = estimate?.bitcoinFeeRate ?? ""
+        tronFeeLimit = estimate?.tronFeeLimit ?? ""
     }
 
     /// Fetches the native token's USD price via the blockchain's WalletKit
@@ -216,6 +234,14 @@ private extension TransactionFeesView {
             }
 
             return Fees(bitcoinFeeRate: bitcoinFeeRate)
+        case .tron:
+            guard estimatedFees != nil else {
+                return nil
+            }
+            guard tronFeeLimit.isEmpty || UInt64(tronFeeLimit) != nil else {
+                return nil
+            }
+            return Fees(tronFeeLimit: tronFeeLimit.isEmpty ? nil : tronFeeLimit)
         default:
             return nil
         }

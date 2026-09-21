@@ -28,6 +28,8 @@ final class AccountService {
                 _ = try EthereumAddress(string: address)
             case .sui:
                 _ = try SuiAddress(string: address)
+            case .tron:
+                _ = try TronAddress(string: address)
             case let .bitcoin(network):
                 // Scoped to a plain address for now — importing a bare
                 // account xpub as watch-only (rather than one address) is
@@ -165,6 +167,12 @@ private extension AccountService {
             }
 
             return .secp256k1
+        case .tron:
+            guard signatureScheme == nil || signatureScheme == .secp256k1 else {
+                throw Error.invalidData
+            }
+
+            return .secp256k1
         case .sui:
             return signatureScheme ?? .ed25519
         default:
@@ -193,6 +201,8 @@ private extension AccountService {
         switch blockchain {
         case .evm:
             curve = .secp256k1
+        case .tron:
+            curve = .secp256k1
         case .sui:
             guard let signatureScheme else {
                 throw Error.invalidData
@@ -212,6 +222,9 @@ private extension AccountService {
             let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
             let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
             address = try signer.address().checksummed
+        case .tron:
+            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
+            address = try TronAddress(publicKey: publicKey).string
         case .sui:
             let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
             address = try SuiAddress(publicKey: publicKey, curve: curve).string
@@ -283,6 +296,10 @@ private extension AccountService {
         case .evm:
             let signer = try await EthereumTrezorSigner(device: device, derivationPath: derivationPath)
             return AddressResult(address: try signer.address().string, derivationPath: derivationPath.string)
+        case .tron:
+            let publicKey = try await device.publicKey(path: derivationPath, curve: .secp256k1)
+            let address = try TronAddress(publicKey: publicKey)
+            return AddressResult(address: address.string, derivationPath: derivationPath.string)
         default:
             throw Error.notImplemented
         }

@@ -18,6 +18,8 @@ struct Fees: Equatable {
     let suiGasPrice: String?
     /// The fee rate, in sat/vB, for a Bitcoin transfer.
     let bitcoinFeeRate: String?
+    /// Maximum SUN a TRC-20 call may spend. This does not affect validator priority.
+    let tronFeeLimit: String?
     /// Total fee cost in the chain's smallest unit (wei / MIST / sats), only
     /// set when the token being sent is the native asset. Used to compute the
     /// spendable maximum after reserving gas.
@@ -31,6 +33,7 @@ struct Fees: Equatable {
         suiGasBudget: String? = nil,
         suiGasPrice: String? = nil,
         bitcoinFeeRate: String? = nil,
+        tronFeeLimit: String? = nil,
         nativeFeeReserve: String? = nil
     ) {
         self.ethereumBaseFee = ethereumBaseFee
@@ -40,6 +43,7 @@ struct Fees: Equatable {
         self.suiGasBudget = suiGasBudget
         self.suiGasPrice = suiGasPrice
         self.bitcoinFeeRate = bitcoinFeeRate
+        self.tronFeeLimit = tronFeeLimit
         self.nativeFeeReserve = nativeFeeReserve
     }
 }

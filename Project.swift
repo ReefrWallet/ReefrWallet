@@ -3,13 +3,17 @@ import ProjectDescription
 import ProjectDescriptionHelpers
 
 private let testEnvironmentVariables: [String: EnvironmentVariable] = {
-    guard case let .string(apiKey)? = Environment.etherscanApiKey else {
-        return [:]
+    var variables: [String: EnvironmentVariable] = [:]
+
+    if case let .string(apiKey)? = Environment.etherscanApiKey {
+        variables["ETHERSCAN_API_KEY"] = .environmentVariable(value: apiKey, isEnabled: true)
     }
 
-    return [
-        "ETHERSCAN_API_KEY": .environmentVariable(value: apiKey, isEnabled: true)
-    ]
+    if let apiKey = ProcessInfo.processInfo.environment["TRONGRID_API_KEY"], !apiKey.isEmpty {
+        variables["TRONGRID_API_KEY"] = .environmentVariable(value: apiKey, isEnabled: true)
+    }
+
+    return variables
 }()
 
 // MARK: Targets

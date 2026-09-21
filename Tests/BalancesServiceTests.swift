@@ -7,6 +7,37 @@ import WalletKitTesting
 
 @Suite(.timeLimit(.minutes(1)))
 struct BalancesServiceTests {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["TRONGRID_API_KEY"] != nil))
+    func updateBalancesPersistsFundedNileNativeBalance() async throws {
+        let apiKey = try #require(ProcessInfo.processInfo.environment["TRONGRID_API_KEY"])
+        let previousAPIKey = UserDefaults.standard.string(forKey: "TronGridAPIKey")
+        UserDefaults.standard.set(apiKey, forKey: "TronGridAPIKey")
+        defer { UserDefaults.standard.set(previousAPIKey, forKey: "TronGridAPIKey") }
+
+        let databaseService = try makeDatabaseService()
+        let balancesService = BalancesService(databaseService: databaseService)
+        let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreID)
+        var account = makeTronAccount(keyStoreID: keyStoreID)
+        account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
+        let accountID = try #require(account.id)
+
+        for token in tronTestTokens {
+            _ = try await databaseService.insertToken(token, blockchain: account.blockchain)
+        }
+
+        try await balancesService.updateBalances(account)
+
+        let balances = try await databaseService.fetchBalances(accountId: accountID)
+        let nativeBalance = try #require(balances.first(where: { $0.token.isNativeToken }))
+        #expect(nativeBalance.amount > 0)
+        #expect(nativeBalance.token.symbol == "TRX")
+        for token in tronTestTokens {
+            let balance = try #require(balances.first(where: { $0.token.address == token.address }))
+            #expect(balance.amount > 0, "Expected a positive \(token.symbol) balance for the Nile test account.")
+        }
+    }
+
     @Test
     func updateBalancesPersistsAnvilNativeBalanceAndUsdValuesAggregate() async throws {
         let repositoryURL = URL(fileURLWithPath: #filePath)
@@ -141,5 +172,45 @@ private extension BalancesServiceTests {
             name: "Anvil Test Account",
             rpcURLOverride: endpointURL
         )
+    }
+
+    func makeTronAccount(keyStoreID: PersistentIdentifier) -> Account {
+        Account(
+            accountIndex: nil,
+            address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",
+            blockchain: .tron(.testnet),
+            derivationPath: nil,
+            keyStoreId: keyStoreID,
+            name: "Funded Nile Watch-Only"
+        )
+    }
+
+    var tronTestTokens: [Token] {
+        [
+            Token(
+                address: "TF17BgPaZYbz8oxbjhriubPDsA7ArKoLX3",
+                blockchain: .tron(.testnet),
+                decimalsCount: 18,
+                imageURL: nil,
+                isHidden: false,
+                isIncludedInBalance: true,
+                isNativeToken: false,
+                name: "JUST",
+                symbol: "JST",
+                usdPrice: nil
+            ),
+            Token(
+                address: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+                blockchain: .tron(.testnet),
+                decimalsCount: 6,
+                imageURL: nil,
+                isHidden: false,
+                isIncludedInBalance: true,
+                isNativeToken: false,
+                name: "Tether USD",
+                symbol: "USDT",
+                usdPrice: nil
+            )
+        ]
     }
 }

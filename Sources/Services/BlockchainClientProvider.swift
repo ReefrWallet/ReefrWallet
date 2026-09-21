@@ -8,6 +8,7 @@ actor BlockchainClientProvider {
         let blockchain: WKBlockchain
         let rpcURL: URL?
         let backend: BitcoinBackendKind?
+        let tronGridAPIKey: String?
     }
 
     private var clients: [Target: AnyBlockchainClient] = [:]
@@ -25,9 +26,20 @@ actor BlockchainClientProvider {
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainClient {
-        let target = Target(blockchain: blockchain, rpcURL: rpcURL, backend: backend)
+        let tronGridAPIKey = tronGridAPIKey(for: blockchain)
+        let target = Target(
+            blockchain: blockchain,
+            rpcURL: rpcURL,
+            backend: backend,
+            tronGridAPIKey: tronGridAPIKey
+        )
         if let client = clients[target] { return client }
-        let client = try makeClient(blockchain: blockchain, rpcURL: rpcURL, backend: backend)
+        let client = try makeClient(
+            blockchain: blockchain,
+            rpcURL: rpcURL,
+            backend: backend,
+            tronGridAPIKey: tronGridAPIKey
+        )
         clients[target] = client
         return client
     }
@@ -44,9 +56,20 @@ actor BlockchainClientProvider {
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainTransactionBuilder {
-        let target = Target(blockchain: blockchain, rpcURL: rpcURL, backend: backend)
+        let tronGridAPIKey = tronGridAPIKey(for: blockchain)
+        let target = Target(
+            blockchain: blockchain,
+            rpcURL: rpcURL,
+            backend: backend,
+            tronGridAPIKey: tronGridAPIKey
+        )
         if let builder = builders[target] { return builder }
-        let builder = try makeBuilder(blockchain: blockchain, rpcURL: rpcURL, backend: backend)
+        let builder = try makeBuilder(
+            blockchain: blockchain,
+            rpcURL: rpcURL,
+            backend: backend,
+            tronGridAPIKey: tronGridAPIKey
+        )
         builders[target] = builder
         return builder
     }
@@ -54,7 +77,8 @@ actor BlockchainClientProvider {
     private func makeClient(
         blockchain: WKBlockchain,
         rpcURL: URL?,
-        backend: BitcoinBackendKind?
+        backend: BitcoinBackendKind?,
+        tronGridAPIKey: String?
     ) throws -> AnyBlockchainClient {
         switch blockchain {
         case let .evm(chain):
@@ -70,6 +94,9 @@ actor BlockchainClientProvider {
             )
         case let .bitcoin(network):
             return AnyBlockchainClient(try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend))
+        case .tron:
+            let endpoint = rpcURL ?? blockchain.rpcURL
+            return AnyBlockchainClient(TronClient(endpoint: endpoint, apiKey: tronGridAPIKey))
         default:
             throw WalletKitError.internalError(message: "Not implemented yet")
         }
@@ -78,7 +105,8 @@ actor BlockchainClientProvider {
     private func makeBuilder(
         blockchain: WKBlockchain,
         rpcURL: URL?,
-        backend: BitcoinBackendKind?
+        backend: BitcoinBackendKind?,
+        tronGridAPIKey: String?
     ) throws -> AnyBlockchainTransactionBuilder {
         switch blockchain {
         case let .evm(chain):
@@ -97,6 +125,10 @@ actor BlockchainClientProvider {
         case let .bitcoin(network):
             let client = try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend)
             return AnyBlockchainTransactionBuilder(BitcoinTransactionBuilder(client: client))
+        case .tron:
+            let endpoint = rpcURL ?? blockchain.rpcURL
+            let client = TronClient(endpoint: endpoint, apiKey: tronGridAPIKey)
+            return AnyBlockchainTransactionBuilder(TronTransactionBuilder(client: client))
         default:
             throw WalletKitError.internalError(message: "Not implemented yet")
         }
@@ -121,5 +153,13 @@ actor BlockchainClientProvider {
         case .esplora:
             return BitcoinClient(esploraEndpoint: endpoint)
         }
+    }
+
+    private func tronGridAPIKey(for blockchain: WKBlockchain) -> String? {
+        guard case .tron = blockchain else {
+            return nil
+        }
+
+        return UserDefaults.standard.string(forKey: "TronGridAPIKey")
     }
 }

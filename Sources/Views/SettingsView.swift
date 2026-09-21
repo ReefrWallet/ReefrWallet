@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("UseProxy") private var useProxy: Bool = false
 
     @AppStorage("EtherscanAPIKey") private var etherscanAPIKey: String = ""
+    @AppStorage("TronGridAPIKey") private var tronGridAPIKey: String = ""
 
     var body: some View {
         Form {
@@ -21,6 +22,12 @@ struct SettingsView: View {
                 TextField("Etherscan API Key", text: $etherscanAPIKey)
 
                 Text("Used for EVM history backfill. Falls back to Blockscout when empty.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                TextField("TronGrid API Key", text: $tronGridAPIKey)
+
+                Text("Used for TronGrid account data, history, and transaction requests.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

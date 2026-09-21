@@ -69,6 +69,8 @@ final class TransactionService {
                 recipient: recipient,
                 account: account
             )
+        case .tron:
+            return Fees(tronFeeLimit: token.isNativeToken ? nil : "100000000")
         default:
             throw Error.notImplemented
         }
@@ -273,6 +275,9 @@ private extension TransactionService {
         case .bitcoin:
             guard let rate = try parseUInt64Override(fees.bitcoinFeeRate) else { return [] }
             return [.bitcoinFeeOverride(feeRateSatPerVByte: rate)]
+        case .tron:
+            guard let limit = try parseUInt64Override(fees.tronFeeLimit) else { return [] }
+            return [.tronFeeLimit(limit)]
         default:
             return []
         }
@@ -378,6 +383,9 @@ private extension TransactionService {
         case let .bitcoin(network):
             let descriptor = try BitcoinDescriptor(string: account.address, network: network)
             return try BitcoinPKeySigner(descriptor: descriptor, seed: seed, derivationPath: derivationPath)
+        case let .tron(network):
+            let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
+            return try TronPKeySigner(network: network, privateKey: privateKey, derivationPath: derivationPath)
         default:
             throw Error.notImplemented
         }
@@ -401,8 +409,13 @@ private extension TransactionService {
                 accountIndex: UInt32(truncatingIfNeeded: account.accountIndex ?? 0),
                 device: device
             )
+        case let .tron(network):
+            return try await TronTrezorSigner(
+                network: network,
+                device: device,
+                derivationPath: derivationPath
+            )
         default:
-            // Trezor signing for non-EVM/Bitcoin chains is not yet implemented.
             throw Error.notImplemented
         }
     }
