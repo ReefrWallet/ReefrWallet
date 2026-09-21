@@ -93,7 +93,8 @@ private extension TransactionSyncService {
         do {
             let client = try await clientProvider.getClient(
                 blockchain: account.blockchain,
-                rpcURL: account.rpcURLOverride
+                rpcURL: account.rpcURLOverride,
+                backend: account.bitcoinBackend
             )
 
             guard client.isSupported(.transactionHistory) else {

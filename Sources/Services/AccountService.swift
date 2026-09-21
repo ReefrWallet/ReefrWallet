@@ -28,6 +28,12 @@ final class AccountService {
                 _ = try EthereumAddress(string: address)
             case .sui:
                 _ = try SuiAddress(string: address)
+            case let .bitcoin(network):
+                // Scoped to a plain address for now — importing a bare
+                // account xpub as watch-only (rather than one address) is
+                // a follow-up, since it would also need the UI to ask
+                // which script type the xpub is for.
+                _ = try BitcoinDescriptor(address: address, network: network)
             default:
                 return false
             }
@@ -44,6 +50,8 @@ final class AccountService {
         keyStore: KeyStore,
         rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
+        bitcoinScriptType: BitcoinScriptType? = nil,
+        bitcoinBackend: BitcoinBackendKind? = nil,
         watchOnlyAddress: String? = nil
     ) async throws -> Account {
         let accountIndex = try await nextAccountIndex(for: blockchain, in: keyStore)
@@ -62,7 +70,8 @@ final class AccountService {
                 blockchain: blockchain,
                 rawKey: rawKey,
                 accountIndex: accountIndex,
-                signatureScheme: effectiveSignatureScheme
+                signatureScheme: effectiveSignatureScheme,
+                bitcoinScriptType: bitcoinScriptType
             )
 
             address = result.address
@@ -73,7 +82,12 @@ final class AccountService {
             }
 
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
-            let result = try await makeTrezorAddress(blockchain: blockchain, accountIndex: accountIndex, device: device)
+            let result = try await makeTrezorAddress(
+                blockchain: blockchain,
+                accountIndex: accountIndex,
+                device: device,
+                bitcoinScriptType: bitcoinScriptType
+            )
 
             address = result.address
             derivationPath = result.derivationPath
@@ -88,7 +102,16 @@ final class AccountService {
                 throw Error.invalidAddress
             }
 
-            address = trimmedAddress
+            if case let .bitcoin(network) = blockchain {
+                // Store the canonical `addr(...)` form so this account's
+                // address round-trips through `BitcoinDescriptor(string:)`
+                // the same way a local account's `wpkh(...)`/`tr(...)`
+                // address already does (used by `AnyBlockchainClient`'s
+                // generic string-addressed bridging).
+                address = try BitcoinDescriptor(address: trimmedAddress, network: network).string
+            } else {
+                address = trimmedAddress
+            }
             derivationPath = nil
         }
 
@@ -108,7 +131,8 @@ final class AccountService {
             keyStoreId: keyStoreId,
             name: "\(name) #\(accountIndex + 1)",
             rpcURLOverride: rpcURLOverride,
-            signatureScheme: effectiveSignatureScheme
+            signatureScheme: effectiveSignatureScheme,
+            bitcoinBackend: bitcoinBackend
         )
 
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
@@ -152,8 +176,19 @@ private extension AccountService {
         blockchain: WKBlockchain,
         rawKey: Data,
         accountIndex: UInt64,
-        signatureScheme: Curve?
+        signatureScheme: Curve?,
+        bitcoinScriptType: BitcoinScriptType? = nil
     ) throws -> AddressResult {
+        // Bitcoin has no single derivation path (an account xpub, not one
+        // address, sits at its account-level path) — handled by its own
+        // branch below rather than the shared `curve`/`DerivationPath`
+        // flow the other chains use.
+        if case let .bitcoin(network) = blockchain {
+            return try makeLocalBitcoinAddress(
+                network: network, rawKey: rawKey, accountIndex: accountIndex, scriptType: bitcoinScriptType
+            )
+        }
+
         let curve: Curve
         switch blockchain {
         case .evm:
@@ -187,11 +222,61 @@ private extension AccountService {
         return AddressResult(address: address, derivationPath: derivationPath.string)
     }
 
+    /// Derives the account-level xpub at
+    /// `DerivationPath.bitcoinAccount(network:scriptType:accountIndex:)`,
+    /// computes its BIP-32 master fingerprint, and builds the resulting
+    /// `wpkh(...)`/`tr(...)` descriptor — stored as `Account.address` and
+    /// re-parsed via `BitcoinDescriptor(string:network:)` everywhere else
+    /// that needs it (the client, the builder, the signer).
+    func makeLocalBitcoinAddress(
+        network: BitcoinNetwork,
+        rawKey: Data,
+        accountIndex: UInt64,
+        scriptType: BitcoinScriptType?
+    ) throws -> AddressResult {
+        guard let scriptType else {
+            throw Error.invalidData
+        }
+
+        let seed = try Seed(rawBytes: rawKey)
+        let masterKey = try seed.masterKey(curve: .secp256k1)
+        let masterFingerprint = try BitcoinDescriptor.fingerprint(of: masterKey.publicKey)
+
+        let accountDerivationPath = try DerivationPath.bitcoinAccount(
+            network: network,
+            scriptType: scriptType,
+            accountIndex: UInt32(truncatingIfNeeded: accountIndex)
+        )
+        let accountKey = try masterKey.derive(accountDerivationPath)
+        let accountPathText = String(accountDerivationPath.string.dropFirst(2)) // drop the leading "m/".
+
+        let descriptor = try BitcoinDescriptor(
+            xpub: accountKey.serializedPublic(),
+            scriptType: scriptType,
+            network: network,
+            masterFingerprint: masterFingerprint,
+            accountPath: accountPathText
+        )
+
+        return AddressResult(address: descriptor.string, derivationPath: accountDerivationPath.string)
+    }
+
     func makeTrezorAddress(
         blockchain: WKBlockchain,
         accountIndex: UInt64,
-        device: HardwareDevice
+        device: HardwareDevice,
+        bitcoinScriptType: BitcoinScriptType? = nil
     ) async throws -> AddressResult {
+        // Bitcoin has no single derivation path (an account xpub, not one
+        // address, sits at its account-level path) — handled by its own
+        // branch below rather than the shared `curve`/`DerivationPath`
+        // flow the other chains use, matching `makeLocalAddress`.
+        if case let .bitcoin(network) = blockchain {
+            return try await makeTrezorBitcoinAddress(
+                network: network, accountIndex: accountIndex, scriptType: bitcoinScriptType, device: device
+            )
+        }
+
         let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: .secp256k1)
 
         switch blockchain {
@@ -201,6 +286,32 @@ private extension AccountService {
         default:
             throw Error.notImplemented
         }
+    }
+
+    /// Reads the account-level xpub for `scriptType`/`accountIndex` off
+    /// `device` (``BitcoinTrezorSigner``'s two device reads: the master
+    /// fingerprint, then the account xpub) and builds the resulting
+    /// `wpkh(...)`/`tr(...)` descriptor — stored as `Account.address`, the
+    /// same as ``makeLocalBitcoinAddress``'s software-derived equivalent.
+    func makeTrezorBitcoinAddress(
+        network: BitcoinNetwork,
+        accountIndex: UInt64,
+        scriptType: BitcoinScriptType?,
+        device: HardwareDevice
+    ) async throws -> AddressResult {
+        guard let scriptType else {
+            throw Error.invalidData
+        }
+
+        let signer = try await BitcoinTrezorSigner(
+            network: network,
+            scriptType: scriptType,
+            accountIndex: UInt32(truncatingIfNeeded: accountIndex),
+            device: device
+        )
+
+        let descriptor = try signer.address()
+        return AddressResult(address: descriptor.string, derivationPath: signer.account.derivationPath.string)
     }
 
     /// Return next account index that has not yet been configured

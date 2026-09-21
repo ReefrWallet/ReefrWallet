@@ -25,6 +25,8 @@ struct AddAccountView {
     @State private var selectedBlockchain: WKBlockchain
     @State private var selectedKeyScheme: Curve?
     @State private var selectedNetwork: WKBlockchain?
+    @State private var selectedBitcoinScriptType: BitcoinScriptType = .p2wpkh
+    @State private var selectedBitcoinBackend: BitcoinBackendKind = .electrum
 
     @State private var customEndpointURL: String = ""
     @State private var useCustomEndpoint: Bool = false
@@ -91,6 +93,23 @@ extension AddAccountView: View {
                                 Text(scheme.description).tag(scheme)
                             }
                         }
+                    } else if case .bitcoin = selectedBlockchain, !keyStore.isWatchOnly {
+                        Picker("Script Type", selection: $selectedBitcoinScriptType) {
+                            Text("Native SegWit (BIP-84)").tag(BitcoinScriptType.p2wpkh)
+                            Text("Taproot (BIP-86)").tag(BitcoinScriptType.p2tr)
+                        }
+                    }
+
+                    if case .bitcoin = selectedBlockchain {
+                        // Set only here, at account creation — like the RPC
+                        // endpoint override below, there is no later
+                        // edit-account flow for this yet.
+                        Picker("Backend", selection: $selectedBitcoinBackend) {
+                            ForEach(BitcoinBackendKind.allCases, id: \.self) { backend in
+                                Text(backend.displayName).tag(backend)
+                            }
+                        }
+                        .accessibilityIdentifier("add-account-bitcoin-backend-picker")
                     }
                 }
 
@@ -98,6 +117,8 @@ extension AddAccountView: View {
                     let displayedRpcUrl: Binding<String> = .init(get: {
                         if useCustomEndpoint, !customEndpointURL.isEmpty {
                             customEndpointURL
+                        } else if case let .bitcoin(network) = selectedNetwork {
+                            network.defaultEndpoint(for: selectedBitcoinBackend).absoluteString
                         } else {
                             selectedNetwork?.rpcURL.absoluteString ?? ""
                         }
@@ -206,7 +227,15 @@ private extension AddAccountView {
             return true
         }
 
-        return keyStore.isWatchOnly && !accountService.isValidAddress(trimmedAddress, for: selectedNetwork)
+        if keyStore.isWatchOnly, !accountService.isValidAddress(trimmedAddress, for: selectedNetwork) {
+            return true
+        }
+
+        if useCustomEndpoint, (try? customEndpointURLOverride()) == nil {
+            return true
+        }
+
+        return false
     }
 
     var trimmedAddress: String {
@@ -216,14 +245,37 @@ private extension AddAccountView {
     @MainActor
     func addAccount(_ blockchain: WKBlockchain, signatureScheme: Curve?) async throws {
         let watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
+        let isBitcoin = if case .bitcoin = blockchain { true } else { false }
         let account = try await accountService.makeAccount(
             blockchain,
             keyStore: keyStore,
+            rpcURLOverride: try customEndpointURLOverride(),
             signatureScheme: signatureScheme,
+            bitcoinScriptType: isBitcoin ? selectedBitcoinScriptType : nil,
+            bitcoinBackend: isBitcoin ? selectedBitcoinBackend : nil,
             watchOnlyAddress: watchOnlyAddress
         )
         sidebarSelection.wrappedValue = account.id
         dismiss()
+    }
+
+    /// The account's `rpcURLOverride` — `nil` unless the user actually
+    /// toggled "Custom RPC Endpoint" on and typed a value. Previously
+    /// never passed to `makeAccount` at all, so a custom endpoint (the
+    /// only way to point a Bitcoin account at a self-hosted Electrum/
+    /// Esplora server rather than the public default) was silently
+    /// discarded.
+    func customEndpointURLOverride() throws -> URL? {
+        guard useCustomEndpoint else {
+            return nil
+        }
+
+        let trimmedEndpoint = customEndpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedEndpoint.isEmpty, let url = URL(string: trimmedEndpoint) else {
+            throw Error.invalidData
+        }
+
+        return url
     }
 
     func alertMessage(_ error: Swift.Error?) -> String {
@@ -255,6 +307,17 @@ private extension AddAccountView {
             } else {
                 customChainId = ""
             }
+        }
+    }
+}
+
+// MARK: - BitcoinBackendKind + Display
+
+private extension BitcoinBackendKind {
+    var displayName: String {
+        switch self {
+        case .electrum: "Electrum"
+        case .esplora: "Esplora"
         }
     }
 }

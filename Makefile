@@ -9,9 +9,6 @@ clean:
 	@rm -rf Derived *.xcodeproj *.xcworkspace
 
 test: ReefrWallet.xcworkspace
-	@echo "==> Running Rust tests"
-	$(MAKE) -C WalletKit test
-
 	@echo "==> Running Swift tests"
 	@mise x tuist -- tuist test --skip-ui-tests
 

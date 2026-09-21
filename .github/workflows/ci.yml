@@ -17,10 +17,9 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: recursive
-    - name: Install protoc and Swift gRPC plugins
+    - name: Install libusb
       run: |
-        brew install protobuf swift-protobuf grpc-swift libusb
-        protoc --version
+        brew install libusb
     - name: Run tests
       run: |
         curl https://mise.run | sh

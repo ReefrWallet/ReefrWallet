@@ -24,6 +24,11 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let name: String
     let rpcURLOverride: URL?
     let signatureScheme: Curve?
+    /// Which indexing backend a Bitcoin account talks to. `nil` means the
+    /// network's default (Electrum). Set only at account creation — like
+    /// `rpcURLOverride`, there is no edit-account flow for this yet.
+    /// Meaningless for every other chain.
+    let bitcoinBackend: BitcoinBackendKind?
 
     init(
         accountIndex: UInt64?,
@@ -33,7 +38,8 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         keyStoreId: PersistentIdentifier,
         name: String,
         rpcURLOverride: URL? = nil,
-        signatureScheme: Curve? = nil
+        signatureScheme: Curve? = nil,
+        bitcoinBackend: BitcoinBackendKind? = nil
     ) {
         id = nil
 
@@ -45,6 +51,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         self.name = name
         self.rpcURLOverride = rpcURLOverride
         self.signatureScheme = signatureScheme
+        self.bitcoinBackend = bitcoinBackend
     }
 }
 
@@ -58,6 +65,7 @@ final class AccountModel {
     var name: String
     var rpcURLOverride: String?
     var signatureScheme: String?
+    var bitcoinBackend: String?
 
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
@@ -82,7 +90,8 @@ final class AccountModel {
         keyStore: KeyStoreModel,
         name: String,
         rpcURLOverride: URL? = nil,
-        signatureScheme: Curve? = nil
+        signatureScheme: Curve? = nil,
+        bitcoinBackend: BitcoinBackendKind? = nil
     ) {
         guard accountIndex != nil || keyStore.isWatchOnly else {
             preconditionFailure("Missing account index")
@@ -99,6 +108,7 @@ final class AccountModel {
         self.name = name
         self.rpcURLOverride = rpcURLOverride?.absoluteString
         self.signatureScheme = signatureScheme?.rawValue
+        self.bitcoinBackend = bitcoinBackend?.rawValue
     }
 }
 
@@ -125,6 +135,12 @@ extension Account {
         } else {
             self.rpcURLOverride = nil
         }
+
+        if let bitcoinBackend = model.bitcoinBackend {
+            self.bitcoinBackend = BitcoinBackendKind(rawValue: bitcoinBackend)
+        } else {
+            self.bitcoinBackend = nil
+        }
     }
 }
 
@@ -138,7 +154,8 @@ extension AccountModel {
             keyStore: keyStore,
             name: account.name,
             rpcURLOverride: account.rpcURLOverride,
-            signatureScheme: account.signatureScheme
+            signatureScheme: account.signatureScheme,
+            bitcoinBackend: account.bitcoinBackend
         )
     }
 }

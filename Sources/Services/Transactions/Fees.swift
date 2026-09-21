@@ -16,9 +16,11 @@ struct Fees: Equatable {
     let ethereumMaxFee: String?
     let suiGasBudget: String?
     let suiGasPrice: String?
-    /// Total fee cost in the chain's smallest unit (wei / MIST), only set when
-    /// the token being sent is the native asset. Used to compute the spendable
-    /// maximum after reserving gas.
+    /// The fee rate, in sat/vB, for a Bitcoin transfer.
+    let bitcoinFeeRate: String?
+    /// Total fee cost in the chain's smallest unit (wei / MIST / sats), only
+    /// set when the token being sent is the native asset. Used to compute the
+    /// spendable maximum after reserving gas.
     let nativeFeeReserve: String?
 
     init(
@@ -28,6 +30,7 @@ struct Fees: Equatable {
         ethereumMaxFee: String? = nil,
         suiGasBudget: String? = nil,
         suiGasPrice: String? = nil,
+        bitcoinFeeRate: String? = nil,
         nativeFeeReserve: String? = nil
     ) {
         self.ethereumBaseFee = ethereumBaseFee
@@ -36,6 +39,7 @@ struct Fees: Equatable {
         self.ethereumMaxFee = ethereumMaxFee
         self.suiGasBudget = suiGasBudget
         self.suiGasPrice = suiGasPrice
+        self.bitcoinFeeRate = bitcoinFeeRate
         self.nativeFeeReserve = nativeFeeReserve
     }
 }

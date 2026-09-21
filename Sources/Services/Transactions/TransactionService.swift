@@ -38,7 +38,9 @@ final class TransactionService {
         account: Account
     ) async throws -> Fees {
         let blockchain = account.blockchain
-        let client = try await clientProvider.getClient(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let client = try await clientProvider.getClient(
+            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        )
         let amount = try makeAmount(decimalAmount, token: token)
 
         switch blockchain {
@@ -55,6 +57,14 @@ final class TransactionService {
                 client: client,
                 blockchain: blockchain,
                 token: token,
+                amount: amount,
+                recipient: recipient,
+                account: account
+            )
+        case .bitcoin:
+            return try await estimateBitcoinFees(
+                client: client,
+                blockchain: blockchain,
                 amount: amount,
                 recipient: recipient,
                 account: account
@@ -86,7 +96,9 @@ final class TransactionService {
         let tokenId: String? = token.isNativeToken ? nil : token.address
         let options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
 
-        let builder = try await clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let builder = try await clientProvider.getBuilder(
+            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        )
         return try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,
@@ -117,7 +129,9 @@ final class TransactionService {
     ///   - account: The sending account.
     /// - Returns: The transaction hash (Ethereum) or digest (Sui).
     func sendTransaction(_ txRequest: Data, _ txSignature: Data, account: Account) async throws -> String {
-        let client = try await clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
+        let client = try await clientProvider.getClient(
+            blockchain: account.blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        )
         let identifier = try await client.broadcast(transaction: txRequest, signature: txSignature)
         await transactionSyncService.recordBroadcast(identifier: identifier, account: account)
         return identifier
@@ -212,6 +226,32 @@ private extension TransactionService {
         )
     }
 
+    /// Builds the unsigned PSBT for the transfer (which already runs real
+    /// coin selection at the current fee rate) then reads back its
+    /// implied fee via ``BlockchainClientProtocol/estimateFee(for:)``'s
+    /// PSBT-aware path.
+    func estimateBitcoinFees(
+        client: AnyBlockchainClient,
+        blockchain: WKBlockchain,
+        amount: BigUInt,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        let builder = try await clientProvider.getBuilder(
+            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        )
+        let psbt = try await builder.buildTransfer(
+            sender: account.address, recipient: recipient, amount: amount, token: nil
+        )
+        let request = AnyFeeEstimateRequest(data: psbt)
+        let feeEstimate = try await client.estimateFee(for: request)
+
+        return Fees(
+            bitcoinFeeRate: feeEstimate.gasPrice.description,
+            nativeFeeReserve: feeEstimate.estimatedFee?.description
+        )
+    }
+
     /// Builds the ``BlockchainTransactionBuilderOptions`` array that conveys
     /// the user's fee overrides to the transaction builder.
     ///
@@ -230,6 +270,9 @@ private extension TransactionService {
             let price = try parseUInt64Override(fees.suiGasPrice)
             guard budget != nil || price != nil else { return [] }
             return [.suiGasOverride(budget: budget, price: price)]
+        case .bitcoin:
+            guard let rate = try parseUInt64Override(fees.bitcoinFeeRate) else { return [] }
+            return [.bitcoinFeeOverride(feeRateSatPerVByte: rate)]
         default:
             return []
         }
@@ -303,45 +346,64 @@ private extension TransactionService {
         switch keyStore.kind {
         case .local:
             guard let rawKey = keyStore.rawKey else { throw Error.invalidData }
-            let seed = try Seed(rawBytes: rawKey)
-
-            switch account.blockchain {
-            case let .evm(chain):
-                let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
-                return try EthereumPKeySigner(
-                    chainId: chain.chainId,
-                    privateKey: privateKey,
-                    derivationPath: derivationPath
-                )
-            case let .sui(network):
-                let curve = account.signatureScheme ?? .ed25519
-                let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
-                return try SuiPKeySigner(
-                    curve: curve,
-                    network: network,
-                    privateKey: privateKey,
-                    derivationPath: derivationPath
-                )
-            default:
-                throw Error.notImplemented
-            }
+            return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
         case .trezor:
             guard let deviceId = keyStore.deviceId else { throw Error.invalidData }
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
-
-            switch account.blockchain {
-            case let .evm(chain):
-                return try await EthereumTrezorSigner(
-                    chainId: chain.chainId,
-                    device: device,
-                    derivationPath: derivationPath
-                )
-            default:
-                // Trezor signing for non-EVM chains is not yet implemented.
-                throw Error.notImplemented
-            }
+            return try await makeTrezorSigner(for: account, device: device, derivationPath: derivationPath)
         case .watchOnly:
             throw Error.notSupported
+        }
+    }
+
+    private func makeLocalSigner(
+        for account: Account,
+        rawKey: Data,
+        derivationPath: DerivationPath
+    ) throws -> any Signer {
+        let seed = try Seed(rawBytes: rawKey)
+
+        switch account.blockchain {
+        case let .evm(chain):
+            let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
+            return try EthereumPKeySigner(
+                chainId: chain.chainId, privateKey: privateKey, derivationPath: derivationPath
+            )
+        case let .sui(network):
+            let curve = account.signatureScheme ?? .ed25519
+            let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
+            return try SuiPKeySigner(
+                curve: curve, network: network, privateKey: privateKey, derivationPath: derivationPath
+            )
+        case let .bitcoin(network):
+            let descriptor = try BitcoinDescriptor(string: account.address, network: network)
+            return try BitcoinPKeySigner(descriptor: descriptor, seed: seed, derivationPath: derivationPath)
+        default:
+            throw Error.notImplemented
+        }
+    }
+
+    private func makeTrezorSigner(
+        for account: Account,
+        device: HardwareDevice,
+        derivationPath: DerivationPath
+    ) async throws -> any Signer {
+        switch account.blockchain {
+        case let .evm(chain):
+            return try await EthereumTrezorSigner(
+                chainId: chain.chainId, device: device, derivationPath: derivationPath
+            )
+        case let .bitcoin(network):
+            let descriptor = try BitcoinDescriptor(string: account.address, network: network)
+            return try await BitcoinTrezorSigner(
+                network: network,
+                scriptType: descriptor.scriptType,
+                accountIndex: UInt32(truncatingIfNeeded: account.accountIndex ?? 0),
+                device: device
+            )
+        default:
+            // Trezor signing for non-EVM/Bitcoin chains is not yet implemented.
+            throw Error.notImplemented
         }
     }
 }

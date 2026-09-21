@@ -8,6 +8,7 @@
 
 import SwiftData
 import SwiftUI
+import WalletKit
 
 // MARK: - AccountDetailsView
 
@@ -93,6 +94,23 @@ extension AccountDetailsView: View {
 // MARK: - Subviews
 
 private extension AccountDetailsView {
+    /// `account.address` for Bitcoin is the account's whole descriptor
+    /// (`wpkh(...)`/`tr(...)`/`addr(...)`), not a human-facing address —
+    /// this decodes it to the first external (index 0) address instead.
+    /// A simplification: it always shows index 0, not the first address
+    /// the resolver's gap-limit scan finds unused (which would need a
+    /// live backend call this offline-only computed property avoids).
+    var displayAddress: String {
+        guard case let .bitcoin(network) = account.blockchain else {
+            return account.address
+        }
+        guard let descriptor = try? BitcoinDescriptor(string: account.address, network: network),
+              let address = try? descriptor.deriveAddress(chain: 0, index: 0) else {
+            return account.address
+        }
+        return address.string()
+    }
+
     var balanceRefreshID: [String] {
         accountBalances.map { balance in
             "\(balance.persistentModelID)-\(balance.serializedAmount.base64EncodedString())"
@@ -107,12 +125,12 @@ private extension AccountDetailsView {
                 .padding(.bottom, 4)
 
             HStack {
-                Text(account.address)
+                Text(displayAddress)
 
                 Image(systemName: "square.on.square")
                     .symbolEffect(.bounce, value: isCopyWalletAddressButtonActive)
                     .onTapGesture {
-                        copyToClipboard(account.address)
+                        copyToClipboard(displayAddress)
                         isCopyWalletAddressButtonActive.toggle()
                     }
             }

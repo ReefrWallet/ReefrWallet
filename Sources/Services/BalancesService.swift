@@ -27,7 +27,8 @@ actor BalancesService {
     func updateBalances(_ account: Account) async throws {
         let client = try await clientProvider.getClient(
             blockchain: account.blockchain,
-            rpcURL: account.rpcURLOverride
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
         )
 
         if client.isSupported(.allBalances) {
@@ -59,7 +60,8 @@ actor BalancesService {
     func updateTokenPrices(_ account: Account) async throws {
         let client = try await clientProvider.getClient(
             blockchain: account.blockchain,
-            rpcURL: account.rpcURLOverride
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
         )
 
         let tokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
@@ -114,7 +116,9 @@ actor BalancesService {
             return
         }
 
-        let client = try? await clientProvider.getClient(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let client = try? await clientProvider.getClient(
+            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        )
 
         if client?.isSupported(.allBalances) == true {
             queuedTokenUpdates = queuedTokenUpdates.filter { $0.key.accountId != accountId }
@@ -176,7 +180,9 @@ private extension BalancesService {
     }
 
     func flushTokenUpdates(account: Account, tokenAddresses: [String?]) async throws {
-        let client = try await clientProvider.getClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
+        let client = try await clientProvider.getClient(
+            blockchain: account.blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        )
 
         if tokenAddresses.contains(nil) {
             let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)

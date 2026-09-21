@@ -27,6 +27,7 @@ struct TransactionFeesView {
     @State private var nativeTokenPriceUSD: Decimal?
     @State private var suiGasBudget = ""
     @State private var suiGasPrice = ""
+    @State private var bitcoinFeeRate = ""
 }
 
 // MARK: - View
@@ -40,6 +41,8 @@ extension TransactionFeesView: View {
                 evmFeesForm
             case .sui:
                 suiFeesForm
+            case .bitcoin:
+                bitcoinFeesForm
             default:
                 EmptyView()
             }
@@ -122,6 +125,25 @@ private extension TransactionFeesView {
                 .style(.small, foreground: .secondary)
         }
     }
+
+    @ViewBuilder
+    var bitcoinFeesForm: some View {
+        LabeledContent {
+            TextField("", text: $bitcoinFeeRate)
+        } label: {
+            Text("Fee rate (sat/vB)")
+                .style(.small, foreground: .secondary)
+        }
+
+        LabeledContent {
+            TextField("", text: transactionCost)
+                .frame(height: 28)
+                .disabled(true)
+        } label: {
+            Text("Transaction cost (USD)")
+                .style(.small, foreground: .secondary)
+        }
+    }
 }
 
 // MARK: - Logic
@@ -133,6 +155,7 @@ private extension TransactionFeesView {
         ethereumMaxFee = estimate?.ethereumMaxFee ?? ""
         suiGasBudget = estimate?.suiGasBudget ?? ""
         suiGasPrice = estimate?.suiGasPrice ?? ""
+        bitcoinFeeRate = estimate?.bitcoinFeeRate ?? ""
     }
 
     /// Fetches the native token's USD price via the blockchain's WalletKit
@@ -187,6 +210,12 @@ private extension TransactionFeesView {
             }
 
             return Fees(suiGasBudget: suiGasBudget, suiGasPrice: suiGasPrice)
+        case .bitcoin:
+            guard UInt64(bitcoinFeeRate) != nil else {
+                return nil
+            }
+
+            return Fees(bitcoinFeeRate: bitcoinFeeRate)
         default:
             return nil
         }
