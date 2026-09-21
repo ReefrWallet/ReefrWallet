@@ -97,6 +97,9 @@ actor BlockchainClientProvider {
         case .tron:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return AnyBlockchainClient(TronClient(endpoint: endpoint, apiKey: tronGridAPIKey))
+        case .solana:
+            let endpoint = rpcURL ?? blockchain.rpcURL
+            return AnyBlockchainClient(SolanaRPCClient(endpoint: endpoint))
         default:
             throw WalletKitError.internalError(message: "Not implemented yet")
         }
@@ -129,6 +132,10 @@ actor BlockchainClientProvider {
             let endpoint = rpcURL ?? blockchain.rpcURL
             let client = TronClient(endpoint: endpoint, apiKey: tronGridAPIKey)
             return AnyBlockchainTransactionBuilder(TronTransactionBuilder(client: client))
+        case .solana:
+            let endpoint = rpcURL ?? blockchain.rpcURL
+            let client = SolanaRPCClient(endpoint: endpoint)
+            return AnyBlockchainTransactionBuilder(SolanaTransactionBuilder(client: client))
         default:
             throw WalletKitError.internalError(message: "Not implemented yet")
         }

@@ -71,6 +71,15 @@ final class TransactionService {
             )
         case .tron:
             return Fees(tronFeeLimit: token.isNativeToken ? nil : "100000000")
+        case .solana:
+            return try await estimateSolanaFees(
+                client: client,
+                blockchain: blockchain,
+                token: token,
+                amount: amount,
+                recipient: recipient,
+                account: account
+            )
         default:
             throw Error.notImplemented
         }
@@ -228,6 +237,35 @@ private extension TransactionService {
         )
     }
 
+    /// Builds the unsigned transaction envelope for the transfer (which
+    /// already applies the default priority fee) then reads back its
+    /// implied cost via ``BlockchainClientProtocol/estimateFee(for:)``'s
+    /// message-aware path.
+    func estimateSolanaFees(
+        client: AnyBlockchainClient,
+        blockchain: WKBlockchain,
+        token: Token,
+        amount: BigUInt,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        let builder = try await clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
+        let envelope = try await builder.buildTransfer(
+            sender: account.address,
+            recipient: recipient,
+            amount: amount,
+            token: token.isNativeToken ? nil : token.address
+        )
+        let request = AnyFeeEstimateRequest(data: envelope)
+        let feeEstimate = try await client.estimateFee(for: request)
+
+        return Fees(
+            solanaPriorityFee: feeEstimate.gasPrice.description,
+            solanaComputeUnitLimit: feeEstimate.gasLimit?.description,
+            nativeFeeReserve: token.isNativeToken ? feeEstimate.estimatedFee?.description : nil
+        )
+    }
+
     /// Builds the unsigned PSBT for the transfer (which already runs real
     /// coin selection at the current fee rate) then reads back its
     /// implied fee via ``BlockchainClientProtocol/estimateFee(for:)``'s
@@ -278,6 +316,11 @@ private extension TransactionService {
         case .tron:
             guard let limit = try parseUInt64Override(fees.tronFeeLimit) else { return [] }
             return [.tronFeeLimit(limit)]
+        case .solana:
+            let price = try parseUInt64Override(fees.solanaPriorityFee)
+            let limit = try parseUInt32Override(fees.solanaComputeUnitLimit)
+            guard price != nil || limit != nil else { return [] }
+            return [.solanaPriorityFee(microLamportsPerComputeUnit: price, computeUnitLimit: limit)]
         default:
             return []
         }
@@ -296,6 +339,14 @@ private extension TransactionService {
     func parseUInt64Override(_ text: String?) throws -> UInt64? {
         guard let text, !text.isEmpty else { return nil }
         guard let value = UInt64(text) else { throw Error.invalidData }
+        return value
+    }
+
+    /// Parses a user-supplied fee override string, throwing if it's present
+    /// but not a valid value rather than silently dropping the override.
+    func parseUInt32Override(_ text: String?) throws -> UInt32? {
+        guard let text, !text.isEmpty else { return nil }
+        guard let value = UInt32(text) else { throw Error.invalidData }
         return value
     }
 
@@ -386,6 +437,9 @@ private extension TransactionService {
         case let .tron(network):
             let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
             return try TronPKeySigner(network: network, privateKey: privateKey, derivationPath: derivationPath)
+        case let .solana(network):
+            let privateKey = try seed.masterKey(curve: .ed25519).derive(derivationPath).privateKey()
+            return try SolanaPKeySigner(network: network, privateKey: privateKey, derivationPath: derivationPath)
         default:
             throw Error.notImplemented
         }
@@ -411,6 +465,12 @@ private extension TransactionService {
             )
         case let .tron(network):
             return try await TronTrezorSigner(
+                network: network,
+                device: device,
+                derivationPath: derivationPath
+            )
+        case let .solana(network):
+            return try await SolanaTrezorSigner(
                 network: network,
                 device: device,
                 derivationPath: derivationPath

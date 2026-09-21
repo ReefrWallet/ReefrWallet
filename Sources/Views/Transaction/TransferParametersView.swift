@@ -231,6 +231,8 @@ private extension TransferParametersView {
                 _ = try EthereumAddress(string: receiverText)
             case .sui:
                 _ = try SuiAddress(string: receiverText)
+            case .solana:
+                _ = try SolanaAddress(string: receiverText)
             default:
                 return false
             }

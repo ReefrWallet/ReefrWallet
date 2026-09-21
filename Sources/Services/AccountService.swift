@@ -30,6 +30,8 @@ final class AccountService {
                 _ = try SuiAddress(string: address)
             case .tron:
                 _ = try TronAddress(string: address)
+            case .solana:
+                _ = try SolanaAddress(string: address)
             case let .bitcoin(network):
                 // Scoped to a plain address for now — importing a bare
                 // account xpub as watch-only (rather than one address) is
@@ -173,6 +175,12 @@ private extension AccountService {
             }
 
             return .secp256k1
+        case .solana:
+            guard signatureScheme == nil || signatureScheme == .ed25519 else {
+                throw Error.invalidData
+            }
+
+            return .ed25519
         case .sui:
             return signatureScheme ?? .ed25519
         default:
@@ -203,6 +211,8 @@ private extension AccountService {
             curve = .secp256k1
         case .tron:
             curve = .secp256k1
+        case .solana:
+            curve = .ed25519
         case .sui:
             guard let signatureScheme else {
                 throw Error.invalidData
@@ -225,6 +235,9 @@ private extension AccountService {
         case .tron:
             let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
             address = try TronAddress(publicKey: publicKey).string
+        case .solana:
+            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
+            address = try SolanaAddress(publicKey: publicKey).string
         case .sui:
             let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
             address = try SuiAddress(publicKey: publicKey, curve: curve).string
@@ -300,6 +313,9 @@ private extension AccountService {
             let publicKey = try await device.publicKey(path: derivationPath, curve: .secp256k1)
             let address = try TronAddress(publicKey: publicKey)
             return AddressResult(address: address.string, derivationPath: derivationPath.string)
+        case .solana:
+            let signer = try await SolanaTrezorSigner(device: device, derivationPath: derivationPath)
+            return AddressResult(address: try signer.address().string, derivationPath: derivationPath.string)
         default:
             throw Error.notImplemented
         }

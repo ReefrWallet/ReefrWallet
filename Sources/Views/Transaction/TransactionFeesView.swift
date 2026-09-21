@@ -29,6 +29,8 @@ struct TransactionFeesView {
     @State private var suiGasPrice = ""
     @State private var bitcoinFeeRate = ""
     @State private var tronFeeLimit = ""
+    @State private var solanaPriorityFee = ""
+    @State private var solanaComputeUnitLimit = ""
 }
 
 // MARK: - View
@@ -46,6 +48,8 @@ extension TransactionFeesView: View {
                 bitcoinFeesForm
             case .tron:
                 tronFeesForm
+            case .solana:
+                solanaFeesForm
             default:
                 EmptyView()
             }
@@ -161,6 +165,34 @@ private extension TransactionFeesView {
             .font(.footnote)
             .foregroundStyle(.secondary)
     }
+
+    @ViewBuilder
+    var solanaFeesForm: some View {
+        LabeledContent {
+            TextField("", text: $solanaPriorityFee)
+                .frame(height: 28)
+        } label: {
+            Text("Priority fee (micro-lamports/CU)")
+                .style(.small, foreground: .secondary)
+        }
+
+        LabeledContent {
+            TextField("", text: $solanaComputeUnitLimit)
+                .frame(height: 28)
+        } label: {
+            Text("Compute unit limit")
+                .style(.small, foreground: .secondary)
+        }
+
+        LabeledContent {
+            TextField("", text: transactionCost)
+                .frame(height: 28)
+                .disabled(true)
+        } label: {
+            Text("Transaction cost (USD)")
+                .style(.small, foreground: .secondary)
+        }
+    }
 }
 
 // MARK: - Logic
@@ -174,6 +206,8 @@ private extension TransactionFeesView {
         suiGasPrice = estimate?.suiGasPrice ?? ""
         bitcoinFeeRate = estimate?.bitcoinFeeRate ?? ""
         tronFeeLimit = estimate?.tronFeeLimit ?? ""
+        solanaPriorityFee = estimate?.solanaPriorityFee ?? ""
+        solanaComputeUnitLimit = estimate?.solanaComputeUnitLimit ?? ""
     }
 
     /// Fetches the native token's USD price via the blockchain's WalletKit
@@ -242,6 +276,20 @@ private extension TransactionFeesView {
                 return nil
             }
             return Fees(tronFeeLimit: tronFeeLimit.isEmpty ? nil : tronFeeLimit)
+        case .solana:
+            guard estimatedFees != nil else {
+                return nil
+            }
+            guard solanaPriorityFee.isEmpty || UInt64(solanaPriorityFee) != nil else {
+                return nil
+            }
+            guard solanaComputeUnitLimit.isEmpty || UInt32(solanaComputeUnitLimit) != nil else {
+                return nil
+            }
+            return Fees(
+                solanaPriorityFee: solanaPriorityFee.isEmpty ? nil : solanaPriorityFee,
+                solanaComputeUnitLimit: solanaComputeUnitLimit.isEmpty ? nil : solanaComputeUnitLimit
+            )
         default:
             return nil
         }
