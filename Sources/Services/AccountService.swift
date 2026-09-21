@@ -327,6 +327,15 @@ private extension AccountService {
             )
         }
 
+        if case let .cardano(network) = blockchain {
+            let derivationPath = try DerivationPath(
+                string: "m/1852'/1815'/\(accountIndex)'"
+            )
+            let xpub = try await device.cardanoXpub(path: derivationPath)
+            let descriptor = try CardanoAccountDescriptor(xpub: xpub, network: network)
+            return AddressResult(address: descriptor.string, derivationPath: derivationPath.string)
+        }
+
         let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: .secp256k1)
 
         switch blockchain {

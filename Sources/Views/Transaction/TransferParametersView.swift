@@ -17,6 +17,7 @@ import WalletKit
 /// of the form is ready to proceed.
 struct TransferParameters: Equatable {
     let balance: Balance
+    let cardanoRecipientLovelace: String?
     let decimalAmount: String
     let recipient: String
 }
@@ -31,6 +32,7 @@ struct TransferParametersView {
     @Binding var parameters: TransferParameters?
 
     @State private var decimalAmountText = "0"
+    @State private var cardanoRecipientLovelaceText = ""
     @State private var isAddressBookPresented = false
     @State private var receiverText = ""
     @State private var selectedBalanceId: PersistentIdentifier?
@@ -63,6 +65,7 @@ extension TransferParametersView: View {
             accountSection
             tokenSection
             amountSection
+            cardanoRecipientLovelaceSection
             receiverSection
                 .padding(.bottom)
                 .sheet(isPresented: $isAddressBookPresented) {
@@ -145,6 +148,22 @@ private extension TransferParametersView {
         }
     }
 
+    @ViewBuilder
+    var cardanoRecipientLovelaceSection: some View {
+        if isCardanoNativeAsset {
+            Section {
+                LabeledContent {
+                    TextField("", text: $cardanoRecipientLovelaceText)
+                        .style(.medium, foreground: .primary)
+                        .frame(height: 28)
+                } label: {
+                    Text("Recipient ADA (lovelace)")
+                        .style(.small, foreground: .secondary)
+                }
+            }
+        }
+    }
+
     var tokenSection: some View {
         Section {
             HStack(spacing: 2) {
@@ -212,6 +231,7 @@ private extension TransferParametersView {
 
         return TransferParameters(
             balance: selectedBalance,
+            cardanoRecipientLovelace: isCardanoNativeAsset ? cardanoRecipientLovelaceText : nil,
             decimalAmount: decimalAmountText,
             recipient: receiverText
         )
@@ -230,6 +250,13 @@ private extension TransferParametersView {
         let feeDecimal = (Decimal(string: reserve.description) ?? 0) / divisor
         let maxAmount = max(selectedBalance.decimalAmount - feeDecimal, 0)
         return "\(maxAmount)"
+    }
+
+    var isCardanoNativeAsset: Bool {
+        guard case .cardano = account.blockchain else {
+            return false
+        }
+        return !(selectedBalance?.token.isNativeToken ?? true)
     }
 
     func validateAddress() -> Bool {
@@ -274,6 +301,12 @@ private extension TransferParametersView {
             raiseOnUnderflow: false, raiseOnDivideByZero: false
         )
 
-        return scaled == scaled.rounding(accordingToBehavior: handler)
+        guard scaled == scaled.rounding(accordingToBehavior: handler) else {
+            return false
+        }
+        guard !isCardanoNativeAsset else {
+            return UInt64(cardanoRecipientLovelaceText) != nil
+        }
+        return true
     }
 }

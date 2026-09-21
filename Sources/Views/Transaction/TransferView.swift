@@ -200,6 +200,7 @@ private extension TransferView {
         return try await transactionService.estimateFees(
             token: parameters.balance.token,
             decimalAmount: parameters.decimalAmount,
+            cardanoRecipientLovelace: parameters.cardanoRecipientLovelace,
             recipient: parameters.recipient,
             account: account
         )
@@ -259,6 +260,7 @@ private extension TransferView {
         let txData = try await transactionService.makeTransaction(
             token: parameters.balance.token,
             decimalAmount: parameters.decimalAmount,
+            cardanoRecipientLovelace: parameters.cardanoRecipientLovelace,
             recipient: parameters.recipient,
             account: account,
             fees: fees

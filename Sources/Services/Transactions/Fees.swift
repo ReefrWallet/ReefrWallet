@@ -18,6 +18,8 @@ struct Fees: Equatable {
     let suiGasPrice: String?
     /// The fee rate, in sat/vB, for a Bitcoin transfer.
     let bitcoinFeeRate: String?
+    /// Lovelace carried alongside a Cardano native asset at the recipient.
+    let cardanoRecipientLovelace: String?
     /// Maximum SUN a TRC-20 call may spend. This does not affect validator priority.
     let tronFeeLimit: String?
     /// The Solana priority fee, in micro-lamports per compute unit.
@@ -38,6 +40,7 @@ struct Fees: Equatable {
         suiGasBudget: String? = nil,
         suiGasPrice: String? = nil,
         bitcoinFeeRate: String? = nil,
+        cardanoRecipientLovelace: String? = nil,
         tronFeeLimit: String? = nil,
         solanaPriorityFee: String? = nil,
         solanaComputeUnitLimit: String? = nil,
@@ -50,6 +53,7 @@ struct Fees: Equatable {
         self.suiGasBudget = suiGasBudget
         self.suiGasPrice = suiGasPrice
         self.bitcoinFeeRate = bitcoinFeeRate
+        self.cardanoRecipientLovelace = cardanoRecipientLovelace
         self.tronFeeLimit = tronFeeLimit
         self.solanaPriorityFee = solanaPriorityFee
         self.solanaComputeUnitLimit = solanaComputeUnitLimit

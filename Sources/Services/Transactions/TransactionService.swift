@@ -31,16 +31,19 @@ final class TransactionService {
     ///   calldata for an ERC-20) to populate `ethereumBaseFee`.
     /// - For Sui: builds unsigned BCS bytes for the transfer then simulates
     ///   them to produce `suiGasBudget` and `suiGasPrice`.
-    func estimateFees(
+    func estimateFees( // swiftlint:disable:this function_body_length
         token: Token,
         decimalAmount: String,
+        cardanoRecipientLovelace: String? = nil,
         recipient: String,
         account: Account
     ) async throws -> Fees {
         let blockchain = account.blockchain
+
         let client = try await clientProvider.getClient(
             blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
         )
+
         let amount = try makeAmount(decimalAmount, token: token)
 
         switch blockchain {
@@ -74,6 +77,7 @@ final class TransactionService {
                 blockchain: blockchain,
                 token: token,
                 amount: amount,
+                recipientLovelace: cardanoRecipientLovelace,
                 recipient: recipient,
                 account: account
             )
@@ -100,6 +104,7 @@ final class TransactionService {
     func makeTransaction(
         token: Token,
         decimalAmount: String,
+        cardanoRecipientLovelace: String? = nil,
         recipient: String,
         account: Account,
         fees: Fees? = nil
@@ -111,7 +116,13 @@ final class TransactionService {
         let amount = try makeAmount(decimalAmount, token: token)
         // nil token identifier → native asset; non-nil → ERC-20 / Sui coin type.
         let tokenId: String? = token.isNativeToken ? nil : token.address
-        let options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
+        var options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
+        if case .cardano = blockchain, !token.isNativeToken {
+            guard let cardanoRecipientLovelace, let lovelace = UInt64(cardanoRecipientLovelace) else {
+                throw Error.invalidData
+            }
+            options.append(.cardanoRecipientLovelace(lovelace))
+        }
 
         let builder = try await clientProvider.getBuilder(
             blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
@@ -166,41 +177,60 @@ private extension TransactionService {
         blockchain: WKBlockchain,
         token: Token,
         amount: BigUInt,
+        recipientLovelace: String?,
         recipient: String,
         account: Account
     ) async throws -> Fees {
-        guard token.isNativeToken else {
-            throw Error.notSupported
-        }
-
         let builder = try await clientProvider.getBuilder(
             blockchain: blockchain,
             rpcURL: account.rpcURLOverride,
             backend: account.bitcoinBackend
         )
+        var options: [BlockchainTransactionBuilderOptions] = []
+        if !token.isNativeToken {
+            guard let recipientLovelace, let lovelace = UInt64(recipientLovelace) else {
+                throw Error.invalidData
+            }
+            options.append(.cardanoRecipientLovelace(lovelace))
+        }
         let transaction = try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,
             amount: amount,
-            token: nil
+            token: token.isNativeToken ? nil : token.address,
+            options: options
         )
         let unsigned = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: transaction)
-        return Fees(nativeFeeReserve: unsigned.fee)
+        return Fees(cardanoRecipientLovelace: recipientLovelace, nativeFeeReserve: unsigned.fee)
     }
 
     func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
         guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
             throw Error.notFound
         }
-        guard keyStore.kind == .local, let entropy = keyStore.mnemonicEntropy else {
-            throw Error.notSupported
-        }
         guard let rawAccountIndex = account.accountIndex, let accountIndex = UInt32(exactly: rawAccountIndex) else {
             throw Error.invalidData
         }
-
-        let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
-        return try transaction.signed(entropy: entropy, accountIndex: accountIndex)
+        switch keyStore.kind {
+        case .local:
+            guard let entropy = keyStore.mnemonicEntropy else {
+                throw Error.invalidData
+            }
+            let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
+            return try transaction.signed(entropy: entropy, accountIndex: accountIndex)
+        case .trezor:
+            guard let deviceId = keyStore.deviceId else {
+                throw Error.invalidData
+            }
+            guard case let .cardano(network) = account.blockchain else {
+                throw Error.invalidData
+            }
+            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
+            return try await CardanoTrezorSigner(network: network, accountIndex: accountIndex, device: device)
+                .sign(transaction: request)
+        case .watchOnly:
+            throw Error.notSupported
+        }
     }
 
     /// Fetches EIP-1559 fee rates and runs `eth_estimateGas` against the
