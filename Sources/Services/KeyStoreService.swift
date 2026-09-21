@@ -11,7 +11,8 @@ final class KeyStoreService {
             deviceId: nil,
             kind: .local,
             name: "Local Key",
-            rawKey: mnemonic.toSeed().exportRaw(),
+            mnemonicEntropy: mnemonic.entropy,
+            mnemonicWordlist: mnemonic.wordlist,
             transport: nil,
             vendor: nil
         )
@@ -33,7 +34,6 @@ final class KeyStoreService {
             deviceId: device.id,
             kind: .trezor,
             name: device.label ?? "Trezor",
-            rawKey: nil,
             transport: .usb,
             vendor: device.vendor
         )

@@ -16,7 +16,7 @@ versions:
 	Scripts/make_versions.sh
 
 walletkit:
-	$(MAKE) -C WalletKit sui-grpc walletkit-ffi
+	$(MAKE) -C WalletKit spm
 
 workspace: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Frameworks/WalletKit.xcframework
 	@echo "==> Generating Xcode project"

@@ -88,7 +88,7 @@ private extension TransferParametersView {
         Section {
             LabeledContent {
                 HStack {
-                    Text(account.address)
+                    Text(displayAddress)
                         .style(.medium, foreground: .secondary)
                 }
                 .frame(height: 28)
@@ -181,6 +181,14 @@ private extension TransferParametersView {
 // MARK: - Callbacks
 
 private extension TransferParametersView {
+    var displayAddress: String {
+        guard case .cardano = account.blockchain else {
+            return account.address
+        }
+
+        return (try? CardanoAccountDescriptor(string: account.address).receiveAddress.string) ?? account.address
+    }
+
     func onOpenAddressBook() {
         // TODO: Address boook
     }
@@ -233,6 +241,8 @@ private extension TransferParametersView {
                 _ = try SuiAddress(string: receiverText)
             case .solana:
                 _ = try SolanaAddress(string: receiverText)
+            case let .cardano(network):
+                _ = try CardanoAddress(string: receiverText, network: network)
             default:
                 return false
             }

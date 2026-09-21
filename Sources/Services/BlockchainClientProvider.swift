@@ -8,6 +8,7 @@ actor BlockchainClientProvider {
         let blockchain: WKBlockchain
         let rpcURL: URL?
         let backend: BitcoinBackendKind?
+        let blockfrostProjectID: String?
         let tronGridAPIKey: String?
     }
 
@@ -26,11 +27,13 @@ actor BlockchainClientProvider {
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainClient {
+        let blockfrostProjectID = blockfrostProjectID(for: blockchain)
         let tronGridAPIKey = tronGridAPIKey(for: blockchain)
         let target = Target(
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
+            blockfrostProjectID: blockfrostProjectID,
             tronGridAPIKey: tronGridAPIKey
         )
         if let client = clients[target] { return client }
@@ -38,6 +41,7 @@ actor BlockchainClientProvider {
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
+            blockfrostProjectID: blockfrostProjectID,
             tronGridAPIKey: tronGridAPIKey
         )
         clients[target] = client
@@ -56,11 +60,13 @@ actor BlockchainClientProvider {
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainTransactionBuilder {
+        let blockfrostProjectID = blockfrostProjectID(for: blockchain)
         let tronGridAPIKey = tronGridAPIKey(for: blockchain)
         let target = Target(
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
+            blockfrostProjectID: blockfrostProjectID,
             tronGridAPIKey: tronGridAPIKey
         )
         if let builder = builders[target] { return builder }
@@ -68,6 +74,7 @@ actor BlockchainClientProvider {
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
+            blockfrostProjectID: blockfrostProjectID,
             tronGridAPIKey: tronGridAPIKey
         )
         builders[target] = builder
@@ -78,6 +85,7 @@ actor BlockchainClientProvider {
         blockchain: WKBlockchain,
         rpcURL: URL?,
         backend: BitcoinBackendKind?,
+        blockfrostProjectID: String?,
         tronGridAPIKey: String?
     ) throws -> AnyBlockchainClient {
         switch blockchain {
@@ -94,14 +102,15 @@ actor BlockchainClientProvider {
             )
         case let .bitcoin(network):
             return AnyBlockchainClient(try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend))
+        case .cardano:
+            let endpoint = rpcURL ?? blockchain.rpcURL
+            return AnyBlockchainClient(CardanoClient(endpoint: endpoint, projectID: blockfrostProjectID))
         case .tron:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return AnyBlockchainClient(TronClient(endpoint: endpoint, apiKey: tronGridAPIKey))
         case .solana:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return AnyBlockchainClient(SolanaRPCClient(endpoint: endpoint))
-        default:
-            throw WalletKitError.internalError(message: "Not implemented yet")
         }
     }
 
@@ -109,6 +118,7 @@ actor BlockchainClientProvider {
         blockchain: WKBlockchain,
         rpcURL: URL?,
         backend: BitcoinBackendKind?,
+        blockfrostProjectID: String?,
         tronGridAPIKey: String?
     ) throws -> AnyBlockchainTransactionBuilder {
         switch blockchain {
@@ -128,6 +138,10 @@ actor BlockchainClientProvider {
         case let .bitcoin(network):
             let client = try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend)
             return AnyBlockchainTransactionBuilder(BitcoinTransactionBuilder(client: client))
+        case .cardano:
+            let endpoint = rpcURL ?? blockchain.rpcURL
+            let client = CardanoClient(endpoint: endpoint, projectID: blockfrostProjectID)
+            return AnyBlockchainTransactionBuilder(CardanoTransactionBuilder(client: client))
         case .tron:
             let endpoint = rpcURL ?? blockchain.rpcURL
             let client = TronClient(endpoint: endpoint, apiKey: tronGridAPIKey)
@@ -136,8 +150,6 @@ actor BlockchainClientProvider {
             let endpoint = rpcURL ?? blockchain.rpcURL
             let client = SolanaRPCClient(endpoint: endpoint)
             return AnyBlockchainTransactionBuilder(SolanaTransactionBuilder(client: client))
-        default:
-            throw WalletKitError.internalError(message: "Not implemented yet")
         }
     }
 
@@ -160,6 +172,30 @@ actor BlockchainClientProvider {
         case .esplora:
             return BitcoinClient(esploraEndpoint: endpoint)
         }
+    }
+
+    private func blockfrostProjectID(for blockchain: WKBlockchain) -> String? {
+        let key: String
+        let environmentKey: String
+        switch blockchain {
+        case let .cardano(network):
+            switch network {
+            case .mainnet:
+                key = "BlockfrostMainnetProjectID"
+                environmentKey = "BLOCKFROST_MAINNET_PROJECT_ID"
+            case .preprod:
+                key = "BlockfrostPreprodProjectID"
+                environmentKey = "BLOCKFROST_PREPROD_PROJECT_ID"
+            }
+        default:
+            return nil
+        }
+
+        let setting = UserDefaults.standard.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let setting, !setting.isEmpty {
+            return setting
+        }
+        return ProcessInfo.processInfo.environment[environmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func tronGridAPIKey(for blockchain: WKBlockchain) -> String? {

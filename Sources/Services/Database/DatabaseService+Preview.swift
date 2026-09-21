@@ -34,7 +34,6 @@ extension DatabaseService {
                 deviceId: nil,
                 kind: .local,
                 name: "Local Key #1",
-                rawKey: nil,
                 transport: nil,
                 vendor: nil
             )
@@ -43,7 +42,6 @@ extension DatabaseService {
                 deviceId: nil,
                 kind: .trezor,
                 name: "Trezor #1",
-                rawKey: nil,
                 transport: .usb,
                 vendor: .trezor
             )

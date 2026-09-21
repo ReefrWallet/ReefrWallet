@@ -790,11 +790,7 @@ private struct TransactionSyncFixture {
     }
 
     private func requiredRawKey() throws -> Data {
-        guard let rawKey = keyStore.rawKey else {
-            throw Error.invalidData
-        }
-
-        return rawKey
+        try keyStore.localSeed()
     }
 
     private func requiredID(_ account: Account) throws -> PersistentIdentifier {

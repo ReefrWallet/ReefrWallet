@@ -9,13 +9,12 @@ extension DatabaseService {
         mnemonic: Mnemonic,
         name: String = "Test Key Store"
     ) throws -> KeyStore {
-        let rawKey = mnemonic.toSeed().exportRaw()
-
         let id = try insertKeyStore(KeyStore(
             deviceId: nil,
             kind: .local,
             name: name,
-            rawKey: rawKey,
+            mnemonicEntropy: mnemonic.entropy,
+            mnemonicWordlist: mnemonic.wordlist,
             transport: nil,
             vendor: nil
         ))
@@ -25,7 +24,8 @@ extension DatabaseService {
             id: id,
             kind: .local,
             name: name,
-            rawKey: rawKey,
+            mnemonicEntropy: mnemonic.entropy,
+            mnemonicWordlist: mnemonic.wordlist,
             transport: nil,
             vendor: nil
         )
@@ -69,11 +69,11 @@ private extension DatabaseService {
         rpcURLOverride: URL,
         count: Int
     ) throws -> [Account] {
-        guard count > 0, let keyStoreID = keyStore.id, let rawKey = keyStore.rawKey else {
+        guard count > 0, let keyStoreID = keyStore.id else {
             throw Error.invalidData
         }
 
-        let seed = try Seed(rawBytes: rawKey)
+        let seed = try Seed(rawBytes: keyStore.localSeed())
 
         return try (0 ..< count).map { index in
             let accountIndex = UInt64(index)

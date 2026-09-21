@@ -218,22 +218,31 @@ private extension BalancesService {
         var balances: [Balance] = []
 
         for (tokenAddress, amount) in try await client.getAllBalances(account.address) {
-            if let token = try await databaseService.fetchToken(
-                tokenAddress: tokenAddress,
-                blockchain: account.blockchain
-            ) {
+            let tokenInfo = try? await client.getTokenInfo(tokenAddress)
+            let effectiveAddress = tokenInfo?.isNative == true ? nil : tokenAddress
+            let storedToken: Token?
+            if let effectiveAddress {
+                storedToken = try await databaseService.fetchToken(
+                    tokenAddress: effectiveAddress,
+                    blockchain: account.blockchain
+                )
+            } else {
+                storedToken = try await databaseService.fetchTokens(blockchain: account.blockchain)
+                    .first(where: \.isNativeToken)
+            }
+            if let token = storedToken {
                 balances.append(try await makeBalance(account: account, amount: amount, token: token))
             } else {
                 // A node can report a coin that this endpoint cannot describe
                 // (for example, a package coin from another localnet). Skip
                 // that asset so a valid native balance still reaches the UI.
-                guard let tokenInfo = try? await client.getTokenInfo(tokenAddress) else {
+                guard let tokenInfo else {
                     printDebug("Skipping balance for unsupported token \(tokenAddress) on \(account.name)")
                     continue
                 }
 
                 let token = Token(
-                    address: tokenAddress,
+                    address: effectiveAddress,
                     blockchain: account.blockchain,
                     decimalsCount: tokenInfo.decimals,
                     imageURL: nil,

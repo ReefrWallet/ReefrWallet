@@ -145,7 +145,7 @@ extension AddAccountView: View {
 
                 if keyStore.isWatchOnly {
                     Section {
-                        TextField("Watch Address", text: $address)
+                        TextField(watchOnlyFieldTitle, text: $address)
                             .disabled(selectedNetwork == nil)
                             .padding(.vertical)
                             .accessibilityIdentifier("add-account-watch-address-field")
@@ -242,6 +242,14 @@ private extension AddAccountView {
         address.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    var watchOnlyFieldTitle: String {
+        if case .cardano = selectedBlockchain {
+            return "Cardano Account XPub"
+        }
+
+        return "Watch Address"
+    }
+
     @MainActor
     func addAccount(_ blockchain: WKBlockchain, signatureScheme: Curve?) async throws {
         let watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
@@ -329,7 +337,6 @@ private extension BitcoinBackendKind {
         deviceId: nil,
         kind: .watchOnly,
         name: "Key Store",
-        rawKey: nil,
         transport: nil,
         vendor: nil
     )

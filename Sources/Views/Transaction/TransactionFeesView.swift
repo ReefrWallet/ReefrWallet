@@ -46,12 +46,12 @@ extension TransactionFeesView: View {
                 suiFeesForm
             case .bitcoin:
                 bitcoinFeesForm
+            case .cardano:
+                cardanoFeesForm
             case .tron:
                 tronFeesForm
             case .solana:
                 solanaFeesForm
-            default:
-                EmptyView()
             }
         }
         .onChange(of: estimatedFees, initial: true) { _, newValue in
@@ -69,6 +69,12 @@ extension TransactionFeesView: View {
 // MARK: - Subviews
 
 private extension TransactionFeesView {
+    @ViewBuilder
+    var cardanoFeesForm: some View {
+        Text("Network fee is calculated when the transaction is prepared.")
+            .style(.small, foreground: .secondary)
+    }
+
     @ViewBuilder
     var evmFeesForm: some View {
         LabeledContent {
@@ -268,6 +274,12 @@ private extension TransactionFeesView {
             }
 
             return Fees(bitcoinFeeRate: bitcoinFeeRate)
+        case .cardano:
+            guard estimatedFees != nil else {
+                return nil
+            }
+
+            return Fees()
         case .tron:
             guard estimatedFees != nil else {
                 return nil
@@ -290,8 +302,6 @@ private extension TransactionFeesView {
                 solanaPriorityFee: solanaPriorityFee.isEmpty ? nil : solanaPriorityFee,
                 solanaComputeUnitLimit: solanaComputeUnitLimit.isEmpty ? nil : solanaComputeUnitLimit
             )
-        default:
-            return nil
         }
     }
 }

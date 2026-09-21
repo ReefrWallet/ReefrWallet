@@ -14,6 +14,8 @@ struct SettingsView: View {
     @AppStorage("UseProxy") private var useProxy: Bool = false
 
     @AppStorage("EtherscanAPIKey") private var etherscanAPIKey: String = ""
+    @AppStorage("BlockfrostMainnetProjectID") private var blockfrostMainnetProjectID: String = ""
+    @AppStorage("BlockfrostPreprodProjectID") private var blockfrostPreprodProjectID: String = ""
     @AppStorage("TronGridAPIKey") private var tronGridAPIKey: String = ""
 
     var body: some View {
@@ -28,6 +30,13 @@ struct SettingsView: View {
                 TextField("TronGrid API Key", text: $tronGridAPIKey)
 
                 Text("Used for TronGrid account data, history, and transaction requests.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                TextField("Blockfrost Mainnet Project ID", text: $blockfrostMainnetProjectID)
+                TextField("Blockfrost Preprod Project ID", text: $blockfrostPreprodProjectID)
+
+                Text("Used for Cardano account data, native assets, and transaction requests.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

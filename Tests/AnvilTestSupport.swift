@@ -47,7 +47,6 @@ func makeWatchOnlyKeyStore(
         deviceId: nil,
         kind: .watchOnly,
         name: name,
-        rawKey: nil,
         transport: nil,
         vendor: nil
     ))
@@ -57,7 +56,6 @@ func makeWatchOnlyKeyStore(
         id: keyStoreId,
         kind: .watchOnly,
         name: name,
-        rawKey: nil,
         transport: nil,
         vendor: nil
     )
@@ -69,12 +67,13 @@ func makeLocalKeyStore(
     databaseService: DatabaseService,
     name: String = "Anvil Local Test Key Store"
 ) async throws -> KeyStore {
-    let rawKey = Mnemonic.generate(wordCount: .words12).toSeed().exportRaw()
+    let mnemonic = Mnemonic.generate(wordCount: .words12)
     let keyStoreId = try await databaseService.insertKeyStore(KeyStore(
         deviceId: nil,
         kind: .local,
         name: name,
-        rawKey: rawKey,
+        mnemonicEntropy: mnemonic.entropy,
+        mnemonicWordlist: mnemonic.wordlist,
         transport: nil,
         vendor: nil
     ))
@@ -84,7 +83,8 @@ func makeLocalKeyStore(
         id: keyStoreId,
         kind: .local,
         name: name,
-        rawKey: rawKey,
+        mnemonicEntropy: mnemonic.entropy,
+        mnemonicWordlist: mnemonic.wordlist,
         transport: nil,
         vendor: nil
     )

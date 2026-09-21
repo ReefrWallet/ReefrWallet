@@ -26,7 +26,8 @@ struct KeyStore: Equatable, Hashable, Sendable {
     var id: PersistentIdentifier?
     let kind: Kind
     let name: String
-    let rawKey: Data?
+    let mnemonicEntropy: Data?
+    let mnemonicWordlist: Wordlist?
     let transport: HardwareTransportKind?
     let vendor: HardwareVendor?
 
@@ -35,7 +36,8 @@ struct KeyStore: Equatable, Hashable, Sendable {
         id: PersistentIdentifier? = nil,
         kind: Kind,
         name: String,
-        rawKey: Data?,
+        mnemonicEntropy: Data? = nil,
+        mnemonicWordlist: Wordlist? = nil,
         transport: HardwareTransportKind?,
         vendor: HardwareVendor?
     ) {
@@ -44,7 +46,8 @@ struct KeyStore: Equatable, Hashable, Sendable {
         self.id = id
         self.kind = kind
         self.name = name
-        self.rawKey = rawKey
+        self.mnemonicEntropy = mnemonicEntropy
+        self.mnemonicWordlist = mnemonicWordlist
         self.transport = transport
         self.vendor = vendor
     }
@@ -77,8 +80,10 @@ final class KeyStoreModel {
     var name: String
     /// Serialized ``Kind``
     var rawKind: String
-    /// Raw key bytes, `nil` for harware wallets
-    var rawKey: Data?
+    /// Original BIP-39 entropy for Cardano's Icarus key derivation.
+    var mnemonicEntropy: Data?
+    /// Serialized BIP-39 wordlist used to reconstruct the conventional seed.
+    var rawMnemonicWordlist: String?
     /// Harware transport, `nil` for software key store
     var rawTransport: String?
     /// Hardware vendor, `nil` for software key store
@@ -91,14 +96,16 @@ final class KeyStoreModel {
         _ kind: KeyStore.Kind,
         deviceId: String? = nil,
         name: String,
-        rawKey: Data? = nil,
+        mnemonicEntropy: Data? = nil,
+        mnemonicWordlist: Wordlist? = nil,
         transport: HardwareTransportKind? = .usb,
         vendor: HardwareVendor? = nil
     ) {
         self.accounts = []
         self.deviceId = deviceId
         self.name = name
-        self.rawKey = rawKey
+        self.mnemonicEntropy = mnemonicEntropy
+        self.rawMnemonicWordlist = mnemonicWordlist?.storageIdentifier
         self.rawKind = kind.rawValue
         self.rawTransport = transport?.rawValue
         self.rawVendor = vendor?.rawValue
@@ -114,7 +121,8 @@ extension KeyStore {
         id = model.id
         kind = Kind(rawValue: model.rawKind)!
         name = model.name
-        rawKey = model.rawKey
+        mnemonicEntropy = model.mnemonicEntropy
+        mnemonicWordlist = model.rawMnemonicWordlist.flatMap(Wordlist.init(storageIdentifier:))
 
         if let rawTransport = model.rawTransport {
             transport = HardwareTransportKind(rawValue: rawTransport)
@@ -146,7 +154,8 @@ extension KeyStoreModel {
             config.kind,
             deviceId: config.deviceId,
             name: config.name,
-            rawKey: config.rawKey,
+            mnemonicEntropy: config.mnemonicEntropy,
+            mnemonicWordlist: config.mnemonicWordlist,
             transport: config.transport,
             vendor: config.vendor
         )
@@ -156,6 +165,17 @@ extension KeyStoreModel {
 // MARK: - KeyStore Helpers
 
 extension KeyStore {
+    func localSeed() throws -> Data {
+        guard kind == .local, let mnemonicEntropy else {
+            throw Error.invalidData
+        }
+
+        return try Mnemonic.fromEntropy(
+            mnemonicEntropy,
+            wordlist: mnemonicWordlist ?? .english
+        ).toSeed().exportRaw()
+    }
+
     var description: String {
         switch kind {
         case .local:

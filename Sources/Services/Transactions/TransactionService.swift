@@ -69,6 +69,14 @@ final class TransactionService {
                 recipient: recipient,
                 account: account
             )
+        case .cardano:
+            return try await estimateCardanoFees(
+                blockchain: blockchain,
+                token: token,
+                amount: amount,
+                recipient: recipient,
+                account: account
+            )
         case .tron:
             return Fees(tronFeeLimit: token.isNativeToken ? nil : "100000000")
         case .solana:
@@ -80,8 +88,6 @@ final class TransactionService {
                 recipient: recipient,
                 account: account
             )
-        default:
-            throw Error.notImplemented
         }
     }
 
@@ -127,6 +133,10 @@ final class TransactionService {
     /// - For Sui: returns the serialized Sui signature (pass as `txSignature`
     ///   alongside the original `txRequest` to ``sendTransaction``).
     func signTransaction(_ txRequest: Data, account: Account) async throws -> Data {
+        if case .cardano = account.blockchain {
+            return try await signCardanoTransaction(txRequest, account: account)
+        }
+
         let signer = try await makeSigner(for: account)
         return try await signer.sign(transaction: txRequest)
     }
@@ -152,6 +162,47 @@ final class TransactionService {
 // MARK: - Private helpers
 
 private extension TransactionService {
+    func estimateCardanoFees(
+        blockchain: WKBlockchain,
+        token: Token,
+        amount: BigUInt,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        guard token.isNativeToken else {
+            throw Error.notSupported
+        }
+
+        let builder = try await clientProvider.getBuilder(
+            blockchain: blockchain,
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
+        )
+        let transaction = try await builder.buildTransfer(
+            sender: account.address,
+            recipient: recipient,
+            amount: amount,
+            token: nil
+        )
+        let unsigned = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: transaction)
+        return Fees(nativeFeeReserve: unsigned.fee)
+    }
+
+    func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
+        guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
+            throw Error.notFound
+        }
+        guard keyStore.kind == .local, let entropy = keyStore.mnemonicEntropy else {
+            throw Error.notSupported
+        }
+        guard let rawAccountIndex = account.accountIndex, let accountIndex = UInt32(exactly: rawAccountIndex) else {
+            throw Error.invalidData
+        }
+
+        let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
+        return try transaction.signed(entropy: entropy, accountIndex: accountIndex)
+    }
+
     /// Fetches EIP-1559 fee rates and runs `eth_estimateGas` against the
     /// actual call (a plain value transfer for native ETH, or the
     /// ABI-encoded `transfer(address,uint256)` calldata for an ERC-20) to
@@ -401,7 +452,7 @@ private extension TransactionService {
 
         switch keyStore.kind {
         case .local:
-            guard let rawKey = keyStore.rawKey else { throw Error.invalidData }
+            let rawKey = try keyStore.localSeed()
             return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
         case .trezor:
             guard let deviceId = keyStore.deviceId else { throw Error.invalidData }

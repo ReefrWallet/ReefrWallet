@@ -13,6 +13,12 @@ private let testEnvironmentVariables: [String: EnvironmentVariable] = {
         variables["TRONGRID_API_KEY"] = .environmentVariable(value: apiKey, isEnabled: true)
     }
 
+    for key in ["BLOCKFROST_MAINNET_PROJECT_ID", "BLOCKFROST_PREPROD_PROJECT_ID"] {
+        if let value = ProcessInfo.processInfo.environment[key], !value.isEmpty {
+            variables[key] = .environmentVariable(value: value, isEnabled: true)
+        }
+    }
+
     return variables
 }()
 
@@ -35,6 +41,7 @@ private let wallet: Target = .target(
         )
     ],
     dependencies: [
+        .external(name: "Moya"),
         .external(name: "SwiftyBeaver"),
         .project(target: "WalletKit", path: "WalletKit")
     ]

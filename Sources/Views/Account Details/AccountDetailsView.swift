@@ -77,7 +77,8 @@ extension AccountDetailsView: View {
             cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
         }
         .onChange(of: selection) {
-            if let amount = selected?.decimalAmount, amount > 0 {
+            if supportsTransfers, selected?.token.isNativeToken == true,
+               let amount = selected?.decimalAmount, amount > 0 {
                 isSendButtonActive = true
             } else {
                 isSendButtonActive = false
@@ -101,14 +102,18 @@ private extension AccountDetailsView {
     /// the resolver's gap-limit scan finds unused (which would need a
     /// live backend call this offline-only computed property avoids).
     var displayAddress: String {
-        guard case let .bitcoin(network) = account.blockchain else {
+        switch account.blockchain {
+        case let .bitcoin(network):
+            guard let descriptor = try? BitcoinDescriptor(string: account.address, network: network),
+                  let address = try? descriptor.deriveAddress(chain: 0, index: 0) else {
+                return account.address
+            }
+            return address.string()
+        case .cardano:
+            return (try? CardanoAccountDescriptor(string: account.address).receiveAddress.string) ?? account.address
+        default:
             return account.address
         }
-        guard let descriptor = try? BitcoinDescriptor(string: account.address, network: network),
-              let address = try? descriptor.deriveAddress(chain: 0, index: 0) else {
-            return account.address
-        }
-        return address.string()
     }
 
     var balanceRefreshID: [String] {
@@ -163,6 +168,14 @@ private extension AccountDetailsView {
 // MARK: - Logic
 
 private extension AccountDetailsView {
+    var supportsTransfers: Bool {
+        if case .cardano = account.blockchain {
+            return keyStore.kind == .local && keyStore.mnemonicEntropy != nil
+        }
+
+        return true
+    }
+
     func selectedBalance(in balances: [Balance]) -> Balance? {
         balances.first { balance in
             guard let id = balance.id else {

@@ -152,7 +152,6 @@ private extension BalancesServiceTests {
             id: id,
             kind: .watchOnly,
             name: "Anvil Test Key Store",
-            rawKey: nil,
             transport: nil,
             vendor: nil
         )

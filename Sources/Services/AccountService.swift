@@ -32,14 +32,16 @@ final class AccountService {
                 _ = try TronAddress(string: address)
             case .solana:
                 _ = try SolanaAddress(string: address)
+            case let .cardano(network):
+                _ = try CardanoAccountDescriptor(
+                    string: "cardano:\(network.storageIdentifier):\(address)"
+                )
             case let .bitcoin(network):
                 // Scoped to a plain address for now — importing a bare
                 // account xpub as watch-only (rather than one address) is
                 // a follow-up, since it would also need the UI to ask
                 // which script type the xpub is for.
                 _ = try BitcoinDescriptor(address: address, network: network)
-            default:
-                return false
             }
 
             return true
@@ -66,17 +68,33 @@ final class AccountService {
 
         switch keyStore.kind {
         case .local:
-            guard let rawKey = keyStore.rawKey else {
-                throw Error.invalidData
-            }
+            let rawKey = try keyStore.localSeed()
 
-            let result = try makeLocalAddress(
-                blockchain: blockchain,
-                rawKey: rawKey,
-                accountIndex: accountIndex,
-                signatureScheme: effectiveSignatureScheme,
-                bitcoinScriptType: bitcoinScriptType
-            )
+            let result: AddressResult
+            if case let .cardano(network) = blockchain {
+                guard let entropy = keyStore.mnemonicEntropy else {
+                    throw Error.notSupported
+                }
+
+                let descriptor = try CardanoAccountDescriptor(
+                    entropy: entropy,
+                    network: network,
+                    accountIndex: UInt32(accountIndex)
+                )
+
+                result = AddressResult(
+                    address: descriptor.string,
+                    derivationPath: "m/1852'/1815'/\(accountIndex)'"
+                )
+            } else {
+                result = try makeLocalAddress(
+                    blockchain: blockchain,
+                    rawKey: rawKey,
+                    accountIndex: accountIndex,
+                    signatureScheme: effectiveSignatureScheme,
+                    bitcoinScriptType: bitcoinScriptType
+                )
+            }
 
             address = result.address
             derivationPath = result.derivationPath
@@ -113,6 +131,10 @@ final class AccountService {
                 // address already does (used by `AnyBlockchainClient`'s
                 // generic string-addressed bridging).
                 address = try BitcoinDescriptor(address: trimmedAddress, network: network).string
+            } else if case let .cardano(network) = blockchain {
+                address = try CardanoAccountDescriptor(
+                    string: "cardano:\(network.storageIdentifier):\(trimmedAddress)"
+                ).string
             } else {
                 address = trimmedAddress
             }
@@ -167,19 +189,21 @@ private extension AccountService {
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
                 throw Error.invalidData
             }
-
             return .secp256k1
         case .tron:
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
                 throw Error.invalidData
             }
-
             return .secp256k1
         case .solana:
             guard signatureScheme == nil || signatureScheme == .ed25519 else {
                 throw Error.invalidData
             }
-
+            return .ed25519
+        case .cardano:
+            guard signatureScheme == nil || signatureScheme == .ed25519 else {
+                throw Error.invalidData
+            }
             return .ed25519
         case .sui:
             return signatureScheme ?? .ed25519

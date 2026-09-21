@@ -322,7 +322,8 @@ extension DatabaseServiceTests {
             id: id,
             kind: .local,
             name: name,
-            rawKey: Data([1, 2, 3]),
+            mnemonicEntropy: Data(repeating: 1, count: 16),
+            mnemonicWordlist: .english,
             transport: nil,
             vendor: nil
         )
