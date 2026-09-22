@@ -36,11 +36,6 @@ actor BalancesService {
             try await databaseService.updateBalances(account: account, updates: balances)
         } else {
             let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
-            let allTokens = try (storedTokens + readConfiguredTokens(blockchain: account.blockchain)
-                .filter { token in
-                    !storedTokens.contains { $0.address == token.address }
-                }
-            ).filter { !$0.isNativeToken }
 
             let nativeBalance = try await fetchNativeBalance(
                 client: client,
@@ -49,10 +44,15 @@ actor BalancesService {
             )
 
             try await databaseService.updateBalances(account: account, updates: [nativeBalance])
+
+            let tokenAddresses = storedTokens
+                .filter { !$0.isNativeToken }
+                .compactMap(\.address)
+
             try await updateTokenBalances(
                 client: client,
                 account: account,
-                tokenAddresses: allTokens.compactMap(\.address)
+                tokenAddresses: tokenAddresses
             )
         }
     }
@@ -82,11 +82,13 @@ actor BalancesService {
             }
 
             var results: [Token] = []
+
             for await updatedToken in group {
                 if let updatedToken {
                     results.append(updatedToken)
                 }
             }
+
             return results
         }
 
@@ -102,8 +104,9 @@ actor BalancesService {
     }
 
     /// Enqueues a balance refresh for a single token (`tokenAddress == nil`
-    /// means the chain's native asset) instead of updating it inline. The
-    /// queue only drains once a full second passes without a new call here,
+    /// means the chain's native asset) instead of updating it inline.
+    ///
+    /// The queue only drains once a full second passes without a new call here,
     /// and a repeat request for the same account+token replaces whatever was
     /// already queued for it — so a burst of transaction-sync activity
     /// collapses into one round of RPC calls per account instead of one per
@@ -241,19 +244,7 @@ private extension BalancesService {
                     continue
                 }
 
-                let token = Token(
-                    address: effectiveAddress,
-                    blockchain: account.blockchain,
-                    decimalsCount: tokenInfo.decimals,
-                    imageURL: nil,
-                    isHidden: false,
-                    isIncludedInBalance: true,
-                    isNativeToken: tokenInfo.isNative,
-                    name: tokenInfo.name,
-                    symbol: tokenInfo.symbol,
-                    usdPrice: nil
-                )
-
+                let token = Token(address: effectiveAddress, blockchain: account.blockchain, tokenInfo: tokenInfo)
                 balances.append(try await makeBalance(account: account, amount: amount, token: token))
             }
         }
@@ -273,21 +264,25 @@ private extension BalancesService {
             token = existing
         } else {
             let tokenInfo = try await client.getTokenInfo(nil)
-            token = Token(
-                address: nil,
-                blockchain: account.blockchain,
-                decimalsCount: tokenInfo.decimals,
-                imageURL: nil,
-                isHidden: false,
-                isIncludedInBalance: true,
-                isNativeToken: true,
-                name: tokenInfo.name,
-                symbol: tokenInfo.symbol,
-                usdPrice: nil
-            )
+            token = Token(address: nil, blockchain: account.blockchain, tokenInfo: tokenInfo)
         }
 
         return try await makeBalance(account: account, amount: amount, token: token)
+    }
+
+    func makeBalance(account: Account, amount: BigUInt, token: Token) async throws -> Balance {
+        let decimalAmount = Decimal(
+            sign: .plus,
+            exponent: -Int(token.decimalsCount),
+            significand: Decimal(amount)
+        )
+
+        return Balance(
+            account: account,
+            amount: amount,
+            token: token,
+            usdValue: token.usdPrice.map { $0 * decimalAmount }
+        )
     }
 
     func updateBalance(account: Account, client: AnyBlockchainClient, tokenAddress: String) async throws {
@@ -307,15 +302,7 @@ private extension BalancesService {
             try await databaseService.saveBalance(balance)
         } else {
             let tokenInfo = try await client.getTokenInfo(tokenAddress)
-            let token = Token(
-                address: tokenAddress,
-                blockchain: account.blockchain,
-                decimalsCount: tokenInfo.decimals,
-                isHidden: false,
-                isNativeToken: false,
-                name: tokenInfo.name,
-                symbol: tokenInfo.symbol
-            )
+            let token = Token(address: tokenAddress, blockchain: account.blockchain, tokenInfo: tokenInfo)
             try await databaseService.insertToken(token, blockchain: account.blockchain)
 
             let balance = Balance(
@@ -324,6 +311,7 @@ private extension BalancesService {
                 token: token,
                 usdValue: nil
             )
+
             try await databaseService.saveBalance(balance)
         }
     }
@@ -356,15 +344,7 @@ private extension BalancesService {
             } else if amount > 0 {
                 // Create new token and balance
                 let tokenInfo = try await client.getTokenInfo(tokenAddress)
-                let token = Token(
-                    address: tokenAddress,
-                    blockchain: account.blockchain,
-                    decimalsCount: tokenInfo.decimals,
-                    isHidden: false,
-                    isNativeToken: false,
-                    name: tokenInfo.name,
-                    symbol: tokenInfo.symbol
-                )
+                let token = Token(address: tokenAddress, blockchain: account.blockchain, tokenInfo: tokenInfo)
                 try await databaseService.insertToken(token, blockchain: account.blockchain)
 
                 let balance = Balance(
@@ -373,6 +353,7 @@ private extension BalancesService {
                     token: token,
                     usdValue: nil
                 )
+
                 try await databaseService.saveBalance(balance)
             }
         }
@@ -433,57 +414,6 @@ private extension BalancesService {
             }
 
             await group.waitForAll()
-        }
-    }
-}
-
-// MARK: - Bundled configuration
-
-private extension BalancesService {
-    // { "chainId": { "symbol": "address", ... }}
-    typealias ERC20Configuration = [String: [String: String]]
-
-    func makeBalance(account: Account, amount: BigUInt, token: Token) async throws -> Balance {
-        let decimalAmount = Decimal(
-            sign: .plus,
-            exponent: -Int(token.decimalsCount),
-            significand: Decimal(amount)
-        )
-
-        return Balance(
-            account: account,
-            amount: amount,
-            token: token,
-            usdValue: token.usdPrice.map { $0 * decimalAmount }
-        )
-    }
-
-    func readConfiguredTokens(blockchain: WKBlockchain) throws -> [Token] {
-        guard let configURL = Bundle.module.url(forResource: "erc20", withExtension: "json") else {
-            throw Error.notFound
-        }
-
-        guard case let .evm(chain) = blockchain else {
-            throw Error.internalError
-        }
-
-        let jsonData = try Data(contentsOf: configURL)
-        let config = try JSONDecoder().decode(ERC20Configuration.self, from: jsonData)
-        let tokens = config["0x\(String(chain.chainId, radix: 16))"] ?? [:]
-
-        return tokens.keys.map {
-            Token(
-                address: tokens[$0],
-                blockchain: blockchain,
-                decimalsCount: 0,
-                imageURL: nil,
-                isHidden: false,
-                isIncludedInBalance: nil,
-                isNativeToken: false,
-                name: $0,
-                symbol: $0,
-                usdPrice: nil
-            )
         }
     }
 }

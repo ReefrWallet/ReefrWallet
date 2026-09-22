@@ -41,6 +41,7 @@ private struct TransactionFixture {
     let client: AnyBlockchainClient
     let databaseService: DatabaseService
     let balancesService: BalancesService
+    let feeEstimationService: FeeEstimationService
     let transactionService: TransactionService
     let blockchain: WKBlockchain
     let sender: Account
@@ -59,6 +60,7 @@ private struct TransactionFixture {
         let databaseService = try makeDatabaseService()
         let accountService = AccountService(databaseService: databaseService)
         let balancesService = BalancesService(databaseService: databaseService)
+        let feeEstimationService = FeeEstimationService()
         let transactionService = TransactionService(databaseService: databaseService)
 
         let deployer = try await makeFundedDeployer(node: node, blockchain: blockchain)
@@ -148,6 +150,7 @@ private struct TransactionFixture {
             client: client,
             databaseService: databaseService,
             balancesService: balancesService,
+            feeEstimationService: feeEstimationService,
             transactionService: transactionService,
             blockchain: blockchain,
             sender: sender,
@@ -208,7 +211,7 @@ private struct TransactionFixture {
 
         let decimalAmount = "50"
 
-        let fees = try await transactionService.estimateFees(
+        let fees = try await feeEstimationService.estimateFees(
             token: usdcToken,
             decimalAmount: decimalAmount,
             recipient: recipient.address,

@@ -6,57 +6,59 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-import BigInt
-import WalletKit
-
 struct Fees: Equatable {
+    /// The fee rate, in sat/vB, for a Bitcoin transfer.
+    let bitcoinFeeRate: String?
+
+    /// Lovelace carried alongside a Cardano native asset at the recipient.
+    let cardanoRecipientLovelace: String?
+
     let ethereumBaseFee: String?
     let ethereumGasPrice: String?
     let ethereumMaxPriorityFee: String?
     let ethereumMaxFee: String?
-    let suiGasBudget: String?
-    let suiGasPrice: String?
-    /// The fee rate, in sat/vB, for a Bitcoin transfer.
-    let bitcoinFeeRate: String?
-    /// Lovelace carried alongside a Cardano native asset at the recipient.
-    let cardanoRecipientLovelace: String?
-    /// Maximum SUN a TRC-20 call may spend. This does not affect validator priority.
-    let tronFeeLimit: String?
-    /// The Solana priority fee, in micro-lamports per compute unit.
-    let solanaPriorityFee: String?
+
     /// The Solana compute-unit limit, if overridden. `nil` leaves the
     /// runtime's default per-instruction budget in effect.
     let solanaComputeUnitLimit: String?
-    /// Total fee cost in the chain's smallest unit (wei / MIST / sats / lamports),
-    /// only set when the token being sent is the native asset. Used to compute the
-    /// spendable maximum after reserving gas.
+    /// The Solana priority fee, in micro-lamports per compute unit.
+    let solanaPriorityFee: String?
+
+    let suiGasBudget: String?
+    let suiGasPrice: String?
+
+    /// Maximum SUN a TRC-20 call may spend. This does not affect validator priority.
+    let tronFeeLimit: String?
+
+    /// Total fee cost in the chain's smallest unit, only set when the token being sent
+    /// is the native asset. Used to compute the spendable maximum after reserving gas.
     let nativeFeeReserve: String?
 
     init(
-        ethereumBaseFee: String? = nil,
-        ethereumGasPrice: String? = nil,
-        ethereumMaxPriorityFee: String? = nil,
-        ethereumMaxFee: String? = nil,
-        suiGasBudget: String? = nil,
-        suiGasPrice: String? = nil,
         bitcoinFeeRate: String? = nil,
         cardanoRecipientLovelace: String? = nil,
-        tronFeeLimit: String? = nil,
-        solanaPriorityFee: String? = nil,
+        ethereumBaseFee: String? = nil,
+        ethereumGasPrice: String? = nil,
+        ethereumMaxFee: String? = nil,
+        ethereumMaxPriorityFee: String? = nil,
+        nativeFeeReserve: String? = nil,
         solanaComputeUnitLimit: String? = nil,
-        nativeFeeReserve: String? = nil
+        solanaPriorityFee: String? = nil,
+        suiGasBudget: String? = nil,
+        suiGasPrice: String? = nil,
+        tronFeeLimit: String? = nil
     ) {
-        self.ethereumBaseFee = ethereumBaseFee
-        self.ethereumGasPrice = ethereumGasPrice
-        self.ethereumMaxPriorityFee = ethereumMaxPriorityFee
-        self.ethereumMaxFee = ethereumMaxFee
-        self.suiGasBudget = suiGasBudget
-        self.suiGasPrice = suiGasPrice
         self.bitcoinFeeRate = bitcoinFeeRate
         self.cardanoRecipientLovelace = cardanoRecipientLovelace
-        self.tronFeeLimit = tronFeeLimit
-        self.solanaPriorityFee = solanaPriorityFee
-        self.solanaComputeUnitLimit = solanaComputeUnitLimit
+        self.ethereumBaseFee = ethereumBaseFee
+        self.ethereumGasPrice = ethereumGasPrice
+        self.ethereumMaxFee = ethereumMaxFee
+        self.ethereumMaxPriorityFee = ethereumMaxPriorityFee
         self.nativeFeeReserve = nativeFeeReserve
+        self.solanaComputeUnitLimit = solanaComputeUnitLimit
+        self.solanaPriorityFee = solanaPriorityFee
+        self.suiGasBudget = suiGasBudget
+        self.suiGasPrice = suiGasPrice
+        self.tronFeeLimit = tronFeeLimit
     }
 }

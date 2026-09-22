@@ -259,8 +259,8 @@ private extension TransactionFeesView {
 
             return Fees(
                 ethereumBaseFee: ethereumBaseFee,
-                ethereumMaxPriorityFee: ethereumMaxPriorityFee,
-                ethereumMaxFee: ethereumMaxFee
+                ethereumMaxFee: ethereumMaxFee,
+                ethereumMaxPriorityFee: ethereumMaxPriorityFee
             )
         case .sui:
             guard UInt64(suiGasBudget) != nil, UInt64(suiGasPrice) != nil else {
@@ -284,23 +284,28 @@ private extension TransactionFeesView {
             guard estimatedFees != nil else {
                 return nil
             }
+
             guard tronFeeLimit.isEmpty || UInt64(tronFeeLimit) != nil else {
                 return nil
             }
+
             return Fees(tronFeeLimit: tronFeeLimit.isEmpty ? nil : tronFeeLimit)
         case .solana:
             guard estimatedFees != nil else {
                 return nil
             }
+
             guard solanaPriorityFee.isEmpty || UInt64(solanaPriorityFee) != nil else {
                 return nil
             }
+
             guard solanaComputeUnitLimit.isEmpty || UInt32(solanaComputeUnitLimit) != nil else {
                 return nil
             }
+
             return Fees(
-                solanaPriorityFee: solanaPriorityFee.isEmpty ? nil : solanaPriorityFee,
-                solanaComputeUnitLimit: solanaComputeUnitLimit.isEmpty ? nil : solanaComputeUnitLimit
+                solanaComputeUnitLimit: solanaComputeUnitLimit.isEmpty ? nil : solanaComputeUnitLimit,
+                solanaPriorityFee: solanaPriorityFee.isEmpty ? nil : solanaPriorityFee
             )
         }
     }

@@ -76,6 +76,10 @@ extension ServiceContainer {
             return databaseService
         }
 
+        register(FeeEstimationService.self) {
+            FeeEstimationService()
+        }
+
         register(HardwareService.self) {
             HardwareService()
         }

@@ -22,79 +22,6 @@ final class TransactionService {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
     }
 
-    /// Estimates network fees for a transfer of `token` from `account` to
-    /// `recipient`.
-    ///
-    /// - For EVM: fetches current EIP-1559 fee rates and runs
-    ///   `eth_estimateGas` against the actual call (a plain value transfer
-    ///   for native ETH, or the ABI-encoded `transfer(address,uint256)`
-    ///   calldata for an ERC-20) to populate `ethereumBaseFee`.
-    /// - For Sui: builds unsigned BCS bytes for the transfer then simulates
-    ///   them to produce `suiGasBudget` and `suiGasPrice`.
-    func estimateFees( // swiftlint:disable:this function_body_length
-        token: Token,
-        decimalAmount: String,
-        cardanoRecipientLovelace: String? = nil,
-        recipient: String,
-        account: Account
-    ) async throws -> Fees {
-        let blockchain = account.blockchain
-
-        let client = try await clientProvider.getClient(
-            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
-        )
-
-        let amount = try makeAmount(decimalAmount, token: token)
-
-        switch blockchain {
-        case .evm:
-            return try await estimateEthereumFees(
-                client: client,
-                token: token,
-                amount: amount,
-                recipient: recipient,
-                account: account
-            )
-        case .sui:
-            return try await estimateSuiFees(
-                client: client,
-                blockchain: blockchain,
-                token: token,
-                amount: amount,
-                recipient: recipient,
-                account: account
-            )
-        case .bitcoin:
-            return try await estimateBitcoinFees(
-                client: client,
-                blockchain: blockchain,
-                amount: amount,
-                recipient: recipient,
-                account: account
-            )
-        case .cardano:
-            return try await estimateCardanoFees(
-                blockchain: blockchain,
-                token: token,
-                amount: amount,
-                recipientLovelace: cardanoRecipientLovelace,
-                recipient: recipient,
-                account: account
-            )
-        case .tron:
-            return Fees(tronFeeLimit: token.isNativeToken ? nil : "100000000")
-        case .solana:
-            return try await estimateSolanaFees(
-                client: client,
-                blockchain: blockchain,
-                token: token,
-                amount: amount,
-                recipient: recipient,
-                account: account
-            )
-        }
-    }
-
     /// Builds unsigned transaction bytes for a transfer of `token` from
     /// `account` to `recipient`, optionally honoring user-supplied `fees`.
     ///
@@ -113,7 +40,7 @@ final class TransactionService {
             throw Error.invalidData
         }
 
-        let amount = try makeAmount(decimalAmount, token: token)
+        let amount = try token.smallestUnitAmount(from: decimalAmount)
         // nil token identifier → native asset; non-nil → ERC-20 / Sui coin type.
         let tokenId: String? = token.isNativeToken ? nil : token.address
         var options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
@@ -173,204 +100,39 @@ final class TransactionService {
 // MARK: - Private helpers
 
 private extension TransactionService {
-    func estimateCardanoFees(
-        blockchain: WKBlockchain,
-        token: Token,
-        amount: BigUInt,
-        recipientLovelace: String?,
-        recipient: String,
-        account: Account
-    ) async throws -> Fees {
-        let builder = try await clientProvider.getBuilder(
-            blockchain: blockchain,
-            rpcURL: account.rpcURLOverride,
-            backend: account.bitcoinBackend
-        )
-        var options: [BlockchainTransactionBuilderOptions] = []
-        if !token.isNativeToken {
-            guard let recipientLovelace, let lovelace = UInt64(recipientLovelace) else {
-                throw Error.invalidData
-            }
-            options.append(.cardanoRecipientLovelace(lovelace))
-        }
-        let transaction = try await builder.buildTransfer(
-            sender: account.address,
-            recipient: recipient,
-            amount: amount,
-            token: token.isNativeToken ? nil : token.address,
-            options: options
-        )
-        let unsigned = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: transaction)
-        return Fees(cardanoRecipientLovelace: recipientLovelace, nativeFeeReserve: unsigned.fee)
-    }
-
     func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
         guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
             throw Error.notFound
         }
+
         guard let rawAccountIndex = account.accountIndex, let accountIndex = UInt32(exactly: rawAccountIndex) else {
             throw Error.invalidData
         }
+
         switch keyStore.kind {
         case .local:
             guard let entropy = keyStore.mnemonicEntropy else {
                 throw Error.invalidData
             }
+
             let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
             return try transaction.signed(entropy: entropy, accountIndex: accountIndex)
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
                 throw Error.invalidData
             }
+
             guard case let .cardano(network) = account.blockchain else {
                 throw Error.invalidData
             }
+
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
+
             return try await CardanoTrezorSigner(network: network, accountIndex: accountIndex, device: device)
                 .sign(transaction: request)
         case .watchOnly:
             throw Error.notSupported
         }
-    }
-
-    /// Fetches EIP-1559 fee rates and runs `eth_estimateGas` against the
-    /// actual call (a plain value transfer for native ETH, or the
-    /// ABI-encoded `transfer(address,uint256)` calldata for an ERC-20) to
-    /// populate `ethereumBaseFee`.
-    func estimateEthereumFees(
-        client: AnyBlockchainClient,
-        token: Token,
-        amount: BigUInt,
-        recipient: String,
-        account: Account
-    ) async throws -> Fees {
-        let feeEstimate: FeeEstimate
-        if token.isNativeToken {
-            let request = AnyFeeEstimateRequest(
-                from: account.address,
-                to: recipient,
-                value: amount
-            )
-            feeEstimate = try await client.estimateFee(for: request)
-        } else {
-            // Build the real ERC-20 transfer calldata so `eth_estimateGas`
-            // sees the exact call — gas usage varies per token contract
-            // and can't be approximated from rates alone.
-            guard let tokenAddress = token.address else {
-                throw Error.invalidData
-            }
-
-            let contract = try EthereumAddress(string: tokenAddress)
-            let recipientAddress = try EthereumAddress(string: recipient)
-
-            let calldata = EthereumABI.encodeCall(
-                selector: EthereumABI.selector("transfer(address,uint256)"),
-                parameters: [.address(recipientAddress), .uint256(amount)]
-            )
-
-            let request = AnyFeeEstimateRequest(
-                from: account.address,
-                to: contract.string,
-                data: calldata
-            )
-
-            feeEstimate = try await client.estimateFee(for: request)
-        }
-
-        let maxFee = feeEstimate.maxFeePerGas ?? feeEstimate.gasPrice
-        let priorityFee = feeEstimate.maxPriorityFeePerGas ?? BigUInt(0)
-        let baseFee = maxFee > priorityFee ? (maxFee - priorityFee) / 2 : BigUInt(0)
-
-        return Fees(
-            ethereumBaseFee: baseFee.description,
-            ethereumMaxPriorityFee: priorityFee.description,
-            ethereumMaxFee: maxFee.description,
-            nativeFeeReserve: token.isNativeToken ? feeEstimate.estimatedFee?.description : nil
-        )
-    }
-
-    /// Builds unsigned BCS bytes for the transfer then simulates them to
-    /// produce `suiGasBudget` and `suiGasPrice`.
-    func estimateSuiFees(
-        client: AnyBlockchainClient,
-        blockchain: WKBlockchain,
-        token: Token,
-        amount: BigUInt,
-        recipient: String,
-        account: Account
-    ) async throws -> Fees {
-        // Build the unsigned transaction to get a realistic simulation.
-        let builder = try await clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
-        let bcs = try await builder.buildTransfer(
-            sender: account.address,
-            recipient: recipient,
-            amount: amount,
-            token: token.isNativeToken ? nil : token.address
-        )
-        let request = AnyFeeEstimateRequest(data: bcs)
-        let feeEstimate = try await client.estimateFee(for: request)
-
-        let grossFee = feeEstimate.grossFee ?? feeEstimate.estimatedFee ?? feeEstimate.gasPrice
-        return Fees(
-            suiGasBudget: grossFee.description,
-            suiGasPrice: feeEstimate.gasPrice.description,
-            nativeFeeReserve: token.isNativeToken ? grossFee.description : nil
-        )
-    }
-
-    /// Builds the unsigned transaction envelope for the transfer (which
-    /// already applies the default priority fee) then reads back its
-    /// implied cost via ``BlockchainClientProtocol/estimateFee(for:)``'s
-    /// message-aware path.
-    func estimateSolanaFees(
-        client: AnyBlockchainClient,
-        blockchain: WKBlockchain,
-        token: Token,
-        amount: BigUInt,
-        recipient: String,
-        account: Account
-    ) async throws -> Fees {
-        let builder = try await clientProvider.getBuilder(blockchain: blockchain, rpcURL: account.rpcURLOverride)
-        let envelope = try await builder.buildTransfer(
-            sender: account.address,
-            recipient: recipient,
-            amount: amount,
-            token: token.isNativeToken ? nil : token.address
-        )
-        let request = AnyFeeEstimateRequest(data: envelope)
-        let feeEstimate = try await client.estimateFee(for: request)
-
-        return Fees(
-            solanaPriorityFee: feeEstimate.gasPrice.description,
-            solanaComputeUnitLimit: feeEstimate.gasLimit?.description,
-            nativeFeeReserve: token.isNativeToken ? feeEstimate.estimatedFee?.description : nil
-        )
-    }
-
-    /// Builds the unsigned PSBT for the transfer (which already runs real
-    /// coin selection at the current fee rate) then reads back its
-    /// implied fee via ``BlockchainClientProtocol/estimateFee(for:)``'s
-    /// PSBT-aware path.
-    func estimateBitcoinFees(
-        client: AnyBlockchainClient,
-        blockchain: WKBlockchain,
-        amount: BigUInt,
-        recipient: String,
-        account: Account
-    ) async throws -> Fees {
-        let builder = try await clientProvider.getBuilder(
-            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
-        )
-        let psbt = try await builder.buildTransfer(
-            sender: account.address, recipient: recipient, amount: amount, token: nil
-        )
-        let request = AnyFeeEstimateRequest(data: psbt)
-        let feeEstimate = try await client.estimateFee(for: request)
-
-        return Fees(
-            bitcoinFeeRate: feeEstimate.gasPrice.description,
-            nativeFeeReserve: feeEstimate.estimatedFee?.description
-        )
     }
 
     /// Builds the ``BlockchainTransactionBuilderOptions`` array that conveys
@@ -431,41 +193,6 @@ private extension TransactionService {
         return value
     }
 
-    /// Converts a human-readable decimal amount string to the chain's
-    /// smallest unit as a `BigUInt`.
-    ///
-    /// Example: `"1.5"` with `decimalsCount = 6` → `BigUInt(1_500_000)`.
-    func makeAmount(_ text: String, token: Token) throws -> BigUInt {
-        guard let decimal = Decimal(string: text), decimal > 0 else {
-            throw Error.invalidData
-        }
-
-        // Scale by 10^decimals without losing integer precision.
-        var multiplier = Decimal(1)
-        for _ in 0..<token.decimalsCount { multiplier *= 10 }
-        let scaled = NSDecimalNumber(decimal: decimal * multiplier)
-        let handler = NSDecimalNumberHandler(
-            roundingMode: .down,
-            scale: 0,
-            raiseOnExactness: false,
-            raiseOnOverflow: false,
-            raiseOnUnderflow: false,
-            raiseOnDivideByZero: false
-        )
-        let truncated = scaled.rounding(accordingToBehavior: handler)
-
-        // Reject sub-smallest-unit amounts: the scaled value must already be an
-        // exact integer. e.g. 0.0000001 USDC (6 decimals) → 0.1 base units → reject.
-        guard scaled == truncated else {
-            throw Error.invalidData
-        }
-
-        guard let amount = BigUInt(truncated.stringValue), amount > 0 else {
-            throw Error.invalidData
-        }
-        return amount
-    }
-
     /// Constructs the appropriate ``Signer`` for `account` by looking up its
     /// keystore and deriving (or fetching from hardware) the private key.
     func makeSigner(for account: Account) async throws -> any Signer {
@@ -502,26 +229,59 @@ private extension TransactionService {
 
         switch account.blockchain {
         case let .evm(chain):
-            let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
+            let privateKey = try seed
+                .masterKey(curve: .secp256k1)
+                .derive(derivationPath)
+                .privateKey()
+
             return try EthereumPKeySigner(
-                chainId: chain.chainId, privateKey: privateKey, derivationPath: derivationPath
+                chainId: chain.chainId,
+                privateKey: privateKey,
+                derivationPath: derivationPath
             )
         case let .sui(network):
             let curve = account.signatureScheme ?? .ed25519
-            let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
+
+            let privateKey = try seed
+                .masterKey(curve: curve)
+                .derive(derivationPath)
+                .privateKey()
+
             return try SuiPKeySigner(
-                curve: curve, network: network, privateKey: privateKey, derivationPath: derivationPath
+                curve: curve,
+                network: network,
+                privateKey: privateKey,
+                derivationPath: derivationPath
             )
         case let .bitcoin(network):
             let descriptor = try BitcoinDescriptor(string: account.address, network: network)
             return try BitcoinPKeySigner(descriptor: descriptor, seed: seed, derivationPath: derivationPath)
         case let .tron(network):
-            let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
-            return try TronPKeySigner(network: network, privateKey: privateKey, derivationPath: derivationPath)
+            let privateKey = try seed
+                .masterKey(curve: .secp256k1)
+                .derive(derivationPath)
+                .privateKey()
+
+            return try TronPKeySigner(
+                network: network,
+                privateKey: privateKey,
+                derivationPath: derivationPath
+            )
         case let .solana(network):
-            let privateKey = try seed.masterKey(curve: .ed25519).derive(derivationPath).privateKey()
-            return try SolanaPKeySigner(network: network, privateKey: privateKey, derivationPath: derivationPath)
-        default:
+            let privateKey = try seed
+                .masterKey(curve: .ed25519)
+                .derive(derivationPath)
+                .privateKey()
+
+            return try SolanaPKeySigner(
+                network: network,
+                privateKey: privateKey,
+                derivationPath: derivationPath
+            )
+        case .cardano:
+            // Cardano local signing is handled directly in
+            // `signCardanoTransaction`, which signs before a `Signer` is
+            // constructed here.
             throw Error.notImplemented
         }
     }

@@ -194,10 +194,10 @@ private extension TransferView {
         estimatedFees?.nativeFeeReserve.flatMap { BigUInt($0) }
     }
 
-    /// Requests a fee estimate for `parameters` from the transaction service.
+    /// Requests a fee estimate for `parameters` from the fee estimation service.
     func fetchFees(for parameters: TransferParameters) async throws -> Fees {
-        let transactionService = DI.injectOrFail(TransactionService.self)
-        return try await transactionService.estimateFees(
+        let feeEstimationService = DI.injectOrFail(FeeEstimationService.self)
+        return try await feeEstimationService.estimateFees(
             token: parameters.balance.token,
             decimalAmount: parameters.decimalAmount,
             cardanoRecipientLovelace: parameters.cardanoRecipientLovelace,

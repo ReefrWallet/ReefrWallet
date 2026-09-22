@@ -6,6 +6,7 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
 import Foundation
 import SwiftData
 import WalletKit
@@ -41,6 +42,16 @@ extension Token: Decodable {
         isIncludedInBalance = true
         imageURL = nil
         usdPrice = nil
+    }
+
+    init(address: String?, blockchain: WKBlockchain, tokenInfo: TokenInfo) {
+        self.address = address
+        self.blockchain = blockchain
+        self.decimalsCount = tokenInfo.decimals
+        self.isHidden = false
+        self.isNativeToken = tokenInfo.isNative
+        self.name = tokenInfo.name
+        self.symbol = tokenInfo.symbol
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -147,6 +158,43 @@ extension TokenModel {
 // MARK: - Helpers
 
 extension Token {
+    /// Converts a human-readable decimal amount string to this token's
+    /// smallest unit as a `BigUInt`.
+    ///
+    /// Example: `"1.5"` with `decimalsCount = 6` → `BigUInt(1_500_000)`.
+    func smallestUnitAmount(from text: String) throws -> BigUInt {
+        guard let decimal = Decimal(string: text), decimal > 0 else {
+            throw Error.invalidData
+        }
+
+        // Scale by 10^decimals without losing integer precision.
+        var multiplier = Decimal(1)
+        for _ in 0..<decimalsCount { multiplier *= 10 }
+        let scaled = NSDecimalNumber(decimal: decimal * multiplier)
+
+        let handler = NSDecimalNumberHandler(
+            roundingMode: .down,
+            scale: 0,
+            raiseOnExactness: false,
+            raiseOnOverflow: false,
+            raiseOnUnderflow: false,
+            raiseOnDivideByZero: false
+        )
+
+        let truncated = scaled.rounding(accordingToBehavior: handler)
+
+        // Reject sub-smallest-unit amounts: the scaled value must already be an
+        // exact integer. e.g. 0.0000001 USDC (6 decimals) → 0.1 base units → reject.
+        guard scaled == truncated else {
+            throw Error.invalidData
+        }
+
+        guard let amount = BigUInt(truncated.stringValue), amount > 0 else {
+            throw Error.invalidData
+        }
+
+        return amount
+    }
 }
 
 extension TokenModel {
