@@ -11,7 +11,7 @@ import WalletKit
 
 extension DatabaseService {
     func deleteAccount(id: PersistentIdentifier) throws {
-        let predicate = #Predicate<AccountModel> { $0.id == id }
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound
@@ -32,7 +32,7 @@ extension DatabaseService {
 
     func fetchAccount(id: PersistentIdentifier) throws -> Account? {
         try modelContext
-            .fetch(FetchDescriptor(predicate: #Predicate<AccountModel> { $0.id == id }))
+            .fetch(FetchDescriptor(predicate: #Predicate<AccountModel> { $0.persistentModelID == id }))
             .first
             .map { try Account(model: $0) }
     }
@@ -46,11 +46,11 @@ extension DatabaseService {
 
         if let serializedBlockchain {
             predicate = #Predicate<AccountModel> {
-                $0.keyStore.id == keyStoreId && $0.blockchain.serialized == serializedBlockchain
+                $0.keyStore.persistentModelID == keyStoreId && $0.blockchain.serialized == serializedBlockchain
             }
         } else {
             predicate = #Predicate<AccountModel> {
-                $0.keyStore.id == keyStoreId
+                $0.keyStore.persistentModelID == keyStoreId
             }
         }
 
@@ -69,7 +69,7 @@ extension DatabaseService {
             throw Error.invalidData
         }
 
-        let keyStorePredicate = #Predicate<KeyStoreModel> { $0.id == keyStoreId }
+        let keyStorePredicate = #Predicate<KeyStoreModel> { $0.persistentModelID == keyStoreId }
         guard let keyStore = try modelContext.fetch(FetchDescriptor(predicate: keyStorePredicate)).first else {
             throw Error.notFound
         }
@@ -91,7 +91,7 @@ extension DatabaseService {
     }
 
     func renameAccount(id: PersistentIdentifier, name: String) throws {
-        let predicate = #Predicate<AccountModel> { $0.id == id }
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound
@@ -102,7 +102,7 @@ extension DatabaseService {
     }
 
     func usdValue(accountId: PersistentIdentifier) throws -> Decimal {
-        let predicate = #Predicate<AccountModel> { $0.id == accountId }
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound

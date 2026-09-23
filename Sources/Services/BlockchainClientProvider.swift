@@ -203,6 +203,10 @@ actor BlockchainClientProvider {
             return nil
         }
 
-        return UserDefaults.standard.string(forKey: "TronGridAPIKey")
+        let setting = UserDefaults.standard.string(forKey: "TronGridAPIKey")?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let setting, !setting.isEmpty {
+            return setting
+        }
+        return ProcessInfo.processInfo.environment["TRONGRID_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

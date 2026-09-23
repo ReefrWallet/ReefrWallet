@@ -88,6 +88,9 @@ private extension AccountBalancesView {
                         Text(entry.displayName)
                     }
                     .style(.medium, foreground: .primary)
+                    .accessibilityIdentifier(
+                        balance.token.isHidden ? "balance-row-hidden-\(entry.id)" : "balance-row-visible-\(entry.id)"
+                    )
                 case .hiddenBalancesTitle:
                     Text(entry.displayName)
                         .style(.smallHeader, foreground: .secondary)

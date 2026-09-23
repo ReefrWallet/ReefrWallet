@@ -39,7 +39,7 @@ extension DatabaseService {
             throw Error.invalidData
         }
 
-        let predicate = #Predicate<AccountModel> { $0.id == accountId }
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound

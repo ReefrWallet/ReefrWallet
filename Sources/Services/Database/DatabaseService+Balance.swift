@@ -25,7 +25,7 @@ extension DatabaseService {
 
         return try modelContext
             .fetch(FetchDescriptor(
-                predicate: #Predicate { $0.account.id == accountId && $0.token.address == tokenAddress }
+                predicate: #Predicate { $0.account.persistentModelID == accountId && $0.token.address == tokenAddress }
             ))
             .first
             .map(Balance.init(model:))
@@ -33,7 +33,7 @@ extension DatabaseService {
 
     func fetchBalances(accountId: PersistentIdentifier) throws -> [Balance] {
         try modelContext
-            .fetch(FetchDescriptor(predicate: #Predicate { $0.account.id == accountId }))
+            .fetch(FetchDescriptor(predicate: #Predicate { $0.account.persistentModelID == accountId }))
             .map(Balance.init(model:))
     }
 
@@ -102,7 +102,7 @@ private extension DatabaseService {
             throw Error.invalidData
         }
 
-        let accountPredicate = #Predicate<AccountModel> { $0.id == accountId }
+        let accountPredicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: accountPredicate)).first else {
             throw Error.notFound
         }
@@ -114,12 +114,12 @@ private extension DatabaseService {
         let balanceModel: BalanceModel
 
         if let balanceId = balance.id {
-            let balancePredicate = #Predicate<BalanceModel> { $0.id == balanceId }
+            let balancePredicate = #Predicate<BalanceModel> { $0.persistentModelID == balanceId }
             balanceModel = try modelContext.fetch(FetchDescriptor(predicate: balancePredicate)).first
                 ?? BalanceModel(account: accountModel, amount: balance.amount, token: tokenModel)
         } else {
             let balancePredicate = #Predicate<BalanceModel> {
-                $0.account.id == accountId && $0.token.address == tokenAddress
+                $0.account.persistentModelID == accountId && $0.token.address == tokenAddress
             }
             balanceModel = try modelContext.fetch(FetchDescriptor(predicate: balancePredicate)).first
                 ?? BalanceModel(account: accountModel, amount: balance.amount, token: tokenModel)

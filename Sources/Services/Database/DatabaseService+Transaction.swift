@@ -12,7 +12,7 @@ import WalletKit
 extension DatabaseService {
     func fetchTransactions(accountId: PersistentIdentifier) throws -> [WalletTransaction] {
         let descriptor = FetchDescriptor<WalletTransactionModel>(
-            predicate: #Predicate { $0.account.id == accountId },
+            predicate: #Predicate { $0.account.persistentModelID == accountId },
             sortBy: [
                 SortDescriptor(\WalletTransactionModel.timestamp, order: .reverse),
                 SortDescriptor(\WalletTransactionModel.transactionIndex, order: .reverse)
@@ -23,7 +23,7 @@ extension DatabaseService {
     }
 
     func transactionSyncState(accountId: PersistentIdentifier) throws -> WalletTransactionSyncState {
-        let predicate = #Predicate<AccountModel> { $0.id == accountId }
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound
         }
@@ -43,7 +43,7 @@ extension DatabaseService {
             throw Error.invalidData
         }
 
-        let accountPredicate = #Predicate<AccountModel> { $0.id == accountId }
+        let accountPredicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: accountPredicate)).first else {
             throw Error.notFound
@@ -103,7 +103,7 @@ extension DatabaseService {
 
     func saveTransactionSyncState(_ state: WalletTransactionSyncState) throws {
         let accountID = state.accountId
-        let predicate = #Predicate<AccountModel> { $0.id == accountID }
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountID }
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound
         }
@@ -132,7 +132,7 @@ extension DatabaseService {
             throw Error.invalidData
         }
 
-        let predicate = #Predicate<WalletTransactionModel> { $0.account.id == accountID }
+        let predicate = #Predicate<WalletTransactionModel> { $0.account.persistentModelID == accountID }
         let transactions = try modelContext.fetch(FetchDescriptor(predicate: predicate))
 
         for transaction in transactions {
@@ -164,9 +164,9 @@ private extension DatabaseService {
         blockchain: WKBlockchain
     ) throws {
         let serializedBlockchain = try blockchain.asJSONString()
-        let accountId = account.id
+        let accountId = account.persistentModelID
         let balancePredicate = #Predicate<BalanceModel> {
-            $0.account.id == accountId
+            $0.account.persistentModelID == accountId
             && $0.token.address == tokenAddress
             && $0.token.blockchain?.serialized == serializedBlockchain
         }

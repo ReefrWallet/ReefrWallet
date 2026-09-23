@@ -13,16 +13,20 @@ import WalletKit
 // MARK: - AddKeyStoreView
 
 struct AddKeyStoreView: View {
+    enum FocusTarget: Hashable {
+        case next
+    }
+
     enum ViewState: Equatable {
-        case addLocalKey
+        case newKey
         case chooseAction
         case restore
     }
 
     enum Options {
-        static let connectTrezor = UUID().uuidString
-        static let generateNewKey = UUID().uuidString
-        static let restoreFromBackup = UUID().uuidString
+        static let connectTrezor = UUID()
+        static let generateNewKey = UUID()
+        static let restoreFromBackup = UUID()
     }
 
     @State private var error: Swift.Error?
@@ -30,8 +34,10 @@ struct AddKeyStoreView: View {
     @State private var isBackButtonDisabled = false
     @State private var isNextButtonDisabled = true
     @State private var seedPhrase = ""
-    @State private var selectedOption: String?
+    @State private var selectedOption: UUID?
     @State private var viewState: ViewState = .chooseAction
+
+    @FocusState private var focus: FocusTarget?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
@@ -42,12 +48,12 @@ struct AddKeyStoreView: View {
     var body: some View {
         VStack(alignment: .leading) {
             switch viewState {
-            case .addLocalKey:
-                newLocalKeyView
+            case .newKey:
+                generatedKeyView
             case .chooseAction:
                 chooseKeyTypeView
             case .restore:
-                restoreKeyView
+                editableKeyView
             }
 
             buttonsView
@@ -88,6 +94,7 @@ private extension AddKeyStoreView {
             } label: {
                 Text(backButtonLabel)
             }
+            .focusable(viewState == .chooseAction)
             .disabled(isBackButtonDisabled)
 
             Button {
@@ -95,31 +102,54 @@ private extension AddKeyStoreView {
             } label: {
                 Text(nextButtonLabel)
             }
+            .focused($focus, equals: .next)
             .disabled(isNextButtonDisabled)
         }
     }
 
     var chooseKeyTypeView: some View {
         VStack {
-            SelectionGroupView(options: hardwareKeyOptions, selectedOption: $selectedOption)
-                .padding(.bottom)
+            Picker("", selection: $selectedOption) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("New Hardware Key")
+                        .style(.medium, foreground: .primary)
+                    Text("Connect Trezor hardware key and\nuse it for address derivation and signing")
+                        .style(.small, foreground: .secondary)
+                }
+                .tag(Options.connectTrezor)
 
-            SelectionGroupView(options: localKeyOptions, selectedOption: $selectedOption)
-                .padding(.bottom)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("New BIP-39 Mnemonic")
+                        .style(.medium, foreground: .primary)
+                    Text("Generate 12, 18 or 24 word seed phrase wallet\nstored locally on this computer")
+                        .style(.small, foreground: .secondary)
+                }
+                .tag(Options.generateNewKey)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Restore From Backup")
+                        .style(.medium, foreground: .primary)
+                    Text("Restore local seed phrase wallet\nfrom a 12, 18 or 24 word backup")
+                        .style(.small, foreground: .secondary)
+                }
+                .tag(Options.restoreFromBackup)
+            }
+            .pickerStyle(.radioGroup)
         }
     }
 
-    var newLocalKeyView: some View {
-        TextEditor(text: $seedPhrase)
-            .frame(minHeight: 200)
+    var editableKeyView: some View {
+        WordTokenizerView(
+            phrase: $seedPhrase,
+            columns: 4
+        )
             .onChange(of: seedPhrase, initial: true) { _, newValue in
                 validateSeedPhrase(newValue)
             }
     }
 
-    var restoreKeyView: some View {
-        TextEditor(text: $seedPhrase)
-            .frame(minHeight: 200)
+    var generatedKeyView: some View {
+        WordTokenizerView(phrase: $seedPhrase, columns: 4, readOnly: true)
             .onChange(of: seedPhrase, initial: true) { _, newValue in
                 validateSeedPhrase(newValue)
             }
@@ -133,39 +163,14 @@ extension AddKeyStoreView {
         switch viewState {
         case .chooseAction:
             "Cancel"
-        case .addLocalKey, .restore:
+        case .newKey, .restore:
             "Back"
         }
     }
 
-    var hardwareKeyOptions: [SelectionOption] {
-        [
-            SelectionOption(
-                id: Options.connectTrezor,
-                title: "Add Trezor",
-                image: Image(systemName: "key.fill")
-            )
-        ]
-    }
-
-    var localKeyOptions: [SelectionOption] {
-        [
-            SelectionOption(
-                id: Options.generateNewKey,
-                title: "Generate New Key",
-                image: Image(systemName: "key.fill")
-            ),
-            SelectionOption(
-                id: Options.restoreFromBackup,
-                title: "Restore From Backup",
-                image: Image(systemName: "arrow.clockwise.circle.fill")
-            )
-        ]
-    }
-
     var nextButtonLabel: String {
         switch viewState {
-        case .addLocalKey:
+        case .newKey:
             "Done"
         case .chooseAction, .restore:
             "Next"
@@ -189,7 +194,7 @@ extension AddKeyStoreView {
         switch viewState {
         case .chooseAction:
             dismiss()
-        case .addLocalKey, .restore:
+        case .newKey, .restore:
             viewState = .chooseAction
         }
     }
@@ -197,15 +202,12 @@ extension AddKeyStoreView {
     func onNextButtonPressed() {
         switch viewState {
         case .chooseAction:
-            let allOptions = hardwareKeyOptions + localKeyOptions
-
-            guard let selectedOption,
-                  let option = allOptions.first(where: { $0.id == selectedOption }) else {
+            guard let selectedOption else {
                 preconditionFailure("No option selected")
             }
 
             Task {
-                switch option.id {
+                switch selectedOption {
                 case Options.connectTrezor:
                     do {
                         try await keyStoreService.connectTrezor()
@@ -216,15 +218,15 @@ extension AddKeyStoreView {
                     }
                 case Options.generateNewKey:
                     seedPhrase = keyStoreService.generateSeedPhrase()
-                    viewState = .restore
+                    viewState = .newKey
                 case Options.restoreFromBackup:
                     seedPhrase = ""
                     viewState = .restore
                 default:
-                    preconditionFailure("Unknown option selected: \"\(option.title)\" (\(option.id))")
+                    preconditionFailure("Unknown option selected: \(selectedOption)")
                 }
             }
-        case .addLocalKey, .restore:
+        case .newKey, .restore:
             Task {
                 do {
                     let mnemonic = try Mnemonic.fromPhrase(seedPhrase)

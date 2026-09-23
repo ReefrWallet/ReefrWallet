@@ -10,16 +10,19 @@ import SwiftData
 
 extension DatabaseService {
     func deleteKeyStore(id: PersistentIdentifier) throws {
-        try modelContext.delete(model: KeyStoreModel.self, where: #Predicate { $0.id == id })
+        guard let keyStore = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
+            .first(where: { $0.persistentModelID == id }) else {
+            return
+        }
+
+        modelContext.delete(keyStore)
         try modelContext.save()
     }
 
     func fetchKeyStore(id: PersistentIdentifier) throws -> KeyStore? {
         try modelContext
-            .fetch(FetchDescriptor(
-                predicate: #Predicate<KeyStoreModel> { $0.id == id }
-            ))
-            .first
+            .fetch(FetchDescriptor<KeyStoreModel>())
+            .first { $0.persistentModelID == id }
             .map(KeyStore.init(model:))
     }
 
@@ -32,9 +35,8 @@ extension DatabaseService {
     }
 
     func renameKeyStore(id: PersistentIdentifier, name: String) throws {
-        let predicate = #Predicate<KeyStoreModel> { $0.id == id }
-
-        guard let keyStore = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+        guard let keyStore = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
+            .first(where: { $0.persistentModelID == id }) else {
             throw Error.notFound
         }
 
@@ -43,9 +45,8 @@ extension DatabaseService {
     }
 
     func usdValue(keyStoreId: PersistentIdentifier) throws -> Decimal {
-        let predicate = #Predicate<KeyStoreModel> { $0.id == keyStoreId }
-
-        guard let keyStoreModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+        guard let keyStoreModel = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
+            .first(where: { $0.persistentModelID == keyStoreId }) else {
             throw Error.notFound
         }
 
