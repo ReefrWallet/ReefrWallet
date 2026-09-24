@@ -34,6 +34,9 @@ extension DatabaseService {
         return try modelContext.fetch(FetchDescriptor(predicate: predicate)).first.map(Token.init(model:))
     }
 
+    /// Returns the native token plus assets this account has either held or
+    /// transferred. Tokens discovered by other accounts on the same blockchain
+    /// are intentionally excluded.
     func fetchTokens(account: Account) throws -> [Token] {
         guard let accountId = account.id else {
             throw Error.invalidData
@@ -45,7 +48,16 @@ extension DatabaseService {
             throw Error.notFound
         }
 
-        return accountModel.balances.map { Token(model: $0.token) }
+        let tokenAddresses = Set(accountModel.balances.compactMap(\.token.address)).union(
+            accountModel.transactions
+                .flatMap(\.effects)
+                .filter { $0.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue }
+                .compactMap(\.assetIdentifier)
+        )
+
+        return accountModel.blockchain.tokens
+            .filter { $0.isNativeToken || tokenAddresses.contains($0.address ?? "") }
+            .map(Token.init(model:))
     }
 
     func fetchTokens(blockchain: WKBlockchain) throws -> [Token] {

@@ -10,7 +10,7 @@ import WalletKitTesting
 /// `to` carries that information, and the table's "To" column stays blank.
 private struct ExpectedTransaction {
     let identifier: String
-    let method: String
+    let kinds: Set<String>
     let sender: String
     let recipient: String?
 }
@@ -21,6 +21,8 @@ final class LocalNodeTransactionUITests: XCTestCase {
     private let mnemonic = "test test test test test test test test test test test junk"
     private var app: XCUIApplication!
     private var anvilNode: AnvilNode!
+    private var bitcoinNode: BitcoinNode!
+    private var solanaNode: SolanaNode!
     private var suiNode: SuiNode!
     private var expectedTransactions: [ExpectedTransaction] = []
     private var isSuiTest = false
@@ -30,6 +32,8 @@ final class LocalNodeTransactionUITests: XCTestCase {
         isSuiTest = name.contains("Sui")
 
         anvilNode = try await AnvilNode.start()
+        bitcoinNode = try await BitcoinNode.start()
+        solanaNode = try await SolanaNode.start()
         suiNode = try await SuiNode.start()
 
         let evmTransactions = try await prepareEVMTransactions(node: anvilNode)
@@ -43,15 +47,23 @@ final class LocalNodeTransactionUITests: XCTestCase {
             mnemonic,
             "--sui-rpc-url",
             "http://127.0.0.1:\(suiNode.rpcPort)",
+            "--bitcoin-rpc-url",
+            bitcoinNode.esploraEndpoint.absoluteString,
             "--evm-rpc-url",
-            anvilNode.endpoint.absoluteString
+            anvilNode.endpoint.absoluteString,
+            "--solana-rpc-url",
+            solanaNode.rpcURL.absoluteString
         ]
     }
 
     override func tearDown() {
         anvilNode?.stop()
+        bitcoinNode?.stop()
+        solanaNode?.stop()
         suiNode?.stop()
         anvilNode = nil
+        bitcoinNode = nil
+        solanaNode = nil
         suiNode = nil
         app = nil
     }
@@ -114,9 +126,9 @@ final class LocalNodeTransactionUITests: XCTestCase {
             "Expected captured transaction identifier \(expected.identifier)"
         )
 
-        let methodCell = app.descendants(matching: .any)["transaction-method-\(expected.identifier)"]
-        XCTAssertTrue(methodCell.waitForExistence(timeout: timeout))
-        XCTAssertEqual(methodCell.text, expected.method, "Unexpected method for \(expected.identifier)")
+        let kindCell = app.descendants(matching: .any)["transaction-kind-\(expected.identifier)"]
+        XCTAssertTrue(kindCell.waitForExistence(timeout: timeout))
+        XCTAssertTrue(expected.kinds.contains(kindCell.value as? String ?? ""), "Unexpected kind for \(expected.identifier)")
 
         let blockCell = app.descendants(matching: .any)["transaction-block-\(expected.identifier)"]
         XCTAssertTrue(blockCell.waitForExistence(timeout: timeout))
@@ -184,13 +196,13 @@ final class LocalNodeTransactionUITests: XCTestCase {
         return [
             ExpectedTransaction(
                 identifier: first,
-                method: "nativeTransfer",
+                kinds: ["received", "sent"],
                 sender: addresses[0].string,
                 recipient: addresses[1].string
             ),
             ExpectedTransaction(
                 identifier: second,
-                method: "nativeTransfer",
+                kinds: ["received", "sent"],
                 sender: addresses[1].string,
                 recipient: addresses[0].string
             )
@@ -254,7 +266,7 @@ final class LocalNodeTransactionUITests: XCTestCase {
         // balances to several addresses, so only the effect carries `to`.
         return ExpectedTransaction(
             identifier: digest,
-            method: "balanceChange",
+            kinds: ["received", "sent"],
             sender: sender.string,
             recipient: nil
         )

@@ -10,6 +10,31 @@ import SwiftData
 import WalletKit
 
 extension DatabaseService {
+    #if DEBUG
+    /// Deletes all persisted transaction history and sync cursors so the next
+    /// synchronization performs a fresh backfill.
+    func deleteAllTransactions() throws {
+        let accounts = try modelContext.fetch(FetchDescriptor<AccountModel>())
+
+        for account in accounts {
+            for transaction in account.transactions {
+                for effect in transaction.effects {
+                    modelContext.delete(effect)
+                }
+
+                modelContext.delete(transaction)
+            }
+
+            if let syncState = account.transactionSyncState {
+                account.transactionSyncState = nil
+                modelContext.delete(syncState)
+            }
+        }
+
+        try modelContext.save()
+    }
+    #endif
+
     func fetchTransactions(accountId: PersistentIdentifier) throws -> [WalletTransaction] {
         let descriptor = FetchDescriptor<WalletTransactionModel>(
             predicate: #Predicate { $0.account.persistentModelID == accountId },

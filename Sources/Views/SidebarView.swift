@@ -220,11 +220,13 @@ private extension SidebarView {
 
     var addMenu: some View {
         Menu {
-            addKeyMenuItem
-
-            if let selectedKeyStore {
-                try? addAccountMenuItem(keyStore: KeyStore(model: selectedKeyStore))
+            if let selectedKeyStore, let keyStore = try? KeyStore(model: selectedKeyStore) {
+                addAccountMenuItem(keyStore: keyStore)
             }
+
+            Divider()
+
+            addKeyMenuItem
 
             Divider()
 
@@ -255,19 +257,22 @@ private extension SidebarView {
         .accessibilityIdentifier("sidebar-update-button")
     }
 
-    func addAccountMenuItem(keyStore: KeyStore?) -> some View {
+    func addAccountMenuItem(keyStore: KeyStore) -> some View {
         Button {
-            if let keyStore {
-                presentSheet?(.addAccount(keyStore))
-            }
+            presentSheet?(.addAccount(keyStore))
         } label: {
-            Label("Add Blockchain Account", systemImage: "person.badge.plus")
+            Label("Add Blockchain Account on \(keyStore.name)", systemImage: "person.badge.plus")
         }
-        .disabled(keyStore == nil)
     }
 
     @ViewBuilder
     func makeAccountContextMenu(_ account: AccountModel) -> some View {
+        if let keyStore = try? KeyStore(model: account.keyStore) {
+            addAccountMenuItem(keyStore: keyStore)
+        }
+
+        Divider()
+
         Button {
             sidebarSelection.wrappedValue = account.id
             editingName = account.name
@@ -329,6 +334,10 @@ private extension SidebarView {
 
     @ViewBuilder
     func makeKeyStoreContextMenu(_ keyStore: KeyStore) -> some View {
+        addAccountMenuItem(keyStore: keyStore)
+
+        Divider()
+
         Button {
             sidebarSelection.wrappedValue = keyStore.id
             editingName = keyStore.name
@@ -336,8 +345,6 @@ private extension SidebarView {
         } label: {
             Label("Rename \"\(keyStore.name)\"", systemImage: "pencil")
         }
-
-        addAccountMenuItem(keyStore: keyStore)
 
         Divider()
 
@@ -398,7 +405,7 @@ extension SidebarView {
     }
 
     var selectedKeyStore: KeyStoreModel? {
-        keyStores.first { $0.id == sidebarSelection.wrappedValue }
+        selectedAccount?.keyStore ?? keyStores.first { $0.id == sidebarSelection.wrappedValue }
     }
 
     var watchOnlyKeyStore: KeyStoreModel? {

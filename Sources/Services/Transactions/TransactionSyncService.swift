@@ -124,7 +124,6 @@ private extension TransactionSyncService {
 
             guard !state.backfillComplete else {
                 printDebug("Backfill complete for \(account.name)")
-                await enqueueFullRefresh(account: account)
                 return
             }
 
@@ -196,13 +195,13 @@ private extension TransactionSyncService {
                 // Idle poll: most iterations land here with an empty page.
                 // `refreshBalances` is a no-op unless this page actually
                 // carried transactions, so a quiet account no longer pays
-                // for a full balance refresh every 10 seconds.
+                // for a full balance refresh every minute.
                 await refreshBalances(account: account, transactions: page.transactions)
                 // Standard HTTP JSON-RPC nodes are not guaranteed to expose
                 // WebSocket pub-sub. Repeating the forward range scan is the
                 // safe fallback; a future transactionSubscription capability
                 // replaces this wait with an immediate node-head event.
-                try await Task.sleep(for: .seconds(10))
+                try await Task.sleep(for: .seconds(60))
             }
         }
     }
@@ -384,7 +383,7 @@ private extension TransactionSyncService {
     func enqueueFullRefresh(account: Account) async {
         do {
             try await databaseService.linkTransactionTokens(for: account)
-            let tokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
+            let tokens = try await databaseService.fetchTokens(account: account)
 
             for token in tokens {
                 await balancesService.enqueueBalanceUpdate(

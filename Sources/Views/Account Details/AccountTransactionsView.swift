@@ -16,12 +16,17 @@ struct AccountTransactionsView: View {
     /// main thread per re-fetch during backfill of a large history.
     static let fetchLimit = 500
 
+    let account: Account
+
     @Query private var transactions: [WalletTransactionModel]
+    @State private var rows: [TransactionRowModel] = []
 
     init(_ account: Account) {
         guard let accountId = account.id else {
             preconditionFailure()
         }
+
+        self.account = account
 
         var descriptor = FetchDescriptor<WalletTransactionModel>(
             predicate: #Predicate { transaction in
@@ -32,8 +37,8 @@ struct AccountTransactionsView: View {
                 SortDescriptor(\WalletTransactionModel.transactionIndex, order: .reverse)
             ]
         )
-        descriptor.fetchLimit = Self.fetchLimit
 
+        descriptor.fetchLimit = Self.fetchLimit
         _transactions = Query(descriptor)
     }
 
@@ -45,44 +50,26 @@ struct AccountTransactionsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading)
 
-            Table(transactions) {
-                TableColumn("Digest") { transaction in
-                    Text(transaction.identifier)
-                        .accessibilityIdentifier("transaction-hash-\(transaction.identifier)")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+            List(rows) { model in
+                TransactionRow(model: model, blockchain: account.blockchain)
+            }
+            .task(id: refreshId) {
+                let presenter = TransactionRowPresenters.presenter(for: account.blockchain)
 
-                TableColumn("Method") { transaction in
-                    Text(method(transaction))
-                        .accessibilityIdentifier("transaction-method-\(transaction.identifier)")
-                }
+                rows = transactions.compactMap { transaction in
+                    guard let transaction = try? WalletTransaction(model: transaction) else {
+                        return nil
+                    }
 
-                TableColumn("Block") { transaction in
-                    Text(transaction.blockHeight.map(String.init) ?? "")
-                        .accessibilityIdentifier("transaction-block-\(transaction.identifier)")
-                }
-
-                TableColumn("From") { transaction in
-                    Text(transaction.sender ?? "")
-                        .accessibilityIdentifier("transaction-from-\(transaction.identifier)")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-
-                TableColumn("To") { transaction in
-                    Text(transaction.recipient ?? "")
-                        .accessibilityIdentifier("transaction-to-\(transaction.identifier)")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    return presenter.makeRowModel(transaction, account: account)
                 }
             }
         }
     }
-}
 
-private extension AccountTransactionsView {
-    func method(_ transaction: WalletTransactionModel) -> String {
-        transaction.effects.first?.kind ?? ""
+    private var refreshId: String {
+        transactions
+            .map { "\($0.persistentModelID)-\($0.status)-\($0.blockHeight ?? 0)" }
+            .joined(separator: "|")
     }
 }

@@ -87,6 +87,43 @@ struct DatabaseServiceTests {
     }
 
     @Test
+    func accountTokensIncludeItsTransferAssetsButExcludeOtherAccountsAssets() async throws {
+        let service = try makeDatabaseService()
+        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var firstAccount = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
+        var secondAccount = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
+        firstAccount.id = try await service.insertAccount(firstAccount, keyStore: keyStore)
+        secondAccount.id = try await service.insertAccount(secondAccount, keyStore: keyStore)
+
+        let firstToken = makeToken(address: "0x0000000000000000000000000000000000000001")
+        let secondToken = makeToken(address: "0x0000000000000000000000000000000000000002")
+        _ = try await service.insertToken(firstToken, blockchain: blockchain)
+        _ = try await service.insertToken(secondToken, blockchain: blockchain)
+        try await service.saveTransactions([
+            BlockchainTransaction(
+                identifier: "0xfirst-account-transfer",
+                status: .confirmed,
+                effects: [
+                    BlockchainTransactionEffect(
+                        index: 0,
+                        kind: .tokenTransfer,
+                        assetIdentifier: firstToken.address,
+                        amount: "1"
+                    )
+                ]
+            )
+        ], for: firstAccount)
+
+        let tokens = try await service.fetchTokens(account: firstAccount)
+
+        #expect(tokens.contains { $0.isNativeToken })
+        #expect(tokens.contains { $0.address == firstToken.address })
+        #expect(!tokens.contains { $0.address == secondToken.address })
+    }
+
+    @Test
     func transactionsUpsertEffectsAndPersistSyncState() async throws {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
@@ -147,6 +184,14 @@ struct DatabaseServiceTests {
         #expect(restored.initialBackfillHead == 42)
         #expect(restored.currentHead == 43)
         #expect(restored.descendingCursor == Data([1, 2]))
+
+        try await service.deleteAllTransactions()
+
+        #expect(try await service.fetchTransactions(accountId: try #require(account.id)).isEmpty)
+        let resetState = try await service.transactionSyncState(accountId: try #require(account.id))
+        #expect(resetState.initialBackfillHead == nil)
+        #expect(resetState.currentHead == nil)
+        #expect(resetState.descendingCursor == nil)
     }
 
     @Test

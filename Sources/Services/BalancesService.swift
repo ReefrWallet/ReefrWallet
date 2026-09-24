@@ -35,7 +35,7 @@ actor BalancesService {
             let balances = try await fetchAllBalances(client: client, account: account)
             try await databaseService.updateBalances(account: account, updates: balances)
         } else {
-            let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
+            let storedTokens = try await databaseService.fetchTokens(account: account)
 
             let nativeBalance = try await fetchNativeBalance(
                 client: client,
@@ -64,7 +64,7 @@ actor BalancesService {
             backend: account.bitcoinBackend
         )
 
-        let tokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
+        let tokens = try await databaseService.fetchTokens(account: account)
 
         let updatedTokens = await withTaskGroup(of: Token?.self) { group in
             for token in tokens {
@@ -191,7 +191,7 @@ private extension BalancesService {
         )
 
         if tokenAddresses.contains(nil) {
-            let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
+            let storedTokens = try await databaseService.fetchTokens(account: account)
 
             let nativeBalance = try await fetchNativeBalance(
                 client: client,

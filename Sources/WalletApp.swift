@@ -26,10 +26,16 @@ import WalletKit
         accountService = DI.injectOrFail(AccountService.self)
         keyStoreService = DI.injectOrFail(KeyStoreService.self)
 #endif
-        processPostStartupOptions()
-
+        let accountService = accountService!
+        let keyStoreService = keyStoreService!
+        let persistedDatabaseService = databaseService!
         let syncService = transactionSyncService!
         Task {
+            await Self.processPostStartupOptions(
+                accountService: accountService,
+                databaseService: persistedDatabaseService,
+                keyStoreService: keyStoreService
+            )
             await syncService.startAll()
         }
     }
@@ -52,60 +58,72 @@ import WalletKit
 #if DEBUG
 
 private extension WalletApp {
-    func processPostStartupOptions() {
-        Task {
-            do {
-                if commandLineFlag("--drop-accounts") {
-                    printInfo("Deleting all accounts.")
-                    try await databaseService.deleteAllAccounts()
-                } else if commandLineFlag("--drop-tokens") {
-                    printInfo("Deleting all tokens and balances.")
-                    try await databaseService.deleteAllTokens()
-                } else if commandLineFlag("--drop-balances") {
-                    printInfo("Deleting all balances.")
-                    try await databaseService.deleteAllBalances()
-                }
-            } catch {
-                printError(error)
+    static func processPostStartupOptions(
+        accountService: AccountService,
+        databaseService: DatabaseService,
+        keyStoreService: KeyStoreService
+    ) async {
+        do {
+            if commandLineFlag("--drop-accounts") {
+                printInfo("Deleting all accounts.")
+                try await databaseService.deleteAllAccounts()
             }
 
-            if let seedPhrase = commandLineValue(after: "--mnemonic") {
-                printInfo("Using seed phrase from command-line arguments.")
+            if commandLineFlag("--drop-transactions") {
+                printInfo("Deleting all transactions and sync state.")
+                try await databaseService.deleteAllTransactions()
+            }
 
-                do {
-                    let mnemonic = try Mnemonic.fromPhrase(seedPhrase)
+            if commandLineFlag("--drop-tokens") {
+                printInfo("Deleting all tokens and balances.")
+                try await databaseService.deleteAllTokens()
+            } else if commandLineFlag("--drop-balances") {
+                printInfo("Deleting all balances.")
+                try await databaseService.deleteAllBalances()
+            }
+        } catch {
+            printError(error)
+        }
 
-                    guard let keyStore = try await keyStoreService.addLocalKey(mnemonic) else {
-                        fatalError("Cannot add key store.")
-                    }
+        if let seedPhrase = commandLineValue(after: "--mnemonic") {
+            printInfo("Using seed phrase from command-line arguments.")
 
-                    printInfo("Initialized testing key store.")
+            do {
+                let mnemonic = try Mnemonic.fromPhrase(seedPhrase)
 
-                    let accountConfigurations: [(WKBlockchain, URL?)] = [
-                        (.sui(.testnet), commandLineURL(after: "--sui-rpc-url")),
-                        (.evm(.ethereum(.sepolia)), commandLineURL(after: "--evm-rpc-url"))
-                    ]
-
-                    for (blockchain, rpcURL) in accountConfigurations {
-                        for _ in 0 ..< 2 {
-                            try await accountService.makeAccount(
-                                blockchain,
-                                keyStore: keyStore,
-                                rpcURLOverride: rpcURL
-                            )
-                        }
-                    }
-
-                    printInfo("Initialized local testnet accounts.")
-                } catch {
-                    printError(error)
+                guard let keyStore = try await keyStoreService.addLocalKey(mnemonic) else {
+                    fatalError("Cannot add key store.")
                 }
+
+                printInfo("Initialized testing key store.")
+
+                let accountConfigurations: [(WKBlockchain, URL?, BitcoinBackendKind?)] = [
+                    (.bitcoin(.regtest), commandLineURL(after: "--bitcoin-rpc-url"), .esplora),
+                    (.evm(.ethereum(.sepolia)), commandLineURL(after: "--evm-rpc-url"), nil),
+                    (.solana(.devnet), commandLineURL(after: "--solana-rpc-url"), nil),
+                    (.sui(.testnet), commandLineURL(after: "--sui-rpc-url"), nil)
+                ]
+
+                for (blockchain, rpcURL, bitcoinBackend) in accountConfigurations {
+                    for _ in 0 ..< 2 {
+                        try await accountService.makeAccount(
+                            blockchain,
+                            keyStore: keyStore,
+                            rpcURLOverride: rpcURL,
+                            bitcoinBackend: bitcoinBackend
+                        )
+                    }
+                }
+
+                printInfo("Initialized local testnet accounts.")
+            } catch {
+                printError(error)
             }
         }
     }
 
     func processPreStartupOptions() {
-        if commandLineFlag("--test") || isRunningXCTest {
+        if Self.commandLineFlag("--test") || isRunningXCTest {
             printDebug("Using test service injection mode.")
             Inject.mode = .test
         }
@@ -118,11 +136,11 @@ private extension WalletApp {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
-    func commandLineFlag(_ parameter: String) -> Bool {
+    static func commandLineFlag(_ parameter: String) -> Bool {
         CommandLine.arguments.contains(parameter)
     }
 
-    func commandLineURL(after argument: String) -> URL? {
+    static func commandLineURL(after argument: String) -> URL? {
         guard let value = commandLineValue(after: argument) else {
             return nil
         }
@@ -130,7 +148,7 @@ private extension WalletApp {
         return URL(string: value)
     }
 
-    func commandLineValue(after argument: String) -> String? {
+    static func commandLineValue(after argument: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: argument),
               CommandLine.arguments.count > index + 1 else {
             return nil
