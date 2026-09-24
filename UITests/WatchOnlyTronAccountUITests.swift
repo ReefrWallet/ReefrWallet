@@ -86,7 +86,7 @@ private extension WatchOnlyTronAccountUITests {
         let visibleBalances = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "balance-row-visible-"))
         XCTAssertTrue(
-            visibleBalances.allElementsBoundByIndex.contains { $0.label.contains("Tron") || $0.label.contains("TRX") },
+            visibleBalances.allElementsBoundByIndex.contains { $0.text.contains("Tron") || $0.text.contains("TRX") },
             "Expected the native TRX balance to appear outside the hidden section."
         )
 
@@ -95,7 +95,7 @@ private extension WatchOnlyTronAccountUITests {
             hiddenDisclosure.waitForExistence(timeout: 10),
             "Expected TRC-20 token balances to appear in the Hidden Balances section."
         )
-        hiddenDisclosure.click()
+        app.expandHiddenBalances()
 
         let hiddenBalances = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "balance-row-hidden-"))
@@ -116,10 +116,10 @@ private extension WatchOnlyTronAccountUITests {
         let transactionCount = app.staticTexts["account-transactions-count"]
         XCTAssertTrue(transactionCount.waitForExistence(timeout: 10))
 
-        let count = Int(transactionCount.label.split(separator: " ").first ?? "") ?? 0
+        let count = Int(transactionCount.text.split(separator: " ").first ?? "") ?? 0
         XCTAssertGreaterThanOrEqual(
             count, 2,
-            "Expected a few synced transactions, got: \(transactionCount.label)"
+            "Expected a few synced transactions, got: \(transactionCount.text)"
         )
     }
 }

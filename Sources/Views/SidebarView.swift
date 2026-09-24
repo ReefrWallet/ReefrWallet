@@ -110,7 +110,7 @@ extension SidebarView: View {
                         do {
                             try await accountService.deleteAccount(deletingAccount)
                         } catch {
-                            printError(error)
+                            printError("\(deletingAccount.name): \(error)")
                         }
                     }
                 }
@@ -137,7 +137,7 @@ extension SidebarView: View {
 
                             try await databaseService.deleteKeyStore(id: keyStoreId)
                         } catch {
-                            printError(error)
+                            printError("\(deletingKeyStore.name): \(error)")
                         }
                     }
                 }
@@ -283,7 +283,7 @@ private extension SidebarView {
                 deletingAccount = try Account(model: account)
                 deleteAccountAlertPresented = true
             } catch {
-                printError("Cannot initialize Account: \(error)")
+                printError(error)
             }
         } label: {
             Label("Delete \"\(account.name)\"", systemImage: "trash")

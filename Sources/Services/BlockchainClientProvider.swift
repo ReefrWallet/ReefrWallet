@@ -8,7 +8,7 @@ actor BlockchainClientProvider {
         let blockchain: WKBlockchain
         let rpcURL: URL?
         let backend: BitcoinBackendKind?
-        let blockfrostProjectID: String?
+        let blockfrostProjectId: String?
         let tronGridAPIKey: String?
     }
 
@@ -27,13 +27,13 @@ actor BlockchainClientProvider {
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainClient {
-        let blockfrostProjectID = blockfrostProjectID(for: blockchain)
+        let blockfrostProjectId = blockfrostProjectId(for: blockchain)
         let tronGridAPIKey = tronGridAPIKey(for: blockchain)
         let target = Target(
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
-            blockfrostProjectID: blockfrostProjectID,
+            blockfrostProjectId: blockfrostProjectId,
             tronGridAPIKey: tronGridAPIKey
         )
         if let client = clients[target] { return client }
@@ -41,7 +41,7 @@ actor BlockchainClientProvider {
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
-            blockfrostProjectID: blockfrostProjectID,
+            blockfrostProjectId: blockfrostProjectId,
             tronGridAPIKey: tronGridAPIKey
         )
         clients[target] = client
@@ -60,23 +60,27 @@ actor BlockchainClientProvider {
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainTransactionBuilder {
-        let blockfrostProjectID = blockfrostProjectID(for: blockchain)
+        let blockfrostProjectId = blockfrostProjectId(for: blockchain)
         let tronGridAPIKey = tronGridAPIKey(for: blockchain)
+
         let target = Target(
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
-            blockfrostProjectID: blockfrostProjectID,
+            blockfrostProjectId: blockfrostProjectId,
             tronGridAPIKey: tronGridAPIKey
         )
+
         if let builder = builders[target] { return builder }
+
         let builder = try makeBuilder(
             blockchain: blockchain,
             rpcURL: rpcURL,
             backend: backend,
-            blockfrostProjectID: blockfrostProjectID,
+            blockfrostProjectId: blockfrostProjectId,
             tronGridAPIKey: tronGridAPIKey
         )
+
         builders[target] = builder
         return builder
     }
@@ -85,7 +89,7 @@ actor BlockchainClientProvider {
         blockchain: WKBlockchain,
         rpcURL: URL?,
         backend: BitcoinBackendKind?,
-        blockfrostProjectID: String?,
+        blockfrostProjectId: String?,
         tronGridAPIKey: String?
     ) throws -> AnyBlockchainClient {
         switch blockchain {
@@ -94,9 +98,11 @@ actor BlockchainClientProvider {
             return AnyBlockchainClient(EthereumRPCClient(endpoint: endpoint, chainId: chain.chainId))
         case .sui:
             let endpoint = rpcURL ?? blockchain.rpcURL
+
             guard let host = endpoint.host else {
                 throw WalletKitError.invalidAddress(reason: "Invalid Sui endpoint: \(endpoint)")
             }
+
             return AnyBlockchainClient(
                 SuiGRPCClient(host: host, port: endpoint.port ?? 443, useTLS: endpoint.scheme == "https")
             )
@@ -104,7 +110,7 @@ actor BlockchainClientProvider {
             return AnyBlockchainClient(try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend))
         case .cardano:
             let endpoint = rpcURL ?? blockchain.rpcURL
-            return AnyBlockchainClient(CardanoClient(endpoint: endpoint, projectID: blockfrostProjectID))
+            return AnyBlockchainClient(CardanoClient(endpoint: endpoint, projectId: blockfrostProjectId))
         case .tron:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return AnyBlockchainClient(TronClient(endpoint: endpoint, apiKey: tronGridAPIKey))
@@ -118,7 +124,7 @@ actor BlockchainClientProvider {
         blockchain: WKBlockchain,
         rpcURL: URL?,
         backend: BitcoinBackendKind?,
-        blockfrostProjectID: String?,
+        blockfrostProjectId: String?,
         tronGridAPIKey: String?
     ) throws -> AnyBlockchainTransactionBuilder {
         switch blockchain {
@@ -128,19 +134,22 @@ actor BlockchainClientProvider {
             return AnyBlockchainTransactionBuilder(EthereumTransactionBuilder(client: client))
         case .sui:
             let endpoint = rpcURL ?? blockchain.rpcURL
+
             guard let host = endpoint.host else {
                 throw WalletKitError.invalidAddress(reason: "Invalid Sui endpoint: \(endpoint)")
             }
+
             let client = SuiGRPCClient(
                 host: host, port: endpoint.port ?? 443, useTLS: endpoint.scheme == "https"
             )
+
             return AnyBlockchainTransactionBuilder(SuiTransactionBuilder(client: client))
         case let .bitcoin(network):
             let client = try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend)
             return AnyBlockchainTransactionBuilder(BitcoinTransactionBuilder(client: client))
         case .cardano:
             let endpoint = rpcURL ?? blockchain.rpcURL
-            let client = CardanoClient(endpoint: endpoint, projectID: blockfrostProjectID)
+            let client = CardanoClient(endpoint: endpoint, projectId: blockfrostProjectId)
             return AnyBlockchainTransactionBuilder(CardanoTransactionBuilder(client: client))
         case .tron:
             let endpoint = rpcURL ?? blockchain.rpcURL
@@ -166,17 +175,20 @@ actor BlockchainClientProvider {
             guard let host = endpoint.host else {
                 throw WalletKitError.invalidAddress(reason: "Invalid Electrum endpoint: \(endpoint)")
             }
+
             let useTLS = endpoint.scheme != "tcp"
             let port = UInt16(endpoint.port ?? (useTLS ? 50002 : 50001))
+
             return BitcoinClient(electrumHost: host, port: port, useTLS: useTLS)
         case .esplora:
             return BitcoinClient(esploraEndpoint: endpoint)
         }
     }
 
-    private func blockfrostProjectID(for blockchain: WKBlockchain) -> String? {
+    private func blockfrostProjectId(for blockchain: WKBlockchain) -> String? {
         let key: String
         let environmentKey: String
+
         switch blockchain {
         case let .cardano(network):
             switch network {
@@ -191,11 +203,17 @@ actor BlockchainClientProvider {
             return nil
         }
 
-        let setting = UserDefaults.standard.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let setting = UserDefaults.standard
+            .string(forKey: key)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
         if let setting, !setting.isEmpty {
             return setting
         }
-        return ProcessInfo.processInfo.environment[environmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return ProcessInfo.processInfo
+            .environment[environmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func tronGridAPIKey(for blockchain: WKBlockchain) -> String? {
@@ -203,10 +221,16 @@ actor BlockchainClientProvider {
             return nil
         }
 
-        let setting = UserDefaults.standard.string(forKey: "TronGridAPIKey")?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let setting = UserDefaults.standard
+            .string(forKey: "TronGridAPIKey")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
         if let setting, !setting.isEmpty {
             return setting
         }
-        return ProcessInfo.processInfo.environment["TRONGRID_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return ProcessInfo.processInfo
+            .environment["TRONGRID_API_KEY"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

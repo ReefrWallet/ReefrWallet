@@ -231,8 +231,9 @@ private extension WordTokenizerView {
                 // the correct, cleared value on the way back in.
                 isRefocusingAfterCommit = true
                 focus = nil
+
                 DispatchQueue.main.async {
-                    focus = .editor(result.editorID)
+                    focus = .editor(result.editorId)
                     isRefocusingAfterCommit = false
 
                     // See `editPreviousWord`: AppKit selects all of the
@@ -243,7 +244,7 @@ private extension WordTokenizerView {
                     // but a pasted multi-word phrase can leave a
                     // non-empty tail here too.
                     DispatchQueue.main.async {
-                        collapseSelectionToEnd(for: result.editorID)
+                        collapseSelectionToEnd(for: result.editorId)
                     }
                 }
             }
@@ -304,7 +305,7 @@ private extension WordTokenizerView {
         switch entry {
         case .word(let id, _):
             return handleChipKeyPress(press, id: id)
-        case .editor(let id, let text):
+        case let .editor(id, text):
             return handleEditorKeyPress(press, id: id, text: text)
         }
     }
@@ -378,7 +379,7 @@ private extension WordTokenizerView {
             return
         }
 
-        let previousID = model.entries[position - 1].id
+        let previousId = model.entries[position - 1].id
 
         // Removing the trailing empty editor and converting the previous
         // word's `Button` into a `TextField` are kept as two separate
@@ -390,9 +391,9 @@ private extension WordTokenizerView {
         syncPhrase()
 
         DispatchQueue.main.async {
-            self.model.beginEditing(at: previousID)
+            self.model.beginEditing(at: previousId)
             self.selectedId = nil
-            self.focus = .editor(previousID)
+            self.focus = .editor(previousId)
 
             // AppKit selects all of a `TextField`'s text as part of it
             // becoming first responder — that happens as a consequence
@@ -400,7 +401,7 @@ private extension WordTokenizerView {
             // later tick, once focus has actually settled, rather than
             // alongside it.
             DispatchQueue.main.async {
-                self.collapseSelectionToEnd(for: previousID)
+                self.collapseSelectionToEnd(for: previousId)
             }
         }
     }
@@ -508,6 +509,8 @@ private struct DragReorderModifier: ViewModifier {
 #if DEBUG
 
 private let generatedPhrase = Mnemonic.generate(wordCount: .words24).phrase
+
+// swiftlint:disable:next line_length
 private let invalidPhrase = "abandon notaword abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
 
 #Preview("Free-flow") {
@@ -545,3 +548,5 @@ private let invalidPhrase = "abandon notaword abandon abandon abandon abandon ab
 }
 
 #endif
+
+// swiftlint:disable:this file_length

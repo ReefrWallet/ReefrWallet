@@ -2,24 +2,26 @@ import Foundation
 import ProjectDescription
 import ProjectDescriptionHelpers
 
+/// Live-network credentials forwarded from the generating shell into the test
+/// targets.
+///
+/// Tuist only passes `TUIST_`-prefixed variables through to a manifest, so
+/// `make workspace` re-exports the plain shell names under that prefix.
 private let testEnvironmentVariables: [String: EnvironmentVariable] = {
-    var variables: [String: EnvironmentVariable] = [:]
+    let keys = [
+        "BLOCKFROST_MAINNET_PROJECT_ID",
+        "BLOCKFROST_PREPROD_PROJECT_ID",
+        "ETHERSCAN_API_KEY",
+        "TRONGRID_API_KEY"
+    ]
 
-    if case let .string(apiKey)? = Environment.etherscanApiKey {
-        variables["ETHERSCAN_API_KEY"] = .environmentVariable(value: apiKey, isEnabled: true)
-    }
-
-    if let apiKey = ProcessInfo.processInfo.environment["TRONGRID_API_KEY"], !apiKey.isEmpty {
-        variables["TRONGRID_API_KEY"] = .environmentVariable(value: apiKey, isEnabled: true)
-    }
-
-    for key in ["BLOCKFROST_MAINNET_PROJECT_ID", "BLOCKFROST_PREPROD_PROJECT_ID"] {
-        if let value = ProcessInfo.processInfo.environment[key], !value.isEmpty {
-            variables[key] = .environmentVariable(value: value, isEnabled: true)
+    return keys.reduce(into: [:]) { variables, key in
+        guard let value = ProcessInfo.processInfo.environment["TUIST_\(key)"], !value.isEmpty else {
+            return
         }
-    }
 
-    return variables
+        variables[key] = .environmentVariable(value: value, isEnabled: true)
+    }
 }()
 
 // MARK: Targets
@@ -54,6 +56,7 @@ private let macOSTests: Target = .target(
     bundleId: "xyz.reefr.wallet.tests",
     deploymentTargets: .macOS("15.0"),
     infoPlist: .default,
+    resources: ["TestVectors/**/*"],
     buildableFolders: ["Tests"],
     scripts: [
         .post(
@@ -76,6 +79,7 @@ private let iosTests: Target = .target(
     bundleId: "xyz.reefr.wallet.tests",
     deploymentTargets: .iOS("18.0"),
     infoPlist: .default,
+    resources: ["TestVectors/**/*"],
     buildableFolders: ["Tests"],
     scripts: [
         .post(
@@ -94,6 +98,7 @@ private let macOSUITests: Target = .target(
     bundleId: "xyz.reefr.wallet.uitests",
     deploymentTargets: .macOS("15.0"),
     infoPlist: .default,
+    resources: ["TestVectors/**/*"],
     buildableFolders: ["UITests"],
     entitlements: .dictionary([
         "com.apple.security.network.server": .boolean(true)
@@ -116,7 +121,8 @@ private let macOSUITests: Target = .target(
     ],
     settings: .settings(base: [
         "TEST_TARGET_NAME": "ReefrWallet"
-    ])
+    ]),
+    environmentVariables: testEnvironmentVariables
 )
 
 // MARK: Schemes

@@ -28,23 +28,24 @@ struct WordTokenizerModelTests {
     @Test
     func aSpaceKeepsTheNextEditorReadyForTyping() {
         let model = WordTokenizerModel(wordlist: .english)
-        let firstEditorID = model.entries[0].id
+        let firstEditorId = model.entries[0].id
 
         // The trailing editor keeps the same id as the editor it
         // replaces — that's the identity SwiftUI's focused `TextField`
         // already has. Handing it to the committed word instead (its
         // old behavior) morphs a focused `TextField` into a `Button`
         // under the same id, which drops focus mid-transition.
-        let firstResult = model.update(editorText: "abandon ", at: firstEditorID)
+        let firstResult = model.update(editorText: "abandon ", at: firstEditorId)
 
-        #expect(firstResult?.editorID == firstEditorID)
+        #expect(firstResult?.editorId == firstEditorId)
         #expect(firstResult?.didCommitWord == true)
-        guard let secondEditorID = firstResult?.editorID else {
+
+        guard let secondEditorId = firstResult?.editorId else {
             Issue.record("expected an editor after committing the first word")
             return
         }
 
-        model.update(editorText: "ability ", at: secondEditorID)
+        model.update(editorText: "ability ", at: secondEditorId)
 
         #expect(model.phrase == "abandon ability ")
         #expect(model.entries.count == 3)
@@ -91,10 +92,10 @@ struct WordTokenizerModelTests {
     func clearingAWordAndCommittingRemovesItAndShiftsTheRest() {
         let model = WordTokenizerModel(wordlist: .english)
         model.load(phrase: "abandon ability able")
-        let middleID = model.entries[1].id
+        let middleId = model.entries[1].id
 
-        model.beginEditing(at: middleID)
-        model.update(editorText: "", at: middleID)
+        model.beginEditing(at: middleId)
+        model.update(editorText: "", at: middleId)
         model.commitEditor()
 
         #expect(model.entries.map(\.text) == ["abandon", "able"])

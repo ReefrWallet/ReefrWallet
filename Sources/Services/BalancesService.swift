@@ -75,7 +75,7 @@ actor BalancesService {
                         updatedToken.usdPrice = usdPrice
                         return updatedToken
                     } catch {
-                        printError(error)
+                        printError("\(account.name): \(error)")
                         return nil
                     }
                 }
@@ -158,6 +158,7 @@ private extension BalancesService {
     func flushQueue() async {
         let accountRefreshes = queuedAccountRefreshes
         let tokenUpdates = queuedTokenUpdates
+
         queuedAccountRefreshes.removeAll()
         queuedTokenUpdates.removeAll()
 
@@ -165,7 +166,7 @@ private extension BalancesService {
             do {
                 try await updateBalances(account)
             } catch {
-                printError(error)
+                printError("\(account.name): \(error)")
             }
         }
 
@@ -177,23 +178,27 @@ private extension BalancesService {
             do {
                 try await flushTokenUpdates(account: account, tokenAddresses: keys.map(\.tokenAddress))
             } catch {
-                printError(error)
+                printError("\(account.name): \(error)")
             }
         }
     }
 
     func flushTokenUpdates(account: Account, tokenAddresses: [String?]) async throws {
         let client = try await clientProvider.getClient(
-            blockchain: account.blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+            blockchain: account.blockchain,
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
         )
 
         if tokenAddresses.contains(nil) {
             let storedTokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
+
             let nativeBalance = try await fetchNativeBalance(
                 client: client,
                 account: account,
                 storedTokens: storedTokens
             )
+
             try await databaseService.updateBalances(account: account, updates: [nativeBalance])
         }
 
@@ -224,13 +229,15 @@ private extension BalancesService {
             let tokenInfo = try? await client.getTokenInfo(tokenAddress)
             let effectiveAddress = tokenInfo?.isNative == true ? nil : tokenAddress
             let storedToken: Token?
+
             if let effectiveAddress {
                 storedToken = try await databaseService.fetchToken(
                     tokenAddress: effectiveAddress,
                     blockchain: account.blockchain
                 )
             } else {
-                storedToken = try await databaseService.fetchTokens(blockchain: account.blockchain)
+                storedToken = try await databaseService
+                    .fetchTokens(blockchain: account.blockchain)
                     .first(where: \.isNativeToken)
             }
             if let token = storedToken {
@@ -408,7 +415,7 @@ private extension BalancesService {
                     do {
                         try await self.updateBalances(account: account, client: client, tokenAddresses: batch)
                     } catch {
-                        printError(error)
+                        printError("\(account.name): \(error)")
                     }
                 }
             }

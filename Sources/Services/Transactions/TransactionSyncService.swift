@@ -57,7 +57,10 @@ actor TransactionSyncService {
 
         printDebug("Starting transaction history fetching for \(account.name)")
 
-        tasks[id] = Task { [weak self] in
+        // Lower priority than the default so this doesn't contend equally
+        // with main-actor/UI-driven work on the cooperative thread pool
+        // during a large backfill.
+        tasks[id] = Task(priority: .utility) { [weak self] in
             await self?.synchronize(account)
             await self?.finish(id)
         }
@@ -79,7 +82,7 @@ actor TransactionSyncService {
         do {
             try await databaseService.saveTransactions([transaction], for: account)
         } catch {
-            printError(error)
+            printError("\(account.name): \(error)")
         }
     }
 }
@@ -143,6 +146,12 @@ private extension TransactionSyncService {
                 track: .descending,
                 updatesBalances: false
             )
+
+            // Backfill pages otherwise run back-to-back with no suspension
+            // point, unlike the ascending track's idle sleep — yield so the
+            // cooperative thread pool can schedule pending main-actor work
+            // between pages.
+            await Task.yield()
 
             if page.reachedBoundary {
                 // Backfill spans many pages, each committed with `updatesBalances:
@@ -309,7 +318,7 @@ private extension TransactionSyncService {
         updatesBalances: Bool
     ) async throws {
         try await processTokenTransfers(page.transactions, account: account, client: client)
-        try await databaseService.saveTransactions(page.transactions, for: account)
+
         let id = try accountId(account)
         var state = try await databaseService.transactionSyncState(accountId: id)
 
@@ -330,7 +339,10 @@ private extension TransactionSyncService {
         }
 
         state.lastError = nil
-        try await databaseService.saveTransactionSyncState(state)
+        // One save() covers both the transaction rows and the sync cursor —
+        // a backfill page used to cost two separate write transactions (and
+        // two main-thread @Query merges) for this.
+        try await databaseService.saveTransactions(page.transactions, for: account, syncState: state)
 
         if updatesBalances {
             await enqueueBalanceUpdates(for: page.transactions, account: account)
@@ -343,7 +355,7 @@ private extension TransactionSyncService {
             state.lastError = error.localizedDescription
             try await databaseService.saveTransactionSyncState(state)
         } catch {
-            printError(error)
+            printError("\(account.name): \(error)")
         }
     }
 
@@ -358,7 +370,7 @@ private extension TransactionSyncService {
         do {
             try await databaseService.linkTransactionTokens(for: account)
         } catch {
-            printError(error)
+            printError("\(account.name): \(error)")
         }
 
         await enqueueBalanceUpdates(for: transactions, account: account)
@@ -382,7 +394,7 @@ private extension TransactionSyncService {
                 )
             }
         } catch {
-            printError(error)
+            printError("\(account.name): \(error)")
         }
     }
 

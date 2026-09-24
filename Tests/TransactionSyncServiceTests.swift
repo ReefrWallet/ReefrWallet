@@ -17,7 +17,8 @@ struct TransactionSyncServiceTests {
 
         let databaseService = try makeDatabaseService()
         let keyStore = try await databaseService.watchOnlyKeyStore()
-        guard let keyStoreID = keyStore.id else {
+
+        guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
 
@@ -26,11 +27,12 @@ struct TransactionSyncServiceTests {
             address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",
             blockchain: .tron(.testnet),
             derivationPath: nil,
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             name: "Funded Nile Watch-Only"
         )
+
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
-        let accountID = try #require(account.id)
+        let accountId = try #require(account.id)
 
         let service = TransactionSyncService(databaseService: databaseService)
         await service.start(account)
@@ -38,14 +40,14 @@ struct TransactionSyncServiceTests {
 
         let deadline = ContinuousClock.now.advanced(by: .seconds(50))
         while ContinuousClock.now < deadline {
-            if !(try await databaseService.fetchTransactions(accountId: accountID)).isEmpty {
+            if !(try await databaseService.fetchTransactions(accountId: accountId)).isEmpty {
                 return
             }
             try await Task.sleep(for: .milliseconds(500))
         }
 
-        let transactions = try await databaseService.fetchTransactions(accountId: accountID)
-        let syncState = try await databaseService.transactionSyncState(accountId: accountID)
+        let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+        let syncState = try await databaseService.transactionSyncState(accountId: accountId)
         #expect(
             !transactions.isEmpty,
             "No Nile transactions were saved for \(account.address). Sync error: \(syncState.lastError ?? "none")"
@@ -166,7 +168,7 @@ struct TransactionSyncServiceTests {
         let databaseService = try makeDatabaseService()
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
-        guard let keyStoreID = keyStore.id else {
+        guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
 
@@ -176,7 +178,7 @@ struct TransactionSyncServiceTests {
                 address: address,
                 blockchain: .evm(.ethereum(.sepolia)),
                 derivationPath: nil,
-                keyStoreId: keyStoreID,
+                keyStoreId: keyStoreId,
                 name: "Ethereum Sepolia Watch-Only #\(index + 1)"
             )
         }
@@ -202,11 +204,11 @@ struct TransactionSyncServiceTests {
             var transactionsWereSaved = true
 
             for account in accounts {
-                guard let accountID = account.id else {
+                guard let accountId = account.id else {
                     throw Error.invalidData
                 }
 
-                if try await databaseService.fetchTransactions(accountId: accountID).isEmpty {
+                if try await databaseService.fetchTransactions(accountId: accountId).isEmpty {
                     transactionsWereSaved = false
                     break
                 }
@@ -220,12 +222,12 @@ struct TransactionSyncServiceTests {
         }
 
         for account in accounts {
-            guard let accountID = account.id else {
+            guard let accountId = account.id else {
                 throw Error.invalidData
             }
 
-            let transactions = try await databaseService.fetchTransactions(accountId: accountID)
-            let syncState = try await databaseService.transactionSyncState(accountId: accountID)
+            let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+            let syncState = try await databaseService.transactionSyncState(accountId: accountId)
 
             #expect(
                 !transactions.isEmpty,
@@ -253,7 +255,7 @@ struct TransactionSyncServiceTests {
         let databaseService = try makeDatabaseService()
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
-        guard let keyStoreID = keyStore.id else {
+        guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
 
@@ -262,7 +264,7 @@ struct TransactionSyncServiceTests {
             address: "0x18A25e76658ce696cF263FDec6434Be2BfDdb89A",
             blockchain: .evm(.ethereum(.mainnet)),
             derivationPath: nil,
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             name: "Ethereum Mainnet Token Balance Watch-Only"
         )
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
@@ -276,14 +278,14 @@ struct TransactionSyncServiceTests {
             }
         }
 
-        guard let accountID = account.id else {
+        guard let accountId = account.id else {
             throw Error.invalidData
         }
 
         let backfillDeadline = ContinuousClock.now.advanced(by: .seconds(120))
 
         while ContinuousClock.now < backfillDeadline {
-            let state = try await databaseService.transactionSyncState(accountId: accountID)
+            let state = try await databaseService.transactionSyncState(accountId: accountId)
 
             if state.backfillComplete {
                 break
@@ -292,7 +294,7 @@ struct TransactionSyncServiceTests {
             try await Task.sleep(for: .milliseconds(500))
         }
 
-        let completedState = try await databaseService.transactionSyncState(accountId: accountID)
+        let completedState = try await databaseService.transactionSyncState(accountId: accountId)
         guard completedState.backfillComplete else {
             try await printTokenState(account: account, databaseService: databaseService)
             Issue.record("Ethereum mainnet backfill did not complete. Sync error: \(completedState.lastError ?? "none")")
@@ -302,7 +304,7 @@ struct TransactionSyncServiceTests {
         let balancesDeadline = ContinuousClock.now.advanced(by: .seconds(30))
 
         while ContinuousClock.now < balancesDeadline {
-            if try await databaseService.fetchBalances(accountId: accountID).count > 30 {
+            if try await databaseService.fetchBalances(accountId: accountId).count > 30 {
                 try await printTokenState(account: account, databaseService: databaseService)
                 return
             }
@@ -310,7 +312,7 @@ struct TransactionSyncServiceTests {
             try await Task.sleep(for: .milliseconds(500))
         }
 
-        let balances = try await databaseService.fetchBalances(accountId: accountID)
+        let balances = try await databaseService.fetchBalances(accountId: accountId)
         try await printTokenState(account: account, databaseService: databaseService)
         #expect(balances.count > 30, "Expected more than 30 token balances, found \(balances.count).")
     }
@@ -381,7 +383,7 @@ struct TransactionSyncServiceTests {
         let databaseService = try makeDatabaseService()
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
-        guard let keyStoreID = keyStore.id else {
+        guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
 
@@ -390,7 +392,7 @@ struct TransactionSyncServiceTests {
             address: address,
             blockchain: .sui(.mainnet),
             derivationPath: nil,
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             name: "Sui Mainnet Archived Watch-Only"
         )
 
@@ -405,22 +407,22 @@ struct TransactionSyncServiceTests {
             }
         }
 
-        guard let accountID = account.id else {
+        guard let accountId = account.id else {
             throw Error.invalidData
         }
 
         let deadline = ContinuousClock.now.advanced(by: .seconds(50))
 
         while ContinuousClock.now < deadline {
-            if !(try await databaseService.fetchTransactions(accountId: accountID)).isEmpty {
+            if !(try await databaseService.fetchTransactions(accountId: accountId)).isEmpty {
                 return
             }
 
             try await Task.sleep(for: .milliseconds(500))
         }
 
-        let transactions = try await databaseService.fetchTransactions(accountId: accountID)
-        let syncState = try await databaseService.transactionSyncState(accountId: accountID)
+        let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+        let syncState = try await databaseService.transactionSyncState(accountId: accountId)
 
         #expect(
             !transactions.isEmpty,
@@ -439,7 +441,7 @@ struct TransactionSyncServiceTests {
         let databaseService = try makeDatabaseService()
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
-        guard let keyStoreID = keyStore.id else {
+        guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
 
@@ -449,7 +451,7 @@ struct TransactionSyncServiceTests {
                 address: address,
                 blockchain: .sui(.testnet),
                 derivationPath: nil,
-                keyStoreId: keyStoreID,
+                keyStoreId: keyStoreId,
                 name: "Sui Testnet Watch-Only #\(index + 1)"
             )
         }
@@ -475,11 +477,11 @@ struct TransactionSyncServiceTests {
             var transactionsWereSaved = true
 
             for account in accounts {
-                guard let accountID = account.id else {
+                guard let accountId = account.id else {
                     throw Error.invalidData
                 }
 
-                if try await databaseService.fetchTransactions(accountId: accountID).isEmpty {
+                if try await databaseService.fetchTransactions(accountId: accountId).isEmpty {
                     transactionsWereSaved = false
                     break
                 }
@@ -493,12 +495,12 @@ struct TransactionSyncServiceTests {
         }
 
         for account in accounts {
-            guard let accountID = account.id else {
+            guard let accountId = account.id else {
                 throw Error.invalidData
             }
 
-            let transactions = try await databaseService.fetchTransactions(accountId: accountID)
-            let syncState = try await databaseService.transactionSyncState(accountId: accountID)
+            let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+            let syncState = try await databaseService.transactionSyncState(accountId: accountId)
 
             #expect(
                 !transactions.isEmpty,
@@ -511,14 +513,18 @@ struct TransactionSyncServiceTests {
 
 private extension TransactionSyncServiceTests {
     func printTokenState(account: Account, databaseService: DatabaseService) async throws {
-        guard let accountID = account.id else {
+        guard let accountId = account.id else {
             throw Error.invalidData
         }
 
-        let balances = try await databaseService.fetchBalances(accountId: accountID)
+        let balances = try await databaseService.fetchBalances(accountId: accountId)
         let tokens = try await databaseService.fetchTokens(blockchain: account.blockchain)
-        let transactions = try await databaseService.fetchTransactions(accountId: accountID)
-        let linkedTokens = Set(transactions.flatMap(\.effects).compactMap(\.balance).compactMap(\.token.address))
+        let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+
+        let linkedTokens = Set(transactions.flatMap(\.effects)
+            .compactMap(\.balance)
+            .compactMap(\.token.address))
+
         let transferredTokens = Set(transactions.lazy.flatMap(\.effects).compactMap { effect in
             effect.kind == .tokenTransfer ? effect.assetIdentifier : nil
         })
@@ -562,7 +568,7 @@ private struct TransactionSyncFixture {
 
         let ethereumAccounts = try await databaseService.makeMockEthereumAccounts(
             keyStore: keyStore,
-            chainID: anvilNode.chainId,
+            chainId: anvilNode.chainId,
             rpcURLOverride: anvilNode.endpoint
         )
 

@@ -1,0 +1,12 @@
+{
+  "label": "cardano-mainnet-cip1852-account-0",
+  "accountXpub": "5fedc9f306dbddfd045765ccf2390178a2830e700ec017985e88c214cc5fd656cbc8e51f56c2e23ec8c1288f47243416c3171d577268f781fee84ed25a043036",
+  "stakeAddress": "stake1uyq4z2qt5cjxjl0vgp35dw09nzuquz5mjx6k9mk70rvxt2skqnp8x",
+  "addresses": [
+    "addr1q843ghs7005943w58ague77p7a9p0mptgauwg8ftlwfjtzsp2y5qhf3yd977csrrg6u7tx9cpc9fhyd4vthdu7xcvk4q9tnhdy",
+    "addr1q85huaz972dxg7nyk8x88dyllxxpva07a4n2yg3jjrtaycqp2y5qhf3yd977csrrg6u7tx9cpc9fhyd4vthdu7xcvk4q8km85m",
+    "addr1q8kw6rjff30xe3prm7k9ysjrer8h56rfw5csa35dfxv7hqqp2y5qhf3yd977csrrg6u7tx9cpc9fhyd4vthdu7xcvk4qy530n2",
+    "addr1q9q7t80ddx8a9kujavp022vq64wjklph295hazz93e9xaxsp2y5qhf3yd977csrrg6u7tx9cpc9fhyd4vthdu7xcvk4qyplcfu",
+    "addr1q9rte8kzhf48fqym34ndwrqzc7fkzc6lk6nu2vnvf32dwfgp2y5qhf3yd977csrrg6u7tx9cpc9fhyd4vthdu7xcvk4qhvl2uz"
+  ]
+}

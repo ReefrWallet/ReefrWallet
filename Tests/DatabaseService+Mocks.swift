@@ -33,12 +33,12 @@ extension DatabaseService {
 
     func makeMockEthereumAccounts(
         keyStore: KeyStore,
-        chainID: UInt64,
+        chainId: UInt64,
         rpcURLOverride: URL,
         count: Int = 2
     ) throws -> [Account] {
         try makeMockAccounts(
-            blockchain: .evm(.custom(chainID)),
+            blockchain: .evm(.custom(chainId)),
             curve: .secp256k1,
             keyStore: keyStore,
             rpcURLOverride: rpcURLOverride,
@@ -69,7 +69,7 @@ private extension DatabaseService {
         rpcURLOverride: URL,
         count: Int
     ) throws -> [Account] {
-        guard count > 0, let keyStoreID = keyStore.id else {
+        guard count > 0, let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
 
@@ -92,7 +92,7 @@ private extension DatabaseService {
                 address: address,
                 blockchain: blockchain,
                 derivationPath: derivationPath.string,
-                keyStoreId: keyStoreID,
+                keyStoreId: keyStoreId,
                 name: "\(blockchain.displayName) #\(index + 1)",
                 rpcURLOverride: rpcURLOverride,
                 signatureScheme: curve

@@ -42,7 +42,7 @@ struct WalletTransactionSyncState: Sendable {
 
 @Model
 final class WalletTransactionSyncStateModel {
-    @Attribute(.unique) var accountStableID: String
+    @Attribute(.unique) var accountStableId: String
     var initialBackfillHead: UInt64?
     var descendingCursor: Data?
     var ascendingCursor: Data?
@@ -55,7 +55,7 @@ final class WalletTransactionSyncStateModel {
     var account: AccountModel
 
     init(account: AccountModel, state: WalletTransactionSyncState) {
-        accountStableID = "\(account.id)"
+        accountStableId = "\(account.id)"
         initialBackfillHead = state.initialBackfillHead
         descendingCursor = state.descendingCursor
         ascendingCursor = state.ascendingCursor

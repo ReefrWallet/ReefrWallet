@@ -2,7 +2,7 @@
 
 ## General
 - Prefer Xcode mcp tools over make/xcodebuild/xcrun/tuist.
-- Prefer codebase-memory skill to files search.
+- Prefer the codebase memory MCP graph tools for code discovery before grep/file search: use `codebase-memory` skill.
 - Respect warnings and fix them when building code.
 - Be as succinct and concise as possible in decisions logs and other documentation you produce. Don't overexplain.
 ## Memory & System Constraints
@@ -19,4 +19,7 @@
 ## Swift Code Style
 - Write  `guard ... else { return/throw/break/continue }` in 3 lines so that return from scope is on its own line.
 - Sort methods, types, enum cases and other unordered entities alphabetycally where possible.
-- Use `.style()` modifier for fonts, sizes and colors in SwiftUI
+- Use `.style()` modifier for fonts, sizes and colors in SwiftUI.
+- Prefer `case let .foo(bar)` to `case .foo(let bar)`.
+- Omit `return` in one-liners wherever possible.
+- Use `whateverId`, not `whateverID` when naming identifier properties.

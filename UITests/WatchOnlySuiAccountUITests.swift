@@ -77,7 +77,15 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
         XCTAssertTrue(transactionsTab.waitForExistence(timeout: 10))
         transactionsTab.click()
 
-        XCTAssertTrue(app.staticTexts["0 Transactions"].waitForExistence(timeout: 10))
+        // The faucet transfer `setUp` performs is itself account history, and
+        // how much of it has synced by now is a race — assert the tab switched,
+        // not a particular count.
+        let transactionCount = app.staticTexts["account-transactions-count"]
+        XCTAssertTrue(transactionCount.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            transactionCount.text.hasSuffix(" Transactions"),
+            "Expected a transaction count, got: \(transactionCount.text)"
+        )
         XCTAssertFalse(app.firstDescendant(withIdentifier: "account-total-value-label").exists)
     }
 

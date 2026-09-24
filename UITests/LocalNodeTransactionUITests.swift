@@ -87,9 +87,16 @@ final class LocalNodeTransactionUITests: XCTestCase {
             XCTAssertTrue(transactionsTab.waitForExistence(timeout: 10))
             transactionsTab.click()
 
+            // Sui's faucet top-up in `setUp` is history of its own, so the
+            // account can carry more than the two transfers captured here.
             let transactionCount = app.staticTexts["account-transactions-count"]
             XCTAssertTrue(transactionCount.waitForExistence(timeout: 10))
-            XCTAssertEqual(transactionCount.label, "2 Transactions")
+
+            let count = transactionCount.text.split(separator: " ").compactMap { Int($0) }.first ?? 0
+            XCTAssertGreaterThanOrEqual(
+                count, expectedTransactions.count,
+                "Expected the captured transfers to be listed, got: \(transactionCount.text)"
+            )
 
             for expected in expectedTransactions {
                 assertRow(matches: expected, timeout: 10)
@@ -109,32 +116,33 @@ final class LocalNodeTransactionUITests: XCTestCase {
 
         let methodCell = app.descendants(matching: .any)["transaction-method-\(expected.identifier)"]
         XCTAssertTrue(methodCell.waitForExistence(timeout: timeout))
-        XCTAssertEqual(methodCell.label, expected.method, "Unexpected method for \(expected.identifier)")
+        XCTAssertEqual(methodCell.text, expected.method, "Unexpected method for \(expected.identifier)")
 
         let blockCell = app.descendants(matching: .any)["transaction-block-\(expected.identifier)"]
         XCTAssertTrue(blockCell.waitForExistence(timeout: timeout))
         XCTAssertNotNil(
-            UInt64(blockCell.label),
-            "Expected a numeric block height for \(expected.identifier), got '\(blockCell.label)'"
+            UInt64(blockCell.text),
+            "Expected a numeric block height for \(expected.identifier), got '\(blockCell.text)'"
         )
 
         let fromCell = app.descendants(matching: .any)["transaction-from-\(expected.identifier)"]
         XCTAssertTrue(fromCell.waitForExistence(timeout: timeout))
         XCTAssertEqual(
-            fromCell.label.lowercased(), expected.sender.lowercased(),
+            fromCell.text.lowercased(), expected.sender.lowercased(),
             "Unexpected sender for \(expected.identifier)"
         )
 
         let toCell = app.descendants(matching: .any)["transaction-to-\(expected.identifier)"]
-        XCTAssertTrue(toCell.waitForExistence(timeout: timeout))
 
+        // A blank "To" draws no text, so the cell publishes no element at all.
         guard let recipient = expected.recipient else {
-            XCTAssertTrue(toCell.label.isEmpty, "Expected no recipient for \(expected.identifier)")
+            XCTAssertFalse(toCell.exists, "Expected no recipient for \(expected.identifier)")
             return
         }
 
+        XCTAssertTrue(toCell.waitForExistence(timeout: timeout))
         XCTAssertEqual(
-            toCell.label.lowercased(), recipient.lowercased(),
+            toCell.text.lowercased(), recipient.lowercased(),
             "Unexpected recipient for \(expected.identifier)"
         )
     }

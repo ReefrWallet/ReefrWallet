@@ -41,11 +41,11 @@ struct DatabaseServiceTests {
     @Test
     func accountsCanBeInsertedFetchedFilteredRenamedAndDeleted() async throws {
         let service = try makeDatabaseService()
-        let keyStoreID = try await service.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
         let ethereum = WKBlockchain.evm(.ethereum(.mainnet))
 
-        var account = makeAccount(keyStoreID: keyStoreID, blockchain: ethereum)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: ethereum)
         account.id = try await service.insertAccount(account, keyStore: keyStore)
 
         guard let accountId = account.id else {
@@ -53,10 +53,10 @@ struct DatabaseServiceTests {
         }
 
         #expect(try await service.fetchAccount(id: accountId) == account)
-        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID) == [account])
-        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID, blockchain: ethereum) == [account])
+        #expect(try await service.fetchAccounts(keyStoreId: keyStoreId) == [account])
+        #expect(try await service.fetchAccounts(keyStoreId: keyStoreId, blockchain: ethereum) == [account])
         #expect(try await service.fetchAccounts(
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             blockchain: .sui(.testnet)
         ).isEmpty)
 
@@ -65,7 +65,7 @@ struct DatabaseServiceTests {
 
         try await service.deleteAccount(id: accountId)
         #expect(try await service.fetchAccount(id: accountId) == nil)
-        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID).isEmpty)
+        #expect(try await service.fetchAccounts(keyStoreId: keyStoreId).isEmpty)
     }
 
     @Test
@@ -89,9 +89,9 @@ struct DatabaseServiceTests {
     @Test
     func transactionsUpsertEffectsAndPersistSyncState() async throws {
         let service = try makeDatabaseService()
-        let keyStoreID = try await service.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
-        var account = makeAccount(keyStoreID: keyStoreID, blockchain: .evm(.ethereum(.mainnet)))
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
         account.id = try await service.insertAccount(account, keyStore: keyStore)
         let token = makeToken(address: "0x0000000000000000000000000000000000000001")
 
@@ -150,14 +150,109 @@ struct DatabaseServiceTests {
     }
 
     @Test
+    func savingTransactionsAcrossCallsUpdatesInPlaceInsteadOfDuplicating() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let accountId = try #require(account.id)
+
+        try await service.saveTransactions(
+            [BlockchainTransaction(identifier: "0xoverlap", status: .unconfirmed)],
+            for: account
+        )
+        try await service.saveTransactions(
+            [BlockchainTransaction(identifier: "0xoverlap", status: .confirmed)],
+            for: account
+        )
+
+        let stored = try await service.fetchTransactions(accountId: accountId)
+        #expect(stored.count == 1)
+        #expect(stored[0].status == .confirmed)
+    }
+
+    @Test
+    func savingTransactionsWithSyncStateWritesBothInOneCall() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let accountId = try #require(account.id)
+
+        var state = try await service.transactionSyncState(accountId: accountId)
+        state.currentHead = 99
+        state.backfillComplete = true
+
+        try await service.saveTransactions(
+            [BlockchainTransaction(identifier: "0xcombined", status: .confirmed)],
+            for: account,
+            syncState: state
+        )
+
+        let stored = try await service.fetchTransactions(accountId: accountId)
+        #expect(stored.count == 1)
+
+        let restored = try await service.transactionSyncState(accountId: accountId)
+        #expect(restored.currentHead == 99)
+        #expect(restored.backfillComplete == true)
+    }
+
+    @Test
+    func savingLargeTransactionBatchStaysFast() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let accountId = try #require(account.id)
+
+        let transactions = (0..<500).map { index in
+            BlockchainTransaction(
+                identifier: "0xtx\(index)",
+                blockHeight: UInt64(index),
+                status: .confirmed,
+                effects: [
+                    BlockchainTransactionEffect(
+                        index: 0,
+                        kind: .nativeTransfer,
+                        amount: "1",
+                        from: account.address,
+                        to: "0x0000000000000000000000000000000000000002"
+                    ),
+                    BlockchainTransactionEffect(
+                        index: 1,
+                        kind: .tokenTransfer,
+                        assetIdentifier: "0x0000000000000000000000000000000000000003",
+                        amount: "2",
+                        from: account.address,
+                        to: "0x0000000000000000000000000000000000000002"
+                    )
+                ]
+            )
+        }
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        try await service.saveTransactions(transactions, for: account)
+        let elapsed = clock.now - start
+
+        #expect(try await service.fetchTransactions(accountId: accountId).count == 500)
+        // A regression back to one fetch per row would take this from tens of
+        // milliseconds to multiple seconds for a batch this size.
+        #expect(elapsed < .seconds(2))
+    }
+
+    @Test
     func balancesCanBeSavedFetchedInBatchesAndUpdated() async throws {
         let service = try makeDatabaseService()
-        let keyStoreID = try await service.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
-        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain)
-        let accountID = try await service.insertAccount(account, keyStore: keyStore)
-        account.id = accountID
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
 
         let token = makeToken(address: "0x0000000000000000000000000000000000000001")
         _ = try await service.insertToken(token, blockchain: blockchain)
@@ -168,10 +263,11 @@ struct DatabaseServiceTests {
             token: token,
             usdValue: 12.5
         )
-        let balanceID = try await service.saveBalance(balance)
 
-        #expect(try await service.fetchBalances(accountId: accountID).count == 1)
-        #expect(try await service.fetchBalances(accountId: accountID).first?.id == balanceID)
+        let balanceId = try await service.saveBalance(balance)
+
+        #expect(try await service.fetchBalances(accountId: accountId).count == 1)
+        #expect(try await service.fetchBalances(accountId: accountId).first?.id == balanceId)
 
         let updatedToken = makeToken(
             address: token.address,
@@ -186,8 +282,8 @@ struct DatabaseServiceTests {
         )
         try await service.saveBalances([updatedBalance])
 
-        let fetched = try #require(try await service.fetchBalances(accountId: accountID).first)
-        #expect(fetched.id == balanceID)
+        let fetched = try #require(try await service.fetchBalances(accountId: accountId).first)
+        #expect(fetched.id == balanceId)
         #expect(fetched.amount == 250)
         #expect(fetched.usdValue == 25)
         #expect(fetched.token.name == "Updated Token")
@@ -196,15 +292,51 @@ struct DatabaseServiceTests {
         })
     }
 
+    /// A multi-balance batch, including a brand-new token and a duplicate token
+    /// address appearing twice in the same batch, is upserted in one call — and
+    /// every returned identifier is the permanent one the row kept.
+    @Test
+    func savingABatchOfBalancesUpsertsEveryTokenInOneCall() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
+
+        let firstToken = makeToken(address: "0x0000000000000000000000000000000000000002")
+        let duplicateAddress = "0x0000000000000000000000000000000000000003"
+        let secondToken = makeToken(address: duplicateAddress, name: "Second Token")
+        let secondTokenUpdated = makeToken(address: duplicateAddress, name: "Second Token Updated")
+
+        let savedIds = try await service.saveBalances([
+            Balance(account: account, amount: 5, token: firstToken, usdValue: 1),
+            Balance(account: account, amount: 7, token: secondToken, usdValue: 2),
+            Balance(account: account, amount: 9, token: secondTokenUpdated, usdValue: 3)
+        ])
+
+        let allBalances = try await service.fetchBalances(accountId: accountId)
+        #expect(allBalances.count == 2)
+        #expect(allBalances.contains { $0.token.address == firstToken.address && $0.amount == 5 })
+        // Temporary identifiers — read before the context commits — would not
+        // match the ones a later fetch reports.
+        #expect(Set(savedIds) == Set(allBalances.compactMap(\.id)))
+
+        let secondTokenBalances = allBalances.filter { $0.token.address == duplicateAddress }
+        #expect(secondTokenBalances.count == 1)
+        #expect(secondTokenBalances.first?.amount == 9)
+    }
+
     @Test
     func updateBalancesUpdatesExistingBalancesAndInsertsNewTokens() async throws {
         let service = try makeDatabaseService()
-        let keyStoreID = try await service.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
-        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain)
-        let accountID = try await service.insertAccount(account, keyStore: keyStore)
-        account.id = accountID
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
 
         let existingToken = makeToken(
             address: "0x0000000000000000000000000000000000000001",
@@ -228,7 +360,7 @@ struct DatabaseServiceTests {
             Balance(account: account, amount: 30, token: newToken, usdValue: 90)
         ])
 
-        let balances = try await service.fetchBalances(accountId: accountID)
+        let balances = try await service.fetchBalances(accountId: accountId)
         #expect(balances.count == 2)
         #expect(balances.contains { $0.token.address == existingToken.address && $0.amount == 20 })
         #expect(balances.contains { $0.token.address == newToken.address && $0.amount == 30 })
@@ -240,12 +372,12 @@ struct DatabaseServiceTests {
     @Test
     func deleteAllAccountsKeepsKeyStoresAndRemovesRelatedData() async throws {
         let service = try makeDatabaseService()
-        let keyStoreID = try await service.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
         let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
-        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain)
-        let accountID = try await service.insertAccount(account, keyStore: keyStore)
-        account.id = accountID
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
 
         let token = makeToken(address: "0x0000000000000000000000000000000000000001")
         _ = try await service.insertToken(token, blockchain: blockchain)
@@ -257,35 +389,35 @@ struct DatabaseServiceTests {
             usdValue: 12.5
         )
         _ = try await service.saveBalance(balance)
-        #expect(try await service.fetchBalances(accountId: accountID).count == 1)
+        #expect(try await service.fetchBalances(accountId: accountId).count == 1)
 
         try await service.deleteAllAccounts()
 
-        #expect(try await service.fetchAccounts(keyStoreId: keyStoreID).isEmpty)
-        #expect(try await service.fetchKeyStore(id: keyStoreID) != nil)
-        #expect(try await service.fetchAccount(id: accountID) == nil)
-        #expect(try await service.fetchBalances(accountId: accountID).isEmpty)
+        #expect(try await service.fetchAccounts(keyStoreId: keyStoreId).isEmpty)
+        #expect(try await service.fetchKeyStore(id: keyStoreId) != nil)
+        #expect(try await service.fetchAccount(id: accountId) == nil)
+        #expect(try await service.fetchBalances(accountId: accountId).isEmpty)
     }
 
     @Test
     func missingAndInvalidRecordsThrowExpectedErrors() async throws {
         let service = try makeDatabaseService()
-        let missingID = try await service.insertKeyStore(makeKeyStore())
-        let missingAccountID = try await service.insertKeyStore(makeKeyStore(name: "Other"))
-        try await service.deleteKeyStore(id: missingAccountID)
+        let missingId = try await service.insertKeyStore(makeKeyStore())
+        let missingAccountId = try await service.insertKeyStore(makeKeyStore(name: "Other"))
+        try await service.deleteKeyStore(id: missingAccountId)
 
         await #expect(throws: Error.notFound) {
-            try await service.renameKeyStore(id: missingAccountID, name: "Missing")
+            try await service.renameKeyStore(id: missingAccountId, name: "Missing")
         }
 
         let account = makeAccount(
-            keyStoreID: missingID,
+            keyStoreId: missingId,
             blockchain: .evm(.ethereum(.mainnet))
         )
-        let deletedKeyStoreID = try await service.insertKeyStore(makeKeyStore(name: "Unrelated"))
-        try await service.deleteKeyStore(id: deletedKeyStoreID)
+        let deletedKeyStoreId = try await service.insertKeyStore(makeKeyStore(name: "Unrelated"))
+        try await service.deleteKeyStore(id: deletedKeyStoreId)
         await #expect(throws: Error.notFound) {
-            try await service.insertAccount(account, keyStore: makeKeyStore(id: deletedKeyStoreID))
+            try await service.insertAccount(account, keyStore: makeKeyStore(id: deletedKeyStoreId))
         }
 
         await #expect(throws: Error.invalidData) {
@@ -330,7 +462,7 @@ extension DatabaseServiceTests {
     }
 
     func makeAccount(
-        keyStoreID: PersistentIdentifier,
+        keyStoreId: PersistentIdentifier,
         blockchain: WKBlockchain,
         name: String = "Test Account"
     ) -> Account {
@@ -339,7 +471,7 @@ extension DatabaseServiceTests {
             address: "0x0000000000000000000000000000000000000001",
             blockchain: blockchain,
             derivationPath: nil,
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             name: name
         )
     }

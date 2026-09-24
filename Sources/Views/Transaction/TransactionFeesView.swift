@@ -223,7 +223,7 @@ private extension TransactionFeesView {
             let client = try await DI.injectOrFail(BlockchainClientProvider.self).getClient(blockchain: blockchain)
             nativeTokenPriceUSD = try await client.getTokenPrice(nil)
         } catch {
-            printError(error)
+            printError("\(blockchain.displayName): \(error)")
             nativeTokenPriceUSD = nil
         }
     }

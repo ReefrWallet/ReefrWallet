@@ -73,7 +73,7 @@ extension AccountDetailsView: View {
         // identifier does not change when the on-chain amount changes. Include
         // the serialized amount in the task identity so the cached value list
         // is rebuilt after every successful blockchain refresh.
-        .task(id: balanceRefreshID) {
+        .task(id: balanceRefreshId) {
             cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
         }
         .onChange(of: selection) {
@@ -116,7 +116,7 @@ private extension AccountDetailsView {
         }
     }
 
-    var balanceRefreshID: [String] {
+    var balanceRefreshId: [String] {
         accountBalances.map { balance in
             "\(balance.persistentModelID)-\(balance.serializedAmount.base64EncodedString())"
         }

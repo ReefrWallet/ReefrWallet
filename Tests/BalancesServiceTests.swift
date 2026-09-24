@@ -16,11 +16,11 @@ struct BalancesServiceTests {
 
         let databaseService = try makeDatabaseService()
         let balancesService = BalancesService(databaseService: databaseService)
-        let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
-        var account = makeTronAccount(keyStoreID: keyStoreID)
+        let keyStoreId = try await databaseService.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeTronAccount(keyStoreId: keyStoreId)
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
-        let accountID = try #require(account.id)
+        let accountId = try #require(account.id)
 
         for token in tronTestTokens {
             _ = try await databaseService.insertToken(token, blockchain: account.blockchain)
@@ -28,7 +28,7 @@ struct BalancesServiceTests {
 
         try await balancesService.updateBalances(account)
 
-        let balances = try await databaseService.fetchBalances(accountId: accountID)
+        let balances = try await databaseService.fetchBalances(accountId: accountId)
         let nativeBalance = try #require(balances.first(where: { $0.token.isNativeToken }))
         #expect(nativeBalance.amount > 0)
         #expect(nativeBalance.token.symbol == "TRX")
@@ -54,12 +54,12 @@ struct BalancesServiceTests {
         let databaseService = try makeDatabaseService()
         let balancesService = BalancesService(databaseService: databaseService)
 
-        let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
+        let keyStoreId = try await databaseService.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
         let blockchain = WKBlockchain.evm(.custom(node.chainId))
-        var account = makeAccount(keyStoreID: keyStoreID, blockchain: blockchain, endpointURL: node.endpoint)
-        let accountID = try await databaseService.insertAccount(account, keyStore: keyStore)
-        account.id = accountID
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain, endpointURL: node.endpoint)
+        let accountId = try await databaseService.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
 
         let address = try EthereumAddress(string: account.address)
         let nativeAmount = BigUInt(5_000_000_000_000_000_000)
@@ -67,14 +67,14 @@ struct BalancesServiceTests {
         try await node.setBalance(address, wei: nativeAmount)
         try await balancesService.updateBalances(account)
 
-        let updatedBalances = try await databaseService.fetchBalances(accountId: accountID)
+        let updatedBalances = try await databaseService.fetchBalances(accountId: accountId)
         let updatedBalance = try #require(updatedBalances.first)
 
         #expect(updatedBalances.count == 1)
         #expect(updatedBalance.amount == nativeAmount)
         #expect(updatedBalance.token.isNativeToken)
-        #expect(try await balancesService.usdValue(accountId: accountID) == 0)
-        #expect(try await balancesService.usdValue(keyStoreId: keyStoreID) == 0)
+        #expect(try await balancesService.usdValue(accountId: accountId) == 0)
+        #expect(try await balancesService.usdValue(keyStoreId: keyStoreId) == 0)
 
         let pricedNativeToken = Token(
             address: nil,
@@ -95,34 +95,34 @@ struct BalancesServiceTests {
             usdValue: nil
         ))
 
-        #expect(try await balancesService.usdValue(accountId: accountID) == 10_000)
-        #expect(try await balancesService.usdValue(keyStoreId: keyStoreID) == 10_000)
+        #expect(try await balancesService.usdValue(accountId: accountId) == 10_000)
+        #expect(try await balancesService.usdValue(keyStoreId: keyStoreId) == 10_000)
     }
 
     @Test
     func usdValueThrowsWhenTheAccountOrKeyStoreDoesNotExist() async throws {
         let databaseService = try makeDatabaseService()
         let balancesService = BalancesService(databaseService: databaseService)
-        let keyStoreID = try await databaseService.insertKeyStore(makeKeyStore())
-        let keyStore = makeKeyStore(id: keyStoreID)
+        let keyStoreId = try await databaseService.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
 
         var account = makeAccount(
-            keyStoreID: keyStoreID,
+            keyStoreId: keyStoreId,
             blockchain: .evm(.custom(31_337)),
             endpointURL: URL(string: "http://localhost:8548")!
         )
 
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
-        let accountID = try #require(account.id)
+        let accountId = try #require(account.id)
 
-        try await databaseService.deleteAccount(id: accountID)
-        try await databaseService.deleteKeyStore(id: keyStoreID)
+        try await databaseService.deleteAccount(id: accountId)
+        try await databaseService.deleteKeyStore(id: keyStoreId)
 
         await #expect(throws: Error.notFound) {
-            try await balancesService.usdValue(accountId: accountID)
+            try await balancesService.usdValue(accountId: accountId)
         }
         await #expect(throws: Error.notFound) {
-            try await balancesService.usdValue(keyStoreId: keyStoreID)
+            try await balancesService.usdValue(keyStoreId: keyStoreId)
         }
     }
 }
@@ -158,7 +158,7 @@ private extension BalancesServiceTests {
     }
 
     func makeAccount(
-        keyStoreID: PersistentIdentifier,
+        keyStoreId: PersistentIdentifier,
         blockchain: WKBlockchain,
         endpointURL: URL
     ) -> Account {
@@ -167,19 +167,19 @@ private extension BalancesServiceTests {
             address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
             blockchain: blockchain,
             derivationPath: nil,
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             name: "Anvil Test Account",
             rpcURLOverride: endpointURL
         )
     }
 
-    func makeTronAccount(keyStoreID: PersistentIdentifier) -> Account {
+    func makeTronAccount(keyStoreId: PersistentIdentifier) -> Account {
         Account(
             accountIndex: nil,
             address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",
             blockchain: .tron(.testnet),
             derivationPath: nil,
-            keyStoreId: keyStoreID,
+            keyStoreId: keyStoreId,
             name: "Funded Nile Watch-Only"
         )
     }

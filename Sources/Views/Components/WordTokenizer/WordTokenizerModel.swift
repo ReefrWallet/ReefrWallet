@@ -151,7 +151,7 @@ extension WordTokenizerModel {
     ///   `TextField` to be rebuilt fresh instead of relying on the
     ///   binding alone.
     @discardableResult
-    func update(editorText text: String, at id: UUID) -> (editorID: UUID, didCommitWord: Bool)? {
+    func update(editorText text: String, at id: UUID) -> (editorId: UUID, didCommitWord: Bool)? {
         guard let position = entries.firstIndex(where: { $0.id == id }),
               case .editor = entries[position] else {
             return nil

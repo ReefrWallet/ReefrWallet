@@ -259,19 +259,24 @@ private extension TransferParametersView {
         return !(selectedBalance?.token.isNativeToken ?? true)
     }
 
+    /// Exhaustive over `WKBlockchain` on purpose: a `default` that rejects
+    /// everything silently disables the whole form for any chain missing a
+    /// case here, so a newly supported chain must fail to compile instead.
     func validateAddress() -> Bool {
         do {
             switch account.blockchain {
-            case .evm:
-                _ = try EthereumAddress(string: receiverText)
-            case .sui:
-                _ = try SuiAddress(string: receiverText)
-            case .solana:
-                _ = try SolanaAddress(string: receiverText)
+            case let .bitcoin(network):
+                _ = try BitcoinDescriptor(address: receiverText, network: network)
             case let .cardano(network):
                 _ = try CardanoAddress(string: receiverText, network: network)
-            default:
-                return false
+            case .evm:
+                _ = try EthereumAddress(string: receiverText)
+            case .solana:
+                _ = try SolanaAddress(string: receiverText)
+            case .sui:
+                _ = try SuiAddress(string: receiverText)
+            case .tron:
+                _ = try TronAddress(string: receiverText)
             }
 
             return true

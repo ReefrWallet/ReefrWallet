@@ -57,10 +57,13 @@ enum BalancesTableEntry: Identifiable {
     }
 
     var id: String {
-        if case let .balance(balance) = self, let idString = balance.idString {
-            idString
-        } else {
+        switch self {
+        case let .balance(balance):
             // we don't want this selected, so generate new id each time
+            balance.idString ?? UUID().uuidString
+        case .hiddenBalancesTitle:
+            "hidden-balances-title"
+        case .none:
             UUID().uuidString
         }
     }

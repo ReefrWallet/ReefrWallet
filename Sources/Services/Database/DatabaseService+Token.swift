@@ -55,6 +55,29 @@ extension DatabaseService {
             .map(Token.init(model:))
     }
 
+    /// Batch-fetches every `TokenModel` in `addresses` (an entry of `nil` matches the chain's
+    /// native token) on `blockchain`, in one query — used by `saveBalances` so a multi-balance
+    /// batch doesn't look up its tokens one at a time.
+    func fetchTokenIndex(serializedBlockchain: String, addresses: Set<String?>) throws -> [String?: TokenModel] {
+        guard !addresses.isEmpty else {
+            return [:]
+        }
+
+        let nonNilAddresses = Set(addresses.compactMap { $0 })
+        let includesNativeToken = addresses.contains(nil)
+
+        let predicate = #Predicate<TokenModel> { token in
+            if let address = token.address {
+                return token.blockchain?.serialized == serializedBlockchain && nonNilAddresses.contains(address)
+            } else {
+                return includesNativeToken && token.blockchain?.serialized == serializedBlockchain
+            }
+        }
+
+        let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
+        return Dictionary(models.map { ($0.address, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
     /// Fetches the token matching `token.address` on `blockchain`, updating it in place, or
     /// creates one. The lookup and write happen within a single non-suspending actor call, so
     /// this is safe to call from concurrent sync tracks that raced to discover the same token:
@@ -67,8 +90,20 @@ extension DatabaseService {
             $0.blockchain?.serialized == serializedBlockchain && $0.address == tokenAddress
         }
 
-        let tokenModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first
-            ?? TokenModel(from: token)
+        let existing = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first
+        return try upsertTokenModel(token, serializedBlockchain: serializedBlockchain, existing: existing)
+    }
+
+    /// Same upsert as `upsertTokenModel(_:serializedBlockchain:)`, but takes an already-resolved
+    /// row (e.g. from `fetchTokenIndex`) instead of running its own fetch — lets a batch caller
+    /// skip one query per item while still applying the field updates to every row.
+    @discardableResult
+    func upsertTokenModel(
+        _ token: Token,
+        serializedBlockchain: String,
+        existing: TokenModel?
+    ) throws -> TokenModel {
+        let tokenModel = existing ?? TokenModel(from: token)
 
         if tokenModel.modelContext == nil {
             tokenModel.blockchain = try modelContext
