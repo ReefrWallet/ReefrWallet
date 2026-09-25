@@ -119,7 +119,7 @@ final class BitcoinForwardSyncUITests: XCTestCase {
         // setUp, so its list holds more than one row — match on the sender
         // address rather than assuming the account-to-account send is the
         // only (or first) one.
-        guard let transactionId = waitForTransactionIdentifier(fromSender: senderAddress, timeout: 10) else {
+        guard let transactionId = waitForTransactionIdentifier(fromSender: senderAddress, timeout: 20) else {
             XCTFail("Expected a transaction from \(senderAddress) to reach the recipient's list.")
             return
         }

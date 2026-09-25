@@ -16,13 +16,13 @@ private struct ExpectedTransaction {
 final class AnvilTransactionHistoryUITests: XCTestCase {
     private let mnemonic = "test test test test test test test test test test test junk"
     private var app: XCUIApplication!
-    private var anvilNode: AnvilNode!
+    private var anvilNode: EthereumNode!
     private var expectedTransactions: [ExpectedTransaction] = []
 
     override func setUp() async throws {
         continueAfterFailure = false
 
-        anvilNode = try await AnvilNode.start()
+        anvilNode = try await EthereumNode.start()
         expectedTransactions = try await prepareEVMTransactions(node: anvilNode)
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
@@ -123,7 +123,7 @@ final class AnvilTransactionHistoryUITests: XCTestCase {
         )
     }
 
-    private func prepareEVMTransactions(node: AnvilNode) async throws -> [ExpectedTransaction] {
+    private func prepareEVMTransactions(node: EthereumNode) async throws -> [ExpectedTransaction] {
         let seed = try Mnemonic.fromPhrase(mnemonic).toSeed()
 
         let signers = try (0 ..< 2).map { index in

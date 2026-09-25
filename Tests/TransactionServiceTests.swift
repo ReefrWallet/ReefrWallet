@@ -138,6 +138,41 @@ private struct TransactionFixture {
             blockchain: blockchain
         )
 
+        try await databaseService.saveTransactions(
+            [
+                BlockchainTransaction(
+                    identifier: "0xsender-token-candidate",
+                    status: .confirmed,
+                    effects: [
+                        BlockchainTransactionEffect(
+                            index: 0,
+                            kind: .tokenTransfer,
+                            assetIdentifier: mockUSDCAddress.checksummed,
+                            amount: "1"
+                        )
+                    ]
+                )
+            ],
+            for: sender
+        )
+        try await databaseService.saveTransactions(
+            [
+                BlockchainTransaction(
+                    identifier: "0xrecipient-token-candidate",
+                    status: .confirmed,
+                    effects: [
+                        BlockchainTransactionEffect(
+                            index: 0,
+                            kind: .tokenTransfer,
+                            assetIdentifier: secondTokenAddress.checksummed,
+                            amount: "1"
+                        )
+                    ]
+                )
+            ],
+            for: recipient
+        )
+
         try await balancesService.updateBalances(sender)
         try await balancesService.updateBalances(recipient)
 
@@ -234,6 +269,26 @@ private struct TransactionFixture {
 
     func assertFinalBalancesAreCorrect(transferred: BigUInt, receipt: TransactionReceipt) async throws {
         let gasFee = hexQuantity(receipt.gasUsed) * hexQuantity(receipt.effectiveGasPrice ?? "0x0")
+
+        // A real recipient learns this asset through transaction synchronization
+        // before its account-scoped balance refresh is queued.
+        try await databaseService.saveTransactions(
+            [
+                BlockchainTransaction(
+                    identifier: "0xrecipient-usdc-after-transfer",
+                    status: .confirmed,
+                    effects: [
+                        BlockchainTransactionEffect(
+                            index: 0,
+                            kind: .tokenTransfer,
+                            assetIdentifier: mockUSDCAddress.checksummed,
+                            amount: transferred.description
+                        )
+                    ]
+                )
+            ],
+            for: recipient
+        )
 
         try await balancesService.updateBalances(sender)
         try await balancesService.updateBalances(recipient)

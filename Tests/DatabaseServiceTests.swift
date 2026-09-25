@@ -6,7 +6,7 @@ import WalletKitTesting
 @testable import ReefrWallet
 
 @Suite(.timeLimit(.minutes(1)))
-struct DatabaseServiceTests {
+struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     @Test
     func keyStoresCanBeInsertedFetchedRenamedAndDeleted() async throws {
         let service = try makeDatabaseService()
@@ -539,4 +539,4 @@ extension DatabaseServiceTests {
             usdPrice: usdPrice
         )
     }
-}
+} // swiftlint:disable:this file_length

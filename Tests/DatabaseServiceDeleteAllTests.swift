@@ -139,6 +139,26 @@ private struct AnvilBalancesFixture {
             mockUSDCAddress: mockUSDCAddress
         )
 
+        for (index, account) in [accountA, accountB].enumerated() {
+            try await databaseService.saveTransactions(
+                [
+                    BlockchainTransaction(
+                        identifier: "0xtoken-candidate-(index)",
+                        status: .confirmed,
+                        effects: [
+                            BlockchainTransactionEffect(
+                                index: 0,
+                                kind: .tokenTransfer,
+                                assetIdentifier: mockUSDCAddress.checksummed,
+                                amount: "1"
+                            )
+                        ]
+                    )
+                ],
+                for: account
+            )
+        }
+
         try await balancesService.updateBalances(accountA)
         try await balancesService.updateBalances(accountB)
 

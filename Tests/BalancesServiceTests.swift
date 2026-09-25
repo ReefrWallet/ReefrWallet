@@ -26,6 +26,24 @@ struct BalancesServiceTests {
             _ = try await databaseService.insertToken(token, blockchain: account.blockchain)
         }
 
+        try await databaseService.saveTransactions(
+            [
+                BlockchainTransaction(
+                    identifier: "tron-token-candidates",
+                    status: .confirmed,
+                    effects: tronTestTokens.enumerated().map { index, token in
+                        BlockchainTransactionEffect(
+                            index: UInt64(index),
+                            kind: .tokenTransfer,
+                            assetIdentifier: token.address,
+                            amount: "1"
+                        )
+                    }
+                )
+            ],
+            for: account
+        )
+
         try await balancesService.updateBalances(account)
 
         let balances = try await databaseService.fetchBalances(accountId: accountId)

@@ -10,14 +10,14 @@ import WalletKitTesting
 final class EthereumForwardSyncUITests: XCTestCase {
     private let mnemonic = "test test test test test test test test test test test junk"
     private var app: XCUIApplication!
-    private var anvilNode: AnvilNode!
+    private var anvilNode: EthereumNode!
     private var senderAddress = ""
     private var recipientAddress = ""
 
     override func setUp() async throws {
         continueAfterFailure = false
 
-        anvilNode = try await AnvilNode.start()
+        anvilNode = try await EthereumNode.start()
 
         let addresses = try await fundEVMAccounts(node: anvilNode)
         senderAddress = addresses[0].string
@@ -40,6 +40,7 @@ final class EthereumForwardSyncUITests: XCTestCase {
         app = nil
     }
 
+    // swiftlint:disable:next function_body_length
     func testTransactionSentAfterBackfillIsReceivedByRecipient() {
         app.launch()
         app.activate()
@@ -170,7 +171,7 @@ private extension EthereumForwardSyncUITests {
         (Decimal(string: amount) ?? 0).formatted(.number.precision(.fractionLength(0 ... 6)))
     }
 
-    func fundEVMAccounts(node: AnvilNode) async throws -> [EthereumAddress] {
+    func fundEVMAccounts(node: EthereumNode) async throws -> [EthereumAddress] {
         let seed = try Mnemonic.fromPhrase(mnemonic).toSeed()
 
         let addresses = try (0 ..< 2).map { index in

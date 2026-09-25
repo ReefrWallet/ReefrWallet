@@ -201,7 +201,7 @@ private extension TransactionSyncService {
                 // WebSocket pub-sub. Repeating the forward range scan is the
                 // safe fallback; a future transactionSubscription capability
                 // replaces this wait with an immediate node-head event.
-                try await Task.sleep(for: .seconds(60))
+                try await Task.sleep(for: .seconds(10))
             }
         }
     }

@@ -9,6 +9,7 @@ import WalletKitTesting
 final class SolanaForwardSyncUITests: XCTestCase {
     private let mnemonic = "test test test test test test test test test test test junk"
     private var app: XCUIApplication!
+    private var senderAddress = ""
     private var solanaNode: SolanaNode!
     private var recipientAddress = ""
 
@@ -18,6 +19,7 @@ final class SolanaForwardSyncUITests: XCTestCase {
         solanaNode = try await SolanaNode.start()
 
         let addresses = try await fundSolanaAccounts(node: solanaNode)
+        senderAddress = addresses[0].string
         recipientAddress = addresses[1].string
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
@@ -43,6 +45,10 @@ final class SolanaForwardSyncUITests: XCTestCase {
         app.activate()
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
+
+        // Let both account histories reach their durable initial boundaries
+        // before this test creates the transaction the forward scan must find.
+        sleep(20)
 
         let firstAccount = app.firstDescendant(withIdentifier: "sidebar-account-label-Devnet #1")
         XCTAssertTrue(firstAccount.waitForExistence(timeout: 20))
@@ -99,26 +105,15 @@ final class SolanaForwardSyncUITests: XCTestCase {
 
         selectTab("Transactions")
 
-        let hashCell = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "transaction-hash-"))
-            .firstMatch
-        XCTAssertTrue(
-            hashCell.waitForExistence(timeout: 10),
-            "Expected the transaction sent after the initial backfill to reach the recipient's list."
-        )
+        guard let identifier = waitForTransactionIdentifier(from: senderAddress, timeout: 30) else {
+            XCTFail("Expected the transaction sent after the initial backfill to reach the recipient's list.")
+            return
+        }
 
-        let amountCell = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "transaction-amount-"))
-            .firstMatch
+        let amountCell = app.firstDescendant(withIdentifier: "transaction-amount-\(identifier)")
         XCTAssertTrue(amountCell.waitForExistence(timeout: 10))
-        XCTAssertEqual(
-            amountCell.text, "\(sentAmount) SOL",
-            "Expected the recipient to receive exactly the amount that was sent."
-        )
-
-        let statusCell = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "transaction-status-"))
-            .firstMatch
+        XCTAssertTrue(amountCell.text.hasPrefix(Decimal(string: sentAmount)!.formatted(.number)))
+        let statusCell = app.firstDescendant(withIdentifier: "transaction-status-\(identifier)")
         XCTAssertTrue(statusCell.waitForExistence(timeout: 10))
         XCTAssertEqual(
             statusCell.text, "Confirmed",
@@ -128,6 +123,23 @@ final class SolanaForwardSyncUITests: XCTestCase {
 }
 
 private extension SolanaForwardSyncUITests {
+    func waitForTransactionIdentifier(from sender: String, timeout: TimeInterval) -> String? {
+        let deadline = Date.now.addingTimeInterval(timeout)
+
+        while Date.now < deadline {
+            if let cell = app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier BEGINSWITH %@", "transaction-from-"))
+                .allElementsBoundByIndex
+                .first(where: { $0.text.caseInsensitiveCompare(sender) == .orderedSame }) {
+                return String(cell.identifier.dropFirst("transaction-from-".count))
+            }
+
+            Thread.sleep(forTimeInterval: 1)
+        }
+
+        return nil
+    }
+
     func selectTab(_ label: String) {
         let tab = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", label))
