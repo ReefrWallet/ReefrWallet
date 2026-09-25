@@ -24,7 +24,7 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
         supports(account.blockchain)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         apiBaseURL(for: blockchain) != nil
     }
 
@@ -60,7 +60,7 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
 }
 
 private extension BlockscoutTransactionHistorySource {
-    func apiBaseURL(for blockchain: WKBlockchain) -> URL? {
+    func apiBaseURL(for blockchain: Blockchain) -> URL? {
         guard case let .evm(chain) = blockchain else {
             return nil
         }

@@ -226,7 +226,7 @@ private extension DatabaseService {
     func fetchBalanceIndex(
         accountId: PersistentIdentifier,
         tokenAddresses: Set<String>,
-        blockchain: WKBlockchain
+        blockchain: Blockchain
     ) throws -> [String: BalanceModel] {
         guard !tokenAddresses.isEmpty else {
             return [:]

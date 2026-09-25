@@ -98,7 +98,7 @@ private extension FeeEstimationService {
     /// PSBT-aware path.
     func estimateBitcoinFees(
         client: AnyBlockchainClient,
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         amount: BigUInt,
         recipient: String,
         account: Account
@@ -121,7 +121,7 @@ private extension FeeEstimationService {
     }
 
     func estimateCardanoFees(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         token: Token,
         amount: BigUInt,
         recipientLovelace: String?,
@@ -219,7 +219,7 @@ private extension FeeEstimationService {
     /// message-aware path.
     func estimateSolanaFees(
         client: AnyBlockchainClient,
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         token: Token,
         amount: BigUInt,
         recipient: String,
@@ -248,7 +248,7 @@ private extension FeeEstimationService {
     /// produce `suiGasBudget` and `suiGasPrice`.
     func estimateSuiFees(
         client: AnyBlockchainClient,
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         token: Token,
         amount: BigUInt,
         recipient: String,

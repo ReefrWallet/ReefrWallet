@@ -39,7 +39,7 @@ extension DatabaseService {
 
     func fetchAccounts(
         keyStoreId: PersistentIdentifier,
-        blockchain: WKBlockchain? = nil
+        blockchain: Blockchain? = nil
     ) throws -> [Account] {
         let serializedBlockchain = try blockchain?.asJSONString()
         let predicate: Predicate<AccountModel>

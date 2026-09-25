@@ -33,7 +33,9 @@ struct TransactionRowLayout<Detail: View>: View {
                         amount: model.primaryEffect?.amount,
                         symbol: model.primaryEffect?.symbol ?? ""
                     )
+                    .accessibilityIdentifier("transaction-amount-\(model.identifier)")
                     TransactionStatusBadge(status: model.status)
+                        .accessibilityIdentifier("transaction-status-\(model.identifier)")
                     RelativeTimestampLabel(timestamp: model.timestamp)
                 }
             }

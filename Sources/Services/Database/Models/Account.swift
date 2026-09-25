@@ -18,7 +18,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
 
     let accountIndex: UInt64?
     let address: String
-    let blockchain: WKBlockchain
+    let blockchain: Blockchain
     let derivationPath: String?
     let keyStoreId: PersistentIdentifier
     let name: String
@@ -33,7 +33,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     init(
         accountIndex: UInt64?,
         address: String,
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         derivationPath: String?,
         keyStoreId: PersistentIdentifier,
         name: String,

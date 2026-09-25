@@ -16,7 +16,7 @@ import WalletKit
 struct Token: Hashable, Sendable {
     /// CoinType on sui, contract address on Ethereum. `nil` for native token on ethereum.
     let address: String?
-    let blockchain: WKBlockchain?
+    let blockchain: Blockchain?
     var decimalsCount: UInt8
     var imageURL: URL?
     var isHidden: Bool
@@ -32,7 +32,7 @@ extension Token: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         address = try container.decodeIfPresent(String.self, forKey: .address)
-        blockchain = try container.decode(WKBlockchain.self, forKey: .blockchain)
+        blockchain = try container.decode(Blockchain.self, forKey: .blockchain)
         decimalsCount = try container.decode(UInt8.self, forKey: .decimalsCount)
         isNativeToken = try container.decode(Bool.self, forKey: .isNativeToken)
         name = try container.decode(String.self, forKey: .name)
@@ -44,7 +44,7 @@ extension Token: Decodable {
         usdPrice = nil
     }
 
-    init(address: String?, blockchain: WKBlockchain, tokenInfo: TokenInfo) {
+    init(address: String?, blockchain: Blockchain, tokenInfo: TokenInfo) {
         self.address = address
         self.blockchain = blockchain
         self.decimalsCount = tokenInfo.decimals

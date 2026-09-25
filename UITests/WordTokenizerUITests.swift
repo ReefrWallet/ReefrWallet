@@ -27,6 +27,7 @@ final class WordTokenizerUITests: XCTestCase {
         app.activate()
     }
 
+    // swiftlint:disable:next function_body_length
     func testEnteringAndDeletingWordsWithBackspace() {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 

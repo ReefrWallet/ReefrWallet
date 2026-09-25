@@ -3,11 +3,11 @@ import WalletKit
 
 protocol TransactionRowPresenter: Sendable {
     func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel
-    func supports(_ blockchain: WKBlockchain) -> Bool
+    func supports(_ blockchain: Blockchain) -> Bool
 }
 
 enum TransactionRowPresenters {
-    static func presenter(for blockchain: WKBlockchain) -> any TransactionRowPresenter {
+    static func presenter(for blockchain: Blockchain) -> any TransactionRowPresenter {
         switch blockchain {
         case .bitcoin:
             BitcoinTransactionRowPresenter()
@@ -30,7 +30,7 @@ struct BitcoinTransactionRowPresenter: TransactionRowPresenter {
         TransactionRowModel(transaction: transaction, account: account, direction: .ownedAddresses)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         if case .bitcoin = blockchain {
             true
         } else {
@@ -44,7 +44,7 @@ struct CardanoTransactionRowPresenter: TransactionRowPresenter {
         TransactionRowModel(transaction: transaction, account: account, direction: .ownedAddresses)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         if case .cardano = blockchain {
             true
         } else {
@@ -58,7 +58,7 @@ struct EVMTransactionRowPresenter: TransactionRowPresenter {
         TransactionRowModel(transaction: transaction, account: account, direction: .addresses)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         if case .evm = blockchain {
             true
         } else {
@@ -72,7 +72,7 @@ struct SolanaTransactionRowPresenter: TransactionRowPresenter {
         TransactionRowModel(transaction: transaction, account: account, direction: .signedAmounts)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         if case .solana = blockchain {
             true
         } else {
@@ -86,7 +86,7 @@ struct SuiTransactionRowPresenter: TransactionRowPresenter {
         TransactionRowModel(transaction: transaction, account: account, direction: .signedAmounts)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         if case .sui = blockchain {
             true
         } else {
@@ -100,7 +100,7 @@ struct TronTransactionRowPresenter: TransactionRowPresenter {
         TransactionRowModel(transaction: transaction, account: account, direction: .addresses)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         if case .tron = blockchain {
             true
         } else {
@@ -121,8 +121,23 @@ private extension TransactionRowModel {
             TransactionRowEffect(effect: $0, account: account, direction: direction)
         }
         let primaryEffect = effects.first
-        let sender = transaction.sender ?? primaryEffect?.sender
-        let recipient = transaction.recipient ?? primaryEffect?.recipient
+        let sender: String?
+        let recipient: String?
+
+        switch direction {
+        case .signedAmounts:
+            // Sui (and Solana) can spread one transaction's balance changes
+            // across several effects with different counterparties — e.g. a
+            // transfer leg plus a self-contained gas leg — so the first
+            // effect isn't necessarily the real counterparty. Per-effect
+            // `to`/`from` stay authoritative; there's no single top-level
+            // counterparty to fall back to.
+            sender = transaction.sender
+            recipient = transaction.recipient
+        case .addresses, .ownedAddresses:
+            sender = transaction.sender ?? primaryEffect?.sender
+            recipient = transaction.recipient ?? primaryEffect?.recipient
+        }
 
         self.init(
             blockHeight: transaction.blockHeight,
@@ -157,24 +172,48 @@ private extension TransactionRowModel {
             return .approval
         }
 
-        if effects.count > 1 {
+        // Sui (and Solana) transactions routinely split a single transfer into
+        // several same-asset legs — e.g. the transfer itself plus a gas-payment
+        // or coin-merge leg. Only genuinely different assets make this
+        // `.multiAsset`; same-asset legs net into one signed amount below.
+        guard Set(effects.map(\.assetIdentifier)).count == 1 else {
             return .multiAsset
         }
 
-        if sender?.caseInsensitiveCompare(accountAddress) == .orderedSame,
+        // `sender`/`recipient` above fall back to the *first* effect, which
+        // for Sui can be a self-contained gas leg rather than the actual
+        // transfer — checking every effect here catches a same-asset,
+        // multi-effect transaction that genuinely reaches another address,
+        // even when that first effect alone looks like a self-transfer.
+        let touchesOtherAddress = effects.contains { effect in
+            let senderIsOther = effect.sender
+                .map { $0.caseInsensitiveCompare(accountAddress) != .orderedSame } ?? false
+            let recipientIsOther = effect.recipient
+                .map { $0.caseInsensitiveCompare(accountAddress) != .orderedSame } ?? false
+            return senderIsOther || recipientIsOther
+        }
+
+        if !touchesOtherAddress,
+           sender?.caseInsensitiveCompare(accountAddress) == .orderedSame,
            recipient?.caseInsensitiveCompare(accountAddress) == .orderedSame {
             return .selfTransfer
         }
 
-        guard let amount = effects[0].amount else {
+        guard let netAmount = effects.reduce(Decimal?.some(0), { total, effect in
+            guard let total, let amount = effect.amount else {
+                return nil
+            }
+
+            return total + amount
+        }) else {
             return .unknown
         }
 
-        if amount < 0 {
+        if netAmount < 0 {
             return .sent
         }
 
-        if amount > 0 {
+        if netAmount > 0 {
             return .received
         }
 

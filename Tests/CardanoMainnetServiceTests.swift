@@ -91,7 +91,7 @@ struct CardanoMainnetServiceTests {
 }
 
 private extension CardanoMainnetServiceTests {
-    func makeAccount(databaseService: DatabaseService) async throws -> Account {
+    func makeAccount(databaseService: DatabaseService) async throws -> ReefrWallet.Account {
         let keyStore = try await databaseService.watchOnlyKeyStore()
         let keyStoreId = try #require(keyStore.id)
 
@@ -139,7 +139,7 @@ enum CardanoMainnetAccount {
     /// Role-0 payment addresses known to belong to this account.
     static let addresses = vector.addresses
 
-    static let blockchain = WKBlockchain.cardano(.mainnet)
+    static let blockchain = Blockchain.cardano(.mainnet)
 
     static let stakeAddress = vector.stakeAddress
 

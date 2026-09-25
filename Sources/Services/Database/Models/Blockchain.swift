@@ -22,15 +22,15 @@ final class BlockchainModel {
     @Relationship(deleteRule: .cascade)
     var tokens: [TokenModel]
 
-    init(blockchain: WKBlockchain) throws {
+    init(blockchain: Blockchain) throws {
         let nativeToken = TokenModel(from: blockchain.nativeToken)
         self.serialized = try blockchain.asJSONString()
         self.nativeToken = nativeToken
         self.tokens = [nativeToken]
     }
 
-    var blockchain: WKBlockchain {
-        guard let blockchain: WKBlockchain = try? serialized.decoded() else {
+    var blockchain: Blockchain {
+        guard let blockchain: Blockchain = try? serialized.decoded() else {
             preconditionFailure("Cannot decode blockchain")
         }
 

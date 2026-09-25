@@ -7,17 +7,11 @@ import WalletKitTesting
 final class WatchOnlySuiAccountUITests: XCTestCase {
     private let mnemonic = "test test test test test test test test test test test junk"
     private var app: XCUIApplication!
-    private var anvilNode: AnvilNode!
-    private var bitcoinNode: BitcoinNode!
-    private var solanaNode: SolanaNode!
     private var suiNode: SuiNode!
 
     override func setUp() async throws {
         continueAfterFailure = false
 
-        anvilNode = try await AnvilNode.start()
-        bitcoinNode = try await BitcoinNode.start()
-        solanaNode = try await SolanaNode.start()
         suiNode = try await SuiNode.start()
         try await fundMnemonicAccounts(node: suiNode)
 
@@ -28,23 +22,12 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
             mnemonic,
             "--sui-rpc-url",
             "http://127.0.0.1:\(suiNode.rpcPort)",
-            "--bitcoin-rpc-url",
-            bitcoinNode.esploraEndpoint.absoluteString,
-            "--evm-rpc-url",
-            anvilNode.endpoint.absoluteString,
-            "--solana-rpc-url",
-            solanaNode.rpcURL.absoluteString
+            "--create-sui-accounts"
         ]
     }
 
     override func tearDown() {
-        anvilNode?.stop()
-        bitcoinNode?.stop()
-        solanaNode?.stop()
         suiNode?.stop()
-        anvilNode = nil
-        bitcoinNode = nil
-        solanaNode = nil
         suiNode = nil
         app = nil
     }

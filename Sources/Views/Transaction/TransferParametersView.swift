@@ -108,6 +108,7 @@ private extension TransferParametersView {
                 HStack {
                     TextField("", text: $decimalAmountText)
                         .style(.medium, foreground: .primary)
+                        .accessibilityIdentifier("transfer-amount-field")
 
                     Button {
                         decimalAmountText = maxSendableAmount
@@ -131,6 +132,7 @@ private extension TransferParametersView {
                 HStack {
                     TextField("", text: $receiverText)
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("transfer-receiver-field")
 
                     Button {
                         onOpenAddressBook()
@@ -259,7 +261,7 @@ private extension TransferParametersView {
         return !(selectedBalance?.token.isNativeToken ?? true)
     }
 
-    /// Exhaustive over `WKBlockchain` on purpose: a `default` that rejects
+    /// Exhaustive over `Blockchain` on purpose: a `default` that rejects
     /// everything silently disables the whole form for any chain missing a
     /// case here, so a newly supported chain must fail to compile instead.
     func validateAddress() -> Bool {

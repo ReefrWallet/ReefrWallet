@@ -9,7 +9,7 @@ import SwiftData
 import WalletKit
 
 extension DatabaseService {
-    func mockAccount(blockchain: WKBlockchain, keyStore: KeyStore) throws -> Account {
+    func mockAccount(blockchain: Blockchain, keyStore: KeyStore) throws -> Account {
         guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
@@ -59,7 +59,7 @@ extension DatabaseService {
     // swiftlint:disable:next function_body_length
     func mockPreviewData() throws {
         let keyStore = try mockKeyStore(kind: .watchOnly)
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
         let account = try mockAccount(blockchain: blockchain, keyStore: keyStore)
 
         let nativeToken = Token(

@@ -13,7 +13,7 @@ import WalletKit
 // MARK: - TransactionFeesView
 
 struct TransactionFeesView {
-    let blockchain: WKBlockchain
+    let blockchain: Blockchain
     /// Fees fetched from the network, pushed into the editable fields whenever it
     /// changes. `nil` clears them, which is what keeps "Next" disabled while a
     /// fresh estimate is in flight.
@@ -143,6 +143,7 @@ private extension TransactionFeesView {
     var bitcoinFeesForm: some View {
         LabeledContent {
             TextField("", text: $bitcoinFeeRate)
+                .accessibilityIdentifier("transfer-bitcoin-fee-rate-field")
         } label: {
             Text("Fee rate (sat/vB)")
                 .style(.small, foreground: .secondary)

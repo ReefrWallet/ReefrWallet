@@ -354,7 +354,7 @@ struct TransactionSyncServiceTests {
         }
 
         let source = EtherscanTransactionHistorySource(userDefaults: defaults)
-        let supportedBlockchains: [WKBlockchain] = [
+        let supportedBlockchains: [Blockchain] = [
             .evm(.arbitrum(.mainnet)),
             .evm(.arbitrum(.sepolia)),
             .evm(.bsc(.mainnet)),
@@ -512,7 +512,7 @@ struct TransactionSyncServiceTests {
 // swiftlint:enable type_body_length
 
 private extension TransactionSyncServiceTests {
-    func printTokenState(account: Account, databaseService: DatabaseService) async throws {
+    func printTokenState(account: ReefrWallet.Account, databaseService: DatabaseService) async throws {
         guard let accountId = account.id else {
             throw Error.invalidData
         }
@@ -546,14 +546,14 @@ private extension TransactionSyncServiceTests {
 }
 
 private struct TransactionSyncFixture {
-    let anvilNode: AnvilNode
+    let anvilNode: EthereumNode
     let suiNode: SuiNode
     let databaseService: DatabaseService
     let keyStore: KeyStore
-    let ethereumAccounts: [Account]
-    let suiAccounts: [Account]
+    let ethereumAccounts: [ReefrWallet.Account]
+    let suiAccounts: [ReefrWallet.Account]
 
-    var accounts: [Account] {
+    var accounts: [ReefrWallet.Account] {
         ethereumAccounts + suiAccounts
     }
 
@@ -686,7 +686,7 @@ private struct TransactionSyncFixture {
 
         try await fundEthereumAccounts()
 
-        let blockchain = WKBlockchain.evm(.custom(anvilNode.chainId))
+        let blockchain = Blockchain.evm(.custom(anvilNode.chainId))
         let deployer = try await makeFundedDeployer(node: anvilNode, blockchain: blockchain)
         let token = try await deployMockUSDC(deployer: deployer)
         try await mintMockUSDC(deployer: deployer, mockUSDCAddress: token, wallet: firstAddress, amount: 200_000_000)
@@ -799,7 +799,7 @@ private struct TransactionSyncFixture {
         try keyStore.localSeed()
     }
 
-    private func requiredID(_ account: Account) throws -> PersistentIdentifier {
+    private func requiredID(_ account: ReefrWallet.Account) throws -> PersistentIdentifier {
         guard let id = account.id else {
             throw Error.invalidData
         }

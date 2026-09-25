@@ -2,10 +2,10 @@ import Foundation
 import WalletKit
 
 /// Caches and vends ``AnyBlockchainClient`` and
-/// ``AnyBlockchainTransactionBuilder`` instances, one per ``WKBlockchain``.
+/// ``AnyBlockchainTransactionBuilder`` instances, one per ``Blockchain``.
 actor BlockchainClientProvider {
     private struct Target: Hashable {
-        let blockchain: WKBlockchain
+        let blockchain: Blockchain
         let rpcURL: URL?
         let backend: BitcoinBackendKind?
         let blockfrostProjectId: String?
@@ -23,7 +23,7 @@ actor BlockchainClientProvider {
     /// - Throws: ``WalletKitError`` if the blockchain's endpoint URL is
     ///   invalid or the blockchain is not yet supported.
     func getClient(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainClient {
@@ -56,7 +56,7 @@ actor BlockchainClientProvider {
     /// - Throws: ``WalletKitError`` if the blockchain's endpoint URL is
     ///   invalid or the blockchain is not yet supported.
     func getBuilder(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         rpcURL: URL? = nil,
         backend: BitcoinBackendKind? = nil
     ) throws -> AnyBlockchainTransactionBuilder {
@@ -86,7 +86,7 @@ actor BlockchainClientProvider {
     }
 
     private func makeClient(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         rpcURL: URL?,
         backend: BitcoinBackendKind?,
         blockfrostProjectId: String?,
@@ -107,7 +107,8 @@ actor BlockchainClientProvider {
                 SuiGRPCClient(host: host, port: endpoint.port ?? 443, useTLS: endpoint.scheme == "https")
             )
         case let .bitcoin(network):
-            return AnyBlockchainClient(try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend))
+            let client = try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend)
+            return AnyBlockchainClient(client, makeAddress: { try self.bitcoinAddress(from: $0, network: network) })
         case .cardano:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return AnyBlockchainClient(CardanoClient(endpoint: endpoint, projectId: blockfrostProjectId))
@@ -121,7 +122,7 @@ actor BlockchainClientProvider {
     }
 
     private func makeBuilder(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         rpcURL: URL?,
         backend: BitcoinBackendKind?,
         blockfrostProjectId: String?,
@@ -146,7 +147,10 @@ actor BlockchainClientProvider {
             return AnyBlockchainTransactionBuilder(SuiTransactionBuilder(client: client))
         case let .bitcoin(network):
             let client = try makeBitcoinClient(network: network, rpcURL: rpcURL, backend: backend)
-            return AnyBlockchainTransactionBuilder(BitcoinTransactionBuilder(client: client))
+            return AnyBlockchainTransactionBuilder(
+                BitcoinTransactionBuilder(client: client),
+                makeAddress: { try self.bitcoinAddress(from: $0, network: network) }
+            )
         case .cardano:
             let endpoint = rpcURL ?? blockchain.rpcURL
             let client = CardanoClient(endpoint: endpoint, projectId: blockfrostProjectId)
@@ -160,6 +164,21 @@ actor BlockchainClientProvider {
             let client = SolanaRPCClient(endpoint: endpoint)
             return AnyBlockchainTransactionBuilder(SolanaTransactionBuilder(client: client))
         }
+    }
+
+    /// Reconstructs a `BitcoinDescriptor` from either form the generic
+    /// String-addressed bridging (`AnyBlockchainClient`/
+    /// `AnyBlockchainTransactionBuilder`) can hand back: a full account
+    /// descriptor (the sender, e.g. `wpkh([fp/84'/1'/0']xpub.../<0;1>/*)`)
+    /// or a plain address (the recipient, as typed into the Send form —
+    /// `BitcoinDescriptor.init(string:network:)` only accepts descriptor
+    /// syntax and throws on a bare address).
+    private nonisolated func bitcoinAddress(from string: String, network: BitcoinNetwork) throws -> BitcoinDescriptor {
+        if let descriptor = try? BitcoinDescriptor(string: string, network: network) {
+            return descriptor
+        }
+
+        return try BitcoinDescriptor(address: string, network: network)
     }
 
     private func makeBitcoinClient(
@@ -185,7 +204,7 @@ actor BlockchainClientProvider {
         }
     }
 
-    private func blockfrostProjectId(for blockchain: WKBlockchain) -> String? {
+    private func blockfrostProjectId(for blockchain: Blockchain) -> String? {
         let key: String
         let environmentKey: String
 
@@ -216,7 +235,7 @@ actor BlockchainClientProvider {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func tronGridAPIKey(for blockchain: WKBlockchain) -> String? {
+    private func tronGridAPIKey(for blockchain: Blockchain) -> String? {
         guard case .tron = blockchain else {
             return nil
         }

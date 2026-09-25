@@ -16,15 +16,15 @@ struct AddAccountView {
     let keyStore: KeyStore
 
     @State private var address = ""
-    @State private var blockchains: [WKBlockchain]
+    @State private var blockchains: [Blockchain]
     @State private var error: Swift.Error?
     @State private var isAlertPresented = false
-    @State private var networks: [WKBlockchain]
+    @State private var networks: [Blockchain]
 
     @State private var customChainId: String
-    @State private var selectedBlockchain: WKBlockchain
+    @State private var selectedBlockchain: Blockchain
     @State private var selectedKeyScheme: Curve?
-    @State private var selectedNetwork: WKBlockchain?
+    @State private var selectedNetwork: Blockchain?
     @State private var selectedBitcoinScriptType: BitcoinScriptType = .p2wpkh
     @State private var selectedBitcoinBackend: BitcoinBackendKind = .electrum
 
@@ -39,7 +39,7 @@ struct AddAccountView {
     init(keyStore: KeyStore) {
         self.keyStore = keyStore
 
-        let blockchains = WKBlockchain.allMainnets
+        let blockchains = Blockchain.allMainnets
         let selectedBlockchain = blockchains.first!
         let networks = selectedBlockchain.allNetworks
 
@@ -251,7 +251,7 @@ private extension AddAccountView {
     }
 
     @MainActor
-    func addAccount(_ blockchain: WKBlockchain, signatureScheme: Curve?) async throws {
+    func addAccount(_ blockchain: Blockchain, signatureScheme: Curve?) async throws {
         let watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
         let isBitcoin = if case .bitcoin = blockchain { true } else { false }
         let account = try await accountService.makeAccount(
@@ -299,7 +299,7 @@ private extension AddAccountView {
         }
     }
 
-    func didSelectBlockchain(_ blockchain: WKBlockchain?) {
+    func didSelectBlockchain(_ blockchain: Blockchain?) {
         if let blockchain {
             networks = blockchain.allNetworks
             selectedNetwork = networks.first

@@ -20,7 +20,7 @@ extension DatabaseService {
     }
     #endif
 
-    func fetchToken(tokenAddress: String, blockchain: WKBlockchain) throws -> Token? {
+    func fetchToken(tokenAddress: String, blockchain: Blockchain) throws -> Token? {
         let serializedBlockchain = try blockchain.asJSONString()
         let predicate = #Predicate<TokenModel> { token in
             if let address = token.address {
@@ -60,7 +60,7 @@ extension DatabaseService {
             .map(Token.init(model:))
     }
 
-    func fetchTokens(blockchain: WKBlockchain) throws -> [Token] {
+    func fetchTokens(blockchain: Blockchain) throws -> [Token] {
         let serializedBlockchain = try blockchain.asJSONString()
         return try modelContext
             .fetch(FetchDescriptor(predicate: #Predicate { $0.blockchain?.serialized == serializedBlockchain }))
@@ -138,7 +138,7 @@ extension DatabaseService {
     }
 
     @discardableResult
-    func insertToken(_ token: Token, blockchain: WKBlockchain) throws -> PersistentIdentifier {
+    func insertToken(_ token: Token, blockchain: Blockchain) throws -> PersistentIdentifier {
         let serializedBlockchain = try blockchain.asJSONString()
         let tokenModel = try upsertTokenModel(token, serializedBlockchain: serializedBlockchain)
         try modelContext.save()

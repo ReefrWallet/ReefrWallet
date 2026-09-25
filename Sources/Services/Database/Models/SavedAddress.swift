@@ -15,14 +15,14 @@ final class SavedAddressModel {
     var memo: String
     var serializedBlockchain: String
 
-    init(address: String, blockchain: WKBlockchain, memo: String) throws {
+    init(address: String, blockchain: Blockchain, memo: String) throws {
         self.address = address
         self.serializedBlockchain = try blockchain.asJSONString()
         self.memo = memo
     }
 
-    var blockchain: WKBlockchain {
-        guard let blockchain: WKBlockchain = try? serializedBlockchain.decoded() else {
+    var blockchain: Blockchain {
+        guard let blockchain: Blockchain = try? serializedBlockchain.decoded() else {
             preconditionFailure()
         }
 

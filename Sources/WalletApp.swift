@@ -58,6 +58,7 @@ import WalletKit
 #if DEBUG
 
 private extension WalletApp {
+    // swiftlint:disable:next function_body_length
     static func processPostStartupOptions(
         accountService: AccountService,
         databaseService: DatabaseService,
@@ -97,20 +98,43 @@ private extension WalletApp {
 
                 printInfo("Initialized testing key store.")
 
-                let accountConfigurations: [(WKBlockchain, URL?, BitcoinBackendKind?)] = [
-                    (.bitcoin(.regtest), commandLineURL(after: "--bitcoin-rpc-url"), .esplora),
-                    (.evm(.ethereum(.sepolia)), commandLineURL(after: "--evm-rpc-url"), nil),
-                    (.solana(.devnet), commandLineURL(after: "--solana-rpc-url"), nil),
-                    (.sui(.testnet), commandLineURL(after: "--sui-rpc-url"), nil)
+                let accountConfigurations: [TestAccountConfiguration] = [
+                    TestAccountConfiguration(
+                        blockchain: .bitcoin(.regtest),
+                        rpcURL: commandLineURL(after: "--bitcoin-rpc-url"),
+                        bitcoinBackend: .esplora,
+                        bitcoinScriptType: .p2wpkh,
+                        creationFlag: "--create-bitcoin-accounts"
+                    ),
+                    TestAccountConfiguration(
+                        blockchain: .evm(.ethereum(.sepolia)),
+                        rpcURL: commandLineURL(after: "--evm-rpc-url"),
+                        creationFlag: "--create-evm-accounts"
+                    ),
+                    TestAccountConfiguration(
+                        blockchain: .solana(.devnet),
+                        rpcURL: commandLineURL(after: "--solana-rpc-url"),
+                        creationFlag: "--create-solana-accounts"
+                    ),
+                    TestAccountConfiguration(
+                        blockchain: .sui(.testnet),
+                        rpcURL: commandLineURL(after: "--sui-rpc-url"),
+                        creationFlag: "--create-sui-accounts"
+                    )
                 ]
 
-                for (blockchain, rpcURL, bitcoinBackend) in accountConfigurations {
+                for configuration in accountConfigurations {
+                    guard commandLineFlag(configuration.creationFlag) else {
+                        continue
+                    }
+
                     for _ in 0 ..< 2 {
                         try await accountService.makeAccount(
-                            blockchain,
+                            configuration.blockchain,
                             keyStore: keyStore,
-                            rpcURLOverride: rpcURL,
-                            bitcoinBackend: bitcoinBackend
+                            rpcURLOverride: configuration.rpcURL,
+                            bitcoinScriptType: configuration.bitcoinScriptType,
+                            bitcoinBackend: configuration.bitcoinBackend
                         )
                     }
                 }
@@ -156,6 +180,18 @@ private extension WalletApp {
 
         return CommandLine.arguments[index + 1]
     }
+}
+
+/// One entry in the `--mnemonic` bootstrap table. Each blockchain only gets
+/// its 2 test accounts created when its own `creationFlag` is passed, so a
+/// UI test that only exercises one chain doesn't pay for (or risk failing on)
+/// the other chains' account creation.
+private struct TestAccountConfiguration {
+    let blockchain: Blockchain
+    let rpcURL: URL?
+    var bitcoinBackend: BitcoinBackendKind?
+    var bitcoinScriptType: BitcoinScriptType?
+    let creationFlag: String
 }
 
 #endif

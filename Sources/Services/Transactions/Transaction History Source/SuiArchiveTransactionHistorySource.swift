@@ -6,7 +6,7 @@ struct SuiArchiveTransactionHistorySource: TransactionHistorySource {
         supports(account.blockchain)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         archiveHost(for: blockchain) != nil
     }
 
@@ -25,7 +25,7 @@ struct SuiArchiveTransactionHistorySource: TransactionHistorySource {
 }
 
 private extension SuiArchiveTransactionHistorySource {
-    func archiveHost(for blockchain: WKBlockchain) -> String? {
+    func archiveHost(for blockchain: Blockchain) -> String? {
         guard case let .sui(network) = blockchain else {
             return nil
         }

@@ -68,6 +68,7 @@ extension AccountDetailsView: View {
                 Label("Send", systemImage: "paperplane")
             }
             .disabled(!isSendButtonActive)
+            .accessibilityIdentifier("account-send-button")
         }
         // Balance refreshes update `BalanceModel` in place, so its persistent
         // identifier does not change when the on-chain amount changes. Include

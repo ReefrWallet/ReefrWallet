@@ -19,7 +19,7 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
         supports(account.blockchain)
     }
 
-    func supports(_ blockchain: WKBlockchain) -> Bool {
+    func supports(_ blockchain: Blockchain) -> Bool {
         guard case let .evm(chain) = blockchain else {
             return false
         }

@@ -28,7 +28,7 @@ enum TransactionRow: View {
 }
 
 extension TransactionRow {
-    init(model: TransactionRowModel, blockchain: WKBlockchain) {
+    init(model: TransactionRowModel, blockchain: Blockchain) {
         switch blockchain {
         case .bitcoin:
             self = .bitcoin(model)

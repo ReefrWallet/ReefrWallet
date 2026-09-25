@@ -13,12 +13,12 @@ import WalletKitTesting
 
 // MARK: - Node & database
 
-func startAnvilNode() async throws -> AnvilNode {
+func startAnvilNode() async throws -> EthereumNode {
     let repositoryURL = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
 
-    return try await AnvilNode.start(workingDirectory: repositoryURL)
+    return try await EthereumNode.start(workingDirectory: repositoryURL)
 }
 
 func makeDatabaseService() throws -> DatabaseService {
@@ -95,7 +95,7 @@ func makeLocalKeyStore(
 /// Signs and broadcasts transactions on behalf of a funded account — used to
 /// deploy and mint the mock ERC-20.
 struct Deployer {
-    let node: AnvilNode
+    let node: EthereumNode
     let address: EthereumAddress
     let client: EthereumRPCClient
     let gasPrice: BigUInt
@@ -116,13 +116,13 @@ struct Deployer {
         let hash = try await client.broadcast(signed)
         let receipt = try await node.waitForReceipt(hash)
         guard receipt.status == "0x1" else {
-            throw AnvilLaunchError(description: "transaction from deployer reverted")
+            throw EthereumLaunchError(description: "transaction from deployer reverted")
         }
         return receipt
     }
 }
 
-func makeFundedDeployer(node: AnvilNode, blockchain: WKBlockchain) async throws -> Deployer {
+func makeFundedDeployer(node: EthereumNode, blockchain: Blockchain) async throws -> Deployer {
     let privateKey = try randomEthereumPrivateKey()
     let derivationPath = try DerivationPath(blockchain, accountIndex: 0, curve: .secp256k1)
     let signer = try EthereumPKeySigner(chainId: node.chainId, privateKey: privateKey, derivationPath: derivationPath)
@@ -141,7 +141,7 @@ func makeFundedDeployer(node: AnvilNode, blockchain: WKBlockchain) async throws 
 func deployMockUSDC(deployer: Deployer) async throws -> EthereumAddress {
     let receipt = try await deployer.sendAndConfirm(to: nil, data: mockUSDCCreationBytecode, gasLimit: 1_000_000)
     guard let contractAddressHex = receipt.contractAddress else {
-        throw AnvilLaunchError(description: "mock USDC deployment produced no contract address")
+        throw EthereumLaunchError(description: "mock USDC deployment produced no contract address")
     }
 
     return try EthereumAddress(string: contractAddressHex)
@@ -178,7 +178,7 @@ func fundWallet(
 /// discovers it — mirrors how a real token gets onto a blockchain's token list.
 func registerMockUSDCToken(
     databaseService: DatabaseService,
-    blockchain: WKBlockchain,
+    blockchain: Blockchain,
     mockUSDCAddress: EthereumAddress
 ) async throws {
     try await databaseService.insertToken(

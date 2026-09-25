@@ -43,7 +43,7 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
-        let ethereum = WKBlockchain.evm(.ethereum(.mainnet))
+        let ethereum = Blockchain.evm(.ethereum(.mainnet))
 
         var account = makeAccount(keyStoreId: keyStoreId, blockchain: ethereum)
         account.id = try await service.insertAccount(account, keyStore: keyStore)
@@ -71,7 +71,7 @@ struct DatabaseServiceTests {
     @Test
     func blockchainsRejectDuplicatesAndTokensCanBeFetchedByBlockchain() async throws {
         let service = try makeDatabaseService()
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
 
         _ = try await service.insertBlockchain(blockchain)
 
@@ -89,7 +89,7 @@ struct DatabaseServiceTests {
     @Test
     func accountTokensIncludeItsTransferAssetsButExcludeOtherAccountsAssets() async throws {
         let service = try makeDatabaseService()
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
         var firstAccount = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
@@ -123,7 +123,7 @@ struct DatabaseServiceTests {
         #expect(!tokens.contains { $0.address == secondToken.address })
     }
 
-    @Test
+    @Test // swiftlint:disable:next function_body_length
     func transactionsUpsertEffectsAndPersistSyncState() async throws {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
@@ -294,7 +294,7 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
         var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
         let accountId = try await service.insertAccount(account, keyStore: keyStore)
         account.id = accountId
@@ -345,7 +345,7 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
         var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
         let accountId = try await service.insertAccount(account, keyStore: keyStore)
         account.id = accountId
@@ -378,7 +378,7 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
         var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
         let accountId = try await service.insertAccount(account, keyStore: keyStore)
         account.id = accountId
@@ -419,7 +419,7 @@ struct DatabaseServiceTests {
         let service = try makeDatabaseService()
         let keyStoreId = try await service.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
-        let blockchain = WKBlockchain.evm(.ethereum(.mainnet))
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
         var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain)
         let accountId = try await service.insertAccount(account, keyStore: keyStore)
         account.id = accountId
@@ -508,9 +508,9 @@ extension DatabaseServiceTests {
 
     func makeAccount(
         keyStoreId: PersistentIdentifier,
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         name: String = "Test Account"
-    ) -> Account {
+    ) -> ReefrWallet.Account {
         Account(
             accountIndex: 0,
             address: "0x0000000000000000000000000000000000000001",

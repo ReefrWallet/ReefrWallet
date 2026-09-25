@@ -479,7 +479,7 @@ private extension TransactionSyncService {
     func token(
         address: String,
         effects: [TokenTransfer],
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         client: AnyBlockchainClient
     ) async throws -> Token {
         let metadata: EtherscanTokenTransferMetadata? = effects.lazy.compactMap { effect in

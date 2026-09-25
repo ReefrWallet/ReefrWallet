@@ -23,9 +23,9 @@ struct AddressBookView {
 
     @Environment(\.dismiss) var dismiss
 
-    private let blockchain: WKBlockchain
+    private let blockchain: Blockchain
 
-    init(blockchain: WKBlockchain, selectedAddress: Binding<String?>? = nil) {
+    init(blockchain: Blockchain, selectedAddress: Binding<String?>? = nil) {
         self.blockchain = blockchain
 
         if let selectedAddress {

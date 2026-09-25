@@ -71,6 +71,7 @@ extension TransferView: View {
             Text("Send")
                 .style(.largeHeader)
                 .padding(.bottom)
+                .accessibilityIdentifier("transfer-sheet-title")
 
             Form {
                 TransferParametersView(
@@ -139,6 +140,7 @@ private extension TransferView {
             Button("Cancel", action: onCancel)
             Button("Next", action: onNext)
                 .disabled(!isNextButtonEnabled)
+                .accessibilityIdentifier("transfer-next-button")
         }
     }
 }

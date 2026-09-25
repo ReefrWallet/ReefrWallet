@@ -37,15 +37,15 @@ struct TransactionServiceTests {
 /// `BlockchainClientProvider` directly as an independent, on-chain oracle
 /// to cross-check what `BalancesService`/`TransactionService` report.
 private struct TransactionFixture {
-    let node: AnvilNode
+    let node: EthereumNode
     let client: AnyBlockchainClient
     let databaseService: DatabaseService
     let balancesService: BalancesService
     let feeEstimationService: FeeEstimationService
     let transactionService: TransactionService
-    let blockchain: WKBlockchain
-    let sender: Account
-    let recipient: Account
+    let blockchain: Blockchain
+    let sender: ReefrWallet.Account
+    let recipient: ReefrWallet.Account
     let mockUSDCAddress: EthereumAddress
     let secondTokenAddress: EthereumAddress
     let senderNativeAmount: BigUInt
@@ -55,7 +55,7 @@ private struct TransactionFixture {
     // swiftlint:disable:next function_body_length
     static func make() async throws -> TransactionFixture {
         let node = try await startAnvilNode()
-        let blockchain = WKBlockchain.evm(.custom(node.chainId))
+        let blockchain = Blockchain.evm(.custom(node.chainId))
 
         let databaseService = try makeDatabaseService()
         let accountService = AccountService(databaseService: databaseService)

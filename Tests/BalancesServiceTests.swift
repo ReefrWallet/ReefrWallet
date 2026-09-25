@@ -44,7 +44,7 @@ struct BalancesServiceTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
 
-        let node = try await AnvilNode.start(
+        let node = try await EthereumNode.start(
             port: 8548,
             workingDirectory: repositoryURL
         )
@@ -56,7 +56,7 @@ struct BalancesServiceTests {
 
         let keyStoreId = try await databaseService.insertKeyStore(makeKeyStore())
         let keyStore = makeKeyStore(id: keyStoreId)
-        let blockchain = WKBlockchain.evm(.custom(node.chainId))
+        let blockchain = Blockchain.evm(.custom(node.chainId))
         var account = makeAccount(keyStoreId: keyStoreId, blockchain: blockchain, endpointURL: node.endpoint)
         let accountId = try await databaseService.insertAccount(account, keyStore: keyStore)
         account.id = accountId
@@ -159,9 +159,9 @@ private extension BalancesServiceTests {
 
     func makeAccount(
         keyStoreId: PersistentIdentifier,
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         endpointURL: URL
-    ) -> Account {
+    ) -> ReefrWallet.Account {
         Account(
             accountIndex: nil,
             address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
@@ -173,7 +173,7 @@ private extension BalancesServiceTests {
         )
     }
 
-    func makeTronAccount(keyStoreId: PersistentIdentifier) -> Account {
+    func makeTronAccount(keyStoreId: PersistentIdentifier) -> ReefrWallet.Account {
         Account(
             accountIndex: nil,
             address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",

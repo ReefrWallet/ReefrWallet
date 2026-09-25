@@ -114,7 +114,7 @@ actor BalancesService {
     /// a single call skip the per-token queue entirely: any of that
     /// account's already-queued token updates are dropped in favor of one
     /// queued full refresh.
-    func enqueueBalanceUpdate(account: Account, tokenAddress: String?, blockchain: WKBlockchain) async {
+    func enqueueBalanceUpdate(account: Account, tokenAddress: String?, blockchain: Blockchain) async {
         guard let accountId = account.id else {
             return
         }

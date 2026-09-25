@@ -79,3 +79,4 @@ Tuist/ProjectDescriptionHelpers/Project+Version.swift
 /Temp/
 WalletKit.prev/
 *.trace/
+.build/

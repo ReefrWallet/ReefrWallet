@@ -75,17 +75,17 @@ private struct AnvilBalancesFixture {
         let usdcB = BigUInt(250_000_000) // 250 USDC (6 decimals)
     }
 
-    let node: AnvilNode
+    let node: EthereumNode
     let databaseService: DatabaseService
-    let blockchain: WKBlockchain
-    let accounts: [Account]
+    let blockchain: Blockchain
+    let accounts: [ReefrWallet.Account]
     let mockUSDCAddress: String
     let expectedBalances: [ExpectedBalance]
 
     // swiftlint:disable:next function_body_length
     static func make() async throws -> AnvilBalancesFixture {
         let node = try await startAnvilNode()
-        let blockchain = WKBlockchain.evm(.custom(node.chainId))
+        let blockchain = Blockchain.evm(.custom(node.chainId))
 
         let databaseService = try makeDatabaseService()
         let accountService = AccountService(databaseService: databaseService)

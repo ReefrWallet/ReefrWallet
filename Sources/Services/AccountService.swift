@@ -21,7 +21,7 @@ final class AccountService {
         try await databaseService.deleteAccount(id: accountId)
     }
 
-    func isValidAddress(_ address: String, for blockchain: WKBlockchain) -> Bool {
+    func isValidAddress(_ address: String, for blockchain: Blockchain) -> Bool {
         do {
             switch blockchain {
             case .evm:
@@ -52,7 +52,7 @@ final class AccountService {
 
     @MainActor @discardableResult // swiftlint:disable:next function_body_length
     func makeAccount(
-        _ blockchain: WKBlockchain,
+        _ blockchain: Blockchain,
         keyStore: KeyStore,
         rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
@@ -183,7 +183,7 @@ private extension AccountService {
         let derivationPath: String
     }
 
-    func makeSignatureScheme(blockchain: WKBlockchain, requested signatureScheme: Curve?) throws -> Curve? {
+    func makeSignatureScheme(blockchain: Blockchain, requested signatureScheme: Curve?) throws -> Curve? {
         switch blockchain {
         case .evm:
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
@@ -213,7 +213,7 @@ private extension AccountService {
     }
 
     func makeLocalAddress(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         rawKey: Data,
         accountIndex: UInt64,
         signatureScheme: Curve?,
@@ -312,7 +312,7 @@ private extension AccountService {
     }
 
     func makeTrezorAddress(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         accountIndex: UInt64,
         device: HardwareDevice,
         bitcoinScriptType: BitcoinScriptType? = nil
@@ -381,7 +381,7 @@ private extension AccountService {
     }
 
     /// Return next account index that has not yet been configured
-    func nextAccountIndex(for blockchain: WKBlockchain, in keyStore: KeyStore) async throws -> UInt64 {
+    func nextAccountIndex(for blockchain: Blockchain, in keyStore: KeyStore) async throws -> UInt64 {
         guard let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }

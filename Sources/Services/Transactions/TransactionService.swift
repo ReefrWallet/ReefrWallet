@@ -141,7 +141,7 @@ private extension TransactionService {
     /// A field left empty is treated as "not overridden". A field that is
     /// non-empty but fails to parse is a user error and must fail loudly
     /// rather than silently falling back to freshly estimated fees.
-    func buildOptions(_ fees: Fees, blockchain: WKBlockchain) throws -> [BlockchainTransactionBuilderOptions] {
+    func buildOptions(_ fees: Fees, blockchain: Blockchain) throws -> [BlockchainTransactionBuilderOptions] {
         switch blockchain {
         case .evm:
             let maxFee = try parseBigUIntOverride(fees.ethereumMaxFee)

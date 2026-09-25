@@ -36,7 +36,7 @@ extension DatabaseService {
         chainId: UInt64,
         rpcURLOverride: URL,
         count: Int = 2
-    ) throws -> [Account] {
+    ) throws -> [ReefrWallet.Account] {
         try makeMockAccounts(
             blockchain: .evm(.custom(chainId)),
             curve: .secp256k1,
@@ -50,7 +50,7 @@ extension DatabaseService {
         keyStore: KeyStore,
         rpcURLOverride: URL,
         count: Int = 2
-    ) throws -> [Account] {
+    ) throws -> [ReefrWallet.Account] {
         try makeMockAccounts(
             blockchain: .sui(.testnet),
             curve: .ed25519,
@@ -63,12 +63,12 @@ extension DatabaseService {
 
 private extension DatabaseService {
     func makeMockAccounts(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         curve: Curve,
         keyStore: KeyStore,
         rpcURLOverride: URL,
         count: Int
-    ) throws -> [Account] {
+    ) throws -> [ReefrWallet.Account] {
         guard count > 0, let keyStoreId = keyStore.id else {
             throw Error.invalidData
         }
@@ -104,7 +104,7 @@ private extension DatabaseService {
     }
 
     func makeMockAddress(
-        blockchain: WKBlockchain,
+        blockchain: Blockchain,
         curve: Curve,
         privateKey: PrivateKey,
         path: DerivationPath
