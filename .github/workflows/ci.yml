@@ -19,25 +19,22 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install libusb
-      run: brew install libusb
+    - uses: dtolnay/rust-toolchain@stable
 
-      - uses: dtolnay/rust-toolchain@stable
+    - name: Install macOS build dependencies
+      run: |
+        brew install grpc-swift libusb pkg-config protobuf swift-protobuf libusb
+        protoc --version
 
-      - name: Install macOS build dependencies
-        run: |
-          brew install grpc-swift libusb pkg-config protobuf swift-protobuf
-          protoc --version
+    - name: Setup mise
+      uses: jdx/mise-action@v2
+      env:
+        MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup mise
-        uses: jdx/mise-action@v2
-        env:
-          MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install tools
-        run: mise install
-        env:
-          MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Install tools
+      run: mise install
+      env:
+        MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Run tests
       run: make test
