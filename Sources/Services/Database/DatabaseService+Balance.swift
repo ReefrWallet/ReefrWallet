@@ -5,7 +5,6 @@
 //  Created by Andrey Yurkevich on 18/09/2026.
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -107,6 +106,7 @@ extension DatabaseService {
                 serializedBlockchain: serializedBlockchain,
                 existing: tokenIndex[tokenKey]
             )
+
             tokenIndex[tokenKey] = tokenModel
 
             let balanceModel: BalanceModel
@@ -204,6 +204,7 @@ private extension DatabaseService {
         }
 
         let predicate = #Predicate<AccountModel> { accountIds.contains($0.persistentModelID) }
+
         let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
         return Dictionary(models.map { ($0.persistentModelID, $0) }, uniquingKeysWith: { first, _ in first })
     }
@@ -214,6 +215,7 @@ private extension DatabaseService {
         }
 
         let predicate = #Predicate<BalanceModel> { accountIds.contains($0.account.persistentModelID) }
+
         return try modelContext.fetch(FetchDescriptor(predicate: predicate))
     }
 }

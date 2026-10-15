@@ -17,6 +17,8 @@ enum PresentedSheet: Identifiable {
     case addAccount(KeyStore)
     case addKeyStore
     case addWatchOnlyAccount
+    case backUpKeyStore(KeyStore)
+    case browser
 
     var id: String {
         UUID().uuidString
@@ -338,22 +340,28 @@ private extension SidebarView {
 
         Divider()
 
+        Button(role: .destructive) {
+            deletingKeyStore = keyStore
+            deleteKeyStoreAlertPresented = true
+        } label: {
+            Label("Delete \"\(keyStore.name)\"", systemImage: "trash")
+        }
+
+        Divider()
+
+        Button {
+            presentSheet?(.backUpKeyStore(keyStore))
+        } label: {
+            Label("Back Up \"\(keyStore.name)\"", systemImage: "externaldrive.badge.timemachine")
+        }
+        .disabled(!keyStore.isLocal)
+
         Button {
             sidebarSelection.wrappedValue = keyStore.id
             editingName = keyStore.name
             editingId = keyStore.id
         } label: {
             Label("Rename \"\(keyStore.name)\"", systemImage: "pencil")
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            deletingKeyStore = keyStore
-            deleteKeyStoreAlertPresented = true
-        } label: {
-            Label("Delete \"\(keyStore.name)\"", systemImage: "trash")
-                .style(foreground: .red)
         }
     }
 
@@ -446,40 +454,38 @@ extension SidebarView {
     func updateBalances() {
         isUpdating = true
 
+        let accounts = allAccounts.compactMap { accountModel -> Account? in
+            do {
+                return try Account(model: accountModel)
+            } catch {
+                printError("Cannot create account model: \(error)")
+                return nil
+            }
+        }
+
         Task {
             let balancesService = DI.injectOrFail(BalancesService.self)
+            let tokenPriceService = DI.injectOrFail(TokenPriceService.self)
 
-            for accountModel in allAccounts {
-                guard let account = try? Account(model: accountModel) else {
-                    printError("Cannot create account model")
-                    return
-                }
-
+            // Balances first for every account, prices after: a price sweep fires
+            // many RPC calls and shouldn't delay (or rate-limit) the next account's balances.
+            for account in accounts {
                 do {
                     try await balancesService.updateBalances(account)
                 } catch {
-                    printError(error)
-                }
-
-                do {
-                    try await balancesService.updateTokenPrices(account)
-                } catch {
-                    printError(error)
+                    printError("\(account.name): \(error)")
                 }
             }
+
+            for account in accounts {
+                do {
+                    try await tokenPriceService.updateTokenPrices(account)
+                } catch {
+                    printError("\(account.name): \(error)")
+                }
+            }
+
             isUpdating = false
         }
     }
 }
-
-// MARK: - Preview
-
-/* #Preview {
-    Inject.mode = .preview
-    let databaseService = DI.injectOrFail(DatabaseService.self)
-
-    SidebarView()
-        .modelContainer(databaseService.modelContainer)
-        .listStyle(.sidebar)
-        .frame(width: 350)
-} */

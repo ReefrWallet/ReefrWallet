@@ -6,7 +6,6 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-import BigInt
 import SwiftData
 import SwiftUI
 import WalletKit
@@ -247,8 +246,10 @@ private extension TransferParametersView {
         guard selectedBalance.token.isNativeToken, let reserve = nativeFeeReserve else {
             return "\(selectedBalance.decimalAmount)"
         }
+
         var divisor = Decimal(1)
         for _ in 0..<selectedBalance.token.decimalsCount { divisor *= 10 }
+
         let feeDecimal = (Decimal(string: reserve.description) ?? 0) / divisor
         let maxAmount = max(selectedBalance.decimalAmount - feeDecimal, 0)
         return "\(maxAmount)"
@@ -258,6 +259,7 @@ private extension TransferParametersView {
         guard case .cardano = account.blockchain else {
             return false
         }
+
         return !(selectedBalance?.token.isNativeToken ?? true)
     }
 
@@ -267,6 +269,8 @@ private extension TransferParametersView {
     func validateAddress() -> Bool {
         do {
             switch account.blockchain {
+            case .aptos:
+                _ = try AptosAddress(string: receiverText)
             case let .bitcoin(network):
                 _ = try BitcoinDescriptor(address: receiverText, network: network)
             case let .cardano(network):
@@ -301,6 +305,7 @@ private extension TransferParametersView {
         var multiplier = Decimal(1)
         let decimals = balance.token.decimalsCount
         for _ in 0..<decimals { multiplier *= 10 }
+
         let scaled = NSDecimalNumber(decimal: amount * multiplier)
         let handler = NSDecimalNumberHandler(
             roundingMode: .down, scale: 0,
@@ -311,9 +316,11 @@ private extension TransferParametersView {
         guard scaled == scaled.rounding(accordingToBehavior: handler) else {
             return false
         }
+
         guard !isCardanoNativeAsset else {
             return UInt64(cardanoRecipientLovelaceText) != nil
         }
+
         return true
     }
 }

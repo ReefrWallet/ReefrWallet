@@ -6,7 +6,6 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-import BigInt
 import SwiftUI
 import WalletKit
 
@@ -21,6 +20,8 @@ struct TransactionFeesView {
 
     @Binding var fees: Fees?
 
+    @State private var aptosGasUnitPrice = ""
+    @State private var aptosMaxGasAmount = ""
     @State private var ethereumBaseFee = ""
     @State private var ethereumMaxFee = ""
     @State private var ethereumMaxPriorityFee = ""
@@ -40,6 +41,8 @@ extension TransactionFeesView: View {
     var body: some View {
         Section {
             switch blockchain {
+            case .aptos:
+                aptosFeesForm
             case .evm:
                 evmFeesForm
             case .sui:
@@ -69,6 +72,34 @@ extension TransactionFeesView: View {
 // MARK: - Subviews
 
 private extension TransactionFeesView {
+    @ViewBuilder
+    var aptosFeesForm: some View {
+        LabeledContent {
+            TextField("", text: $aptosGasUnitPrice)
+                .accessibilityIdentifier("transfer-aptos-gas-unit-price-field")
+        } label: {
+            Text("Gas unit price (octas)")
+                .style(.small, foreground: .secondary)
+        }
+
+        LabeledContent {
+            TextField("", text: $aptosMaxGasAmount)
+                .accessibilityIdentifier("transfer-aptos-max-gas-field")
+        } label: {
+            Text("Max gas")
+                .style(.small, foreground: .secondary)
+        }
+
+        LabeledContent {
+            TextField("", text: transactionCost)
+                .frame(height: 28)
+                .disabled(true)
+        } label: {
+            Text("Max transaction cost (USD)")
+                .style(.small, foreground: .secondary)
+        }
+    }
+
     @ViewBuilder
     var cardanoFeesForm: some View {
         Text("Network fee is calculated when the transaction is prepared.")
@@ -206,6 +237,8 @@ private extension TransactionFeesView {
 
 private extension TransactionFeesView {
     func apply(_ estimate: Fees?) {
+        aptosGasUnitPrice = estimate?.aptosGasUnitPrice ?? ""
+        aptosMaxGasAmount = estimate?.aptosMaxGasAmount ?? ""
         ethereumBaseFee = estimate?.ethereumBaseFee ?? ""
         ethereumMaxPriorityFee = estimate?.ethereumMaxPriorityFee ?? ""
         ethereumMaxFee = estimate?.ethereumMaxFee ?? ""
@@ -217,12 +250,13 @@ private extension TransactionFeesView {
         solanaComputeUnitLimit = estimate?.solanaComputeUnitLimit ?? ""
     }
 
-    /// Fetches the native token's USD price via the blockchain's WalletKit
-    /// client, used to convert `estimatedFees.nativeFeeReserve` into a USD cost.
+    /// Fetches the native token's USD price to convert
+    /// `estimatedFees.nativeFeeReserve` into a USD cost.
     func loadNativeTokenPrice() async {
         do {
-            let client = try await DI.injectOrFail(BlockchainClientProvider.self).getClient(blockchain: blockchain)
-            nativeTokenPriceUSD = try await client.getTokenPrice(nil)
+            let token = Token(address: nil, blockchain: blockchain, tokenInfo: blockchain.nativeToken)
+            nativeTokenPriceUSD = try await DI.injectOrFail(TokenPriceService.self)
+                .usdPrice(token, rpcURL: blockchain.rpcURL)
         } catch {
             printError("\(blockchain.displayName): \(error)")
             nativeTokenPriceUSD = nil
@@ -231,7 +265,7 @@ private extension TransactionFeesView {
 
     /// Total network fee, converted from the chain's smallest unit into a
     /// formatted USD string. Empty when the estimate or price isn't available
-    /// yet (e.g. Sui pricing isn't implemented in WalletKit).
+    /// yet (for example, when no configured price source supports the chain).
     var transactionCost: Binding<String> {
         guard
             let nativeFeeReserve = estimatedFees?.nativeFeeReserve,
@@ -253,6 +287,13 @@ private extension TransactionFeesView {
 
     var validatedFees: Fees? {
         switch blockchain {
+        case .aptos:
+            guard let price = UInt64(aptosGasUnitPrice), price > 0, let gas = UInt64(aptosMaxGasAmount), gas > 0 else {
+                return nil
+            }
+
+            return Fees(aptosGasUnitPrice: aptosGasUnitPrice, aptosMaxGasAmount: aptosMaxGasAmount)
+
         case .evm:
             guard BigUInt(ethereumMaxPriorityFee) != nil, BigUInt(ethereumMaxFee) != nil else {
                 return nil
@@ -263,24 +304,28 @@ private extension TransactionFeesView {
                 ethereumMaxFee: ethereumMaxFee,
                 ethereumMaxPriorityFee: ethereumMaxPriorityFee
             )
+
         case .sui:
             guard UInt64(suiGasBudget) != nil, UInt64(suiGasPrice) != nil else {
                 return nil
             }
 
             return Fees(suiGasBudget: suiGasBudget, suiGasPrice: suiGasPrice)
+
         case .bitcoin:
             guard UInt64(bitcoinFeeRate) != nil else {
                 return nil
             }
 
             return Fees(bitcoinFeeRate: bitcoinFeeRate)
+
         case .cardano:
             guard estimatedFees != nil else {
                 return nil
             }
 
             return Fees()
+
         case .tron:
             guard estimatedFees != nil else {
                 return nil
@@ -291,6 +336,7 @@ private extension TransactionFeesView {
             }
 
             return Fees(tronFeeLimit: tronFeeLimit.isEmpty ? nil : tronFeeLimit)
+
         case .solana:
             guard estimatedFees != nil else {
                 return nil

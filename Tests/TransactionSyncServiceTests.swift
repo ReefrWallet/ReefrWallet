@@ -43,6 +43,7 @@ struct TransactionSyncServiceTests {
             if !(try await databaseService.fetchTransactions(accountId: accountId)).isEmpty {
                 return
             }
+
             try await Task.sleep(for: .milliseconds(500))
         }
 
@@ -54,7 +55,7 @@ struct TransactionSyncServiceTests {
         )
     }
 
-    @Test
+    @Test(.localNode)
     func capturesTwoWayLocalEthereumAndSuiTransfers() async throws {
         let fixture = try await TransactionSyncFixture.make()
 
@@ -75,7 +76,7 @@ struct TransactionSyncServiceTests {
         }
     }
 
-    @Test
+    @Test(.localNode)
     func capturesTransactionsBroadcastWhileSynchronizationContinues() async throws {
         let fixture = try await TransactionSyncFixture.make()
 
@@ -90,6 +91,7 @@ struct TransactionSyncServiceTests {
             databaseService: fixture.databaseService,
             transactionHistorySources: []
         )
+
         for account in fixture.ethereumAccounts {
             await service.start(account)
         }
@@ -110,7 +112,7 @@ struct TransactionSyncServiceTests {
         try await fixture.waitForEthereumTransactions(initialHashes.union([secondHash]), timeout: .seconds(10))
     }
 
-    @Test
+    @Test(.localNode)
     func capturesSuiTransactionsBroadcastWhileSynchronizationContinues() async throws {
         let fixture = try await TransactionSyncFixture.make()
 
@@ -267,6 +269,7 @@ struct TransactionSyncServiceTests {
             keyStoreId: keyStoreId,
             name: "Ethereum Mainnet Token Balance Watch-Only"
         )
+
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
 
         let service = TransactionSyncService(databaseService: databaseService)
@@ -509,6 +512,7 @@ struct TransactionSyncServiceTests {
         }
     }
 }
+
 // swiftlint:enable type_body_length
 
 private extension TransactionSyncServiceTests {

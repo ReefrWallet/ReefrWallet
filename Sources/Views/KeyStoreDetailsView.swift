@@ -31,9 +31,7 @@ struct KeyStoreDetailsView: View {
                 accountBalancesView
                     .padding(.leading)
             } else {
-                Text("Zero Balances")
-                    .style(.medium, foreground: .secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                EmptyStateView("Zero Balances")
             }
         }
         .task(id: keyStore.id) {

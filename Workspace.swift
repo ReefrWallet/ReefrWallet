@@ -14,10 +14,9 @@ let workspace =  Workspace(
     projects: [".", "WalletKit"],
     schemes: [
         .scheme(name: "\(workspaceName)-Workspace", hidden: true),
-        .scheme(name: "Generate Project", hidden: false),
+        .scheme(name: "Generate Project", hidden: false)
     ],
     additionalFiles: [
-        ".github/**/*",
         ".swiftlint.yml",
         "Tuist/Package.swift",
         "Tuist/ProjectDescriptionHelpers/**/*.swift",

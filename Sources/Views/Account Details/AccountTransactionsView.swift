@@ -50,8 +50,15 @@ struct AccountTransactionsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading)
 
-            List(rows) { model in
-                TransactionRow(model: model, blockchain: account.blockchain)
+            Group {
+                if transactions.isEmpty {
+                    EmptyStateView("No Transactions")
+                        .accessibilityIdentifier("account-no-transactions")
+                } else {
+                    List(rows) { model in
+                        TransactionRow(model: model, blockchain: account.blockchain)
+                    }
+                }
             }
             .task(id: refreshId) {
                 let presenter = TransactionRowPresenters.presenter(for: account.blockchain)

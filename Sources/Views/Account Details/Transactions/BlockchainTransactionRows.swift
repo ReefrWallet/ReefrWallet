@@ -1,5 +1,15 @@
 import SwiftUI
 
+struct AptosTransactionRow: View {
+    let model: TransactionRowModel
+
+    var body: some View {
+        TransactionRowLayout(model: model, subtitle: model.blockHeight.map { "Version \($0)" } ?? "Pending") {
+            TransactionEffectsDetail(effects: model.effects)
+        }
+    }
+}
+
 struct BitcoinTransactionRow: View {
     let model: TransactionRowModel
 

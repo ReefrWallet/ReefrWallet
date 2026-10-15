@@ -5,7 +5,6 @@
 //  Created by Andrey Yurkevich on 18/09/2026.
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 

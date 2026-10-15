@@ -13,6 +13,15 @@ enum BalancesTableEntry: Identifiable {
     case hiddenBalancesTitle
     case none
 
+    /// Stable per-token hook for UI tests, e.g. `balance-amount-USDC`.
+    var amountAccessibilityIdentifier: String {
+        if case let .balance(balance) = self {
+            "balance-amount-\(balance.token.symbol)"
+        } else {
+            ""
+        }
+    }
+
     var decimalAmount: Decimal {
         if case let .balance(balance) = self {
             balance.decimalAmount

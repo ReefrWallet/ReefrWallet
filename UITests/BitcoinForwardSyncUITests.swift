@@ -41,6 +41,7 @@ final class BitcoinForwardSyncUITests: XCTestCase {
         app = nil
     }
 
+    // swiftlint:disable:next function_body_length
     func testTransactionSentAfterBackfillIsReceivedByRecipient() async throws {
         app.launch()
         app.activate()
@@ -60,6 +61,7 @@ final class BitcoinForwardSyncUITests: XCTestCase {
             XCTFail("Expected a native Bitcoin balance row.")
             return
         }
+
         bitcoinRow.click()
 
         let sendButton = app.firstDescendant(withIdentifier: "account-send-button")
@@ -67,6 +69,7 @@ final class BitcoinForwardSyncUITests: XCTestCase {
             sendButton.waitUntilEnabled(timeout: 10),
             "Expected Send to enable once the BTC row is selected."
         )
+
         sendButton.click()
 
         let sentAmount = "0.0001"
@@ -96,6 +99,7 @@ final class BitcoinForwardSyncUITests: XCTestCase {
             nextButton.waitUntilEnabled(timeout: 5),
             "Expected Next to enable once a valid fee rate is entered."
         )
+
         nextButton.click()
 
         let sheetTitle = app.firstDescendant(withIdentifier: "transfer-sheet-title")
@@ -206,6 +210,7 @@ private extension BitcoinForwardSyncUITests {
             let accountPath = try DerivationPath.bitcoinAccount(
                 network: .regtest, scriptType: .p2wpkh, accountIndex: UInt32(index)
             )
+
             let accountKey = try masterKey.derive(accountPath)
             let descriptor = try BitcoinDescriptor(
                 xpub: accountKey.serializedPublic(),
@@ -214,6 +219,7 @@ private extension BitcoinForwardSyncUITests {
                 masterFingerprint: masterFingerprint,
                 accountPath: String(accountPath.string.dropFirst(2))
             )
+
             return try descriptor.deriveAddress(chain: 0, index: 0).string()
         }
 

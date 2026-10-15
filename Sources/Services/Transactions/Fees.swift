@@ -7,6 +7,11 @@
 //
 
 struct Fees: Equatable {
+    /// Aptos octas per gas unit.
+    let aptosGasUnitPrice: String?
+    /// Aptos gas units the transaction may consume.
+    let aptosMaxGasAmount: String?
+
     /// The fee rate, in sat/vB, for a Bitcoin transfer.
     let bitcoinFeeRate: String?
 
@@ -35,6 +40,8 @@ struct Fees: Equatable {
     let nativeFeeReserve: String?
 
     init(
+        aptosGasUnitPrice: String? = nil,
+        aptosMaxGasAmount: String? = nil,
         bitcoinFeeRate: String? = nil,
         cardanoRecipientLovelace: String? = nil,
         ethereumBaseFee: String? = nil,
@@ -48,6 +55,8 @@ struct Fees: Equatable {
         suiGasPrice: String? = nil,
         tronFeeLimit: String? = nil
     ) {
+        self.aptosGasUnitPrice = aptosGasUnitPrice
+        self.aptosMaxGasAmount = aptosMaxGasAmount
         self.bitcoinFeeRate = bitcoinFeeRate
         self.cardanoRecipientLovelace = cardanoRecipientLovelace
         self.ethereumBaseFee = ethereumBaseFee

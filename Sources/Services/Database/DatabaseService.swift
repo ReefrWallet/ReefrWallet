@@ -1,4 +1,3 @@
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -8,6 +7,7 @@ actor DatabaseService {
     func insertBlockchain(_ blockchain: Blockchain) throws -> PersistentIdentifier {
         let serializedBlockchain = try blockchain.asJSONString()
         let predicate = #Predicate<BlockchainModel> { $0.serialized == serializedBlockchain }
+
         guard try modelContext.fetch(FetchDescriptor(predicate: predicate)).isEmpty else {
             throw Error.alreadyExists
         }

@@ -56,7 +56,7 @@ struct BalancesServiceTests {
         }
     }
 
-    @Test
+    @Test(.localNode)
     func updateBalancesPersistsAnvilNativeBalanceAndUsdValuesAggregate() async throws {
         let repositoryURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -106,6 +106,7 @@ struct BalancesServiceTests {
             symbol: updatedBalance.token.symbol,
             usdPrice: 2_000
         )
+
         try await databaseService.saveBalance(Balance(
             account: account,
             amount: nativeAmount,
@@ -139,6 +140,7 @@ struct BalancesServiceTests {
         await #expect(throws: Error.notFound) {
             try await balancesService.usdValue(accountId: accountId)
         }
+
         await #expect(throws: Error.notFound) {
             try await balancesService.usdValue(keyStoreId: keyStoreId)
         }

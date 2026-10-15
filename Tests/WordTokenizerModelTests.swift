@@ -71,7 +71,7 @@ struct WordTokenizerModelTests {
     func pastingATwelveWordPhraseYieldsTwelveTokens() {
         let model = WordTokenizerModel(wordlist: .english)
         let id = model.insertEditor(at: 0)
-        let pasted = Mnemonic.generate(wordCount: .words12).phrase
+        let pasted = Mnemonic.generate(wordCount: .`12`).phrase
 
         // Every segment but the last commits immediately; the trailing
         // word (no trailing space in `pasted`) stays in the editor until
@@ -81,7 +81,10 @@ struct WordTokenizerModelTests {
         model.commitEditor()
 
         let words = model.entries.filter { entry in
-            if case .word = entry { return true }
+            if case .word = entry {
+                return true
+            }
+
             return false
         }
         #expect(words.count == 12)
@@ -114,7 +117,7 @@ struct WordTokenizerModelTests {
     @Test
     func loadThenPhraseRoundTripsAGeneratedMnemonic() {
         let model = WordTokenizerModel(wordlist: .english)
-        let generated = Mnemonic.generate(wordCount: .words24).phrase
+        let generated = Mnemonic.generate(wordCount: .`24`).phrase
 
         model.load(phrase: generated)
 
@@ -124,7 +127,7 @@ struct WordTokenizerModelTests {
     @Test
     func generatedPhraseWordsAreValidAgainstTheWordlist() {
         let model = WordTokenizerModel(wordlist: .english)
-        let generated = Mnemonic.generate(wordCount: .words24).phrase
+        let generated = Mnemonic.generate(wordCount: .`24`).phrase
         model.load(phrase: generated)
 
         let index = WordlistIndex.index(for: .english)

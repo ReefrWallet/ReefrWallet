@@ -5,7 +5,6 @@
 //  Created by Andrey Yurkevich on 18/09/2026.
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -70,6 +69,7 @@ extension DatabaseService {
         }
 
         let keyStorePredicate = #Predicate<KeyStoreModel> { $0.persistentModelID == keyStoreId }
+
         guard let keyStore = try modelContext.fetch(FetchDescriptor(predicate: keyStorePredicate)).first else {
             throw Error.notFound
         }

@@ -1,4 +1,3 @@
-import Foundation
 import WalletKit
 
 struct SuiArchiveTransactionHistorySource: TransactionHistorySource {

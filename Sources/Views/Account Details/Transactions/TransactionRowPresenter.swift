@@ -1,4 +1,3 @@
-import Foundation
 import WalletKit
 
 protocol TransactionRowPresenter: Sendable {
@@ -9,6 +8,8 @@ protocol TransactionRowPresenter: Sendable {
 enum TransactionRowPresenters {
     static func presenter(for blockchain: Blockchain) -> any TransactionRowPresenter {
         switch blockchain {
+        case .aptos:
+            AptosTransactionRowPresenter()
         case .bitcoin:
             BitcoinTransactionRowPresenter()
         case .cardano:
@@ -21,6 +22,21 @@ enum TransactionRowPresenters {
             SuiTransactionRowPresenter()
         case .tron:
             TronTransactionRowPresenter()
+        }
+    }
+}
+
+/// Aptos effects are the account's own signed net amounts per asset.
+struct AptosTransactionRowPresenter: TransactionRowPresenter {
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(transaction: transaction, account: account, direction: .signedAmounts)
+    }
+
+    func supports(_ blockchain: Blockchain) -> Bool {
+        if case .aptos = blockchain {
+            true
+        } else {
+            false
         }
     }
 }
@@ -120,6 +136,7 @@ private extension TransactionRowModel {
         let effects = transaction.effects.map {
             TransactionRowEffect(effect: $0, account: account, direction: direction)
         }
+
         let primaryEffect = effects.first
         let sender: String?
         let recipient: String?
@@ -230,6 +247,7 @@ private extension TransactionRowEffect {
         let token = effect.balance?.token
         let decimals = token?.decimalsCount ?? account.blockchain.nativeToken.decimals
         let rawAmount = effect.amount.flatMap { Decimal(string: $0) }
+
         let unsignedAmount = rawAmount.map {
             $0 * Decimal(sign: .plus, exponent: -Int(decimals), significand: 1)
         }
@@ -240,6 +258,7 @@ private extension TransactionRowEffect {
             accountAddress: account.address,
             direction: direction
         )
+
         assetIdentifier = effect.assetIdentifier
         id = effect.stableId
         imageURL = token?.imageURL

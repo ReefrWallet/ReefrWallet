@@ -32,6 +32,7 @@ struct AccountDetailsView {
         let predicate = #Predicate<BalanceModel> { item in
             item.account.id == accountId
         }
+
         self.account = account
         self.keyStore = keyStore
 
@@ -70,6 +71,7 @@ extension AccountDetailsView: View {
             .disabled(!isSendButtonActive)
             .accessibilityIdentifier("account-send-button")
         }
+
         // Balance refreshes update `BalanceModel` in place, so its persistent
         // identifier does not change when the on-chain amount changes. Include
         // the serialized amount in the task identity so the cached value list
@@ -109,6 +111,7 @@ private extension AccountDetailsView {
                   let address = try? descriptor.deriveAddress(chain: 0, index: 0) else {
                 return account.address
             }
+
             return address.string()
         case .cardano:
             return (try? CardanoAccountDescriptor(string: account.address).receiveAddress.string) ?? account.address

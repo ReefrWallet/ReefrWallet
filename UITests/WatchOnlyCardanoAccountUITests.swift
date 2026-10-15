@@ -118,6 +118,7 @@ private extension WatchOnlyCardanoAccountUITests {
             hiddenDisclosure.waitForExistence(timeout: 10),
             "Expected native-asset balances to appear in the Hidden Balances section."
         )
+
         app.expandHiddenBalances()
 
         let hiddenBalances = app.descendants(matching: .any)

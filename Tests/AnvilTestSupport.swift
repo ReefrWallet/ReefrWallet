@@ -67,7 +67,7 @@ func makeLocalKeyStore(
     databaseService: DatabaseService,
     name: String = "Anvil Local Test Key Store"
 ) async throws -> KeyStore {
-    let mnemonic = Mnemonic.generate(wordCount: .words12)
+    let mnemonic = Mnemonic.generate(wordCount: .`12`)
     let keyStoreId = try await databaseService.insertKeyStore(KeyStore(
         deviceId: nil,
         kind: .local,
@@ -112,12 +112,15 @@ struct Deployer {
             data: data,
             chainId: node.chainId
         )
+
         let signed = try await signer.sign(transaction: transaction.signingData)
         let hash = try await client.broadcast(signed)
         let receipt = try await node.waitForReceipt(hash)
+
         guard receipt.status == "0x1" else {
             throw EthereumLaunchError(description: "transaction from deployer reverted")
         }
+
         return receipt
     }
 }
@@ -227,6 +230,7 @@ func decodeHex(_ hexString: String) -> Data {
         data.append(UInt8(hex[index ..< next], radix: 16)!) // swiftlint:disable:this force_unwrapping
         index = next
     }
+
     return data
 }
 

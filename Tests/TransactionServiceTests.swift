@@ -14,7 +14,7 @@ import Testing
 import WalletKitTesting
 @testable import ReefrWallet
 
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.timeLimit(.minutes(1)), .localNode)
 struct TransactionServiceTests {
     @Test
     func transferERC20UpdatesSenderAndRecipientBalances() async throws {
@@ -38,7 +38,7 @@ struct TransactionServiceTests {
 /// to cross-check what `BalancesService`/`TransactionService` report.
 private struct TransactionFixture {
     let node: EthereumNode
-    let client: AnyBlockchainClient
+    let client: any BlockchainClientProtocol
     let databaseService: DatabaseService
     let balancesService: BalancesService
     let feeEstimationService: FeeEstimationService
@@ -155,6 +155,7 @@ private struct TransactionFixture {
             ],
             for: sender
         )
+
         try await databaseService.saveTransactions(
             [
                 BlockchainTransaction(
@@ -178,7 +179,7 @@ private struct TransactionFixture {
 
         // Use BlockchainClientProvider directly as an independent oracle,
         // separate from the DB-backed BalancesService/TransactionService path.
-        let client = try await BlockchainClientProvider().getClient(blockchain: blockchain, rpcURL: node.endpoint)
+        let client = try BlockchainClientProvider().makeClient(blockchain: blockchain, rpcURL: node.endpoint)
 
         return TransactionFixture(
             node: node,

@@ -216,6 +216,7 @@ extension AddKeyStoreView {
                         self.error = error
                         isAlertPresented = true
                     }
+
                 case Options.generateNewKey:
                     seedPhrase = keyStoreService.generateSeedPhrase()
                     viewState = .newKey
@@ -226,6 +227,7 @@ extension AddKeyStoreView {
                     preconditionFailure("Unknown option selected: \(selectedOption)")
                 }
             }
+
         case .newKey, .restore:
             Task {
                 do {

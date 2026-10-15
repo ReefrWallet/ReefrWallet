@@ -9,7 +9,7 @@ extension XCUIApplication {
     /// A live backfill keeps rewriting balances underneath the table, so the
     /// click can land on a row the next refresh replaces. Retry until the hidden
     /// rows are actually on screen.
-    func expandHiddenBalances(timeout: TimeInterval = 30) {
+    func expandHiddenBalances(timeout: TimeInterval = 10) {
         let triangle = outlines
             .matching(NSPredicate(format: "identifier == %@", "account-balances-content"))
             .firstMatch

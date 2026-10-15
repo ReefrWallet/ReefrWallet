@@ -1,4 +1,3 @@
-import Foundation
 import WalletKit
 
 final class KeyStoreService {
@@ -42,6 +41,6 @@ final class KeyStoreService {
     }
 
     func generateSeedPhrase() -> String {
-        Mnemonic.generate(wordCount: .words12).phrase
+        Mnemonic.generate().phrase
     }
 }

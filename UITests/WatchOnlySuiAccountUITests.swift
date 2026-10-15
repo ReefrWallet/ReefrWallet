@@ -52,6 +52,7 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
                 balances.waitForExistence(timeout: 20),
                 "Sui Testnet account #\(accountNumber) should display its local-node balance."
             )
+
             XCTAssertFalse(zeroBalances.exists)
         }
     }
@@ -81,6 +82,7 @@ final class WatchOnlySuiAccountUITests: XCTestCase {
             transactionCount.text.hasSuffix(" Transactions"),
             "Expected a transaction count, got: \(transactionCount.text)"
         )
+
         XCTAssertFalse(app.firstDescendant(withIdentifier: "account-total-value-label").exists)
     }
 

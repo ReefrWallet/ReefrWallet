@@ -3,7 +3,6 @@
 //  Reefr Wallet
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -34,7 +33,11 @@ struct WalletTransaction: Identifiable, Sendable {
         self.id = nil
         self.accountId = accountId
         chainIdentifier = try account.blockchain.asJSONString()
-        let stableId = "\(accountId)|\(chainIdentifier)|\(transaction.identifier)"
+        let stableId = try Self.stableId(
+            accountId: accountId,
+            chainIdentifier: chainIdentifier,
+            identifier: transaction.identifier
+        )
         self.stableId = stableId
         blockHeight = transaction.blockHeight
         blockHash = transaction.blockHash
@@ -63,6 +66,26 @@ struct WalletTransaction: Identifiable, Sendable {
         status = BlockchainTransactionStatus(rawValue: model.status) ?? .unconfirmed
         rawPayload = model.rawPayload
         effects = try model.effects.map(WalletTransactionEffect.init(model:))
+    }
+
+    static func stableId(accountId: PersistentIdentifier, chainIdentifier: String, identifier: String) throws -> String {
+        "\(try accountId.stableKey())|\(chainIdentifier)|\(identifier)"
+    }
+}
+
+extension PersistentIdentifier {
+    private struct Encoded: Decodable {
+        struct Implementation: Decodable {
+            let uriRepresentation: String
+        }
+
+        let implementation: Implementation
+    }
+
+    /// The store URI (`x-coredata://<store>/<Entity>/p<N>`). Unlike `description`, which
+    /// embeds a per-load object address, it's the same across launches and contexts.
+    func stableKey() throws -> String {
+        try JSONDecoder().decode(Encoded.self, from: JSONEncoder().encode(self)).implementation.uriRepresentation
     }
 }
 

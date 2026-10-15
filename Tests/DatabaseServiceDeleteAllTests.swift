@@ -13,7 +13,7 @@ import Testing
 import WalletKitTesting
 @testable import ReefrWallet
 
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.timeLimit(.minutes(1)), .localNode)
 struct DatabaseServiceDeleteAllTests {
     @Test
     func deleteAllBalancesRemovesBalancesButKeepsTokens() async throws {
@@ -139,7 +139,7 @@ private struct AnvilBalancesFixture {
             mockUSDCAddress: mockUSDCAddress
         )
 
-        for (index, account) in [accountA, accountB].enumerated() {
+        for account in [accountA, accountB] {
             try await databaseService.saveTransactions(
                 [
                     BlockchainTransaction(

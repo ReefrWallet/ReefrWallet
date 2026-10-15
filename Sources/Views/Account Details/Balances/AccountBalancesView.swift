@@ -51,9 +51,7 @@ struct AccountBalancesView: View {
             }
             .accessibilityIdentifier("account-balances-content")
         } else {
-            Text("Zero Balances")
-                .style(.medium, foreground: .secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            EmptyStateView("Zero Balances")
                 .accessibilityIdentifier("account-zero-balances")
         }
     }
@@ -91,10 +89,12 @@ private extension AccountBalancesView {
                     .accessibilityIdentifier(
                         balance.token.isHidden ? "balance-row-hidden-\(entry.id)" : "balance-row-visible-\(entry.id)"
                     )
+
                 case .hiddenBalancesTitle:
                     Text(entry.displayName)
                         .style(.smallHeader, foreground: .secondary)
                         .accessibilityIdentifier("balances-table-hidden-disclosure-row")
+
                 case .none:
                     EmptyView()
                 }
@@ -112,6 +112,7 @@ private extension AccountBalancesView {
                 Text(entry.displayAmount)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
+                    .accessibilityIdentifier(entry.amountAccessibilityIdentifier)
             }
             .customizationID("balance")
 

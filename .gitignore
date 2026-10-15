@@ -80,3 +80,6 @@ Tuist/ProjectDescriptionHelpers/Project+Version.swift
 WalletKit.prev/
 *.trace/
 .build/
+
+### Sui SDK bundle tooling ###
+Scripts/*/node_modules/

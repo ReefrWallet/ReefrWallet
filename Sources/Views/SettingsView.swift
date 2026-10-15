@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage("ProxyPort") private var proxyPort: Int = 9090
     @AppStorage("UseProxy") private var useProxy: Bool = false
 
+    @AppStorage("AptosAPIKey") private var aptosAPIKey: String = ""
     @AppStorage("EtherscanAPIKey") private var etherscanAPIKey: String = ""
     @AppStorage("BlockfrostMainnetProjectID") private var blockfrostMainnetProjectId: String = ""
     @AppStorage("BlockfrostPreprodProjectID") private var blockfrostPreprodProjectId: String = ""
@@ -21,6 +22,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(header: Text("Transaction History")) {
+                TextField("Aptos Labs API Key", text: $aptosAPIKey)
+
+                Text("Used for Aptos node and indexer requests. Works without one at lower rate limits.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
                 TextField("Etherscan API Key", text: $etherscanAPIKey)
 
                 Text("Used for EVM history backfill. Falls back to Blockscout when empty.")

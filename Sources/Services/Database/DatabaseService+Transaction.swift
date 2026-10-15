@@ -5,7 +5,6 @@
 //  Created by Andrey Yurkevich on 18/09/2026.
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -47,8 +46,20 @@ extension DatabaseService {
         return try modelContext.fetch(descriptor).map(WalletTransaction.init(model:))
     }
 
+    /// The highest block height among the account's stored transactions.
+    func latestTransactionBlockHeight(accountId: PersistentIdentifier) throws -> UInt64? {
+        var descriptor = FetchDescriptor<WalletTransactionModel>(
+            predicate: #Predicate { $0.account.persistentModelID == accountId && $0.blockHeight != nil },
+            sortBy: [SortDescriptor(\.blockHeight, order: .reverse)]
+        )
+
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first?.blockHeight
+    }
+
     func transactionSyncState(accountId: PersistentIdentifier) throws -> WalletTransactionSyncState {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
+
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound
         }
@@ -90,12 +101,14 @@ extension DatabaseService {
         var effectIndex = try fetchEffectIndex(
             stableIds: Set(walletTransactions.flatMap(\.effects).map(\.stableId))
         )
+
         let tokenAddresses = Set(
             walletTransactions
                 .flatMap(\.effects)
                 .filter { $0.kind == .tokenTransfer }
                 .compactMap(\.assetIdentifier)
         )
+
         let balanceIndex = try fetchBalanceIndex(
             accountId: accountId,
             tokenAddresses: tokenAddresses,
@@ -157,6 +170,7 @@ extension DatabaseService {
     func saveTransactionSyncState(_ state: WalletTransactionSyncState) throws {
         let accountId = state.accountId
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
+
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw Error.notFound
         }
@@ -171,6 +185,7 @@ extension DatabaseService {
         }
 
         let predicate = #Predicate<WalletTransactionModel> { $0.account.persistentModelID == accountId }
+
         let transactions = try modelContext.fetch(FetchDescriptor(predicate: predicate))
 
         let tokenAddresses = Set(
@@ -186,11 +201,23 @@ extension DatabaseService {
             blockchain: account.blockchain
         )
 
+        // EVM contract addresses are case-insensitive; older effects store the
+        // lowercase spelling while balances use the checksummed one.
+        var caseInsensitiveIndex: [String: BalanceModel] = [:]
+
+        if case .evm = account.blockchain {
+            for balance in try fetchBalanceModels(accountId: accountId) {
+                if let address = balance.token.address {
+                    caseInsensitiveIndex[address.lowercased()] = balance
+                }
+            }
+        }
+
         for transaction in transactions {
             for effect in transaction.effects {
                 guard effect.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue,
                       let tokenAddress = effect.assetIdentifier,
-                      let balance = balanceIndex[tokenAddress]
+                      let balance = balanceIndex[tokenAddress] ?? caseInsensitiveIndex[tokenAddress.lowercased()]
                 else {
                     continue
                 }
@@ -200,6 +227,51 @@ extension DatabaseService {
         }
 
         try modelContext.save()
+    }
+
+    /// Rewrites stable ids from the old `PersistentIdentifier.description` form, which changed
+    /// per launch and duplicated rows on every rescan, and drops the duplicates. A no-op once done.
+    func normalizeTransactionStableIds() throws {
+        var groups: [String: [WalletTransactionModel]] = [:]
+
+        for model in try modelContext.fetch(FetchDescriptor<WalletTransactionModel>()) {
+            let stableId = try WalletTransaction.stableId(
+                accountId: model.account.persistentModelID,
+                chainIdentifier: model.chainIdentifier,
+                identifier: model.identifier
+            )
+
+            groups[stableId, default: []].append(model)
+        }
+
+        let stale = groups.filter { stableId, models in models.count > 1 || models[0].stableId != stableId }
+
+        guard !stale.isEmpty else {
+            return
+        }
+
+        // Prefer the row with a block height (confirmed), so a stale "Pending" copy goes.
+        var survivors: [String: WalletTransactionModel] = [:]
+
+        for (stableId, models) in stale {
+            let sorted = models.sorted { ($0.blockHeight != nil ? 0 : 1) < ($1.blockHeight != nil ? 0 : 1) }
+            survivors[stableId] = sorted[0]
+            sorted.dropFirst().forEach(modelContext.delete)
+        }
+
+        // Deletes first, so renamed rows can't collide with a unique id still being dropped.
+        try modelContext.save()
+
+        for (stableId, model) in survivors {
+            model.stableId = stableId
+
+            for effect in model.effects {
+                effect.stableId = "\(stableId)|\(effect.effectIndex)|\(effect.kind)"
+            }
+        }
+
+        try modelContext.save()
+        printDebug("Normalized \(stale.count) transaction ids")
     }
 }
 
@@ -257,6 +329,7 @@ private extension DatabaseService {
         }
 
         let predicate = #Predicate<WalletTransactionEffectModel> { stableIds.contains($0.stableId) }
+
         let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
         return Dictionary(models.map { ($0.stableId, $0) }, uniquingKeysWith: { first, _ in first })
     }
@@ -267,7 +340,16 @@ private extension DatabaseService {
         }
 
         let predicate = #Predicate<WalletTransactionModel> { stableIds.contains($0.stableId) }
+
         let models = try modelContext.fetch(FetchDescriptor(predicate: predicate))
         return Dictionary(models.map { ($0.stableId, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+}
+
+private extension DatabaseService {
+    func fetchBalanceModels(accountId: PersistentIdentifier) throws -> [BalanceModel] {
+        try modelContext.fetch(FetchDescriptor<BalanceModel>(
+            predicate: #Predicate { $0.account.persistentModelID == accountId }
+        ))
     }
 }

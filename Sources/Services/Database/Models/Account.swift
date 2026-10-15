@@ -6,8 +6,6 @@
 //  Copyright © 2025 Reefr Wallet. All rights reserved.
 //
 
-import BigInt
-import Foundation
 import SwiftData
 import WalletKit
 

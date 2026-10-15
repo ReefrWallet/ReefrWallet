@@ -6,7 +6,6 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-import Foundation
 import Observation
 import WalletKit
 
@@ -69,7 +68,10 @@ extension WordTokenizerModel {
     /// blur destroys the token, and later words shift left).
     func commitEditor() {
         guard let position = entries.firstIndex(where: { entry in
-            if case .editor = entry { return true }
+            if case .editor = entry {
+                return true
+            }
+
             return false
         }) else {
             return
@@ -158,11 +160,13 @@ extension WordTokenizerModel {
         }
 
         let filtered = text.lowercased().filter { $0.isWhitespace || index.isAllowed($0) }
+
         let endsWithWhitespace = filtered.last?.isWhitespace ?? false
         var segments = filtered.split(whereSeparator: \.isWhitespace).map(String.init)
         let tail = endsWithWhitespace ? "" : (segments.popLast() ?? "")
 
         let committed = segments.map { Entry.word(id: UUID(), text: $0) }
+
         let replacement = committed + [Entry.editor(id: id, text: tail)]
 
         entries.replaceSubrange(position...position, with: replacement)

@@ -53,11 +53,18 @@ type_name:
   max_length: 51
 
 custom_rules:
-  date_now:
+  closing_call_newline:
     included: ".*.swift"
-    regex: '(\s+)Date(\s+)?\((\s+)?\)(\s+)?'
-    name: "Date() denied"
-    message: "Date() denied, use Date.now instead"
+    regex: '^\s*\)\n(?:[ \t]+)?[^\s\}\]\)\#\.\"]'
+    name: "Closing scope newline"
+    message: "Add newline after closing scope"
+    severity: warning
+
+  closing_scope_newline:
+    included: ".*.swift"
+    regex: '^\s*\}\n(?:[ \t]+)?[^\s\}\]\)\#\.\"]'
+    name: "Closing scope newline"
+    message: "Add newline after closing scope"
     severity: warning
 
   deny_print:
@@ -114,7 +121,7 @@ custom_rules:
 
   return_in_3_rows:
     included: ".*.swift"
-    regex: '\{ return \}'
+    regex: '\{ (return|throw|continue|break)'
     name: "Write return in 3 rows"
     message: "Write return in 3 rows"
     severity: warning

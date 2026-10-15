@@ -6,13 +6,14 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-import BigInt
-import Foundation
 import WalletKit
 
 // MARK: - TransactionService
 
-final class TransactionService {
+/// `@unchecked Sendable`: a DI-injected singleton, called from concurrent
+/// contexts already (like every other service in `Sources/Services`); needed
+/// here only because ``EthereumDappProvider`` (`Sendable`) stores one.
+final class TransactionService: @unchecked Sendable {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
     private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
@@ -43,17 +44,23 @@ final class TransactionService {
         let amount = try token.smallestUnitAmount(from: decimalAmount)
         // nil token identifier → native asset; non-nil → ERC-20 / Sui coin type.
         let tokenId: String? = token.isNativeToken ? nil : token.address
+
         var options = try fees.map { try buildOptions($0, blockchain: blockchain) } ?? []
+
         if case .cardano = blockchain, !token.isNativeToken {
             guard let cardanoRecipientLovelace, let lovelace = UInt64(cardanoRecipientLovelace) else {
                 throw Error.invalidData
             }
+
             options.append(.cardanoRecipientLovelace(lovelace))
         }
 
-        let builder = try await clientProvider.getBuilder(
-            blockchain: blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        let builder = try clientProvider.makeTransactionBuilder(
+            blockchain: blockchain,
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
         )
+
         return try await builder.buildTransfer(
             sender: account.address,
             recipient: recipient,
@@ -88,9 +95,12 @@ final class TransactionService {
     ///   - account: The sending account.
     /// - Returns: The transaction hash (Ethereum) or digest (Sui).
     func sendTransaction(_ txRequest: Data, _ txSignature: Data, account: Account) async throws -> String {
-        let client = try await clientProvider.getClient(
-            blockchain: account.blockchain, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend
+        let client = try clientProvider.makeClient(
+            blockchain: account.blockchain,
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
         )
+
         let identifier = try await client.broadcast(transaction: txRequest, signature: txSignature)
         await transactionSyncService.recordBroadcast(identifier: identifier, account: account)
         return identifier
@@ -98,6 +108,56 @@ final class TransactionService {
 }
 
 // MARK: - Private helpers
+
+// `makeSigner` is reused by `DappSigningService` for message signing, so it
+// lives in its own `internal` extension rather than the `private extension`
+// below (whose members default to `fileprivate`, and a `private extension`
+// can't widen an individual member's access back to `internal`).
+extension TransactionService {
+    /// Constructs the appropriate ``Signer`` for `account` by looking up its
+    /// keystore and deriving (or fetching from hardware) the private key.
+    func makeSigner(for account: Account) async throws -> any Signer {
+        guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
+            throw Error.notFound
+        }
+
+        guard let derivationPathString = account.derivationPath else {
+            // Watch-only accounts cannot sign transactions.
+            throw Error.notSupported
+        }
+
+        let derivationPath = try DerivationPath(string: derivationPathString)
+
+        switch keyStore.kind {
+        case .local:
+            let rawKey = try keyStore.localSeed()
+            return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
+        case .trezor:
+            guard let deviceId = keyStore.deviceId else {
+                throw Error.invalidData
+            }
+
+            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
+            return try await makeTrezorSigner(for: account, device: device, derivationPath: derivationPath)
+        case .watchOnly:
+            throw Error.notSupported
+        }
+    }
+
+    /// Whether `account`'s key lives on a hardware wallet — answered from
+    /// its key store, without connecting to the device.
+    func isHardwareBacked(_ account: Account) async throws -> Bool {
+        guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
+            throw Error.notFound
+        }
+
+        if case .trezor = keyStore.kind {
+            return true
+        }
+
+        return false
+    }
+}
 
 private extension TransactionService {
     func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
@@ -143,26 +203,49 @@ private extension TransactionService {
     /// rather than silently falling back to freshly estimated fees.
     func buildOptions(_ fees: Fees, blockchain: Blockchain) throws -> [BlockchainTransactionBuilderOptions] {
         switch blockchain {
+        case .aptos:
+            let maxGasAmount = try parseUInt64Override(fees.aptosMaxGasAmount)
+            let gasUnitPrice = try parseUInt64Override(fees.aptosGasUnitPrice)
+            guard maxGasAmount != nil || gasUnitPrice != nil else {
+                return []
+            }
+
+            return [.aptosGasOverride(maxGasAmount: maxGasAmount, gasUnitPrice: gasUnitPrice)]
         case .evm:
             let maxFee = try parseBigUIntOverride(fees.ethereumMaxFee)
             let maxPriority = try parseBigUIntOverride(fees.ethereumMaxPriorityFee)
-            guard maxFee != nil || maxPriority != nil else { return [] }
+            guard maxFee != nil || maxPriority != nil else {
+                return []
+            }
+
             return [.ethereumFeeOverride(maxFeePerGas: maxFee, maxPriorityFeePerGas: maxPriority, gasLimit: nil)]
         case .sui:
             let budget = try parseUInt64Override(fees.suiGasBudget)
             let price = try parseUInt64Override(fees.suiGasPrice)
-            guard budget != nil || price != nil else { return [] }
+            guard budget != nil || price != nil else {
+                return []
+            }
+
             return [.suiGasOverride(budget: budget, price: price)]
         case .bitcoin:
-            guard let rate = try parseUInt64Override(fees.bitcoinFeeRate) else { return [] }
+            guard let rate = try parseUInt64Override(fees.bitcoinFeeRate) else {
+                return []
+            }
+
             return [.bitcoinFeeOverride(feeRateSatPerVByte: rate)]
         case .tron:
-            guard let limit = try parseUInt64Override(fees.tronFeeLimit) else { return [] }
+            guard let limit = try parseUInt64Override(fees.tronFeeLimit) else {
+                return []
+            }
+
             return [.tronFeeLimit(limit)]
         case .solana:
             let price = try parseUInt64Override(fees.solanaPriorityFee)
             let limit = try parseUInt32Override(fees.solanaComputeUnitLimit)
-            guard price != nil || limit != nil else { return [] }
+            guard price != nil || limit != nil else {
+                return []
+            }
+
             return [.solanaPriorityFee(microLamportsPerComputeUnit: price, computeUnitLimit: limit)]
         default:
             return []
@@ -172,52 +255,43 @@ private extension TransactionService {
     /// Parses a user-supplied fee override string, throwing if it's present
     /// but not a valid value rather than silently dropping the override.
     func parseBigUIntOverride(_ text: String?) throws -> BigUInt? {
-        guard let text, !text.isEmpty else { return nil }
-        guard let value = BigUInt(text) else { throw Error.invalidData }
+        guard let text, !text.isEmpty else {
+            return nil
+        }
+
+        guard let value = BigUInt(text) else {
+            throw Error.invalidData
+        }
+
         return value
     }
 
     /// Parses a user-supplied fee override string, throwing if it's present
     /// but not a valid value rather than silently dropping the override.
     func parseUInt64Override(_ text: String?) throws -> UInt64? {
-        guard let text, !text.isEmpty else { return nil }
-        guard let value = UInt64(text) else { throw Error.invalidData }
+        guard let text, !text.isEmpty else {
+            return nil
+        }
+
+        guard let value = UInt64(text) else {
+            throw Error.invalidData
+        }
+
         return value
     }
 
     /// Parses a user-supplied fee override string, throwing if it's present
     /// but not a valid value rather than silently dropping the override.
     func parseUInt32Override(_ text: String?) throws -> UInt32? {
-        guard let text, !text.isEmpty else { return nil }
-        guard let value = UInt32(text) else { throw Error.invalidData }
+        guard let text, !text.isEmpty else {
+            return nil
+        }
+
+        guard let value = UInt32(text) else {
+            throw Error.invalidData
+        }
+
         return value
-    }
-
-    /// Constructs the appropriate ``Signer`` for `account` by looking up its
-    /// keystore and deriving (or fetching from hardware) the private key.
-    func makeSigner(for account: Account) async throws -> any Signer {
-        guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
-            throw Error.notFound
-        }
-
-        guard let derivationPathString = account.derivationPath else {
-            // Watch-only accounts cannot sign transactions.
-            throw Error.notSupported
-        }
-
-        let derivationPath = try DerivationPath(string: derivationPathString)
-
-        switch keyStore.kind {
-        case .local:
-            let rawKey = try keyStore.localSeed()
-            return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
-        case .trezor:
-            guard let deviceId = keyStore.deviceId else { throw Error.invalidData }
-            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
-            return try await makeTrezorSigner(for: account, device: device, derivationPath: derivationPath)
-        case .watchOnly:
-            throw Error.notSupported
-        }
     }
 
     private func makeLocalSigner(
@@ -228,6 +302,9 @@ private extension TransactionService {
         let seed = try Seed(rawBytes: rawKey)
 
         switch account.blockchain {
+        case .aptos, .sui:
+            return try makeChoosableCurveSigner(for: account, seed: seed, derivationPath: derivationPath)
+
         case let .evm(chain):
             let privateKey = try seed
                 .masterKey(curve: .secp256k1)
@@ -239,23 +316,11 @@ private extension TransactionService {
                 privateKey: privateKey,
                 derivationPath: derivationPath
             )
-        case let .sui(network):
-            let curve = account.signatureScheme ?? .ed25519
 
-            let privateKey = try seed
-                .masterKey(curve: curve)
-                .derive(derivationPath)
-                .privateKey()
-
-            return try SuiPKeySigner(
-                curve: curve,
-                network: network,
-                privateKey: privateKey,
-                derivationPath: derivationPath
-            )
         case let .bitcoin(network):
             let descriptor = try BitcoinDescriptor(string: account.address, network: network)
             return try BitcoinPKeySigner(descriptor: descriptor, seed: seed, derivationPath: derivationPath)
+
         case let .tron(network):
             let privateKey = try seed
                 .masterKey(curve: .secp256k1)
@@ -267,6 +332,7 @@ private extension TransactionService {
                 privateKey: privateKey,
                 derivationPath: derivationPath
             )
+
         case let .solana(network):
             let privateKey = try seed
                 .masterKey(curve: .ed25519)
@@ -278,11 +344,44 @@ private extension TransactionService {
                 privateKey: privateKey,
                 derivationPath: derivationPath
             )
+
         case .cardano:
             // Cardano local signing is handled directly in
             // `signCardanoTransaction`, which signs before a `Signer` is
             // constructed here.
             throw Error.notImplemented
+        }
+    }
+
+    /// Signers for chains whose accounts pick Ed25519 or secp256k1
+    /// (`Account.signatureScheme`, Ed25519 by default).
+    private func makeChoosableCurveSigner(
+        for account: Account,
+        seed: Seed,
+        derivationPath: DerivationPath
+    ) throws -> any Signer {
+        let curve = account.signatureScheme ?? .ed25519
+        let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
+
+        switch account.blockchain {
+        case let .aptos(network):
+            return try AptosPKeySigner(
+                curve: curve,
+                network: network,
+                privateKey: privateKey,
+                derivationPath: derivationPath
+            )
+
+        case let .sui(network):
+            return try SuiPKeySigner(
+                curve: curve,
+                network: network,
+                privateKey: privateKey,
+                derivationPath: derivationPath
+            )
+
+        default:
+            throw Error.invalidData
         }
     }
 
@@ -296,6 +395,7 @@ private extension TransactionService {
             return try await EthereumTrezorSigner(
                 chainId: chain.chainId, device: device, derivationPath: derivationPath
             )
+
         case let .bitcoin(network):
             let descriptor = try BitcoinDescriptor(string: account.address, network: network)
             return try await BitcoinTrezorSigner(
@@ -304,18 +404,21 @@ private extension TransactionService {
                 accountIndex: UInt32(truncatingIfNeeded: account.accountIndex ?? 0),
                 device: device
             )
+
         case let .tron(network):
             return try await TronTrezorSigner(
                 network: network,
                 device: device,
                 derivationPath: derivationPath
             )
+
         case let .solana(network):
             return try await SolanaTrezorSigner(
                 network: network,
                 device: device,
                 derivationPath: derivationPath
             )
+
         default:
             throw Error.notImplemented
         }

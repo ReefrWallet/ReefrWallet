@@ -5,13 +5,16 @@ import ProjectDescriptionHelpers
 /// Live-network credentials forwarded from the generating shell into the test
 /// targets.
 ///
-/// Tuist only passes `TUIST_`-prefixed variables through to a manifest, so
-/// `make workspace` re-exports the plain shell names under that prefix.
+/// Tuist only passes `TUIST_`-prefixed variables through to a manifest, so the
+/// generating shell must export each one as `TUIST_<NAME>` too. The values are
+/// written in plain text into the generated (git-ignored) schemes.
 private let testEnvironmentVariables: [String: EnvironmentVariable] = {
     let keys = [
+        "APTOS_API_KEY",
         "BLOCKFROST_MAINNET_PROJECT_ID",
         "BLOCKFROST_PREPROD_PROJECT_ID",
         "ETHERSCAN_API_KEY",
+        "REEFR_TESTNET_MNEMONIC",
         "TRONGRID_API_KEY"
     ]
 
@@ -142,7 +145,7 @@ private let walletScheme: Scheme = .scheme(
             .launchArgument(name: "--drop-accounts", isEnabled: false),
             .launchArgument(name: "--drop-balances", isEnabled: false),
             .launchArgument(name: "--drop-tokens", isEnabled: false),
-            .launchArgument(name: "--drop-transactions", isEnabled: false),
+            .launchArgument(name: "--drop-transactions", isEnabled: false)
         ])
     )
 )
@@ -168,6 +171,7 @@ let project = Project(
     targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
     schemes: [walletScheme],
     additionalFiles: [
+        ".github/**/*",
         "Docs/**/*",
         "Makefile",
         "Project.swift",

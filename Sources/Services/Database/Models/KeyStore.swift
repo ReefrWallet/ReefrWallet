@@ -6,7 +6,6 @@
 //  Copyright © 2025 Reefr Wallet. All rights reserved.
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -117,6 +116,7 @@ final class KeyStoreModel {
 extension KeyStore {
     init(model: KeyStoreModel) throws {
         accounts = try model.accounts.compactMap { try Account(model: $0) }
+
         deviceId = model.deviceId
         id = model.id
         kind = Kind(rawValue: model.rawKind)!

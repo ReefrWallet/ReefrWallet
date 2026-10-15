@@ -65,6 +65,7 @@ final class SolanaForwardSyncUITests: XCTestCase {
             XCTFail("Expected a native Solana balance row.")
             return
         }
+
         solanaRow.click()
 
         let sendButton = app.firstDescendant(withIdentifier: "account-send-button")
@@ -72,6 +73,7 @@ final class SolanaForwardSyncUITests: XCTestCase {
             sendButton.waitUntilEnabled(timeout: 10),
             "Expected Send to enable once the SOL row is selected."
         )
+
         sendButton.click()
 
         let sentAmount = "0.001"
@@ -91,6 +93,7 @@ final class SolanaForwardSyncUITests: XCTestCase {
             nextButton.waitUntilEnabled(timeout: 10),
             "Expected Next to enable once the fee estimate for a valid transfer completes."
         )
+
         nextButton.click()
 
         let sheetTitle = app.firstDescendant(withIdentifier: "transfer-sheet-title")

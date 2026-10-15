@@ -1,18 +1,28 @@
-import BigInt
-import Foundation
+import Alamofire
 import Moya
 import WalletKit
 
 struct EtherscanTransactionHistorySource: TransactionHistorySource {
     static let apiKeyDefaultsKey = "EtherscanAPIKey"
 
+    /// Scheme + host only (no path) — matches `RateGateRegistry`'s
+    /// per-origin keying, not the API's full base URL.
+    private static let origin = "https://api.etherscan.io"
+
     private let baseURL = URL(string: "https://api.etherscan.io/v2/api")!
-    private let provider = MoyaProvider<EtherscanAPI>()
+    private let provider: MoyaProvider<EtherscanAPI>
     private let supportedChainIds: Set<UInt64> = [1, 56, 97, 42161, 421614, 11155111]
     private let userDefaults: UserDefaults
 
+    var providesForwardHistory: Bool {
+        true
+    }
+
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
+
+        let policy = RateGateRegistry.shared.makeRetryPolicy(for: Self.origin, provider: .etherscan)
+        provider = MoyaProvider<EtherscanAPI>(session: Session(interceptor: policy))
     }
 
     func supports(_ account: Account) -> Bool {
@@ -58,6 +68,7 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
                 page: 1
             )
         )
+
         let offset = min(Int(request.limit), 100)
 
         async let tokenResponse = history(
@@ -71,6 +82,7 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
             offset: offset,
             upperBound: cursor.upperBound
         ) as EtherscanResponse<EtherscanTokenTransfer>
+
         async let transactionResponse = history(
             action: "txlist",
             address: account.address,
@@ -102,6 +114,7 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
                 offset: offset
             )
         )
+
         let mergedTransactions = merge(transactions: transactions, tokenTransfers: tokenTransfers)
         let reachedBoundary = nextCursor.tokens == nil && nextCursor.transactions == nil
 
@@ -116,8 +129,10 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
 
 private extension EtherscanTransactionHistorySource {
     var apiKey: String {
-        userDefaults.string(forKey: Self.apiKeyDefaultsKey)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        userDefaults
+            .string(forKey: Self.apiKeyDefaultsKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        ?? ""
     }
 
     func history<T>(
@@ -153,7 +168,14 @@ private extension EtherscanTransactionHistorySource {
             do {
                 return try await provider.request(target)
             } catch EtherscanAPIError.rateLimited where attempt < 2 {
-                try await _Concurrency.Task.sleep(for: .seconds(attempt + 1))
+                // In-band (HTTP 200), invisible to the interceptor — push
+                // the shared gate directly (ADR-026). No sleep needed: the
+                // retry below re-enters `adapt`, which waits it out.
+                await RateGateRegistry.shared.penalize(
+                    origin: Self.origin,
+                    provider: .etherscan,
+                    by: .seconds(RateLimitRetryPolicy.backoffSeconds(attempt: attempt))
+                )
             }
         }
 
@@ -167,6 +189,7 @@ private extension EtherscanTransactionHistorySource {
         var records = Dictionary(
             uniqueKeysWithValues: transactions.map { ($0.hash, $0.blockchainTransaction) }
         )
+
         let tokenTransfersByHash = Dictionary(grouping: tokenTransfers, by: \.hash)
 
         for (hash, transfers) in tokenTransfersByHash {
@@ -283,6 +306,10 @@ extension EtherscanAPI: TargetType {
             )
         }
     }
+
+    var validationType: ValidationType {
+        .successCodes
+    }
 }
 
 private struct EtherscanCursor: Codable {
@@ -380,7 +407,7 @@ private struct EtherscanTokenTransfer: Codable, EtherscanBlockNumbered {
         BlockchainTransactionEffect(
             index: UInt64(logIndex?.value ?? "") ?? fallbackIndex,
             kind: .tokenTransfer,
-            assetIdentifier: contractAddress,
+            assetIdentifier: (try? EthereumAddress(string: contractAddress).string) ?? contractAddress,
             amount: value,
             from: from,
             to: to,

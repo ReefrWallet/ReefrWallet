@@ -6,8 +6,6 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-import BigInt
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -170,6 +168,7 @@ extension Token {
         // Scale by 10^decimals without losing integer precision.
         var multiplier = Decimal(1)
         for _ in 0..<decimalsCount { multiplier *= 10 }
+
         let scaled = NSDecimalNumber(decimal: decimal * multiplier)
 
         let handler = NSDecimalNumberHandler(

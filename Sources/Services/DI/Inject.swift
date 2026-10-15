@@ -32,6 +32,10 @@ struct Inject {
 
     static var container: ServiceContainer = Inject.buildDefaultContainer()
 
+    /// An on-disk store that replaces the default (or test-mode in-memory) one — lets UI
+    /// tests relaunch the app onto the same database. Set before the container resolves.
+    static var storeURLOverride: URL?
+
     static var mode: InjectionMode = .standard {
         didSet {
             switch mode {

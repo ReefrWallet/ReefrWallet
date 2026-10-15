@@ -9,10 +9,20 @@
 import WalletKit
 
 protocol TransactionHistorySource {
+    /// Whether ascending (forward-recovery) requests are served too, including
+    /// inbound token transfers — not just the descending backfill.
+    var providesForwardHistory: Bool { get }
+
     func supports(_ account: Account) -> Bool
 
     func transactionHistory(
         account: Account,
         request: BlockchainTransactionHistoryRequest
     ) async throws -> BlockchainTransactionPage
+}
+
+extension TransactionHistorySource {
+    var providesForwardHistory: Bool {
+        false
+    }
 }

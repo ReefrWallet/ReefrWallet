@@ -16,7 +16,10 @@ extension ServiceContainer {
 
             let configuration: ModelConfiguration
 
-            if useInMemoryStore {
+            if let storeURL = Inject.storeURLOverride {
+                printDebug("Using SQLite store override at \(storeURL.path)")
+                configuration = ModelConfiguration(url: storeURL)
+            } else if useInMemoryStore {
                 printDebug("Using in-memory SQLite store")
                 configuration = ModelConfiguration(isStoredInMemoryOnly: useInMemoryStore)
             } else {
@@ -58,6 +61,10 @@ extension ServiceContainer {
             BlockchainClientProvider()
         }
 
+        register(DappSigningService.self) {
+            DappSigningService()
+        }
+
         register(DatabaseService.self) {
             let databaseService = DatabaseService(modelContainer: DI.injectOrFail(ModelContainer.self))
 
@@ -86,6 +93,10 @@ extension ServiceContainer {
 
         register(KeyStoreService.self) {
             KeyStoreService()
+        }
+
+        register(TokenPriceService.self) {
+            TokenPriceService()
         }
 
         register(TransactionService.self) {

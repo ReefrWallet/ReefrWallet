@@ -73,6 +73,7 @@ struct WordTokenizerView: View {
             guard newValue != model.phrase else {
                 return
             }
+
             model.load(phrase: newValue)
         }
         .onChange(of: focus) { oldValue, newValue in
@@ -259,6 +260,7 @@ private extension WordTokenizerView {
         guard phrase != model.phrase else {
             return
         }
+
         phrase = model.phrase
     }
 
@@ -332,6 +334,7 @@ private extension WordTokenizerView {
             guard !press.characters.isEmpty, press.characters != "\u{7F}" else {
                 return .ignored
             }
+
             model.beginEditing(at: id)
             model.update(editorText: press.characters, at: id)
             syncPhrase()
@@ -366,6 +369,7 @@ private extension WordTokenizerView {
             guard press.characters == "\u{7F}" else {
                 return .ignored
             }
+
             editPreviousWord(from: id)
             return .handled
         }
@@ -495,8 +499,10 @@ private struct DragReorderModifier: ViewModifier {
                         guard let dragged = items.first else {
                             return false
                         }
+
                         return onDrop(dragged.id)
                     }
+
             case .editor:
                 content
             }
@@ -508,7 +514,7 @@ private struct DragReorderModifier: ViewModifier {
 
 #if DEBUG
 
-private let generatedPhrase = Mnemonic.generate(wordCount: .words24).phrase
+private let generatedPhrase = Mnemonic.generate(wordCount: .`24`).phrase
 
 // swiftlint:disable:next line_length
 private let invalidPhrase = "abandon notaword abandon abandon abandon abandon abandon abandon abandon abandon abandon art"

@@ -4,7 +4,7 @@
 - Prefer Xcode mcp tools over make/xcodebuild/xcrun/tuist.
 - Prefer the codebase memory MCP graph tools for code discovery before grep/file search: use `codebase-memory` skill.
 - Respect warnings and fix them when building code.
-- Be as succinct and concise as possible in decisions logs and other documentation you produce. Don't overexplain.
+- Be as succinct and concise as possible in decisions logs and documentation you produce, including source code comments. Don't overexplain.
 ## Memory & System Constraints
 - You are working in a codebase that uses Architectural Decision Records (ADRs).
 - Your shared memory resides in the `Docs/Decisions/` folder.
@@ -17,9 +17,10 @@
    - Build an `Implement.md` runbook if requested, but always output the finalized technical trade-offs to `Docs/Decisions/ADR-[ID].md` using the project's formatting template.
    - Update `Docs/Decisions/` continuously as items are shipped.
 ## Swift Code Style
-- Write  `guard ... else { return/throw/break/continue }` in 3 lines so that return from scope is on its own line.
+- Write  `guard/if ... else { return/throw/break/continue }` in 3 lines so that return from scope is on its own line.
 - Sort methods, types, enum cases and other unordered entities alphabetycally where possible.
 - Use `.style()` modifier for fonts, sizes and colors in SwiftUI.
 - Prefer `case let .foo(bar)` to `case .foo(let bar)`.
 - Omit `return` in one-liners wherever possible.
 - Use `whateverId`, not `whateverID` when naming identifier properties.
+- Use `.asJSONString()`/`.encoded()`/`.decoded()` from Codable+Extensions.swift for JSON (de-)serialization.

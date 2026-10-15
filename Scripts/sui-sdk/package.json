@@ -1,0 +1,15 @@
+{
+  "name": "reefr-sui-sdk",
+  "private": true,
+  "description": "Builds Resources/Browser/vendor/sui-sdk.js from @mysten/sui. Run: npm ci && npm run build",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@mysten/sui": "2.36.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

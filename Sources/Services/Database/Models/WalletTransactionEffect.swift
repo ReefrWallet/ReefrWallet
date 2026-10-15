@@ -3,7 +3,6 @@
 //  Reefr Wallet
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 

@@ -2,6 +2,7 @@ import SwiftUI
 import WalletKit
 
 enum TransactionRow: View {
+    case aptos(TransactionRowModel)
     case bitcoin(TransactionRowModel)
     case cardano(TransactionRowModel)
     case evm(TransactionRowModel)
@@ -11,6 +12,8 @@ enum TransactionRow: View {
 
     var body: some View {
         switch self {
+        case let .aptos(model):
+            AptosTransactionRow(model: model)
         case let .bitcoin(model):
             BitcoinTransactionRow(model: model)
         case let .cardano(model):
@@ -30,6 +33,8 @@ enum TransactionRow: View {
 extension TransactionRow {
     init(model: TransactionRowModel, blockchain: Blockchain) {
         switch blockchain {
+        case .aptos:
+            self = .aptos(model)
         case .bitcoin:
             self = .bitcoin(model)
         case .cardano:

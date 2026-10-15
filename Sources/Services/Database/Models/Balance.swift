@@ -73,6 +73,7 @@ extension Balance {
 extension BalanceModel {
     var amount: BigUInt {
         get { BigUInt(serializedAmount) }
+
         set { serializedAmount = newValue.serialize() }
     }
 

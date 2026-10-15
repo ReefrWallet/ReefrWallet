@@ -3,7 +3,6 @@
 //  Reefr Wallet
 //
 
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -40,6 +39,12 @@ actor TransactionSyncService {
     }
 
     func startAll() async {
+        do {
+            try await databaseService.normalizeTransactionStableIds()
+        } catch {
+            printError(error)
+        }
+
         do {
             let accounts = try await databaseService.fetchAllAccounts()
             for account in accounts {
@@ -94,7 +99,7 @@ private extension TransactionSyncService {
 
     func synchronize(_ account: Account) async {
         do {
-            let client = try await clientProvider.getClient(
+            let client = try clientProvider.makeClient(
                 blockchain: account.blockchain,
                 rpcURL: account.rpcURLOverride,
                 backend: account.bitcoinBackend
@@ -118,9 +123,21 @@ private extension TransactionSyncService {
         }
     }
 
-    func scanDescending(account: Account, client: AnyBlockchainClient) async throws {
+    func scanDescending(account: Account, client: any BlockchainClientProtocol) async throws {
+        var restartsHeadlessBackfill = true
+
         while !Task.isCancelled {
-            let state = try await databaseService.transactionSyncState(accountId: try accountId(account))
+            var state = try await databaseService.transactionSyncState(accountId: try accountId(account))
+
+            // A backfill that finished without a head (older Tron client) stalls forward
+            // sync forever. Rerun it once per session to establish one.
+            if state.backfillComplete, state.currentHead == nil, restartsHeadlessBackfill {
+                restartsHeadlessBackfill = false
+                state.backfillComplete = false
+                state.descendingCursor = nil
+                state.initialBackfillHead = nil
+                try await databaseService.saveTransactionSyncState(state)
+            }
 
             guard !state.backfillComplete else {
                 printDebug("Backfill complete for \(account.name)")
@@ -164,64 +181,47 @@ private extension TransactionSyncService {
         }
     }
 
-    func maintainForwardSync(account: Account, client: AnyBlockchainClient) async throws {
+    func maintainForwardSync(account: Account, client: any BlockchainClientProtocol) async throws {
+        var hasRefreshedAllBalances = false
+
         while !Task.isCancelled {
-            let state = try await databaseService.transactionSyncState(accountId: try accountId(account))
-            guard let currentHead = state.currentHead else {
+            guard try await scanForward(
+                account: account,
+                client: client,
+                through: nil,
+                rewindsToLatestTransaction: !hasRefreshedAllBalances
+            ) else {
                 // Let the descending track establish its immutable first
                 // head. This is intentionally not a reset to the current tip.
                 try await Task.sleep(for: .seconds(1))
                 continue
             }
 
-            let page = try await client.transactionHistory(
-                account.address,
-                request: BlockchainTransactionHistoryRequest(
-                    cursor: state.ascendingCursor,
-                    direction: .ascending,
-                    lowerBound: currentHead + 1
-                )
-            )
-
-            try await commit(
-                page,
-                account: account,
-                client: client,
-                track: .ascending,
-                updatesBalances: false
-            )
-
-            if page.reachedBoundary {
-                // Idle poll: most iterations land here with an empty page.
-                // `refreshBalances` is a no-op unless this page actually
-                // carried transactions, so a quiet account no longer pays
-                // for a full balance refresh every minute.
-                await refreshBalances(account: account, transactions: page.transactions)
-                // Standard HTTP JSON-RPC nodes are not guaranteed to expose
-                // WebSocket pub-sub. Repeating the forward range scan is the
-                // safe fallback; a future transactionSubscription capability
-                // replaces this wait with an immediate node-head event.
-                try await Task.sleep(for: .seconds(10))
+            if !hasRefreshedAllBalances {
+                // Balances may have changed while the app wasn't running in ways
+                // no scanned transaction reveals (e.g. an indexer gap).
+                hasRefreshedAllBalances = true
+                await enqueueFullRefresh(account: account)
             }
+
+            // Standard HTTP JSON-RPC nodes are not guaranteed to expose
+            // WebSocket pub-sub. Repeating the forward range scan is the
+            // safe fallback; `transactionSubscription` replaces this wait
+            // with an immediate node-head event.
+            try await Task.sleep(for: .seconds(10))
         }
     }
 
-    func maintainSubscription(account: Account, client: AnyBlockchainClient) async throws {
-        // The stream only delivers future heads. Before consuming it, scan
-        // forward once from the durable cursor to close any previous-session
-        // gap. Construct the stream first so its task buffers heads created
-        // during that recovery window.
+    func maintainSubscription(account: Account, client: any BlockchainClientProtocol) async throws {
+        // The stream only delivers future heads. Before consuming it, close
+        // the gap since the previous session up to the current tip. Construct
+        // the stream first so its task buffers heads created meanwhile.
         let heads = client.transactionHeads(account.address)
         await catchUpOnce(account: account, client: client)
 
         do {
             for try await head in heads {
-                try await catchUp(
-                    account: account,
-                    client: client,
-                    through: head.height,
-                    updatesBalances: true
-                )
+                try await scanForward(account: account, client: client, through: head.height)
             }
         } catch is CancellationError {
             return
@@ -230,75 +230,148 @@ private extension TransactionSyncService {
         }
     }
 
-    func catchUpOnce(account: Account, client: AnyBlockchainClient) async {
+    /// Closes the gap left while the app wasn't running: scans from the durable
+    /// forward position to the node's current tip, waiting for the descending
+    /// track to establish the first head if needed.
+    func catchUpOnce(account: Account, client: any BlockchainClientProtocol) async {
         do {
-            let state = try await databaseService.transactionSyncState(accountId: try accountId(account))
-
-            if let currentHead = state.currentHead {
-                try await catchUp(
+            while !Task.isCancelled {
+                let hasHead = try await scanForward(
                     account: account,
                     client: client,
-                    through: currentHead,
-                    updatesBalances: false
+                    through: nil,
+                    rewindsToLatestTransaction: true
                 )
+
+                if hasHead {
+                    // Balances may have changed while the app wasn't running in
+                    // ways no scanned transaction reveals (e.g. an indexer gap).
+                    await enqueueFullRefresh(account: account)
+                    return
+                }
+
+                try await Task.sleep(for: .seconds(1))
             }
+        } catch is CancellationError {
+            return
         } catch {
             await recordFailure(error, account: account)
         }
     }
 
-    func catchUp(
+    /// Scans forward page by page from the persisted ascending cursor (or
+    /// `currentHead + 1`) through `head` (`nil` means the source's current tip),
+    /// then refreshes the balances of every asset the scan touched.
+    ///
+    /// `currentHead` only advances once a range is fully scanned, so an
+    /// interrupted or multi-page scan never skips blocks.
+    ///
+    /// - Returns: `false` when no head is established yet (backfill pending).
+    ///
+    /// - Parameter rewindsToLatestTransaction: Starts an indexer-backed scan just past
+    ///   the newest stored transaction instead of `currentHead`, re-covering any
+    ///   range an earlier version marked scanned without scanning it.
+    @discardableResult
+    func scanForward(
         account: Account,
-        client: AnyBlockchainClient,
-        through head: UInt64,
-        updatesBalances: Bool
-    ) async throws {
+        client: any BlockchainClientProtocol,
+        through head: UInt64?,
+        rewindsToLatestTransaction: Bool = false
+    ) async throws -> Bool {
+        var touched: [BlockchainTransaction] = []
+        var rewindHead = rewindsToLatestTransaction ? try await indexedRewindHead(account: account) : nil
+
         while !Task.isCancelled {
             let state = try await databaseService.transactionSyncState(accountId: try accountId(account))
 
-            guard let currentHead = state.currentHead, currentHead < head else {
-                return
+            guard let storedHead = state.currentHead else {
+                return false
             }
 
-            let page = try await client.transactionHistory(
-                account.address,
-                request: BlockchainTransactionHistoryRequest(
-                    direction: .ascending,
-                    lowerBound: currentHead + 1,
-                    upperBound: head
-                )
-            )
+            let currentHead = state.ascendingCursor == nil ? min(storedHead, rewindHead ?? storedHead) : storedHead
+            rewindHead = nil
 
-            try await commit(
-                page,
-                account: account,
-                client: client,
-                track: .ascending,
-                updatesBalances: updatesBalances
-            )
+            if let head, state.ascendingCursor == nil, currentHead >= head {
+                break
+            }
+
+            let page: BlockchainTransactionPage
+
+            do {
+                page = try await forwardHistory(
+                    account: account,
+                    client: client,
+                    request: BlockchainTransactionHistoryRequest(
+                        cursor: state.ascendingCursor,
+                        direction: .ascending,
+                        lowerBound: currentHead + 1,
+                        upperBound: head,
+                        assetHints: try await assetHints(account: account)
+                    )
+                )
+            } catch let error where state.ascendingCursor != nil && !(error is CancellationError) {
+                // A cursor written by another source (or app version) can't be
+                // resumed. `currentHead` hasn't moved, so restart the range.
+                printError("\(account.name): discarding forward cursor: \(error)")
+                var resetState = state
+                resetState.ascendingCursor = nil
+                try await databaseService.saveTransactionSyncState(resetState)
+                continue
+            }
+
+            try await commit(page, account: account, client: client, track: .ascending, updatesBalances: false)
+            touched += page.transactions
 
             if page.reachedBoundary {
-                if updatesBalances {
-                    // Each page committed above already enqueued its own
-                    // discovered tokens; this just links the last batch of
-                    // effects and re-enqueues them (harmless — the queue
-                    // dedupes) in case the account's client doesn't support
-                    // bulk balances and the per-page enqueue lost a race.
-                    await refreshBalances(account: account, transactions: page.transactions)
-                } else {
-                    // `catchUpOnce` committed every page with `updatesBalances:
-                    // false`, so nothing was enqueued along the way — sweep
-                    // every known token now that the gap is closed.
-                    await enqueueFullRefresh(account: account)
-                }
-                return
+                break
             }
         }
+
+        await refreshBalances(account: account, transactions: touched)
+        return true
+    }
+
+    /// Forward pages come from the account's indexed history source when one
+    /// applies (public nodes can't filter token events by recipient), falling
+    /// back to the node itself.
+    func forwardHistory(
+        account: Account,
+        client: any BlockchainClientProtocol,
+        request: BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage {
+        guard account.rpcURLOverride == nil,
+              let source = transactionHistorySources.first(where: { $0.providesForwardHistory && $0.supports(account) })
+        else {
+            return try await client.transactionHistory(account.address, request: request)
+        }
+
+        do {
+            return try await source.transactionHistory(account: account, request: request)
+        } catch let error where request.cursor == nil && !(error is CancellationError) {
+            printError("\(account.name): indexed forward history failed, scanning the node instead: \(error)")
+            return try await client.transactionHistory(account.address, request: request)
+        }
+    }
+
+    /// The newest stored transaction's block, when forward history comes from an indexer
+    /// (cheap to re-query; writes are idempotent).
+    func indexedRewindHead(account: Account) async throws -> UInt64? {
+        guard account.rpcURLOverride == nil,
+              transactionHistorySources.contains(where: { $0.providesForwardHistory && $0.supports(account) })
+        else {
+            return nil
+        }
+
+        return try await databaseService.latestTransactionBlockHeight(accountId: try accountId(account))
+    }
+
+    func assetHints(account: Account) async throws -> [String] {
+        try await databaseService.fetchTokens(account: account).compactMap(\.address)
     }
 
     func transactionHistory(
         account: Account,
-        client: AnyBlockchainClient,
+        client: any BlockchainClientProtocol,
         request: BlockchainTransactionHistoryRequest
     ) async throws -> BlockchainTransactionPage {
         if account.rpcURLOverride == nil,
@@ -312,7 +385,7 @@ private extension TransactionSyncService {
     func commit(
         _ page: BlockchainTransactionPage,
         account: Account,
-        client: AnyBlockchainClient,
+        client: any BlockchainClientProtocol,
         track: Track,
         updatesBalances: Bool
     ) async throws {
@@ -330,10 +403,16 @@ private extension TransactionSyncService {
             state.descendingCursor = page.nextCursor
             state.backfillComplete = page.reachedBoundary
         case .ascending:
-            state.ascendingCursor = page.nextCursor
+            // A cursor only resumes an unfinished range. Some sources (Sui)
+            // return one on the boundary page too; keeping it would pin every
+            // later scan to this range's upper bound.
+            state.ascendingCursor = page.reachedBoundary ? nil : page.nextCursor
         }
 
-        if let head = page.head {
+        // A descending page's head is the backfill's fixed upper bound. An
+        // ascending page's head is the end of its range, which only counts as
+        // scanned once the range's last page is in.
+        if let head = page.head, track == .descending || page.reachedBoundary {
             state.currentHead = max(state.currentHead ?? 0, head)
         }
 
@@ -398,20 +477,7 @@ private extension TransactionSyncService {
     }
 
     func enqueueBalanceUpdates(for transactions: [BlockchainTransaction], account: Account) async {
-        var tokenAddresses: Set<String?> = []
-
-        for effect in transactions.flatMap(\.effects) {
-            switch effect.kind {
-            case .nativeTransfer:
-                tokenAddresses.insert(nil)
-            case .tokenTransfer:
-                tokenAddresses.insert(effect.assetIdentifier)
-            case .balanceChange, .tokenApproval, .unknown:
-                continue
-            }
-        }
-
-        for tokenAddress in tokenAddresses {
+        for tokenAddress in Self.balanceRefreshTokens(for: transactions) {
             await balancesService.enqueueBalanceUpdate(
                 account: account,
                 tokenAddress: tokenAddress,
@@ -435,7 +501,7 @@ private extension TransactionSyncService {
     func processTokenTransfers(
         _ transactions: [BlockchainTransaction],
         account: Account,
-        client: AnyBlockchainClient
+        client: any BlockchainClientProtocol
     ) async throws {
         try await processTokenTransfers(
             transactions
@@ -450,7 +516,7 @@ private extension TransactionSyncService {
     func processTokenTransfers(
         _ tokenEffects: [TokenTransfer],
         account: Account,
-        client: AnyBlockchainClient
+        client: any BlockchainClientProtocol
     ) async throws {
         let tokenAddresses = Set(tokenEffects.compactMap(\.assetIdentifier))
 
@@ -472,6 +538,7 @@ private extension TransactionSyncService {
                 blockchain: account.blockchain,
                 client: client
             )
+
             try await databaseService.insertToken(token, blockchain: account.blockchain)
         }
     }
@@ -480,7 +547,7 @@ private extension TransactionSyncService {
         address: String,
         effects: [TokenTransfer],
         blockchain: Blockchain,
-        client: AnyBlockchainClient
+        client: any BlockchainClientProtocol
     ) async throws -> Token {
         let metadata: EtherscanTokenTransferMetadata? = effects.lazy.compactMap { effect in
             guard effect.assetIdentifier == address, let rawPayload = effect.rawPayload else {
@@ -533,3 +600,28 @@ private struct TokenTransfer {
     let assetIdentifier: String?
     let rawPayload: Data?
 } // swiftlint:disable:this file_length
+
+// MARK: - Balance refresh selection
+
+extension TransactionSyncService {
+    /// The assets whose balances `transactions` may have changed (`nil` is
+    /// the native asset).
+    ///
+    /// The native asset is always included once there's any transaction:
+    /// fees are paid in it on every chain, and many transactions that move
+    /// it don't surface as a transfer effect — a Tron stake
+    /// (`FreezeBalanceV2Contract`) or contract call has no effects at all.
+    static func balanceRefreshTokens(for transactions: [BlockchainTransaction]) -> Set<String?> {
+        guard !transactions.isEmpty else {
+            return []
+        }
+
+        var tokenAddresses: Set<String?> = [nil]
+
+        for effect in transactions.flatMap(\.effects) where effect.kind == .tokenTransfer {
+            tokenAddresses.insert(effect.assetIdentifier)
+        }
+
+        return tokenAddresses
+    }
+}

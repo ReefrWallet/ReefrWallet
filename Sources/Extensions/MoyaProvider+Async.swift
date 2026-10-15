@@ -24,6 +24,7 @@ public extension MoyaProvider {
                     } catch {
                         continuation.resume(throwing: error)
                     }
+
                 case .failure(let error):
                     continuation.resume(throwing: error)
                 }

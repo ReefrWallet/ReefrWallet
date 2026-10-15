@@ -1,0 +1,49 @@
+{
+  "_comment": "Each vector's `transactionJSON` is a dapp's Transaction.prototype.toJSON() output (Transaction JSON v2); `expectedBytesBase64` is the real @mysten/sui SDK's own Transaction.prototype.build() output for the equivalent resolved transaction, generated with the actual npm package (see ADR-023) — not hand-derived. `nativeResponses` answers providers/sui-transaction-builder.js's chain lookups during resolution, keyed by method name.",
+  "vectors": [
+    {
+      "name": "fully-resolved-transfer",
+      "description": "Every field already resolved (sender/gas/inputs) — the builder makes zero chain lookups.",
+      "sender": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "transactionJSON": "{\"version\":2,\"sender\":\"0x1111111111111111111111111111111111111111111111111111111111111111\",\"expiration\":null,\"gasData\":{\"budget\":\"5000000\",\"price\":\"1000\",\"owner\":null,\"payment\":[{\"objectId\":\"0x4444444444444444444444444444444444444444444444444444444444444444\",\"version\":\"1\",\"digest\":\"29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2\"}]},\"inputs\":[{\"Pure\":{\"bytes\":\"ZAAAAAAAAAA=\"}},{\"Pure\":{\"bytes\":\"ERERERERERERERERERERERERERERERERERERERERERE=\"}}],\"commands\":[{\"SplitCoins\":{\"coin\":{\"GasCoin\":true},\"amounts\":[{\"Input\":0}]}},{\"TransferObjects\":{\"objects\":[{\"Result\":0}],\"address\":{\"Input\":1}}}]}",
+      "nativeResponses": {},
+      "expectedBytesBase64": "AAACAAhkAAAAAAAAAAAgERERERERERERERERERERERERERERERERERERERERERECAgABAQAAAQECAAABAQAREREREREREREREREREREREREREREREREREREREREREQFERERERERERERERERERERERERERERERERERERERERERAEAAAAAAAAAIBERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERHoAwAAAAAAAEBLTAAAAAAAAA=="
+    },
+    {
+      "name": "movecall-shared-object-unresolved-pure",
+      "description": "A MoveCall against a shared object (resolved via `getObjects`) with two untyped `UnresolvedPure` arguments (resolved via `getMoveFunction`'s parameter types).",
+      "sender": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "transactionJSON": "{\"version\":2,\"sender\":\"0x1111111111111111111111111111111111111111111111111111111111111111\",\"expiration\":null,\"gasData\":{\"budget\":\"5000000\",\"price\":\"1000\",\"owner\":null,\"payment\":[{\"objectId\":\"0x4444444444444444444444444444444444444444444444444444444444444444\",\"version\":\"1\",\"digest\":\"29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2\"}]},\"inputs\":[{\"UnresolvedObject\":{\"objectId\":\"0x6\"}},{\"UnresolvedPure\":{\"value\":42}},{\"UnresolvedPure\":{\"value\":true}}],\"commands\":[{\"MoveCall\":{\"package\":\"0x99\",\"module\":\"test_mod\",\"function\":\"do_thing\",\"typeArguments\":[],\"arguments\":[{\"Input\":0},{\"Input\":1},{\"Input\":2}]}}]}",
+      "nativeResponses": {
+        "getObjects": {
+          "objects": [
+            {
+              "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+              "version": "1",
+              "digest": "ERERERERERERERERERERERERERERERERERERERERERE=",
+              "owner": { "kind": "shared", "initialSharedVersion": "1" }
+            }
+          ]
+        },
+        "getMoveFunction": {
+          "parameters": [
+            { "reference": "mutable", "type": { "kind": "datatype", "typeName": "0x2::clock::Clock", "typeParameters": [] } },
+            { "reference": "none", "type": { "kind": "u64" } },
+            { "reference": "none", "type": { "kind": "bool" } }
+          ]
+        }
+      },
+      "expectedBytesBase64": "AAADAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgEAAAAAAAAAAQAIKgAAAAAAAAAAAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACZCHRlc3RfbW9kCGRvX3RoaW5nAAMBAAABAQABAgAREREREREREREREREREREREREREREREREREREREREREQFERERERERERERERERERERERERERERERERERERERERERAEAAAAAAAAAIBERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERHoAwAAAAAAAEBLTAAAAAAAAA=="
+    },
+    {
+      "name": "generic-movecall-and-make-move-vec",
+      "description": "Move type-tag string parsing (nested generics, vector<T>, Option<T>) across a MoveCall's `typeArguments` and a `MakeMoveVec` command's `type`.",
+      "sender": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "transactionJSON": "{\"version\":2,\"sender\":\"0x1111111111111111111111111111111111111111111111111111111111111111\",\"expiration\":null,\"gasData\":{\"budget\":\"5000000\",\"price\":\"1000\",\"owner\":null,\"payment\":[{\"objectId\":\"0x4444444444444444444444444444444444444444444444444444444444444444\",\"version\":\"1\",\"digest\":\"29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2\"}]},\"inputs\":[],\"commands\":[{\"MoveCall\":{\"package\":\"0x99\",\"module\":\"test_mod\",\"function\":\"generic_thing\",\"typeArguments\":[\"0x2::coin::Coin<0x2::sui::SUI>\",\"vector<u8>\",\"0x1::option::Option<u64>\"],\"arguments\":[]}},{\"MakeMoveVec\":{\"type\":\"0x2::sui::SUI\",\"elements\":[]}}]}",
+      "nativeResponses": {
+        "getMoveFunction": { "parameters": [] }
+      },
+      "expectedBytesBase64": "AAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAmQh0ZXN0X21vZA1nZW5lcmljX3RoaW5nAwcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgRjb2luBENvaW4BBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACA3N1aQNTVUkABgEHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEGb3B0aW9uBk9wdGlvbgECAAUBBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACA3N1aQNTVUkAABERERERERERERERERERERERERERERERERERERERERERAUREREREREREREREREREREREREREREREREREREREREREAQAAAAAAAAAgEREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREegDAAAAAAAAQEtMAAAAAAAA"
+    }
+  ]
+}

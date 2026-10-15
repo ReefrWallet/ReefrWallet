@@ -95,6 +95,7 @@ private extension WatchOnlyTronAccountUITests {
             hiddenDisclosure.waitForExistence(timeout: 10),
             "Expected TRC-20 token balances to appear in the Hidden Balances section."
         )
+
         app.expandHiddenBalances()
 
         let hiddenBalances = app.descendants(matching: .any)

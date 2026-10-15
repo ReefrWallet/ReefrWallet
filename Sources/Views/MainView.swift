@@ -33,6 +33,10 @@ struct MainView: View {
     @State private var presentedSheet: PresentedSheet?
     @State private var sidebarSelection: PersistentIdentifier?
 
+#if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+#endif
+
     var body: some View {
         NavigationSplitView {
             SidebarView()
@@ -47,7 +51,7 @@ struct MainView: View {
                       let keyStore = try? KeyStore(model: keyStoreModel) {
                 KeyStoreDetailsView(keyStore)
             } else {
-                Text("No selection")
+                EmptyStateView("No Selection")
                     .task(id: sidebarSelection) {
                         clearInvalidSidebarSelection()
                     }
@@ -67,12 +71,37 @@ struct MainView: View {
                     AddAccountView(keyStore: keyStore)
                         .environment(\.sidebarSelection, $sidebarSelection)
                 }
+
+            case let .backUpKeyStore(keyStore):
+                BackupKeyStoreView(keyStore: keyStore)
+
+            case .browser:
+                BrowserView()
+            }
+        }
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    openBrowser()
+                } label: {
+                    Label("Browser", systemImage: "globe")
+                }
+                .accessibilityIdentifier("open-browser-button")
+                .accessibilityValue(String(allAccounts.count))
             }
         }
     }
 }
 
 private extension MainView {
+    func openBrowser() {
+#if os(macOS)
+        openWindow(id: "browser")
+#else
+        presentedSheet = .browser
+#endif
+    }
+
     @MainActor
     func clearInvalidSidebarSelection() {
         guard let sidebarSelection else {

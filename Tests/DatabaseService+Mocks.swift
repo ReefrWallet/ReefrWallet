@@ -110,6 +110,8 @@ private extension DatabaseService {
         path: DerivationPath
     ) throws -> String {
         switch blockchain {
+        case .aptos:
+            return try AptosAddress(publicKey: privateKey.publicKey, curve: curve).string
         case .evm:
             return try EthereumPKeySigner(privateKey: privateKey, derivationPath: path).address().checksummed
         case .sui:

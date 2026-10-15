@@ -1,4 +1,4 @@
-name: Reefr Wallet
+name: CI Tests
 
 on:
   push:
@@ -34,3 +34,8 @@ jobs:
 
     - name: Run tests
       run: make test
+      env:
+        # xcodebuild only forwards TEST_RUNNER_-prefixed variables to the test
+        # process; this lets `.localNode` tests (Tests/Support/LocalNodeTrait.swift)
+        # see CI=true and be skipped.
+        TEST_RUNNER_CI: "true"

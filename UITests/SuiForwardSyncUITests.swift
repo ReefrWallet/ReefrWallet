@@ -67,6 +67,7 @@ final class SuiForwardSyncUITests: XCTestCase {
             XCTFail("Expected a native Sui balance row.")
             return
         }
+
         suiRow.click()
 
         let sendButton = app.firstDescendant(withIdentifier: "account-send-button")
@@ -74,6 +75,7 @@ final class SuiForwardSyncUITests: XCTestCase {
             sendButton.waitUntilEnabled(timeout: 10),
             "Expected Send to enable once the SUI row is selected."
         )
+
         sendButton.click()
 
         let sentAmount = "0.1"
@@ -93,6 +95,7 @@ final class SuiForwardSyncUITests: XCTestCase {
             nextButton.waitUntilEnabled(timeout: 10),
             "Expected Next to enable once the gas simulation for a valid transfer completes."
         )
+
         nextButton.click()
 
         let sheetTitle = app.firstDescendant(withIdentifier: "transfer-sheet-title")

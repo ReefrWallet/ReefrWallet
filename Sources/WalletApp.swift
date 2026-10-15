@@ -36,8 +36,25 @@ import WalletKit
                 databaseService: persistedDatabaseService,
                 keyStoreService: keyStoreService
             )
+
+#if DEBUG
+            guard !Self.commandLineFlag("--disable-transaction-sync") else {
+                return
+            }
+#endif
+
             await syncService.startAll()
         }
+    }
+
+    /// A local dapp URL to auto-open the browser to, for UI tests —
+    /// `--dapp-url`, DEBUG-only like every other launch-argument override.
+    static var dappURL: URL? {
+#if DEBUG
+        commandLineURL(after: "--dapp-url")
+#else
+        nil
+#endif
     }
 
     var body: some Scene {
@@ -48,6 +65,13 @@ import WalletKit
         .modelContainer(databaseService.modelContainer)
 
 #if os(macOS)
+        WindowGroup("Browser", id: "browser") {
+            BrowserView(initialURL: Self.dappURL ?? URL(string: "https://app.uniswap.org")!)
+                .accessibilityIdentifier("browser-window")
+        }
+        .defaultSize(width: 1100, height: 700)
+        .modelContainer(databaseService.modelContainer)
+
         Settings {
             SettingsView()
         }
@@ -100,6 +124,11 @@ private extension WalletApp {
 
                 let accountConfigurations: [TestAccountConfiguration] = [
                     TestAccountConfiguration(
+                        blockchain: .aptos(.testnet),
+                        rpcURL: commandLineURL(after: "--aptos-rpc-url"),
+                        creationFlag: "--create-aptos-accounts"
+                    ),
+                    TestAccountConfiguration(
                         blockchain: .bitcoin(.regtest),
                         rpcURL: commandLineURL(after: "--bitcoin-rpc-url"),
                         bitcoinBackend: .esplora,
@@ -120,6 +149,11 @@ private extension WalletApp {
                         blockchain: .sui(.testnet),
                         rpcURL: commandLineURL(after: "--sui-rpc-url"),
                         creationFlag: "--create-sui-accounts"
+                    ),
+                    TestAccountConfiguration(
+                        blockchain: .tron(.testnet),
+                        rpcURL: commandLineURL(after: "--tron-rpc-url"),
+                        creationFlag: "--create-tron-accounts"
                     )
                 ]
 
@@ -147,6 +181,10 @@ private extension WalletApp {
     }
 
     func processPreStartupOptions() {
+        if let storePath = Self.commandLineValue(after: "--store-path") {
+            Inject.storeURLOverride = URL(fileURLWithPath: storePath)
+        }
+
         if Self.commandLineFlag("--test") || isRunningXCTest {
             printDebug("Using test service injection mode.")
             Inject.mode = .test

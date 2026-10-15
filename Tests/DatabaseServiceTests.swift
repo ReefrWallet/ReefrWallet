@@ -157,6 +157,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
                 )
             ]
         )
+
         try await service.saveTransactions([transaction, transaction], for: account)
 
         let stored = try await service.fetchTransactions(accountId: try #require(account.id))
@@ -207,6 +208,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
             [BlockchainTransaction(identifier: "0xoverlap", status: .unconfirmed)],
             for: account
         )
+
         try await service.saveTransactions(
             [BlockchainTransaction(identifier: "0xoverlap", status: .confirmed)],
             for: account
@@ -319,12 +321,14 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
             name: "Updated Token",
             usdPrice: 0.1
         )
+
         let updatedBalance = Balance(
             account: account,
             amount: 250,
             token: updatedToken,
             usdValue: 25
         )
+
         try await service.saveBalances([updatedBalance])
 
         let fetched = try #require(try await service.fetchBalances(accountId: accountId).first)
@@ -387,7 +391,9 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
             address: "0x0000000000000000000000000000000000000001",
             usdPrice: 1
         )
+
         _ = try await service.insertToken(existingToken, blockchain: blockchain)
+
         try await service.saveBalance(Balance(
             account: account,
             amount: 10,
@@ -400,6 +406,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
             name: "New Token",
             usdPrice: 3
         )
+
         try await service.updateBalances(account: account, updates: [
             Balance(account: account, amount: 20, token: existingToken, usdValue: 20),
             Balance(account: account, amount: 30, token: newToken, usdValue: 90)
@@ -433,6 +440,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
             token: token,
             usdValue: 12.5
         )
+
         _ = try await service.saveBalance(balance)
         #expect(try await service.fetchBalances(accountId: accountId).count == 1)
 
@@ -459,8 +467,10 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
             keyStoreId: missingId,
             blockchain: .evm(.ethereum(.mainnet))
         )
+
         let deletedKeyStoreId = try await service.insertKeyStore(makeKeyStore(name: "Unrelated"))
         try await service.deleteKeyStore(id: deletedKeyStoreId)
+
         await #expect(throws: Error.notFound) {
             try await service.insertAccount(account, keyStore: makeKeyStore(id: deletedKeyStoreId))
         }

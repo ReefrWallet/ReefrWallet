@@ -38,6 +38,7 @@ final class WordTokenizerUITests: XCTestCase {
             firstEditor.waitForExistence(timeout: 10),
             "Restore From Backup should start with the first word editable."
         )
+
         firstEditor.click()
 
         firstEditor.typeText("test")
@@ -90,6 +91,7 @@ final class WordTokenizerUITests: XCTestCase {
             reopenedThirdEditor.waitForExistence(timeout: 5),
             "Backspace on an empty editor should reopen the previous word for editing."
         )
+
         XCTAssertEqual(reopenedThirdEditor.value as? String, "xxx")
         XCTAssertFalse(
             app.firstDescendant(withIdentifier: "word-tokenizer-editor-3").exists,

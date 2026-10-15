@@ -37,6 +37,7 @@ extension DatabaseService {
                 transport: nil,
                 vendor: nil
             )
+
         case .trezor:
             KeyStore(
                 deviceId: nil,
@@ -45,6 +46,7 @@ extension DatabaseService {
                 transport: .usb,
                 vendor: .trezor
             )
+
         case .watchOnly:
             try watchOnlyKeyStore()
         }

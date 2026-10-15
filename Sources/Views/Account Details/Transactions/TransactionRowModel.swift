@@ -1,4 +1,3 @@
-import Foundation
 import WalletKit
 
 enum TransactionRowKind: String, Hashable, Sendable {

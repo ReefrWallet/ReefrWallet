@@ -1,4 +1,3 @@
-import Foundation
 import SwiftData
 import WalletKit
 
@@ -24,6 +23,8 @@ final class AccountService {
     func isValidAddress(_ address: String, for blockchain: Blockchain) -> Bool {
         do {
             switch blockchain {
+            case .aptos:
+                _ = try AptosAddress(string: address)
             case .evm:
                 _ = try EthereumAddress(string: address)
             case .sui:
@@ -33,9 +34,7 @@ final class AccountService {
             case .solana:
                 _ = try SolanaAddress(string: address)
             case let .cardano(network):
-                _ = try CardanoAccountDescriptor(
-                    string: "cardano:\(network.storageIdentifier):\(address)"
-                )
+                _ = try CardanoAccountDescriptor(string: "cardano:\(network.storageIdentifier):\(address)")
             case let .bitcoin(network):
                 // Scoped to a plain address for now — importing a bare
                 // account xpub as watch-only (rather than one address) is
@@ -128,9 +127,12 @@ final class AccountService {
                 // Store the canonical `addr(...)` form so this account's
                 // address round-trips through `BitcoinDescriptor(string:)`
                 // the same way a local account's `wpkh(...)`/`tr(...)`
-                // address already does (used by `AnyBlockchainClient`'s
-                // generic string-addressed bridging).
+                // address already does (used by the clients' generic
+                // string-addressed bridging).
                 address = try BitcoinDescriptor(address: trimmedAddress, network: network).string
+            } else if case .aptos = blockchain {
+                // Canonical AIP-40 form, so lookups match chain-reported addresses.
+                address = try AptosAddress(string: trimmedAddress).string
             } else if case let .cardano(network) = blockchain {
                 address = try CardanoAccountDescriptor(
                     string: "cardano:\(network.storageIdentifier):\(trimmedAddress)"
@@ -138,6 +140,7 @@ final class AccountService {
             } else {
                 address = trimmedAddress
             }
+
             derivationPath = nil
         }
 
@@ -189,23 +192,27 @@ private extension AccountService {
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
                 throw Error.invalidData
             }
+
             return .secp256k1
         case .tron:
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
                 throw Error.invalidData
             }
+
             return .secp256k1
         case .solana:
             guard signatureScheme == nil || signatureScheme == .ed25519 else {
                 throw Error.invalidData
             }
+
             return .ed25519
         case .cardano:
             guard signatureScheme == nil || signatureScheme == .ed25519 else {
                 throw Error.invalidData
             }
+
             return .ed25519
-        case .sui:
+        case .aptos, .sui:
             return signatureScheme ?? .ed25519
         default:
             return nil
@@ -237,7 +244,7 @@ private extension AccountService {
             curve = .secp256k1
         case .solana:
             curve = .ed25519
-        case .sui:
+        case .aptos, .sui:
             guard let signatureScheme else {
                 throw Error.invalidData
             }
@@ -252,6 +259,9 @@ private extension AccountService {
 
         let address: String
         switch blockchain {
+        case .aptos:
+            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
+            address = try AptosAddress(publicKey: publicKey, curve: curve).string
         case .evm:
             let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
             let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
@@ -297,6 +307,7 @@ private extension AccountService {
             scriptType: scriptType,
             accountIndex: UInt32(truncatingIfNeeded: accountIndex)
         )
+
         let accountKey = try masterKey.derive(accountDerivationPath)
         let accountPathText = String(accountDerivationPath.string.dropFirst(2)) // drop the leading "m/".
 
@@ -331,6 +342,7 @@ private extension AccountService {
             let derivationPath = try DerivationPath(
                 string: "m/1852'/1815'/\(accountIndex)'"
             )
+
             let xpub = try await device.cardanoXpub(path: derivationPath)
             let descriptor = try CardanoAccountDescriptor(xpub: xpub, network: network)
             return AddressResult(address: descriptor.string, derivationPath: derivationPath.string)

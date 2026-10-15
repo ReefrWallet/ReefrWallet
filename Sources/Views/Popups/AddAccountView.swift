@@ -39,8 +39,11 @@ struct AddAccountView {
     init(keyStore: KeyStore) {
         self.keyStore = keyStore
 
-        let blockchains = Blockchain.allMainnets
-        let selectedBlockchain = blockchains.first!
+        // "Other EVM" goes last, below a divider in the picker.
+        let allMainnets = Blockchain.allMainnets
+        let blockchains = allMainnets.filter { !$0.isCustomEVM } + allMainnets.filter(\.isCustomEVM)
+        // Unsupported chains stay listed (disabled), so never preselect one.
+        let selectedBlockchain = blockchains.first { $0.isSupported(by: keyStore) }!
         let networks = selectedBlockchain.allNetworks
 
         self.blockchains = blockchains
@@ -68,12 +71,7 @@ extension AddAccountView: View {
 
             Form {
                 Section {
-                    Picker("Blockchain", selection: $selectedBlockchain) {
-                        ForEach(blockchains, id: \.self) { blockchain in
-                            Text(blockchain.name).tag(blockchain)
-                        }
-                    }
-                    .accessibilityIdentifier("add-account-blockchain-picker")
+                    blockchainPicker
 
                     if !selectedBlockchain.isCustomEVM {
                         Picker("Network", selection: $selectedNetwork) {
@@ -87,7 +85,7 @@ extension AddAccountView: View {
                     if selectedBlockchain.isCustomEVM {
                         TextField("ChainId", text: $customChainId)
                             .disabled(!selectedBlockchain.isCustomEVM)
-                    } else if case .sui = selectedBlockchain, !keyStore.isWatchOnly {
+                    } else if selectedBlockchain.hasKeySchemeChoice, !keyStore.isWatchOnly {
                         Picker("Key Scheme", selection: $selectedKeyScheme) {
                             ForEach(Curve.allCases, id: \.self) { scheme in
                                 Text(scheme.description).tag(scheme)
@@ -183,6 +181,38 @@ extension AddAccountView: View {
 // MARK: - Subviews
 
 private extension AddAccountView {
+    @ViewBuilder
+    var blockchainPicker: some View {
+        #if os(macOS)
+        // A menu-style `Picker` on macOS ignores `.disabled` on its items,
+        // so chains the key store can't use are greyed out via AppKit.
+        LabeledContent("Blockchain") {
+            BlockchainPopUpButton(
+                sections: [standardBlockchains, customEVMBlockchains],
+                selection: $selectedBlockchain,
+                isEnabled: { $0.isSupported(by: keyStore) }
+            )
+        }
+        #else
+        Picker("Blockchain", selection: $selectedBlockchain) {
+            ForEach(standardBlockchains, id: \.self) { blockchain in
+                Text(blockchain.name).tag(blockchain)
+                    .disabled(!blockchain.isSupported(by: keyStore))
+            }
+
+            if !customEVMBlockchains.isEmpty {
+                Divider()
+
+                ForEach(customEVMBlockchains, id: \.self) { blockchain in
+                    Text(blockchain.name).tag(blockchain)
+                        .disabled(!blockchain.isSupported(by: keyStore))
+                }
+            }
+        }
+        .accessibilityIdentifier("add-account-blockchain-picker")
+        #endif
+    }
+
     var buttonsView: some View {
         HStack {
             Spacer()
@@ -222,6 +252,14 @@ private extension AddAccountView {
 // MARK: - Logic
 
 private extension AddAccountView {
+    var standardBlockchains: [Blockchain] {
+        blockchains.filter { !$0.isCustomEVM }
+    }
+
+    var customEVMBlockchains: [Blockchain] {
+        blockchains.filter(\.isCustomEVM)
+    }
+
     var isAddButtonDisabled: Bool {
         guard let selectedNetwork else {
             return true
@@ -254,6 +292,7 @@ private extension AddAccountView {
     func addAccount(_ blockchain: Blockchain, signatureScheme: Curve?) async throws {
         let watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
         let isBitcoin = if case .bitcoin = blockchain { true } else { false }
+
         let account = try await accountService.makeAccount(
             blockchain,
             keyStore: keyStore,
@@ -263,6 +302,7 @@ private extension AddAccountView {
             bitcoinBackend: isBitcoin ? selectedBitcoinBackend : nil,
             watchOnlyAddress: watchOnlyAddress
         )
+
         sidebarSelection.wrappedValue = account.id
         dismiss()
     }
@@ -304,7 +344,7 @@ private extension AddAccountView {
             networks = blockchain.allNetworks
             selectedNetwork = networks.first
 
-            if case .sui = blockchain {
+            if blockchain.hasKeySchemeChoice {
                 selectedKeyScheme = .ed25519
             } else {
                 selectedKeyScheme = nil
@@ -318,6 +358,168 @@ private extension AddAccountView {
         }
     }
 }
+
+// MARK: - Blockchain + Key Scheme
+
+private extension Blockchain {
+    /// Chains whose accounts may use either Ed25519 or secp256k1.
+    var hasKeySchemeChoice: Bool {
+        switch self {
+        case .aptos, .sui: true
+        default: false
+        }
+    }
+
+    /// Whether accounts on this chain can be created on `keyStore`.
+    /// Trezor firmware has no Aptos or Sui support.
+    func isSupported(by keyStore: KeyStore) -> Bool {
+        switch (keyStore.kind, self) {
+        case (.trezor, .aptos), (.trezor, .sui): false
+        default: true
+        }
+    }
+}
+
+// MARK: - BlockchainPopUpButton
+
+#if os(macOS)
+/// Native pop-up button for the blockchain list, so individual items can be
+/// shown disabled. Sections are separated by a divider; empty ones are skipped.
+private struct BlockchainPopUpButton: NSViewRepresentable {
+    let sections: [[Blockchain]]
+    @Binding var selection: Blockchain
+    let isEnabled: (Blockchain) -> Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let button = NSPopUpButton(frame: .zero, pullsDown: false)
+        button.autoenablesItems = false
+        // Draw the collapsed state from our own item (see `collapsedItem(for:)`)
+        // instead of the selected menu item.
+        (button.cell as? NSPopUpButtonCell)?.usesItemFromMenu = false
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.didSelect(_:))
+        button.setAccessibilityIdentifier("add-account-blockchain-picker")
+        return button
+    }
+
+    func updateNSView(_ button: NSPopUpButton, context: Context) {
+        context.coordinator.parent = self
+
+        guard let menu = button.menu else {
+            return
+        }
+
+        menu.removeAllItems()
+
+        for section in sections where !section.isEmpty {
+            if menu.numberOfItems > 0 {
+                menu.addItem(.separator())
+            }
+
+            for blockchain in section {
+                let item = NSMenuItem(title: blockchain.name, action: nil, keyEquivalent: "")
+                item.representedObject = blockchain
+                let enabled = isEnabled(blockchain)
+                // "Other EVM" has no logo of its own, so it goes without one.
+                if !blockchain.isCustomEVM {
+                    item.image = Self.menuLogo(named: blockchain.logoImageName, dimmed: !enabled)
+                }
+                item.isEnabled = enabled
+                menu.addItem(item)
+
+                if blockchain == selection {
+                    button.select(item)
+                }
+            }
+        }
+
+        (button.cell as? NSPopUpButtonCell)?.menuItem = Self.collapsedItem(for: selection)
+    }
+
+    private static let logoSide: CGFloat = 16
+
+    /// Gap added after the logo on the collapsed button; AppKit's own
+    /// image-to-title gap there is much tighter than in the open menu.
+    private static let collapsedLogoPadding: CGFloat = 4
+
+    /// Opacity of a dimmed logo, roughly matching disabled menu text.
+    private static let dimmedLogoOpacity: CGFloat = 0.35
+
+    /// The logo aspect-fitted and centred in a `logoSide` square, followed by
+    /// `trailingPadding` of empty space. Drawn into a new image rather than
+    /// resizing the shared `NSImage(named:)` instance used elsewhere.
+    ///
+    /// AppKit only dims template images on disabled items, so a `dimmed`
+    /// logo is drawn desaturated and faded here instead.
+    private static func menuLogo(
+        named name: String,
+        trailingPadding: CGFloat = 0,
+        dimmed: Bool = false
+    ) -> NSImage? {
+        guard let logo = NSImage(named: name), logo.size.width > 0, logo.size.height > 0 else {
+            return nil
+        }
+
+        let side = logoSide
+        let scale = min(side / logo.size.width, side / logo.size.height)
+        let fitted = NSSize(width: logo.size.width * scale, height: logo.size.height * scale)
+        let logoRect = NSRect(
+            origin: NSPoint(x: (side - fitted.width) / 2, y: (side - fitted.height) / 2),
+            size: fitted
+        )
+
+        return NSImage(size: NSSize(width: side + trailingPadding, height: side), flipped: false) { _ in
+            guard dimmed, let context = NSGraphicsContext.current?.cgContext else {
+                logo.draw(in: logoRect)
+                return true
+            }
+
+            // Applies to the whole layer when it's composited.
+            context.setAlpha(dimmedLogoOpacity)
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
+            logo.draw(in: logoRect)
+            // Strip colour but keep luminosity, so the logo's shape stays readable…
+            NSColor.gray.setFill()
+            logoRect.fill(using: .saturation)
+            // …then clip back to the logo's own shape, since the fill also
+            // covers its transparent areas.
+            logo.draw(in: logoRect, from: .zero, operation: .destinationIn, fraction: 1)
+            context.endTransparencyLayer()
+            return true
+        }
+    }
+
+    /// What the collapsed button shows: the selected chain with a padded logo.
+    private static func collapsedItem(for blockchain: Blockchain) -> NSMenuItem {
+        let item = NSMenuItem(title: blockchain.name, action: nil, keyEquivalent: "")
+        if !blockchain.isCustomEVM {
+            item.image = menuLogo(named: blockchain.logoImageName, trailingPadding: collapsedLogoPadding)
+        }
+        return item
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var parent: BlockchainPopUpButton
+
+        init(parent: BlockchainPopUpButton) {
+            self.parent = parent
+        }
+
+        @objc func didSelect(_ sender: NSPopUpButton) {
+            guard let blockchain = sender.selectedItem?.representedObject as? Blockchain else {
+                return
+            }
+
+            parent.selection = blockchain
+        }
+    }
+}
+#endif
 
 // MARK: - BitcoinBackendKind + Display
 
