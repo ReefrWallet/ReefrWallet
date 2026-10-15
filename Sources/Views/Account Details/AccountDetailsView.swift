@@ -18,7 +18,6 @@ struct AccountDetailsView {
 
     @State private var cachedBalances: [Balance] = []
     @State private var isCopyWalletAddressButtonActive = false
-    @State private var isSendButtonActive = false
     @State private var isTransactionSheetPresented = false
     @State private var selection: String?
 
@@ -68,7 +67,7 @@ extension AccountDetailsView: View {
             } label: {
                 Label("Send", systemImage: "paperplane")
             }
-            .disabled(!isSendButtonActive)
+            .disabled(!canSend(selected))
             .accessibilityIdentifier("account-send-button")
         }
 
@@ -78,14 +77,6 @@ extension AccountDetailsView: View {
         // is rebuilt after every successful blockchain refresh.
         .task(id: balanceRefreshId) {
             cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
-        }
-        .onChange(of: selection) {
-            if supportsTransfers, selected?.token.isNativeToken == true,
-               let amount = selected?.decimalAmount, amount > 0 {
-                isSendButtonActive = true
-            } else {
-                isSendButtonActive = false
-            }
         }
         .sheet(isPresented: $isTransactionSheetPresented) {
             if let selected {
@@ -178,6 +169,14 @@ private extension AccountDetailsView {
         }
 
         return true
+    }
+
+    func canSend(_ balance: Balance?) -> Bool {
+        guard supportsTransfers, let amount = balance?.decimalAmount else {
+            return false
+        }
+
+        return amount > 0
     }
 
     func selectedBalance(in balances: [Balance]) -> Balance? {
