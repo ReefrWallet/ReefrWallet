@@ -10,8 +10,8 @@ import SwiftUI
 
 /// Full-size placeholder: a dimmed brand mark with a caption below it.
 struct EmptyStateView: View {
+    private static let markHeight: CGFloat = 128
     private static let markOpacity: CGFloat = 0.4
-    private static let markSide: CGFloat = 128
     private static let spacing: CGFloat = 16
 
     let title: LocalizedStringKey
@@ -26,8 +26,7 @@ struct EmptyStateView: View {
                 .resizable()
                 .renderingMode(.template)
                 .scaledToFit()
-                // Shrinks with the container instead of clipping in tight panes.
-                .frame(maxWidth: Self.markSide, maxHeight: Self.markSide)
+                .frame(maxHeight: Self.markHeight)
                 .style(foreground: .secondary.opacity(Self.markOpacity))
                 .accessibilityHidden(true)
 
