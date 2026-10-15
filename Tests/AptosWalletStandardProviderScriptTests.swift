@@ -111,8 +111,10 @@ struct AptosWalletStandardProviderScriptTests {
         }
 
         try harness.run(
+            // swiftlint:disable:next return_in_3_rows
             "window.tx = { rawTransaction: { bcsToBytes: function () { return new Uint8Array([7, 8, 9]); } } };"
         )
+
         let result = try harness.invoke(
             "__capturedWallet.features['aptos:signTransaction'].signTransaction(window.tx)",
             resultTransform: "({ status: value.status, bytes: Array.from(value.args.bcsToBytes()) })"
@@ -128,6 +130,7 @@ struct AptosWalletStandardProviderScriptTests {
     ])
     func feePayerAndMultiAgentTransactionsAreRefusedLocally(transaction: String) throws {
         let harness = try makeHarness()
+        // swiftlint:disable:next return_in_3_rows
         try harness.run("window.raw = { bcsToBytes: function () { return new Uint8Array([1]); } };")
 
         #expect(throws: DappWalletStandardJSHarnessError.self) {

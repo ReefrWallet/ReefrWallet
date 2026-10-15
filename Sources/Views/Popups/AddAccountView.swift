@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  AddAccountView.swift
 //  Reefr Wallet
@@ -428,6 +429,7 @@ private struct BlockchainPopUpButton: NSViewRepresentable {
                 if !blockchain.isCustomEVM {
                     item.image = Self.menuLogo(named: blockchain.logoImageName, dimmed: !enabled)
                 }
+
                 item.isEnabled = enabled
                 menu.addItem(item)
 
@@ -499,6 +501,7 @@ private struct BlockchainPopUpButton: NSViewRepresentable {
         if !blockchain.isCustomEVM {
             item.image = menuLogo(named: blockchain.logoImageName, trailingPadding: collapsedLogoPadding)
         }
+
         return item
     }
 

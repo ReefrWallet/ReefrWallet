@@ -13,6 +13,7 @@ private let testEnvironmentVariables: [String: EnvironmentVariable] = {
         "APTOS_API_KEY",
         "BLOCKFROST_MAINNET_PROJECT_ID",
         "BLOCKFROST_PREPROD_PROJECT_ID",
+        "COINGECKO_API_KEY",
         "ETHERSCAN_API_KEY",
         "REEFR_TESTNET_MNEMONIC",
         "TRONGRID_API_KEY"

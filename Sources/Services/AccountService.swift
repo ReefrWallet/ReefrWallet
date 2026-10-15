@@ -174,6 +174,7 @@ final class AccountService {
             } catch {
                 printError("Cannot update balances: \(error)")
             }
+
         }
 
         return account

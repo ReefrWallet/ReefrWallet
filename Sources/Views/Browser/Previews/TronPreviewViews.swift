@@ -75,6 +75,7 @@ extension TronTransactionPreviewView {
             if callValue > 0 {
                 rows.append(Row(label: "TRX sent", value: Self.trx(callValue)))
             }
+
         case let .freezeBalanceV2(_, amount, resource):
             rows = [
                 Row(label: "Action", value: "Stake TRX"),

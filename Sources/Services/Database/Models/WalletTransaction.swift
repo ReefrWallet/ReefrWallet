@@ -38,6 +38,7 @@ struct WalletTransaction: Identifiable, Sendable {
             chainIdentifier: chainIdentifier,
             identifier: transaction.identifier
         )
+
         self.stableId = stableId
         blockHeight = transaction.blockHeight
         blockHash = transaction.blockHash
@@ -68,7 +69,11 @@ struct WalletTransaction: Identifiable, Sendable {
         effects = try model.effects.map(WalletTransactionEffect.init(model:))
     }
 
-    static func stableId(accountId: PersistentIdentifier, chainIdentifier: String, identifier: String) throws -> String {
+    static func stableId(
+        accountId: PersistentIdentifier,
+        chainIdentifier: String,
+        identifier: String
+    ) throws -> String {
         "\(try accountId.stableKey())|\(chainIdentifier)|\(identifier)"
     }
 }

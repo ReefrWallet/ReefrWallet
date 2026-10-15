@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  TransactionSyncService.swift
 //  Reefr Wallet
@@ -558,8 +559,8 @@ private extension TransactionSyncService {
         }.first
 
         if let metadata,
-            let name = metadata.tokenName,
-            let symbol = metadata.tokenSymbol {
+           let name = metadata.tokenName,
+           let symbol = metadata.tokenSymbol {
             return Token(
                 address: address,
                 blockchain: blockchain,
@@ -599,7 +600,7 @@ private struct EtherscanTokenTransferMetadata: Decodable {
 private struct TokenTransfer {
     let assetIdentifier: String?
     let rawPayload: Data?
-} // swiftlint:disable:this file_length
+}
 
 // MARK: - Balance refresh selection
 

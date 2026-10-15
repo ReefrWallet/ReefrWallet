@@ -238,12 +238,14 @@ struct TransactionSyncServiceTests {
         }
     }
 
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["ETHERSCAN_API_KEY"] != nil
-        || UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey) != nil))
+    @Test(.enabled(if:
+        ProcessInfo.processInfo.environment["ETHERSCAN_API_KEY"] != nil
+            || UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey) != nil
+    ))
     // swiftlint:disable:next function_body_length
     func syncsEthereumMainnetTokenBalancesAfterBackfill() async throws {
         guard let apiKey = ProcessInfo.processInfo.environment["ETHERSCAN_API_KEY"]
-            ?? UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey) else {
+                ?? UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey) else {
             throw Error.invalidData
         }
 
@@ -526,8 +528,8 @@ private extension TransactionSyncServiceTests {
         let transactions = try await databaseService.fetchTransactions(accountId: accountId)
 
         let linkedTokens = Set(transactions.flatMap(\.effects)
-            .compactMap(\.balance)
-            .compactMap(\.token.address))
+                                .compactMap(\.balance)
+                                .compactMap(\.token.address))
 
         let transferredTokens = Set(transactions.lazy.flatMap(\.effects).compactMap { effect in
             effect.kind == .tokenTransfer ? effect.assetIdentifier : nil

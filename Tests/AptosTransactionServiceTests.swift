@@ -13,6 +13,7 @@ struct AptosTransactionServiceTests {
     private static let funded: UInt64 = 100_000_000 // 1 APT
 
     @Test(.serialized, arguments: [Curve.ed25519, .secp256k1])
+    // swiftlint:disable:next function_body_length
     func nativeTransferUpdatesBalances(curve: Curve) async throws {
         let node = try await AptosNode.start()
         defer { node.stop() }
@@ -65,6 +66,7 @@ struct AptosTransactionServiceTests {
             account: sender,
             fees: fees
         )
+
         let signature = try await transactionService.signTransaction(transaction, account: sender)
         let hash = try await transactionService.sendTransaction(transaction, signature, account: sender)
         let fee = try #require(try await node.waitForCommit(hash).fee)

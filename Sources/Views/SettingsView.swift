@@ -17,6 +17,7 @@ struct SettingsView: View {
     @AppStorage("EtherscanAPIKey") private var etherscanAPIKey: String = ""
     @AppStorage("BlockfrostMainnetProjectID") private var blockfrostMainnetProjectId: String = ""
     @AppStorage("BlockfrostPreprodProjectID") private var blockfrostPreprodProjectId: String = ""
+    @AppStorage("CoinGeckoAPIKey") private var coinGeckoAPIKey: String = ""
     @AppStorage("TronGridAPIKey") private var tronGridAPIKey: String = ""
 
     var body: some View {
@@ -44,6 +45,14 @@ struct SettingsView: View {
                 TextField("Blockfrost Preprod Project ID", text: $blockfrostPreprodProjectId)
 
                 Text("Used for Cardano account data, native assets, and transaction requests.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(header: Text("Market Data")) {
+                TextField("CoinGecko Demo API Key", text: $coinGeckoAPIKey)
+
+                Text("Used as the token-price fallback when an on-chain source has no quote.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

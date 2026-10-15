@@ -224,6 +224,7 @@ private extension TronDappProvider {
             let error = DappError.invalidParams(
                 "Trezor can't sign this transaction exactly as built (unsupported fields)."
             )
+
             throw await failure(error, context: context)
         }
 

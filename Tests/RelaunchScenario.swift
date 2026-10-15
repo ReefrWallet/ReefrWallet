@@ -129,7 +129,7 @@ func randomTransferAmount(available: BigUInt, reserve: BigUInt = 0) throws -> Bi
     let maximum = available > reserve ? available - reserve : 0
     try #require(maximum >= 1, "Not enough to transfer: \(available) available, \(reserve) reserved.")
     let amount = BigUInt.randomInteger(lessThan: maximum) + 1
-    print("Random token transfer amount: \(amount) of \(available) available")
+    printDebug("Random token transfer amount: \(amount) of \(available) available")
     return amount
 }
 

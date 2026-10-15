@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // Integration tests for EthereumDappProvider against a real, running
 // local Ethereum node (Foundry's `anvil`) — see AnvilTestSupport.swift
 // for the shared node/deployer/mock-ERC-20 setup. Exercises the dapp

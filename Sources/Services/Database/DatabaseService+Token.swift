@@ -24,7 +24,7 @@ extension DatabaseService {
         let predicate = #Predicate<TokenModel> { token in
             if let address = token.address {
                 return token.blockchain?.serialized == serializedBlockchain
-                && tokenAddress == address
+                    && tokenAddress == address
             } else {
                 return false
             }
@@ -126,6 +126,7 @@ extension DatabaseService {
         }
 
         tokenModel.decimalsCount = token.decimalsCount
+        tokenModel.coinGeckoId = token.coinGeckoId
         tokenModel.imageURL = token.imageURL
         tokenModel.isIncludedInBalance = token.isIncludedInBalance
         tokenModel.isNativeToken = token.isNativeToken
@@ -171,6 +172,7 @@ private extension DatabaseService {
         }
 
         tokenModel.usdPrice = token.usdPrice
+        tokenModel.coinGeckoId = token.coinGeckoId
 
         if shouldSaveContext {
             try modelContext.save()

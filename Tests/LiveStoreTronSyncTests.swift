@@ -41,6 +41,7 @@ struct LiveStoreTronSyncTests {
                 $0.blockchain == .tron(.mainnet) && $0.address == "TMZNJsNex59tEozFeRTLD7sC2ZyENcz69t"
             }
         )
+
         let accountId = try #require(account.id)
 
         let service = TransactionSyncService(databaseService: databaseService)
@@ -90,14 +91,14 @@ struct LiveStoreTronSyncTests {
 
         let container = try ModelContainer(
             for: AccountModel.self,
-                BalanceModel.self,
-                BlockchainModel.self,
-                KeyStoreModel.self,
-                TokenModel.self,
-                SavedAddressModel.self,
-                WalletTransactionModel.self,
-                WalletTransactionEffectModel.self,
-                WalletTransactionSyncStateModel.self,
+            BalanceModel.self,
+            BlockchainModel.self,
+            KeyStoreModel.self,
+            TokenModel.self,
+            SavedAddressModel.self,
+            WalletTransactionModel.self,
+            WalletTransactionEffectModel.self,
+            WalletTransactionSyncStateModel.self,
             configurations: ModelConfiguration(url: directory.appending(path: "keystore.sqlite"))
         )
 

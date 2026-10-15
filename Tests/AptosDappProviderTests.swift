@@ -67,6 +67,7 @@ private struct AptosDappFixture {
             approving: approver,
             signingService: signingService
         )
+
         return try await provider.handle(method: method, params: params, context: context)
     }
 
@@ -125,9 +126,9 @@ struct AptosDappProviderTests {
     @Test func rejectedConnectSurfacesAsUserRejected() async throws {
         let fixture = try await AptosDappFixture.make()
 
-        await expectDappError({ if case .userRejected = $0 { true } else { false } }) {
+        await expectDappError({ if case .userRejected = $0 { true } else { false } }, {
             _ = try await fixture.call("connect", approver: RecordingApprover(.rejected))
-        }
+        })
 
         #expect(fixture.provider.wireError(.userRejected)["code"]?.numberValue == 4001)
     }
@@ -163,13 +164,13 @@ struct AptosDappProviderTests {
         let approver = RecordingApprover(.approved)
         let bytes = try fixture.rawTransaction(sender: AptosAddress(string: "0x" + String(repeating: "cd", count: 32)))
 
-        await expectDappError({ if case .invalidParams = $0 { true } else { false } }) {
+        await expectDappError({ if case .invalidParams = $0 { true } else { false } }, {
             _ = try await fixture.call(
                 "signTransaction",
                 .object(["rawTransaction": .string(bytes.base64EncodedString()), "account": fixture.accountParams]),
                 approver: approver
             )
-        }
+        })
 
         #expect(await approver.requests.isEmpty)
     }
@@ -180,13 +181,13 @@ struct AptosDappProviderTests {
         let approver = RecordingApprover(.approved)
         let bytes = try fixture.rawTransaction(chainId: 1)
 
-        await expectDappError({ if case .chainNotFound = $0 { true } else { false } }) {
+        await expectDappError({ if case .chainNotFound = $0 { true } else { false } }, {
             _ = try await fixture.call(
                 "signTransaction",
                 .object(["rawTransaction": .string(bytes.base64EncodedString()), "account": fixture.accountParams]),
                 approver: approver
             )
-        }
+        })
 
         #expect(await approver.requests.isEmpty)
     }
@@ -196,26 +197,26 @@ struct AptosDappProviderTests {
         try await fixture.connect()
         let bytes = try fixture.rawTransaction() + Data([0])
 
-        await expectDappError({ if case .invalidParams = $0 { true } else { false } }) {
+        await expectDappError({ if case .invalidParams = $0 { true } else { false } }, {
             _ = try await fixture.call(
                 "signTransaction",
                 .object(["rawTransaction": .string(bytes.base64EncodedString()), "account": fixture.accountParams]),
                 approver: RecordingApprover(.approved)
             )
-        }
+        })
     }
 
     @Test func signingRequiresAConnectedOrigin() async throws {
         let fixture = try await AptosDappFixture.make()
         let bytes = try fixture.rawTransaction()
 
-        await expectDappError({ if case .unauthorized = $0 { true } else { false } }) {
+        await expectDappError({ if case .unauthorized = $0 { true } else { false } }, {
             _ = try await fixture.call(
                 "signTransaction",
                 .object(["rawTransaction": .string(bytes.base64EncodedString()), "account": fixture.accountParams]),
                 approver: RecordingApprover(.approved)
             )
-        }
+        })
     }
 
     @Test func signMessageSignsTheAssembledAip62Message() async throws {

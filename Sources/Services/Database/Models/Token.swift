@@ -15,6 +15,7 @@ struct Token: Hashable, Sendable {
     /// CoinType on sui, contract address on Ethereum. `nil` for native token on ethereum.
     let address: String?
     let blockchain: Blockchain?
+    var coinGeckoId: String?
     var decimalsCount: UInt8
     var imageURL: URL?
     var isHidden: Bool
@@ -31,6 +32,7 @@ extension Token: Decodable {
 
         address = try container.decodeIfPresent(String.self, forKey: .address)
         blockchain = try container.decode(Blockchain.self, forKey: .blockchain)
+        coinGeckoId = try container.decodeIfPresent(String.self, forKey: .coinGeckoId)
         decimalsCount = try container.decode(UInt8.self, forKey: .decimalsCount)
         isNativeToken = try container.decode(Bool.self, forKey: .isNativeToken)
         name = try container.decode(String.self, forKey: .name)
@@ -45,6 +47,7 @@ extension Token: Decodable {
     init(address: String?, blockchain: Blockchain, tokenInfo: TokenInfo) {
         self.address = address
         self.blockchain = blockchain
+        coinGeckoId = nil
         self.decimalsCount = tokenInfo.decimals
         self.isHidden = false
         self.isNativeToken = tokenInfo.isNative
@@ -55,6 +58,7 @@ extension Token: Decodable {
     private enum CodingKeys: String, CodingKey {
         case address
         case blockchain
+        case coinGeckoId
         case decimalsCount
         case imageURL
         case isNativeToken
@@ -75,6 +79,7 @@ final class TokenModel {
 
     /// `nil` for native tokens
     var address: String?
+    var coinGeckoId: String?
     var decimalsCount: UInt8
     var imageURL: URL?
     var isIncludedInBalance: Bool?
@@ -93,6 +98,7 @@ final class TokenModel {
     init(
         address: String?,
         blockchain: BlockchainModel? = nil,
+        coinGeckoId: String? = nil,
         decimalsCount: UInt8,
         imageURL: URL? = nil,
         isNativeToken: Bool,
@@ -102,6 +108,7 @@ final class TokenModel {
     ) {
         self.address = address
         self.blockchain = blockchain
+        self.coinGeckoId = coinGeckoId
         self.decimalsCount = decimalsCount
         self.imageURL = imageURL
         self.isNativeToken = isNativeToken
@@ -119,6 +126,7 @@ extension Token {
     init(model: TokenModel) {
         address = model.address
         blockchain = model.blockchain?.blockchain
+        coinGeckoId = model.coinGeckoId
         decimalsCount = model.decimalsCount
         imageURL = model.imageURL
         isHidden = model.isHidden
@@ -135,6 +143,7 @@ extension TokenModel {
         self.init(
             address: token.address,
             blockchain: nil,
+            coinGeckoId: token.coinGeckoId,
             decimalsCount: token.decimalsCount,
             isNativeToken: token.isNativeToken,
             name: token.name,

@@ -24,10 +24,10 @@ struct StyledView: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-            content
-                .with(size: size)
-                .with(foregroundColor: foregroundColor)
-                .with(backgroundColor: backgroundColor)
+        content
+            .with(size: size)
+            .with(foregroundColor: foregroundColor)
+            .with(backgroundColor: backgroundColor)
     }
 }
 

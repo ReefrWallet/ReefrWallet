@@ -20,29 +20,26 @@ final class TokenPriceService: @unchecked Sendable {
             self.sources = [
                 ChainlinkPriceSource(clientProvider: clientProvider),
                 UniswapV3PriceSource(clientProvider: clientProvider),
-                CetusPriceSource(clientProvider: clientProvider)
+                CetusPriceSource(clientProvider: clientProvider),
+                CoinGeckoPriceSource()
             ]
         }
     }
 
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal {
-        var mostRecentError: (any Swift.Error)?
+        let price = try await resolvedPrice(token, rpcURL: rpcURL)
 
-        for source in sources {
-            do {
-                if let price = try await source.usdPrice(token, rpcURL: rpcURL) {
-                    return price
-                }
-            } catch {
-                mostRecentError = error
-            }
+        guard let coinGeckoId = price.coinGeckoId,
+              token.coinGeckoId != coinGeckoId,
+              let databaseService else {
+            return price.usdPrice
         }
 
-        if let mostRecentError {
-            throw mostRecentError
-        }
-
-        throw WalletKitError.unsupportedFeature
+        var updatedToken = token
+        updatedToken.coinGeckoId = coinGeckoId
+        updatedToken.usdPrice = price.usdPrice
+        try await databaseService.updateTokenPrices([updatedToken])
+        return price.usdPrice
     }
 
     func updateTokenPrices(_ account: Account) async throws {
@@ -56,13 +53,14 @@ final class TokenPriceService: @unchecked Sendable {
             for token in tokens {
                 group.addTask { [self] in
                     do {
-                        let usdPrice = try await usdPrice(
+                        let price = try await resolvedPrice(
                             token,
                             rpcURL: account.rpcURLOverride ?? account.blockchain.rpcURL
                         )
 
                         var updatedToken = token
-                        updatedToken.usdPrice = usdPrice
+                        updatedToken.coinGeckoId = price.coinGeckoId ?? token.coinGeckoId
+                        updatedToken.usdPrice = price.usdPrice
                         return updatedToken
                     } catch {
                         printError("\(account.name): \(error)")
@@ -83,5 +81,30 @@ final class TokenPriceService: @unchecked Sendable {
         }
 
         try await databaseService.updateTokenPrices(updatedTokens)
+    }
+
+    private func resolvedPrice(_ token: Token, rpcURL: URL) async throws -> CoinGeckoPrice {
+        var mostRecentError: (any Swift.Error)?
+
+        for source in sources {
+            do {
+                if let coinGecko = source as? CoinGeckoPriceSource,
+                   let price = try await coinGecko.resolvedPrice(token, rpcURL: rpcURL) {
+                    return price
+                }
+
+                if let usdPrice = try await source.usdPrice(token, rpcURL: rpcURL) {
+                    return CoinGeckoPrice(coinGeckoId: nil, usdPrice: usdPrice)
+                }
+            } catch {
+                mostRecentError = error
+            }
+        }
+
+        if let mostRecentError {
+            throw mostRecentError
+        }
+
+        throw WalletKitError.unsupportedFeature
     }
 }
