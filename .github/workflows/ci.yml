@@ -23,7 +23,7 @@ jobs:
 
     - name: Install macOS build dependencies
       run: |
-        brew install grpc-swift libusb pkg-config protobuf swift-protobuf libusb
+        brew install libusb pkg-config protobuf protoc-gen-grpc-swift swift-protobuf
         protoc --version
 
     - name: Setup mise
