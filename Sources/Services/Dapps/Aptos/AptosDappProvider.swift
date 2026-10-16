@@ -205,7 +205,7 @@ private extension AptosDappProvider {
         let signer: any Signer
         do {
             signer = try await transactionService.makeSigner(for: account)
-        } catch Error.notSupported {
+        } catch ReefrError.notSupported {
             throw .unauthorized
         } catch {
             throw .internalError("\(error)")

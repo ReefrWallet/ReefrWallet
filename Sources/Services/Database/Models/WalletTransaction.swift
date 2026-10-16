@@ -27,7 +27,7 @@ struct WalletTransaction: Identifiable, Sendable {
 
     init(account: Account, transaction: BlockchainTransaction) throws {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         self.id = nil

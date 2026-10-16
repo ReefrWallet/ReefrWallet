@@ -155,7 +155,7 @@ private extension SolanaDappProvider {
     /// ``SuiDappProvider/accountsResponse(account:)`` needs one.
     static func accountsPayload(for account: Account) throws -> JSONValue {
         guard case let .solana(network) = account.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let address = try SolanaAddress(string: account.address)

@@ -2,7 +2,7 @@ import BigInt
 import Foundation
 import SwiftData
 import Testing
-import WalletKitTesting
+import WalletKit
 @testable import ReefrWallet
 
 @Suite(.timeLimit(.minutes(1)))
@@ -49,7 +49,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
         account.id = try await service.insertAccount(account, keyStore: keyStore)
 
         guard let accountId = account.id else {
-            throw Error.internalError
+            throw ReefrError.internalError
         }
 
         #expect(try await service.fetchAccount(id: accountId) == account)
@@ -75,7 +75,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
 
         _ = try await service.insertBlockchain(blockchain)
 
-        await #expect(throws: Error.alreadyExists) {
+        await #expect(throws: ReefrError.alreadyExists) {
             try await service.insertBlockchain(blockchain)
         }
 
@@ -459,7 +459,7 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
         let missingAccountId = try await service.insertKeyStore(makeKeyStore(name: "Other"))
         try await service.deleteKeyStore(id: missingAccountId)
 
-        await #expect(throws: Error.notFound) {
+        await #expect(throws: ReefrError.notFound) {
             try await service.renameKeyStore(id: missingAccountId, name: "Missing")
         }
 
@@ -471,11 +471,11 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
         let deletedKeyStoreId = try await service.insertKeyStore(makeKeyStore(name: "Unrelated"))
         try await service.deleteKeyStore(id: deletedKeyStoreId)
 
-        await #expect(throws: Error.notFound) {
+        await #expect(throws: ReefrError.notFound) {
             try await service.insertAccount(account, keyStore: makeKeyStore(id: deletedKeyStoreId))
         }
 
-        await #expect(throws: Error.invalidData) {
+        await #expect(throws: ReefrError.invalidData) {
             try await service.fetchTokens(account: account)
         }
     }

@@ -489,7 +489,7 @@ private extension TransactionSyncService {
 
     func accountId(_ account: Account) throws -> PersistentIdentifier {
         guard let id = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return id

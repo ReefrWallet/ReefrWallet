@@ -8,8 +8,13 @@ import Testing
 struct LiveStoreTronSyncTests {
     static let liveStoreDirectory = URL.applicationSupportDirectory.appending(path: "xyz.reefr.wallet")
 
+    /// The developer's live store only exists on macOS.
     static var hasLiveStore: Bool {
+#if os(macOS)
         FileManager.default.fileExists(atPath: liveStoreDirectory.appending(path: "keystore.sqlite").path)
+#else
+        false
+#endif
     }
 
     /// TRC-20 transfer that used to stay "Pending" (no block height).

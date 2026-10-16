@@ -467,7 +467,7 @@ private struct EthereumDappProviderFixture {
 
         let result = try await provider.handle(method: "eth_sendTransaction", params: .array([tx]), context: context)
         guard case let .string(hash) = result else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         _ = try await node.waitForReceipt(hash)
@@ -507,7 +507,7 @@ private struct EthereumDappProviderFixture {
     /// signature this account's real key would.
     func makeIndependentSigner() throws -> EthereumPKeySigner {
         guard case let .evm(chain) = account.blockchain, let derivationPathString = account.derivationPath else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let seed = try Seed(rawBytes: try keyStore.localSeed())

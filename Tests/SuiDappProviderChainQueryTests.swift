@@ -7,7 +7,6 @@
 import Foundation
 import Testing
 import WalletKit
-import WalletKitTesting
 @testable import ReefrWallet
 
 /// Answers every approval request immediately with a preset result —

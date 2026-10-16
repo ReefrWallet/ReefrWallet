@@ -2,7 +2,7 @@ import Foundation
 @testable import ReefrWallet
 import SwiftData
 import Testing
-import WalletKitTesting
+import WalletKit
 
 /// Live Blockfrost-backed coverage for a funded CIP-1852 mainnet account.
 ///

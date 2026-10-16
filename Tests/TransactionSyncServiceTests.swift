@@ -19,7 +19,7 @@ struct TransactionSyncServiceTests {
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         var account = Account(
@@ -157,7 +157,7 @@ struct TransactionSyncServiceTests {
         ]
 
         guard let apiKey = ProcessInfo.processInfo.environment["ETHERSCAN_API_KEY"] else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let previousAPIKey = UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey)
@@ -171,7 +171,7 @@ struct TransactionSyncServiceTests {
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         var accounts = addresses.enumerated().map { index, address in
@@ -207,7 +207,7 @@ struct TransactionSyncServiceTests {
 
             for account in accounts {
                 guard let accountId = account.id else {
-                    throw Error.invalidData
+                    throw ReefrError.invalidData
                 }
 
                 if try await databaseService.fetchTransactions(accountId: accountId).isEmpty {
@@ -225,7 +225,7 @@ struct TransactionSyncServiceTests {
 
         for account in accounts {
             guard let accountId = account.id else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             let transactions = try await databaseService.fetchTransactions(accountId: accountId)
@@ -246,7 +246,7 @@ struct TransactionSyncServiceTests {
     func syncsEthereumMainnetTokenBalancesAfterBackfill() async throws {
         guard let apiKey = ProcessInfo.processInfo.environment["ETHERSCAN_API_KEY"]
                 ?? UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let previousAPIKey = UserDefaults.standard.string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey)
@@ -260,7 +260,7 @@ struct TransactionSyncServiceTests {
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         var account = Account(
@@ -284,7 +284,7 @@ struct TransactionSyncServiceTests {
         }
 
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let backfillDeadline = ContinuousClock.now.advanced(by: .seconds(120))
@@ -389,7 +389,7 @@ struct TransactionSyncServiceTests {
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         var account = Account(
@@ -413,7 +413,7 @@ struct TransactionSyncServiceTests {
         }
 
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let deadline = ContinuousClock.now.advanced(by: .seconds(50))
@@ -447,7 +447,7 @@ struct TransactionSyncServiceTests {
         let keyStore = try await databaseService.watchOnlyKeyStore()
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         var accounts = addresses.enumerated().map { index, address in
@@ -483,7 +483,7 @@ struct TransactionSyncServiceTests {
 
             for account in accounts {
                 guard let accountId = account.id else {
-                    throw Error.invalidData
+                    throw ReefrError.invalidData
                 }
 
                 if try await databaseService.fetchTransactions(accountId: accountId).isEmpty {
@@ -501,7 +501,7 @@ struct TransactionSyncServiceTests {
 
         for account in accounts {
             guard let accountId = account.id else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             let transactions = try await databaseService.fetchTransactions(accountId: accountId)
@@ -520,7 +520,7 @@ struct TransactionSyncServiceTests {
 private extension TransactionSyncServiceTests {
     func printTokenState(account: ReefrWallet.Account, databaseService: DatabaseService) async throws {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let balances = try await databaseService.fetchBalances(accountId: accountId)
@@ -807,7 +807,7 @@ private struct TransactionSyncFixture {
 
     private func requiredID(_ account: ReefrWallet.Account) throws -> PersistentIdentifier {
         guard let id = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return id

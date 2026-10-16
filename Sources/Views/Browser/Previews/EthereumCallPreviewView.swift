@@ -67,7 +67,7 @@ struct EthereumCallPreviewView: View {
 
             if call.hasDappFeeOverrides {
                 Text("Gas limit or fees were set by the site.")
-                    .style(.small, foreground: .orange)
+                    .style(.small, foreground: .caution)
             }
 
             Form {

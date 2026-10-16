@@ -46,7 +46,7 @@ final class FakeSuiDappChainQuerying: SuiDappChainQuerying, @unchecked Sendable 
 
     func moveFunction(package: String, module: String, name: String) async throws -> SuiMoveFunctionSignature {
         guard let functionSignature else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return functionSignature

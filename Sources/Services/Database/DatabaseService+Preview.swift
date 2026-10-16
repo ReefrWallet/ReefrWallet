@@ -11,7 +11,7 @@ import WalletKit
 extension DatabaseService {
     func mockAccount(blockchain: Blockchain, keyStore: KeyStore) throws -> Account {
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         var account = Account(

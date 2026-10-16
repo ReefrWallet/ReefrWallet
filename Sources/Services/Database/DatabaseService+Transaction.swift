@@ -61,7 +61,7 @@ extension DatabaseService {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         if let state = account.transactionSyncState {
@@ -86,13 +86,13 @@ extension DatabaseService {
         syncState: WalletTransactionSyncState?
     ) throws {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let accountPredicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: accountPredicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         let walletTransactions = try transactions.map { try WalletTransaction(account: account, transaction: $0) }
@@ -172,7 +172,7 @@ extension DatabaseService {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         applySyncState(state, to: account)
@@ -181,7 +181,7 @@ extension DatabaseService {
 
     func linkTransactionTokens(for account: Account) throws {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let predicate = #Predicate<WalletTransactionModel> { $0.account.persistentModelID == accountId }

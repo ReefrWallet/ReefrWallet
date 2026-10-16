@@ -167,7 +167,7 @@ extension KeyStoreModel {
 extension KeyStore {
     func localSeed() throws -> Data {
         guard kind == .local, let mnemonicEntropy else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return try Mnemonic.fromEntropy(

@@ -171,7 +171,7 @@ extension Token {
     /// Example: `"1.5"` with `decimalsCount = 6` → `BigUInt(1_500_000)`.
     func smallestUnitAmount(from text: String) throws -> BigUInt {
         guard let decimal = Decimal(string: text), decimal > 0 else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         // Scale by 10^decimals without losing integer precision.
@@ -194,11 +194,11 @@ extension Token {
         // Reject sub-smallest-unit amounts: the scaled value must already be an
         // exact integer. e.g. 0.0000001 USDC (6 decimals) → 0.1 base units → reject.
         guard scaled == truncated else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         guard let amount = BigUInt(truncated.stringValue), amount > 0 else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return amount

@@ -13,7 +13,7 @@ public extension Encodable {
         let data = try encoded(keyEncodingStrategy: keyEncodingStrategy)
 
         guard let string = String(data: data, encoding: .utf8) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return string

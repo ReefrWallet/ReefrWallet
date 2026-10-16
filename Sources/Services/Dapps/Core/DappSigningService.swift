@@ -38,7 +38,7 @@ final class DappSigningService: @unchecked Sendable {
         let signer: any Signer
         do {
             signer = try await transactionService.makeSigner(for: account)
-        } catch Error.notSupported {
+        } catch ReefrError.notSupported {
             throw DappError.unauthorized
         } catch {
             throw DappError.internalError("\(error)")

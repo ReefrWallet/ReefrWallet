@@ -9,7 +9,7 @@ actor DatabaseService {
         let predicate = #Predicate<BlockchainModel> { $0.serialized == serializedBlockchain }
 
         guard try modelContext.fetch(FetchDescriptor(predicate: predicate)).isEmpty else {
-            throw Error.alreadyExists
+            throw ReefrError.alreadyExists
         }
 
         let model = try BlockchainModel(blockchain: blockchain)

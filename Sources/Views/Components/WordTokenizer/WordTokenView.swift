@@ -47,10 +47,10 @@ private extension WordTokenView {
                 .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isValid ? Color.green : Color.red)
+        .foregroundStyle(isValid ? Color.positive : Color.negative)
         .background(
             Capsule()
-                .fill((isValid ? Color.green : Color.red).opacity(0.15))
+                .fill((isValid ? Color.positive : Color.negative).opacity(0.15))
         )
         .overlay(
             Capsule()

@@ -25,7 +25,7 @@ final class HardwareService {
         transport: HardwareTransportKind = .usb
     ) async throws -> HardwareDevice {
         guard let deviceInfo = try await scanDevices().first(where: { deviceId == $0.id }) else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         let device = try await manager.connect(deviceInfo, delegate: self)

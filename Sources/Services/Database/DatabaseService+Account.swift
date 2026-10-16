@@ -13,7 +13,7 @@ extension DatabaseService {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         modelContext.delete(account)
@@ -65,13 +65,13 @@ extension DatabaseService {
     @discardableResult
     func insertAccount(_ account: Account, keyStore: KeyStore) throws -> PersistentIdentifier {
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let keyStorePredicate = #Predicate<KeyStoreModel> { $0.persistentModelID == keyStoreId }
 
         guard let keyStore = try modelContext.fetch(FetchDescriptor(predicate: keyStorePredicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         let serializedBlockchain = try account.blockchain.asJSONString()
@@ -94,7 +94,7 @@ extension DatabaseService {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 
         guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         account.name = name
@@ -105,7 +105,7 @@ extension DatabaseService {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         return accountModel.usdValue()

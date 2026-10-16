@@ -106,7 +106,7 @@ struct SolanaDappProviderFixture {
     /// `SuiDappProviderFixture.makeIndependentSigner()`.
     func makeIndependentSigner() throws -> SolanaPKeySigner {
         guard let derivationPathString = account.derivationPath, case let .solana(network) = account.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let seed = try Seed(rawBytes: try keyStore.localSeed())

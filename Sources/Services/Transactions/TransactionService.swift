@@ -38,7 +38,7 @@ final class TransactionService: @unchecked Sendable {
         fees: Fees? = nil
     ) async throws -> Data {
         guard let blockchain = token.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let amount = try token.smallestUnitAmount(from: decimalAmount)
@@ -49,7 +49,7 @@ final class TransactionService: @unchecked Sendable {
 
         if case .cardano = blockchain, !token.isNativeToken {
             guard let cardanoRecipientLovelace, let lovelace = UInt64(cardanoRecipientLovelace) else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             options.append(.cardanoRecipientLovelace(lovelace))
@@ -118,12 +118,12 @@ extension TransactionService {
     /// keystore and deriving (or fetching from hardware) the private key.
     func makeSigner(for account: Account) async throws -> any Signer {
         guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         guard let derivationPathString = account.derivationPath else {
             // Watch-only accounts cannot sign transactions.
-            throw Error.notSupported
+            throw ReefrError.notSupported
         }
 
         let derivationPath = try DerivationPath(string: derivationPathString)
@@ -134,13 +134,13 @@ extension TransactionService {
             return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
             return try await makeTrezorSigner(for: account, device: device, derivationPath: derivationPath)
         case .watchOnly:
-            throw Error.notSupported
+            throw ReefrError.notSupported
         }
     }
 
@@ -148,7 +148,7 @@ extension TransactionService {
     /// its key store, without connecting to the device.
     func isHardwareBacked(_ account: Account) async throws -> Bool {
         guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         if case .trezor = keyStore.kind {
@@ -162,28 +162,28 @@ extension TransactionService {
 private extension TransactionService {
     func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
         guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         guard let rawAccountIndex = account.accountIndex, let accountIndex = UInt32(exactly: rawAccountIndex) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         switch keyStore.kind {
         case .local:
             guard let entropy = keyStore.mnemonicEntropy else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
             return try transaction.signed(entropy: entropy, accountIndex: accountIndex)
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             guard case let .cardano(network) = account.blockchain else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
@@ -191,7 +191,7 @@ private extension TransactionService {
             return try await CardanoTrezorSigner(network: network, accountIndex: accountIndex, device: device)
                 .sign(transaction: request)
         case .watchOnly:
-            throw Error.notSupported
+            throw ReefrError.notSupported
         }
     }
 
@@ -260,7 +260,7 @@ private extension TransactionService {
         }
 
         guard let value = BigUInt(text) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return value
@@ -274,7 +274,7 @@ private extension TransactionService {
         }
 
         guard let value = UInt64(text) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return value
@@ -288,7 +288,7 @@ private extension TransactionService {
         }
 
         guard let value = UInt32(text) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return value
@@ -349,7 +349,7 @@ private extension TransactionService {
             // Cardano local signing is handled directly in
             // `signCardanoTransaction`, which signs before a `Signer` is
             // constructed here.
-            throw Error.notImplemented
+            throw ReefrError.notImplemented
         }
     }
 
@@ -381,7 +381,7 @@ private extension TransactionService {
             )
 
         default:
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
     }
 
@@ -420,7 +420,7 @@ private extension TransactionService {
             )
 
         default:
-            throw Error.notImplemented
+            throw ReefrError.notImplemented
         }
     }
 }

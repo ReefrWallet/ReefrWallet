@@ -176,7 +176,7 @@ private extension FeeEstimationService {
 
         if !token.isNativeToken {
             guard let recipientLovelace, let lovelace = UInt64(recipientLovelace) else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             options.append(.cardanoRecipientLovelace(lovelace))
@@ -204,7 +204,7 @@ private extension FeeEstimationService {
         }
 
         guard let tokenAddress = token.address else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let calldata = EthereumABI.encodeCall(

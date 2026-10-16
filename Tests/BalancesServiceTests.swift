@@ -137,11 +137,11 @@ struct BalancesServiceTests {
         try await databaseService.deleteAccount(id: accountId)
         try await databaseService.deleteKeyStore(id: keyStoreId)
 
-        await #expect(throws: Error.notFound) {
+        await #expect(throws: ReefrError.notFound) {
             try await balancesService.usdValue(accountId: accountId)
         }
 
-        await #expect(throws: Error.notFound) {
+        await #expect(throws: ReefrError.notFound) {
             try await balancesService.usdValue(keyStoreId: keyStoreId)
         }
     }

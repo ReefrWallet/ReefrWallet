@@ -188,8 +188,14 @@ private enum BlockscoutAPI {
     case transactions(address: String, baseURL: URL, pagination: BlockscoutPageParameters?)
 }
 
-private enum BlockscoutHistoryError: Swift.Error {
+private enum BlockscoutHistoryError: LocalizedError {
     case forwardGapTooLarge
+
+    var errorDescription: String? {
+        switch self {
+        case .forwardGapTooLarge: "Too many new transactions to sync incrementally."
+        }
+    }
 }
 
 private protocol BlockscoutBlockNumbered {

@@ -10,7 +10,6 @@
 import Foundation
 import Testing
 import WalletKit
-import WalletKitTesting
 @testable import ReefrWallet
 
 /// Answers every approval request immediately with a preset result.
@@ -392,7 +391,7 @@ struct SuiDappProviderFixture {
     /// signature this account's real key would.
     func makeIndependentSigner() throws -> SuiPKeySigner {
         guard let derivationPathString = account.derivationPath, case let .sui(network) = account.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let curve = account.signatureScheme ?? .ed25519

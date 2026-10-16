@@ -229,7 +229,7 @@ private extension AddAccountView {
                     do {
                         if case .evm(.custom) = selectedBlockchain {
                             guard let chainId = UInt64(customChainId) else {
-                                throw Error.invalidData
+                                throw ReefrError.invalidData
                             }
 
                             try await addAccount(.evm(.custom(chainId)), signatureScheme: selectedKeyScheme)
@@ -321,7 +321,7 @@ private extension AddAccountView {
 
         let trimmedEndpoint = customEndpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedEndpoint.isEmpty, let url = URL(string: trimmedEndpoint) else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return url
@@ -333,7 +333,7 @@ private extension AddAccountView {
         }
 
         switch error {
-        case Error.alreadyExists:
+        case ReefrError.alreadyExists:
             return "AccountModel already exists."
         default:
             return error.localizedDescription

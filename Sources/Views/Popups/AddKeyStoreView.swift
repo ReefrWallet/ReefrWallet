@@ -134,7 +134,9 @@ private extension AddKeyStoreView {
                 }
                 .tag(Options.restoreFromBackup)
             }
+            #if os(macOS)
             .pickerStyle(.radioGroup)
+            #endif
         }
     }
 
@@ -183,7 +185,7 @@ extension AddKeyStoreView {
         }
 
         switch error {
-        case Error.alreadyExists:
+        case ReefrError.alreadyExists:
             return "Key store already exists."
         default:
             return error.localizedDescription

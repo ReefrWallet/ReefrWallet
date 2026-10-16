@@ -38,13 +38,13 @@ extension DatabaseService {
     /// are intentionally excluded.
     func fetchTokens(account: Account) throws -> [Token] {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
         guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         let tokenAddresses = Set(accountModel.balances.compactMap(\.token.address)).union(
@@ -158,7 +158,7 @@ private extension DatabaseService {
     @discardableResult
     func updateTokenPrice(_ token: Token, shouldSaveContext: Bool) throws -> PersistentIdentifier {
         guard let blockchain = token.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let serializedBlockchain = try blockchain.asJSONString()
@@ -168,7 +168,7 @@ private extension DatabaseService {
         }
 
         guard let tokenModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         tokenModel.usdPrice = token.usdPrice

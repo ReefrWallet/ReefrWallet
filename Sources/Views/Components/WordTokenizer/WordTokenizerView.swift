@@ -67,7 +67,9 @@ struct WordTokenizerView: View {
             }
         }
         .contentShape(Rectangle())
+        #if os(macOS)
         .focusSection()
+        #endif
         .onTapGesture { tapEmptyArea() }
         .onChange(of: phrase, initial: true) { _, newValue in
             guard newValue != model.phrase else {

@@ -40,7 +40,7 @@ private func insertAccount(
     databaseService: DatabaseService, keyStore: KeyStore, blockchain: Blockchain, address: String, name: String
 ) async throws {
     guard let keyStoreId = keyStore.id else {
-        throw Error.invalidData
+        throw ReefrError.invalidData
     }
 
     let account = Account(

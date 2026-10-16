@@ -243,7 +243,7 @@ private extension BalancesService {
         account: Account,
     ) async throws -> [Balance] {
         guard client.isSupported(.allBalances) else {
-            throw Error.notSupported
+            throw ReefrError.notSupported
         }
 
         var balances: [Balance] = []

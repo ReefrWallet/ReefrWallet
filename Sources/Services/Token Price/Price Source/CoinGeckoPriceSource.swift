@@ -159,7 +159,7 @@ private extension CoinGeckoPriceSource {
 
     func resolvedPrice(_ usdPrice: Decimal, coinGeckoId: String?) throws -> CoinGeckoPrice {
         guard usdPrice > 0, !usdPrice.isNaN else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return CoinGeckoPrice(coinGeckoId: coinGeckoId, usdPrice: usdPrice)

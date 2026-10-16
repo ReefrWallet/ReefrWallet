@@ -13,7 +13,7 @@ final class AccountService {
 
     func deleteAccount(_ account: Account) async throws {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         await transactionSyncService.stop(account)
@@ -72,7 +72,7 @@ final class AccountService {
             let result: AddressResult
             if case let .cardano(network) = blockchain {
                 guard let entropy = keyStore.mnemonicEntropy else {
-                    throw Error.notSupported
+                    throw ReefrError.notSupported
                 }
 
                 let descriptor = try CardanoAccountDescriptor(
@@ -99,7 +99,7 @@ final class AccountService {
             derivationPath = result.derivationPath
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
@@ -116,11 +116,11 @@ final class AccountService {
             let trimmedAddress = watchOnlyAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
 
             guard let trimmedAddress, !trimmedAddress.isEmpty else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             guard isValidAddress(trimmedAddress, for: blockchain) else {
-                throw Error.invalidAddress
+                throw ReefrError.invalidAddress
             }
 
             if case let .bitcoin(network) = blockchain {
@@ -145,7 +145,7 @@ final class AccountService {
         }
 
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let name = blockchain.isCustomEVM
@@ -174,7 +174,6 @@ final class AccountService {
             } catch {
                 printError("Cannot update balances: \(error)")
             }
-
         }
 
         return account
@@ -191,25 +190,25 @@ private extension AccountService {
         switch blockchain {
         case .evm:
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             return .secp256k1
         case .tron:
             guard signatureScheme == nil || signatureScheme == .secp256k1 else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             return .secp256k1
         case .solana:
             guard signatureScheme == nil || signatureScheme == .ed25519 else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             return .ed25519
         case .cardano:
             guard signatureScheme == nil || signatureScheme == .ed25519 else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             return .ed25519
@@ -247,12 +246,12 @@ private extension AccountService {
             curve = .ed25519
         case .aptos, .sui:
             guard let signatureScheme else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             curve = signatureScheme
         default:
-            throw Error.notImplemented
+            throw ReefrError.notImplemented
         }
 
         let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: curve)
@@ -277,7 +276,7 @@ private extension AccountService {
             let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
             address = try SuiAddress(publicKey: publicKey, curve: curve).string
         default:
-            throw Error.notImplemented
+            throw ReefrError.notImplemented
         }
 
         return AddressResult(address: address, derivationPath: derivationPath.string)
@@ -296,7 +295,7 @@ private extension AccountService {
         scriptType: BitcoinScriptType?
     ) throws -> AddressResult {
         guard let scriptType else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let seed = try Seed(rawBytes: rawKey)
@@ -363,7 +362,7 @@ private extension AccountService {
             let signer = try await SolanaTrezorSigner(device: device, derivationPath: derivationPath)
             return AddressResult(address: try signer.address().string, derivationPath: derivationPath.string)
         default:
-            throw Error.notImplemented
+            throw ReefrError.notImplemented
         }
     }
 
@@ -379,7 +378,7 @@ private extension AccountService {
         device: HardwareDevice
     ) async throws -> AddressResult {
         guard let scriptType else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let signer = try await BitcoinTrezorSigner(
@@ -396,7 +395,7 @@ private extension AccountService {
     /// Return next account index that has not yet been configured
     func nextAccountIndex(for blockchain: Blockchain, in keyStore: KeyStore) async throws -> UInt64 {
         guard let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let accounts = try await databaseService.fetchAccounts(keyStoreId: keyStoreId, blockchain: blockchain)

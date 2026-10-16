@@ -19,7 +19,7 @@ extension DatabaseService {
 
     func fetchBalance(account: Account, tokenAddress: String?) throws -> Balance? {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return try modelContext
@@ -39,7 +39,7 @@ extension DatabaseService {
     @discardableResult
     func saveBalance(_ balance: Balance) throws -> PersistentIdentifier {
         guard let id = try saveBalances([balance]).first else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return id
@@ -59,7 +59,7 @@ extension DatabaseService {
 
         for balance in balances {
             guard let accountId = balance.account.id else {
-                throw Error.invalidData
+                throw ReefrError.invalidData
             }
 
             accountIds.insert(accountId)
@@ -94,7 +94,7 @@ extension DatabaseService {
 
         for balance in balances {
             guard let accountId = balance.account.id, let accountModel = accountIndex[accountId] else {
-                throw Error.notFound
+                throw ReefrError.notFound
             }
 
             let serializedBlockchain = try balance.account.blockchain.asJSONString()
@@ -142,11 +142,11 @@ extension DatabaseService {
 
     func updateBalances(account: Account, updates: [Balance]) throws {
         guard let accountId = account.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         guard let account = try fetchAccount(id: accountId) else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         var balances = try fetchBalances(accountId: accountId)

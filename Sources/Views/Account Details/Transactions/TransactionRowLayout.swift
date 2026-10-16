@@ -54,9 +54,9 @@ struct TransactionRowLayout<Detail: View>: View {
     private var directionColor: Color {
         switch model.kind {
         case .received:
-            .green
+            .positive
         case .sent:
-            .red
+            .negative
         default:
             .secondary
         }

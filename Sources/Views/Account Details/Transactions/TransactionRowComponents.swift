@@ -19,7 +19,7 @@ struct TransactionAmountLabel: View {
     var body: some View {
         if let amount {
             Text("\(amount.formatted(.number.precision(.fractionLength(0...6)))) \(symbol)")
-                .style(.mediumHeader, foreground: amount < 0 ? .red : amount > 0 ? .green : .secondary)
+                .style(.mediumHeader, foreground: amount < 0 ? .negative : amount > 0 ? .positive : .secondary)
         }
     }
 }
@@ -29,7 +29,7 @@ struct TransactionStatusBadge: View {
 
     var body: some View {
         Text(status.rawValue.capitalized)
-            .style(.small, foreground: status == .confirmed ? .green : .secondary)
+            .style(.small, foreground: status == .confirmed ? .positive : .secondary)
     }
 }
 

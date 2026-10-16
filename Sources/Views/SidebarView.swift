@@ -134,7 +134,7 @@ extension SidebarView: View {
                     Task {
                         do {
                             guard let keyStoreId = deletingKeyStore.id else {
-                                throw Error.notFound
+                                throw ReefrError.notFound
                             }
 
                             try await databaseService.deleteKeyStore(id: keyStoreId)
@@ -294,7 +294,7 @@ private extension SidebarView {
             }
         } label: {
             Label("Delete \"\(account.name)\"", systemImage: "trash")
-                .style(foreground: .red)
+                .style(foreground: .negative)
         }
     }
 

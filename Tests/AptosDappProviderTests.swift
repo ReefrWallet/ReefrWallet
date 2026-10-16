@@ -4,7 +4,6 @@
 import Foundation
 import Testing
 import WalletKit
-import WalletKitTesting
 @testable import ReefrWallet
 
 private actor RecordingApprover: DappApproving {

@@ -26,7 +26,7 @@ final class KeyStoreService {
         printInfo("Found \(devices.count) devices")
 
         guard let device = devices.first else {
-            throw Error.notFound
+            throw ReefrError.notFound
         }
 
         let keyStore = KeyStore(

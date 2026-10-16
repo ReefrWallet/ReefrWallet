@@ -1,6 +1,6 @@
 import Foundation
 @testable import ReefrWallet
-import WalletKitTesting
+import WalletKit
 
 extension DatabaseService {
     /// Creates a local test keystore from a known mnemonic so every generated
@@ -70,7 +70,7 @@ private extension DatabaseService {
         count: Int
     ) throws -> [ReefrWallet.Account] {
         guard count > 0, let keyStoreId = keyStore.id else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let seed = try Seed(rawBytes: keyStore.localSeed())
@@ -117,7 +117,7 @@ private extension DatabaseService {
         case .sui:
             return try SuiAddress(publicKey: privateKey.publicKey, curve: curve).string
         default:
-            throw Error.notImplemented
+            throw ReefrError.notImplemented
         }
     }
 }

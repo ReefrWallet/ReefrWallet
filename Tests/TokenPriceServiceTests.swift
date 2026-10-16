@@ -144,7 +144,7 @@ struct TokenPriceServiceTests {
 
         let token = Token(address: nil, blockchain: .bitcoin(.mainnet), tokenInfo: .bitcoin)
 
-        await #expect(throws: Error.self) {
+        await #expect(throws: ReefrError.self) {
             _ = try await source.usdPrice(token, rpcURL: testRPCURL)
         }
     }

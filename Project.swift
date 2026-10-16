@@ -30,13 +30,23 @@ private let testEnvironmentVariables: [String: EnvironmentVariable] = {
 
 // MARK: Targets
 
+private let walletInfoPlist: [String: Plist.Value] = Project.commonInfoPlist.merging([
+    "CFBundleDevelopmentRegion": "$(DEVELOPMENT_LANGUAGE)",
+    "CFBundleExecutable": "$(EXECUTABLE_NAME)",
+    "CFBundleInfoDictionaryVersion": "6.0",
+    "CFBundleName": "$(PRODUCT_NAME)",
+    "CFBundlePackageType": "$(PRODUCT_BUNDLE_PACKAGE_TYPE)",
+    "UIApplicationSceneManifest": .dictionary(["UIApplicationSupportsMultipleScenes": true]),
+    "UILaunchScreen": .dictionary([:])
+]) { $1 }
+
 private let wallet: Target = .target(
     name: "ReefrWallet",
     destinations: [.mac, .iPhone, .iPad],
     product: .app,
     bundleId: "xyz.reefr.wallet",
     deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
-    infoPlist: .dictionary(Project.commonInfoPlist),
+    infoPlist: .dictionary(walletInfoPlist),
     resources: ["Resources/**/*"],
     buildableFolders: ["Sources"],
     scripts: [
@@ -51,6 +61,72 @@ private let wallet: Target = .target(
         .external(name: "SwiftyBeaver"),
         .project(target: "WalletKit", path: "WalletKit")
     ]
+)
+
+/// Tests that need WalletKitTesting, which is macOS-only for now.
+private let iosTestExclusions: [String] = [
+    "AnvilTestSupport.swift",
+    "AptosTransactionServiceTests.swift",
+    "BalancesServiceTests.swift",
+    "DatabaseServiceDeleteAllTests.swift",
+    "EthereumDappProviderTests.swift",
+    "RelaunchBalanceSyncTests.swift",
+    "SolanaDappProviderFixture.swift",
+    "SolanaDappProviderTests.swift",
+    "TransactionServiceTests.swift",
+    "TransactionSyncServiceTests.swift"
+]
+
+private let iosTests: Target = .target(
+    name: "ReefrWalletTests-iOS",
+    destinations: [.iPhone, .iPad],
+    product: .unitTests,
+    bundleId: "xyz.reefr.wallet.tests",
+    deploymentTargets: .iOS("18.0"),
+    infoPlist: .default,
+    resources: ["TestVectors/**/*"],
+    buildableFolders: [.folder("Tests", exceptions: .exceptions([.exception(excluded: iosTestExclusions)]))],
+    scripts: [
+        .post(
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Tests",
+            name: "SwiftLint",
+            basedOnDependencyAnalysis: false
+        )
+    ],
+    dependencies: [
+        .target(name: "ReefrWallet")
+    ],
+    environmentVariables: testEnvironmentVariables
+)
+
+private let iosUITests: Target = .target(
+    name: "ReefrWalletUITests-iOS",
+    destinations: [.mac],
+    product: .uiTests,
+    bundleId: "xyz.reefr.wallet.uitests",
+    deploymentTargets: .iOS("18.0"),
+    infoPlist: .default,
+    resources: ["TestVectors/**/*"],
+    buildableFolders: ["UITests"],
+    scripts: [
+        .post(
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml UITests",
+            name: "SwiftLint",
+            basedOnDependencyAnalysis: false
+        )
+    ],
+    dependencies: [
+        .target(name: "ReefrWallet"),
+        .external(name: "BigInt"),
+        .external(name: "GRPCCore"),
+        .external(name: "GRPCNIOTransportHTTP2Posix"),
+        .external(name: "SwiftProtobuf"),
+        .external(name: "GRPCProtobuf")
+    ],
+    settings: .settings(base: [
+        "TEST_TARGET_NAME": "ReefrWallet"
+    ]),
+    environmentVariables: testEnvironmentVariables
 )
 
 private let macOSTests: Target = .target(
@@ -74,25 +150,6 @@ private let macOSTests: Target = .target(
         .project(target: "WalletKitTesting", path: "WalletKit")
     ],
     environmentVariables: testEnvironmentVariables
-)
-
-private let iosTests: Target = .target(
-    name: "ReefrWalletTests-iOS",
-    destinations: [.iPhone, .iPad],
-    product: .unitTests,
-    bundleId: "xyz.reefr.wallet.tests",
-    deploymentTargets: .iOS("18.0"),
-    infoPlist: .default,
-    resources: ["TestVectors/**/*"],
-    buildableFolders: ["Tests"],
-    scripts: [
-        .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Tests",
-            name: "SwiftLint",
-            basedOnDependencyAnalysis: false
-        )
-    ],
-    dependencies: [.target(name: "ReefrWallet")]
 )
 
 private let macOSUITests: Target = .target(
@@ -163,13 +220,15 @@ let project = Project(
     name: "ReefrWallet",
     organizationName: Project.organizationName,
     settings: .settings(base: [
+        "CODE_SIGN_STYLE": "Automatic",
         "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
+        "OTHER_LDFLAGS[sdk=iphone*]": ["-lc++"],
         "OTHER_LDFLAGS[sdk=macosx*]": ["-lc++", libUsbPathFlag, "-lusb-1.0"],
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
-    targets: [wallet, macOSTests, macOSUITests], // TODO: iOS tests need signing configured
+    targets: [wallet, macOSTests, iosTests, macOSUITests],
     schemes: [walletScheme],
     additionalFiles: [
         ".github/**/*",

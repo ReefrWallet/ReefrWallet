@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 import WalletKit
 
 /// Best-effort display data for the approval sheet: the called token's
@@ -42,20 +43,25 @@ extension TronDappProvider {
         return TronTransactionPreview.Token(decimals: info.decimals, symbol: info.symbol)
     }
 
+    /// `body`'s result, or `nil` after `previewLookupTimeout`. Doesn't wait
+    /// for `body` to honour cancellation (network retries may not).
     static func withTimeout<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) async -> T? {
-        await withTaskGroup(of: T?.self) { group in
-            group.addTask {
-                try? await body()
+        let pending = OSAllocatedUnfairLock<CheckedContinuation<T?, Never>?>(initialState: nil)
+        let resume: @Sendable (T?) -> Void = { value in
+            pending.withLock { $0.take() }?.resume(returning: value)
+        }
+
+        return await withCheckedContinuation { continuation in
+            pending.withLock { $0 = continuation }
+            let work = Task {
+                resume(try? await body())
             }
 
-            group.addTask {
+            Task {
                 try? await Task.sleep(for: previewLookupTimeout)
-                return nil
+                work.cancel()
+                resume(nil)
             }
-
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
         }
     }
 }

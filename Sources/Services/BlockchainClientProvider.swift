@@ -89,7 +89,7 @@ struct BlockchainClientProvider: Sendable {
     /// the indexer only when it points at Aptos Labs; a custom node has none.
     func aptosClient(blockchain: Blockchain, rpcURL: URL? = nil) throws -> AptosClient {
         guard case let .aptos(network) = blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let indexerURL: URL? = if let rpcURL {
@@ -165,7 +165,7 @@ struct BlockchainClientProvider: Sendable {
     /// - Throws: ``Error/invalidData`` if `account` isn't on Bitcoin.
     func bitcoinClient(for account: Account) throws -> BitcoinClient {
         guard case let .bitcoin(network) = account.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return try makeBitcoinClient(network: network, rpcURL: account.rpcURLOverride, backend: account.bitcoinBackend)
@@ -185,7 +185,7 @@ struct BlockchainClientProvider: Sendable {
     /// honoring an optional RPC override.
     func ethereumClient(blockchain: Blockchain, rpcURL: URL? = nil) throws -> EthereumRPCClient {
         guard case let .evm(chain) = blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return EthereumRPCClient(endpoint: rpcURL ?? blockchain.rpcURL, chainId: chain.chainId)
@@ -207,7 +207,7 @@ struct BlockchainClientProvider: Sendable {
     /// RPC override.
     func suiClient(blockchain: Blockchain, rpcURL: URL? = nil) throws -> SuiGRPCClient {
         guard case .sui = blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         return try makeSuiClient(endpoint: rpcURL ?? blockchain.rpcURL)
@@ -221,7 +221,7 @@ struct BlockchainClientProvider: Sendable {
     /// - Throws: ``Error/invalidData`` if `account` isn't on Solana.
     func solanaClient(for account: Account) throws -> SolanaRPCClient {
         guard case .solana = account.blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         let endpoint = account.rpcURLOverride ?? account.blockchain.rpcURL
@@ -242,7 +242,7 @@ struct BlockchainClientProvider: Sendable {
     /// - Throws: ``Error/invalidData`` if `blockchain` isn't Tron.
     func tronClient(blockchain: Blockchain, rpcURL: URL? = nil) throws -> TronClient {
         guard case let .tron(network) = blockchain else {
-            throw Error.invalidData
+            throw ReefrError.invalidData
         }
 
         // A custom node opts out of third-party indexers.
