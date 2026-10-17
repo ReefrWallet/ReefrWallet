@@ -167,12 +167,11 @@ private extension BrowserView {
     @ToolbarContentBuilder
     var addressField: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            TextField("Address", text: $addressText)
-                .textFieldStyle(.roundedBorder)
+            Text(addressText)
+                .style(.small, foreground: .secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
                 .frame(minWidth: 320)
-                .onSubmit {
-                    controller.webViewController.load(addressText)
-                }
                 .accessibilityIdentifier("browser-address-field")
         }
     }
