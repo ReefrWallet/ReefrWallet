@@ -181,6 +181,11 @@ private extension WalletApp {
     }
 
     func processPreStartupOptions() {
+#if os(macOS)
+        // Otherwise AppKit treats unpaired `--flags` as files to open, and SwiftUI skips the initial window.
+        UserDefaults.standard.register(defaults: ["NSTreatUnknownArgumentsAsOpen": "NO"])
+#endif
+
         if let storePath = Self.commandLineValue(after: "--store-path") {
             Inject.storeURLOverride = URL(fileURLWithPath: storePath)
         }
