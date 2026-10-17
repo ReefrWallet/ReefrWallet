@@ -16,6 +16,7 @@ import Foundation
 import Combine
 import WalletConnectNetworking
 import WalletConnectSign
+import WalletConnectUtils
 
 @MainActor
 final class ReownWalletConnectClient: WalletConnectClient {
@@ -32,7 +33,7 @@ final class ReownWalletConnectClient: WalletConnectClient {
         for namespace in namespaces {
             sessionNamespaces[namespace.namespace] = SessionNamespace(
                 chains: namespace.chains.compactMap { Blockchain($0) },
-                accounts: namespace.accounts.compactMap { Account("\($0.chain):\($0.address)") },
+                accounts: namespace.accounts.compactMap { WalletConnectUtils.Account("\($0.chain):\($0.address)") },
                 methods: Set(namespace.methods),
                 events: Set(namespace.events)
             )
@@ -54,7 +55,9 @@ final class ReownWalletConnectClient: WalletConnectClient {
             socketFactory: URLSessionSocketFactory()
         )
 
-        let redirect = try? AppMetadata.Redirect(native: WalletConnectConfig.redirectScheme, universal: nil)
+        // Native-only redirect never throws (no universal link / link mode).
+        // swiftlint:disable:next force_try
+        let redirect = try! AppMetadata.Redirect(native: WalletConnectConfig.redirectScheme, universal: nil)
         let metadata = AppMetadata(
             name: WalletConnectConfig.appName,
             description: WalletConnectConfig.appDescription,

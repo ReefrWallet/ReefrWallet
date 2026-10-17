@@ -57,6 +57,9 @@ private let wallet: Target = .target(
     infoPlist: .dictionary(walletInfoPlist),
     resources: ["Resources/**/*"],
     buildableFolders: ["Sources"],
+    entitlements: .dictionary([
+        "com.apple.security.application-groups": .array([.string("group.xyz.reefr.wallet")])
+    ]),
     scripts: [
         .post(
             script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Sources",
@@ -230,6 +233,7 @@ let project = Project(
     organizationName: Project.organizationName,
     settings: .settings(base: [
         "CODE_SIGN_STYLE": "Automatic",
+        "DEVELOPMENT_TEAM": "V785L3L8JT",
         "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": false,
