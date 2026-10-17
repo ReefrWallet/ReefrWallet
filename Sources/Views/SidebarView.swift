@@ -19,7 +19,7 @@ enum PresentedSheet: Identifiable {
     case addKeyStore
     case addWatchOnlyAccount
     case backUpKeyStore(KeyStore)
-    case browser
+    case browser(URL)
 
     var id: String {
         UUID().uuidString

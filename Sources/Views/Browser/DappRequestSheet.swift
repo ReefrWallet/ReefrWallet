@@ -21,6 +21,7 @@ struct DappRequestSheet: View {
 
 #if os(macOS)
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.browserWindowURL) private var browserWindowURL
 #endif
 
     private let databaseService = DI.injectOrFail(DatabaseService.self)
@@ -130,7 +131,7 @@ private extension DappRequestSheet {
                 onResolve(.rejected)
 
                 withTransaction(\.dismissBehavior, .destructive) {
-                    dismissWindow(id: "browser")
+                    dismissWindow(id: "browser", value: browserWindowURL ?? WalletApp.defaultBrowserURL)
                 }
             }
             .accessibilityIdentifier("dapp-close-browser-button")

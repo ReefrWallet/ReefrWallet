@@ -47,6 +47,8 @@ import WalletKit
         }
     }
 
+    static let defaultBrowserURL = URL(string: "https://app.uniswap.org")!
+
     /// A local dapp URL to auto-open the browser to, for UI tests —
     /// `--dapp-url`, DEBUG-only like every other launch-argument override.
     static var dappURL: URL? {
@@ -65,8 +67,10 @@ import WalletKit
         .modelContainer(databaseService.modelContainer)
 
 #if os(macOS)
-        WindowGroup("Browser", id: "browser") {
-            BrowserView(initialURL: Self.dappURL ?? URL(string: "https://app.uniswap.org")!)
+        WindowGroup("Browser", id: "browser", for: URL.self) { $url in
+            let initialURL = url ?? Self.dappURL ?? Self.defaultBrowserURL
+            BrowserView(initialURL: initialURL)
+                .environment(\.browserWindowURL, initialURL)
                 .accessibilityIdentifier("browser-window")
         }
         .defaultSize(width: 1100, height: 700)

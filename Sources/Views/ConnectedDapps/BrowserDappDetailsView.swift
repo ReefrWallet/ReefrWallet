@@ -15,6 +15,7 @@ struct BrowserDappDetailsView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.presentSheet) private var presentSheet
 
     private let store = DI.injectOrFail(ConnectedDappStore.self)
 
@@ -73,8 +74,14 @@ struct BrowserDappDetailsView: View {
     }
 
     private func open() {
+        guard let url = URL(string: dapp.urlString) else {
+            return
+        }
+
 #if os(macOS)
-        openWindow(id: "browser")
+        openWindow(id: "browser", value: url)
+#else
+        presentSheet?(.browser(url))
 #endif
     }
 }

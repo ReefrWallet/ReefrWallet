@@ -193,7 +193,7 @@ private extension BrowserView {
 #if os(macOS)
         ToolbarItem {
             Button {
-                dismissWindow(id: "browser")
+                dismissWindow(id: "browser", value: initialURL)
             } label: {
                 Label("Close Browser", systemImage: "xmark")
             }

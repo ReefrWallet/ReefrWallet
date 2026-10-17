@@ -22,6 +22,7 @@ struct PresentSheetAction {
 // MARK: - MainView
 
 extension EnvironmentValues {
+    @Entry var browserWindowURL: URL?
     @Entry var presentSheet: PresentSheetAction?
     @Entry var sidebarSelection: Binding<PersistentIdentifier?> = .constant(nil)
 }
@@ -88,8 +89,8 @@ struct MainView: View {
             case let .backUpKeyStore(keyStore):
                 BackupKeyStoreView(keyStore: keyStore)
 
-            case .browser:
-                BrowserView()
+            case let .browser(url):
+                BrowserView(initialURL: url)
             }
         }
         .sheet(item: pendingProposalBinding) { pending in
@@ -144,9 +145,9 @@ private extension MainView {
 
     func openBrowser() {
 #if os(macOS)
-        openWindow(id: "browser")
+        openWindow(id: "browser", value: WalletApp.dappURL ?? WalletApp.defaultBrowserURL)
 #else
-        presentedSheet = .browser
+        presentedSheet = .browser(WalletApp.dappURL ?? WalletApp.defaultBrowserURL)
 #endif
     }
 
