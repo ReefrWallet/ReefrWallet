@@ -49,6 +49,8 @@ extension StyledView {
         case mono
         /// 11pt monospaced, Mac hashes and amounts.
         case smallMono
+        /// 10pt semibold, sidebar header glyphs.
+        case smallIcon
     }
 }
 
@@ -112,6 +114,8 @@ private extension View {
             font(.system(size: 14, weight: .regular, design: .monospaced))
         case .smallMono:
             font(.system(size: 11, weight: .regular, design: .monospaced))
+        case .smallIcon:
+            font(.system(size: 10, weight: .semibold))
         case .none:
             self
         }

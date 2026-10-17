@@ -78,20 +78,9 @@ struct ConnectedDappsSidebarSection: View {
 
                 Spacer()
 
-                Button {
+                SidebarAddButton(accessibilityLabel: "Add dApp", accessibilityId: "sidebar-add-dapp-button") {
                     presentSheet?(.addBrowserDapp)
-                } label: {
-                    Image(systemName: "plus")
-                        .imageScale(.small)
-                        .fontWeight(.semibold)
-                        .frame(width: 20, height: 20)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .padding(.trailing, 6)
-                .accessibilityLabel("Add dApp")
-                .accessibilityIdentifier("sidebar-add-dapp-button")
             }
         }
         .task {
