@@ -26,6 +26,6 @@ let package = Package(
         .package(url: "https://github.com/grpc/grpc-swift-2", from: "2.4.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport", from: "2.9.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf", from: "2.4.0"),
-        .package(path: "../reown-swift")
+        .package(url: "https://github.com/kervich/reown-swift", branch: "reefr/macos-walletkit")
     ]
 )

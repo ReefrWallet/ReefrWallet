@@ -1,6 +1,3 @@
 [submodule "WalletKit"]
 	path = WalletKit
 	url = https://github.com/ReefrWallet/WalletKit.git
-[submodule "reown-swift"]
-	path = reown-swift
-	url = https://github.com/kervich/reown-swift.git

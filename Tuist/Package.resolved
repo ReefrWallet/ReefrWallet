@@ -1,5 +1,5 @@
 {
-  "originHash" : "a4117866fbf67a11aa1232022ead352399a057e5247180dc4b35bd9f11b03dd2",
+  "originHash" : "b53b77da777138fcb9e8ffceb335bdeb8a8dc40f637bcdfef68bff9e32cf7cd6",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -71,6 +71,15 @@
       "state" : {
         "revision" : "c43bae3dac73fdd3cb906bd5a1914686ca71ed3c",
         "version" : "6.7.0"
+      }
+    },
+    {
+      "identity" : "reown-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kervich/reown-swift",
+      "state" : {
+        "branch" : "reefr/macos-walletkit",
+        "revision" : "2e57d17574405477be1a0bb9d9c2d29521097865"
       }
     },
     {
