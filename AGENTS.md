@@ -24,3 +24,9 @@
 - Omit `return` in one-liners wherever possible.
 - Use `whateverId`, not `whateverID` when naming identifier properties.
 - Use `.asJSONString()`/`.encoded()`/`.decoded()` from Codable+Extensions.swift for JSON (de-)serialization.
+
+## Design
+- iPhone: https://www.figma.com/design/BVzlL19u6OSqBXMERw1U46/Reefr-Wallet-%E2%80%93-Transaction-List-Entries?node-id=0-1
+- iPad: https://www.figma.com/design/BVzlL19u6OSqBXMERw1U46/Reefr-Wallet-%E2%80%93-Transaction-List-Entries?node-id=21-250
+- macOS: https://www.figma.com/design/BVzlL19u6OSqBXMERw1U46/Reefr-Wallet-%E2%80%93-Transaction-List-Entries?node-id=4-76
+

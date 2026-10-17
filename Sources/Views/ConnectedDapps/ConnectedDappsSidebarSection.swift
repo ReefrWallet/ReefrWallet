@@ -89,6 +89,7 @@ struct ConnectedDappsSidebarSection: View {
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
+                .padding(.trailing, 6)
                 .accessibilityLabel("Add dApp")
                 .accessibilityIdentifier("sidebar-add-dapp-button")
             }
