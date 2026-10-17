@@ -350,7 +350,7 @@ private extension TransactionRowModel {
         // several same-asset legs — e.g. the transfer itself plus a gas-payment
         // or coin-merge leg. Only genuinely different assets make this
         // `.multiAsset`; same-asset legs net into one signed amount below.
-        guard Set(effects.map(\.assetIdentifier)).count == 1 else {
+        guard Set(effects.map(\.assetKey)).count == 1 else {
             return .multiAsset
         }
 
@@ -414,6 +414,7 @@ private extension TransactionRowEffect {
             direction: direction
         )
 
+        assetClass = Self.assetClass(effect, blockchain: account.blockchain)
         assetIdentifier = effect.assetIdentifier
         id = effect.stableId
         imageURL = token?.imageURL
@@ -421,6 +422,18 @@ private extension TransactionRowEffect {
         recipient = effect.recipient
         sender = effect.sender
         symbol = token?.symbol ?? effect.assetIdentifier ?? account.blockchain.nativeToken.symbol
+    }
+
+    /// Only ERC-721 transfers are recognizable: their log indexes the token ID as a 4th topic.
+    static func assetClass(_ effect: WalletTransactionEffect, blockchain: Blockchain) -> TransactionAssetClass {
+        guard case .evm = blockchain,
+              effect.kind == .tokenTransfer,
+              let log: EVMLogTopics = try? effect.rawPayload?.decoded(),
+              log.topics.count == 4 else {
+            return .token
+        }
+
+        return .nft(tokenId: log.topics[3])
     }
 
     static func signedAmount(
@@ -450,6 +463,11 @@ private extension TransactionRowEffect {
             }
         }
     }
+}
+
+/// `rawPayload` of an EVM log-derived effect.
+private struct EVMLogTopics: Decodable {
+    let topics: [String]
 }
 
 private extension Decimal {

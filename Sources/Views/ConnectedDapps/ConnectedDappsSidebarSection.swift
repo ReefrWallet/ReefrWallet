@@ -82,8 +82,13 @@ struct ConnectedDappsSidebarSection: View {
                     presentSheet?(.addBrowserDapp)
                 } label: {
                     Image(systemName: "plus")
+                        .imageScale(.small)
+                        .fontWeight(.semibold)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
                 .accessibilityLabel("Add dApp")
                 .accessibilityIdentifier("sidebar-add-dapp-button")
             }

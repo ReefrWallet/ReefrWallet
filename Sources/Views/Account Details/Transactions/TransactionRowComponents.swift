@@ -136,6 +136,10 @@ extension TransactionRowKind {
 
 extension TransactionRowModel {
     var amountColor: Color {
+        guard kind != .multiAsset else {
+            return .primary
+        }
+
         guard !isFailed, let amount = primaryEffect?.amount, amount != 0 else {
             return .secondary
         }
@@ -143,14 +147,16 @@ extension TransactionRowModel {
         switch kind {
         case .contractCall, .received, .sent:
             return amount > 0 ? .positive : .negative
-        case .multiAsset:
-            return .positive
-        case .approval, .selfTransfer, .unknown:
+        case .approval, .multiAsset, .selfTransfer, .unknown:
             return .secondary
         }
     }
 
     var amountText: String {
+        guard kind != .multiAsset else {
+            return assetCountText
+        }
+
         guard let effect = primaryEffect else {
             return "—"
         }
@@ -161,9 +167,9 @@ extension TransactionRowModel {
 
         let magnitude = abs(amount).formatted(.number.precision(.fractionLength(0...6)))
         let sign = switch kind {
-        case .approval, .selfTransfer, .unknown:
+        case .approval, .multiAsset, .selfTransfer, .unknown:
             ""
-        case .contractCall, .multiAsset, .received, .sent:
+        case .contractCall, .received, .sent:
             amount > 0 ? "+" : amount < 0 ? "−" : ""
         }
 

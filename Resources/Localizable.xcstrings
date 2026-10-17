@@ -1,0 +1,335 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "?" : {
+
+    },
+    "%@" : {
+
+    },
+    "%@ (addresses not resolved)" : {
+
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ accounts" : {
+
+    },
+    "%@ MIST" : {
+
+    },
+    "%@, %@" : {
+      "comment" : "Asset counts: NFTs, then tokens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
+    "%lld NFTs" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld NFT"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld NFTs"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld Tokens" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Token"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Tokens"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "1 account" : {
+
+    },
+    "Add Account" : {
+
+    },
+    "Add Blockchain Account" : {
+
+    },
+    "Add dApp" : {
+
+    },
+    "Amount" : {
+
+    },
+    "Balance:" : {
+
+    },
+    "Base fee" : {
+
+    },
+    "Camera scanning isn't available on this device." : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Commands" : {
+
+    },
+    "Compute unit limit" : {
+
+    },
+    "Connect App" : {
+
+    },
+    "Connect to %@" : {
+
+    },
+    "Connect Trezor hardware key and\nuse it for address derivation and signing" : {
+
+    },
+    "Contract address: %@" : {
+
+    },
+    "Custom RPC Endpoint" : {
+
+    },
+    "Data" : {
+
+    },
+    "Domain" : {
+
+    },
+    "Done" : {
+
+    },
+    "Expires %@" : {
+
+    },
+    "Fee payer" : {
+
+    },
+    "Fee rate (sat/vB)" : {
+
+    },
+    "From" : {
+
+    },
+    "Gas budget" : {
+
+    },
+    "Gas limit" : {
+
+    },
+    "Gas limit or fees were set by the site." : {
+
+    },
+    "Gas price" : {
+
+    },
+    "Gas price (MIST)" : {
+
+    },
+    "Gas unit price (octas)" : {
+
+    },
+    "Generate 12, 18 or 24 word seed phrase wallet\nstored locally on this computer" : {
+
+    },
+    "Instructions" : {
+
+    },
+    "Lookup tables" : {
+
+    },
+    "Market Data" : {
+
+    },
+    "Max fee per gas" : {
+
+    },
+    "Max gas" : {
+
+    },
+    "Max network fee" : {
+
+    },
+    "Max priority fee per gas" : {
+
+    },
+    "Max transaction cost (USD)" : {
+
+    },
+    "Message" : {
+
+    },
+    "Move calls" : {
+
+    },
+    "Native SegWit (BIP-84)" : {
+
+    },
+    "Network fee is calculated when the transaction is prepared." : {
+
+    },
+    "New BIP-39 Mnemonic" : {
+
+    },
+    "New Hardware Key" : {
+
+    },
+    "No account" : {
+
+    },
+    "No accounts" : {
+
+    },
+    "No keys" : {
+
+    },
+    "Not connected. Open it in the browser to connect." : {
+
+    },
+    "Paste the WalletConnect link from the app, or scan its QR code." : {
+
+    },
+    "Primary type" : {
+
+    },
+    "Priority fee (micro-lamports/CU)" : {
+
+    },
+    "Programs" : {
+
+    },
+    "Proxy Settings" : {
+
+    },
+    "Raw bytes" : {
+
+    },
+    "Receiver" : {
+
+    },
+    "Recipient ADA (lovelace)" : {
+
+    },
+    "Recovery Phrase for \"%@\"" : {
+
+    },
+    "Required" : {
+
+    },
+    "Required signers" : {
+
+    },
+    "Restore From Backup" : {
+
+    },
+    "Restore local seed phrase wallet\nfrom a 12, 18 or 24 word backup" : {
+
+    },
+    "Send" : {
+
+    },
+    "Sender" : {
+
+    },
+    "Taproot (BIP-86)" : {
+
+    },
+    "This caps Energy and Bandwidth spending. It does not increase transaction priority." : {
+
+    },
+    "This site is requesting to connect to this account." : {
+
+    },
+    "To" : {
+
+    },
+    "Token" : {
+
+    },
+    "Total Value:" : {
+
+    },
+    "Transaction cost (USD)" : {
+
+    },
+    "Transaction History" : {
+
+    },
+    "TRC-20 fee limit (SUN)" : {
+
+    },
+    "Types" : {
+
+    },
+    "Unknown error" : {
+
+    },
+    "Used as the token-price fallback when an on-chain source has no quote." : {
+
+    },
+    "Used for Aptos node and indexer requests. Works without one at lower rate limits." : {
+
+    },
+    "Used for Cardano account data, native assets, and transaction requests." : {
+
+    },
+    "Used for EVM history backfill. Falls back to Blockscout when empty." : {
+
+    },
+    "Used for TronGrid account data, history, and transaction requests." : {
+
+    },
+    "Value" : {
+
+    },
+    "Version" : {
+
+    },
+    "WalletConnect" : {
+
+    },
+    "You'll be asked to confirm this on your Trezor." : {
+
+    }
+  },
+  "version" : "1.0"
+}

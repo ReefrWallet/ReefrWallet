@@ -17,14 +17,22 @@ struct WalletConnectSessionsView: View {
     var body: some View {
         Group {
             if walletConnect.sessions.isEmpty {
-                VStack(spacing: 16) {
+                VStack(spacing: 0) {
+                    Spacer()
+
                     EmptyStateView("No Connected Apps")
+                        .frame(maxHeight: 220)
 
                     Button("Connect App") {
                         isConnecting = true
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .accessibilityIdentifier("walletconnect-empty-connect-button")
+
+                    Spacer()
                 }
+                .frame(maxWidth: .infinity)
             } else {
                 List(walletConnect.sessions) { session in
                     makeRow(session)

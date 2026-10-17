@@ -18,8 +18,14 @@ enum TransactionRowKind: String, Hashable, Sendable {
     case unknown
 }
 
+enum TransactionAssetClass: Hashable, Sendable {
+    case nft(tokenId: String)
+    case token
+}
+
 struct TransactionRowEffect: Identifiable, Hashable, Sendable {
     let amount: Decimal?
+    let assetClass: TransactionAssetClass
     let assetIdentifier: String?
     let id: String
     let imageURL: URL?
@@ -54,7 +60,50 @@ struct TransactionRowModel: Identifiable, Hashable, Sendable {
     let toLabel: String?
 }
 
+extension TransactionRowEffect {
+    /// Distinguishes assets: each NFT is its own asset, unlike fungible legs of one token.
+    var assetKey: String? {
+        switch assetClass {
+        case let .nft(tokenId):
+            "\(assetIdentifier ?? "")#\(tokenId)"
+        case .token:
+            assetIdentifier
+        }
+    }
+
+    var isNFT: Bool {
+        if case .nft = assetClass {
+            return true
+        }
+
+        return false
+    }
+}
+
 extension TransactionRowModel {
+    /// Distinct assets changed by the transaction, e.g. "2 NFTs, 4 Tokens".
+    var assetCountText: String {
+        var nftKeys = Set<String?>()
+        var tokenKeys = Set<String?>()
+
+        for effect in effects {
+            if effect.isNFT {
+                nftKeys.insert(effect.assetKey)
+            } else {
+                tokenKeys.insert(effect.assetKey)
+            }
+        }
+
+        let nfts = nftKeys.isEmpty ? nil : String(localized: "\(nftKeys.count) NFTs")
+        let tokens = tokenKeys.isEmpty ? nil : String(localized: "\(tokenKeys.count) Tokens")
+
+        guard let nfts, let tokens else {
+            return nfts ?? tokens ?? "—"
+        }
+
+        return String(localized: "\(nfts), \(tokens)", comment: "Asset counts: NFTs, then tokens")
+    }
+
     var direction: TransactionDirection {
         switch kind {
         case .received:

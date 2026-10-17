@@ -3,6 +3,18 @@ import SwiftUI
 import WalletKit
 
 extension TransactionRowModel {
+    static let previewUSDC = TransactionRowEffect(
+        amount: -500,
+        assetClass: .token,
+        assetIdentifier: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        id: "preview|usdc",
+        imageURL: nil,
+        kind: "tokenTransfer",
+        recipient: nil,
+        sender: nil,
+        symbol: "USDC"
+    )
+
     /// Every kind in every status, mirroring the Figma "Transaction Row" component sheet.
     static var previews: [TransactionRowModel] {
         let kinds: [TransactionRowKind] = [
@@ -33,6 +45,7 @@ extension TransactionRowModel {
 
         let effect = TransactionRowEffect(
             amount: amount,
+            assetClass: .token,
             assetIdentifier: nil,
             id: identifier,
             imageURL: nil,
@@ -45,7 +58,7 @@ extension TransactionRowModel {
         return TransactionRowModel(
             blockHeight: status == .unconfirmed ? nil : 23_581_204,
             blockLabel: status == .unconfirmed ? "Pending" : "Block #23581204",
-            effects: kind == .multiAsset ? [effect, effect] : [effect],
+            effects: kind == .multiAsset ? [effect, previewUSDC] : [effect],
             fee: 0.00021986,
             feeSymbol: "ETH",
             fromLabel: kind == .received ? "0x18A2…b89A" : "Main Account",
