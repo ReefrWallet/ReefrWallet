@@ -101,6 +101,17 @@ final class AnvilTransactionHistoryUITests: XCTestCase {
             "Expected a numeric block height for \(expected.identifier), got '\(blockCell.text)'"
         )
 
+        let blockLabelCell = app.descendants(matching: .any)["transaction-block-label-\(expected.identifier)"]
+        XCTAssertTrue(blockLabelCell.waitForExistence(timeout: timeout))
+        XCTAssertEqual(blockLabelCell.text, "Block #\(blockCell.text)", "Unexpected block label for \(expected.identifier)")
+
+        let feeCell = app.descendants(matching: .any)["transaction-fee-\(expected.identifier)"]
+        XCTAssertTrue(feeCell.waitForExistence(timeout: timeout), "Expected a fee for \(expected.identifier)")
+
+        let methodCell = app.descendants(matching: .any)["transaction-method-\(expected.identifier)"]
+        XCTAssertTrue(methodCell.waitForExistence(timeout: timeout), "Expected a method for \(expected.identifier)")
+        XCTAssertFalse(methodCell.text.isEmpty)
+
         let fromCell = app.descendants(matching: .any)["transaction-from-\(expected.identifier)"]
         XCTAssertTrue(fromCell.waitForExistence(timeout: timeout))
         XCTAssertEqual(

@@ -111,7 +111,10 @@ private extension BlockscoutTransactionHistorySource {
                     recipient: transaction.recipient,
                     status: transaction.status,
                     rawPayload: transaction.rawPayload,
-                    effects: transaction.effects + effects
+                    effects: transaction.effects + effects,
+                    counterpartyName: transaction.counterpartyName,
+                    fee: transaction.fee,
+                    method: transaction.method
                 )
             } else if let transfer = group.first {
                 records[hash] = transfer.blockchainTransaction(effects: effects)
@@ -253,6 +256,11 @@ extension BlockscoutAPI: TargetType {
 
 private struct BlockscoutAddress: Codable {
     let hash: String
+    let name: String?
+}
+
+private struct BlockscoutFee: Codable {
+    let value: String?
 }
 
 /// Blockscout's opaque `next_page_params`, echoed back verbatim as query parameters.
@@ -378,7 +386,9 @@ private struct BlockscoutTokenTransfer: Codable, BlockscoutBlockNumbered {
             sender: from.hash,
             recipient: to.hash,
             status: .confirmed,
-            effects: effects
+            effects: effects,
+            counterpartyName: token.name,
+            method: "Transfer"
         )
     }
 
@@ -406,8 +416,11 @@ private struct BlockscoutTokenTransfer: Codable, BlockscoutBlockNumbered {
 
 private struct BlockscoutTransaction: Codable, BlockscoutBlockNumbered {
     let blockNumber: UInt64
+    let fee: BlockscoutFee?
     let from: BlockscoutAddress
     let hash: String
+    let method: String?
+    let status: String?
     let timestamp: String
     let to: BlockscoutAddress?
     let value: String
@@ -419,9 +432,12 @@ private struct BlockscoutTransaction: Codable, BlockscoutBlockNumbered {
             timestamp: ISO8601DateFormatter.blockscout.date(from: timestamp),
             sender: from.hash,
             recipient: to?.hash,
-            status: .confirmed,
+            status: status == "error" ? .failed : .confirmed,
             rawPayload: try? JSONEncoder().encode(self),
-            effects: nativeTransferEffect.map { [$0] } ?? []
+            effects: nativeTransferEffect.map { [$0] } ?? [],
+            counterpartyName: to?.name,
+            fee: fee?.value,
+            method: EVMMethodName.display(method, hasValue: nativeTransferEffect != nil)
         )
     }
 

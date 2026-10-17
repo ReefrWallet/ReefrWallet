@@ -39,6 +39,16 @@ extension StyledView {
         case large
         case medium
         case small
+        /// 13pt, list secondary lines.
+        case caption
+        /// 15pt, iPad table cells.
+        case callout
+        /// 17pt semibold, list row titles and amounts.
+        case headline
+        /// 14pt monospaced, iPad hashes and amounts.
+        case mono
+        /// 11pt monospaced, Mac hashes and amounts.
+        case smallMono
     }
 }
 
@@ -92,6 +102,16 @@ private extension View {
             font(.system(size: 12, weight: .regular))
         case .smallHeader:
             font(.system(size: 12, weight: .bold))
+        case .caption:
+            font(.system(size: 13, weight: .regular))
+        case .callout:
+            font(.system(size: 15, weight: .regular))
+        case .headline:
+            font(.system(size: 17, weight: .semibold))
+        case .mono:
+            font(.system(size: 14, weight: .regular, design: .monospaced))
+        case .smallMono:
+            font(.system(size: 11, weight: .regular, design: .monospaced))
         case .none:
             self
         }

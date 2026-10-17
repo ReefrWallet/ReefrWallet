@@ -24,6 +24,9 @@ struct WalletTransaction: Identifiable, Sendable {
     let status: BlockchainTransactionStatus
     let rawPayload: Data?
     let effects: [WalletTransactionEffect]
+    let counterpartyName: String?
+    let fee: String?
+    let method: String?
 
     init(account: Account, transaction: BlockchainTransaction) throws {
         guard let accountId = account.id else {
@@ -50,6 +53,9 @@ struct WalletTransaction: Identifiable, Sendable {
         status = transaction.status
         rawPayload = transaction.rawPayload
         effects = transaction.effects.map { WalletTransactionEffect(transactionId: stableId, effect: $0) }
+        counterpartyName = transaction.counterpartyName
+        fee = transaction.fee
+        method = transaction.method
     }
 
     init(model: WalletTransactionModel) throws {
@@ -67,6 +73,9 @@ struct WalletTransaction: Identifiable, Sendable {
         status = BlockchainTransactionStatus(rawValue: model.status) ?? .unconfirmed
         rawPayload = model.rawPayload
         effects = try model.effects.map(WalletTransactionEffect.init(model:))
+        counterpartyName = model.counterpartyName
+        fee = model.fee
+        method = model.method
     }
 
     static func stableId(
@@ -107,6 +116,9 @@ final class WalletTransactionModel {
     var recipient: String?
     var status: String
     var rawPayload: Data?
+    var counterpartyName: String?
+    var fee: String?
+    var method: String?
 
     @Relationship(deleteRule: .noAction)
     var account: AccountModel
@@ -126,6 +138,9 @@ final class WalletTransactionModel {
         recipient = transaction.recipient
         status = transaction.status.rawValue
         rawPayload = transaction.rawPayload
+        counterpartyName = transaction.counterpartyName
+        fee = transaction.fee
+        method = transaction.method
         self.account = account
         effects = []
     }

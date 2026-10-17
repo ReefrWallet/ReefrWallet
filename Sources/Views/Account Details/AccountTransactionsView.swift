@@ -21,6 +21,10 @@ struct AccountTransactionsView: View {
     @Query private var transactions: [WalletTransactionModel]
     @State private var rows: [TransactionRowModel] = []
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     init(_ account: Account) {
         guard let accountId = account.id else {
             preconditionFailure()
@@ -44,7 +48,7 @@ struct AccountTransactionsView: View {
 
     var body: some View {
         VStack {
-            Text(transactions.count == Self.fetchLimit ? "Latest \(transactions.count) Transactions" : "\(transactions.count) Transactions")
+            Text(countText)
                 .accessibilityIdentifier("account-transactions-count")
                 .style(.mediumHeader, foreground: .primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -54,14 +58,18 @@ struct AccountTransactionsView: View {
                 if transactions.isEmpty {
                     EmptyStateView("No Transactions")
                         .accessibilityIdentifier("account-no-transactions")
+                } else if usesTable {
+                    TransactionsTable(rows: rows, schema: presenter.schema)
                 } else {
                     List(rows) { model in
-                        TransactionRow(model: model, blockchain: account.blockchain)
+                        TransactionRow(model: model)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     }
+                    .listStyle(.plain)
                 }
             }
             .task(id: refreshId) {
-                let presenter = TransactionRowPresenters.presenter(for: account.blockchain)
+                let presenter = presenter
 
                 rows = transactions.compactMap { transaction in
                     guard let transaction = try? WalletTransaction(model: transaction) else {
@@ -74,9 +82,25 @@ struct AccountTransactionsView: View {
         }
     }
 
+    private var countText: String {
+        transactions.count == Self.fetchLimit ? "Latest \(transactions.count) Transactions" : "\(transactions.count) Transactions"
+    }
+
+    private var presenter: any TransactionRowPresenter {
+        TransactionRowPresenters.presenter(for: account.blockchain)
+    }
+
+    private var usesTable: Bool {
+        #if os(macOS)
+        true
+        #else
+        horizontalSizeClass == .regular
+        #endif
+    }
+
     private var refreshId: String {
         transactions
-            .map { "\($0.persistentModelID)-\($0.status)-\($0.blockHeight ?? 0)" }
+            .map { "\($0.persistentModelID)-\($0.status)-\($0.blockHeight ?? 0)-\($0.fee ?? "")" }
             .joined(separator: "|")
     }
 }

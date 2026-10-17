@@ -209,7 +209,10 @@ private extension EtherscanTransactionHistorySource {
                     recipient: transaction.recipient,
                     status: transaction.status,
                     rawPayload: transaction.rawPayload,
-                    effects: transaction.effects + effects
+                    effects: transaction.effects + effects,
+                    counterpartyName: transaction.counterpartyName,
+                    fee: transaction.fee,
+                    method: transaction.method
                 )
             } else if let transfer = sortedTransfers.first {
                 records[hash] = transfer.blockchainTransaction(effects: effects)
@@ -399,7 +402,9 @@ private struct EtherscanTokenTransfer: Codable, EtherscanBlockNumbered {
             recipient: to,
             status: .confirmed,
             rawPayload: try? JSONEncoder().encode(self),
-            effects: effects
+            effects: effects,
+            counterpartyName: tokenName,
+            method: "Transfer"
         )
     }
 
@@ -431,6 +436,9 @@ private struct EtherscanTokenTransfer: Codable, EtherscanBlockNumbered {
 private struct EtherscanTransaction: Codable, EtherscanBlockNumbered {
     let blockNumber: EtherscanString
     let from: String
+    let functionName: String?
+    let gasPrice: String?
+    let gasUsed: String?
     let hash: String
     let isError: String
     let timeStamp: String
@@ -446,8 +454,18 @@ private struct EtherscanTransaction: Codable, EtherscanBlockNumbered {
             recipient: to,
             status: isError == "1" ? .failed : .confirmed,
             rawPayload: try? JSONEncoder().encode(self),
-            effects: nativeTransferEffect.map { [$0] } ?? []
+            effects: nativeTransferEffect.map { [$0] } ?? [],
+            fee: fee,
+            method: EVMMethodName.display(functionName, hasValue: nativeTransferEffect != nil)
         )
+    }
+
+    private var fee: String? {
+        guard let gasUsed = gasUsed.flatMap({ BigUInt($0) }), let gasPrice = gasPrice.flatMap({ BigUInt($0) }) else {
+            return nil
+        }
+
+        return (gasUsed * gasPrice).description
     }
 
     private var nativeTransferEffect: BlockchainTransactionEffect? {
@@ -495,4 +513,4 @@ private struct EtherscanString: Codable {
         var container = encoder.singleValueContainer()
         try container.encode(value)
     }
-}
+} // swiftlint:disable:this file_length

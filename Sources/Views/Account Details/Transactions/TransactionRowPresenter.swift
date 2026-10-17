@@ -1,8 +1,23 @@
+import Foundation
 import WalletKit
 
+/// Per-chain presentation: how effects are signed, how blocks are named and which table columns apply.
 protocol TransactionRowPresenter: Sendable {
+    var schema: TransactionTableSchema { get }
+
     func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel
-    func supports(_ blockchain: Blockchain) -> Bool
+}
+
+/// Column titles for the iPad/Mac transactions table; a `nil` title hides that column.
+struct TransactionTableSchema: Hashable, Sendable {
+    let amountTitle: String
+    let blockTitle: String
+    let feeTitle: String
+    let fromTitle: String?
+    let hashTitle: String
+    let methodTitle: String
+    let showsDirection: Bool
+    let toTitle: String?
 }
 
 enum TransactionRowPresenters {
@@ -14,8 +29,8 @@ enum TransactionRowPresenters {
             BitcoinTransactionRowPresenter()
         case .cardano:
             CardanoTransactionRowPresenter()
-        case .evm:
-            EVMTransactionRowPresenter()
+        case let .evm(chain):
+            EVMTransactionRowPresenter(feeSymbol: chain.nativeToken.symbol)
         case .solana:
             SolanaTransactionRowPresenter()
         case .sui:
@@ -28,100 +43,162 @@ enum TransactionRowPresenters {
 
 /// Aptos effects are the account's own signed net amounts per asset.
 struct AptosTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .signedAmounts)
-    }
+    let schema = TransactionTableSchema(
+        amountTitle: "Amount",
+        blockTitle: "Version",
+        feeTitle: "Gas (APT)",
+        fromTitle: "Sender",
+        hashTitle: "Hash",
+        methodTitle: "Function",
+        showsDirection: false,
+        toTitle: nil
+    )
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .aptos = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .signedAmounts,
+            blockLabel: transaction.blockHeight.map { "Version \($0)" } ?? "Pending"
+        )
     }
 }
 
+/// Bitcoin effects are net UTXO deltas; there's no single sender/recipient to tabulate.
 struct BitcoinTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .ownedAddresses)
-    }
+    let schema = TransactionTableSchema(
+        amountTitle: "Balance Change",
+        blockTitle: "Block",
+        feeTitle: "Fee (BTC)",
+        fromTitle: nil,
+        hashTitle: "Transaction ID",
+        methodTitle: "Type",
+        showsDirection: false,
+        toTitle: nil
+    )
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .bitcoin = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .ownedAddresses,
+            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "In mempool"
+        )
     }
 }
 
 struct CardanoTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .ownedAddresses)
-    }
+    let schema = TransactionTableSchema(
+        amountTitle: "Balance Change",
+        blockTitle: "Block",
+        feeTitle: "Fee (ADA)",
+        fromTitle: nil,
+        hashTitle: "Hash",
+        methodTitle: "Type",
+        showsDirection: false,
+        toTitle: nil
+    )
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .cardano = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .ownedAddresses,
+            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "Pending"
+        )
     }
 }
 
 struct EVMTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .addresses)
+    let schema: TransactionTableSchema
+
+    init(feeSymbol: String = "ETH") {
+        schema = TransactionTableSchema(
+            amountTitle: "Amount",
+            blockTitle: "Block",
+            feeTitle: "Fee (\(feeSymbol))",
+            fromTitle: "From",
+            hashTitle: "Hash",
+            methodTitle: "Method",
+            showsDirection: true,
+            toTitle: "To"
+        )
     }
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .evm = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .addresses,
+            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "Pending"
+        )
     }
 }
 
+/// Solana effects are signed balance deltas; the target program stands in for a recipient.
 struct SolanaTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .signedAmounts)
-    }
+    let schema = TransactionTableSchema(
+        amountTitle: "Value",
+        blockTitle: "Slot",
+        feeTitle: "Fee (SOL)",
+        fromTitle: "Signer",
+        hashTitle: "Signature",
+        methodTitle: "Action",
+        showsDirection: false,
+        toTitle: "Program"
+    )
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .solana = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .signedAmounts,
+            blockLabel: transaction.blockHeight.map { "Slot \($0)" } ?? "Pending"
+        )
     }
 }
 
 struct SuiTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .signedAmounts)
-    }
+    let schema = TransactionTableSchema(
+        amountTitle: "Amount",
+        blockTitle: "Checkpoint",
+        feeTitle: "Gas (SUI)",
+        fromTitle: nil,
+        hashTitle: "Digest",
+        methodTitle: "Type",
+        showsDirection: false,
+        toTitle: "Activity With"
+    )
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .sui = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .signedAmounts,
+            blockLabel: transaction.blockHeight.map { "Checkpoint \($0)" } ?? "Pending"
+        )
     }
 }
 
 struct TronTransactionRowPresenter: TransactionRowPresenter {
-    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
-        TransactionRowModel(transaction: transaction, account: account, direction: .addresses)
-    }
+    let schema = TransactionTableSchema(
+        amountTitle: "Amount",
+        blockTitle: "Block",
+        feeTitle: "Fee (TRX)",
+        fromTitle: "From",
+        hashTitle: "Hash",
+        methodTitle: "Type",
+        showsDirection: true,
+        toTitle: "To"
+    )
 
-    func supports(_ blockchain: Blockchain) -> Bool {
-        if case .tron = blockchain {
-            true
-        } else {
-            false
-        }
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .addresses,
+            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "Pending"
+        )
     }
 }
 
@@ -132,15 +209,67 @@ private extension TransactionRowModel {
         case signedAmounts
     }
 
-    init(transaction: WalletTransaction, account: Account, direction: Direction) {
+    init(transaction: WalletTransaction, account: Account, direction: Direction, blockLabel: String) {
         let effects = transaction.effects.map {
             TransactionRowEffect(effect: $0, account: account, direction: direction)
         }
 
         let primaryEffect = effects.first
-        let sender: String?
-        let recipient: String?
+        let (sender, recipient) = Self.parties(
+            transaction: transaction,
+            primaryEffect: primaryEffect,
+            direction: direction
+        )
 
+        let kind = Self.kind(
+            effects: effects,
+            recipient: recipient,
+            sender: sender,
+            accountAddress: account.address
+        )
+
+        let nativeToken = account.blockchain.nativeToken
+        let isOwnRecipient = recipient?.caseInsensitiveCompare(account.address) == .orderedSame
+        let otherParty = Self.otherParty(
+            effects: effects,
+            recipient: recipient,
+            sender: sender,
+            accountAddress: account.address
+        )
+
+        self.init(
+            blockHeight: transaction.blockHeight,
+            blockLabel: blockLabel,
+            effects: effects,
+            fee: transaction.fee.flatMap { Decimal(string: $0) }.map { $0.scaled(by: nativeToken.decimals) },
+            feeSymbol: nativeToken.symbol,
+            fromLabel: Self.label(sender, account: account),
+            id: transaction.stableId,
+            identifier: transaction.identifier,
+            kind: kind,
+            method: transaction.method,
+            primaryEffect: primaryEffect,
+            recipient: recipient,
+            sender: sender,
+            status: transaction.status,
+            subtitle: Self.subtitle(
+                kind: kind,
+                counterpartyName: transaction.counterpartyName,
+                otherParty: otherParty,
+                identifier: transaction.identifier
+            ),
+            timestamp: transaction.timestamp,
+            toLabel: isOwnRecipient
+                ? Self.label(recipient, account: account)
+                : transaction.counterpartyName ?? Self.label(recipient ?? otherParty, account: account)
+        )
+    }
+
+    static func parties(
+        transaction: WalletTransaction,
+        primaryEffect: TransactionRowEffect?,
+        direction: Direction
+    ) -> (sender: String?, recipient: String?) {
         switch direction {
         case .signedAmounts:
             // Sui (and Solana) can spread one transaction's balance changes
@@ -149,30 +278,58 @@ private extension TransactionRowModel {
             // effect isn't necessarily the real counterparty. Per-effect
             // `to`/`from` stay authoritative; there's no single top-level
             // counterparty to fall back to.
-            sender = transaction.sender
-            recipient = transaction.recipient
+            (transaction.sender, transaction.recipient)
         case .addresses, .ownedAddresses:
-            sender = transaction.sender ?? primaryEffect?.sender
-            recipient = transaction.recipient ?? primaryEffect?.recipient
+            (transaction.sender ?? primaryEffect?.sender, transaction.recipient ?? primaryEffect?.recipient)
+        }
+    }
+
+    /// Short address, or the account's name when it's the account itself.
+    static func label(_ address: String?, account: Account) -> String? {
+        guard let address else {
+            return nil
         }
 
-        self.init(
-            blockHeight: transaction.blockHeight,
-            effects: effects,
-            id: transaction.stableId,
-            identifier: transaction.identifier,
-            kind: Self.kind(
-                effects: effects,
-                recipient: recipient,
-                sender: sender,
-                accountAddress: account.address
-            ),
-            primaryEffect: primaryEffect,
-            recipient: recipient,
-            sender: sender,
-            status: transaction.status,
-            timestamp: transaction.timestamp
-        )
+        return address.caseInsensitiveCompare(account.address) == .orderedSame ? account.name : address.shortened()
+    }
+
+    /// The address on the other side of the transaction, if any.
+    static func otherParty(
+        effects: [TransactionRowEffect],
+        recipient: String?,
+        sender: String?,
+        accountAddress: String
+    ) -> String? {
+        let isOther = { (address: String?) in
+            address.map { $0.caseInsensitiveCompare(accountAddress) != .orderedSame } ?? false
+        }
+
+        if isOther(sender) {
+            return sender
+        }
+
+        if isOther(recipient) {
+            return recipient
+        }
+
+        return effects.lazy.flatMap { [$0.sender, $0.recipient] }.first(where: isOther) ?? nil
+    }
+
+    static func subtitle(
+        kind: TransactionRowKind,
+        counterpartyName: String?,
+        otherParty: String?,
+        identifier: String
+    ) -> String {
+        if let counterpartyName {
+            return counterpartyName
+        }
+
+        guard let otherParty else {
+            return identifier.shortened()
+        }
+
+        return kind == .received ? "From \(otherParty.shortened())" : "To \(otherParty.shortened())"
     }
 
     static func kind(
@@ -248,9 +405,7 @@ private extension TransactionRowEffect {
         let decimals = token?.decimalsCount ?? account.blockchain.nativeToken.decimals
         let rawAmount = effect.amount.flatMap { Decimal(string: $0) }
 
-        let unsignedAmount = rawAmount.map {
-            $0 * Decimal(sign: .plus, exponent: -Int(decimals), significand: 1)
-        }
+        let unsignedAmount = rawAmount.map { $0.scaled(by: decimals) }
 
         amount = Self.signedAmount(
             unsignedAmount,
@@ -294,5 +449,12 @@ private extension TransactionRowEffect {
                 return amount
             }
         }
+    }
+}
+
+private extension Decimal {
+    /// Smallest-unit integer → whole units.
+    func scaled(by decimals: UInt8) -> Decimal {
+        self * Decimal(sign: .plus, exponent: -Int(decimals), significand: 1)
     }
 }

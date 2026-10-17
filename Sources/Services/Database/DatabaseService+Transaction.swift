@@ -127,6 +127,10 @@ extension DatabaseService {
             model.recipient = transaction.recipient
             model.status = transaction.status.rawValue
             model.rawPayload = transaction.rawPayload
+            // Sources differ in richness (indexer vs. node); don't let a poorer re-sync erase labels.
+            model.counterpartyName = transaction.counterpartyName ?? model.counterpartyName
+            model.fee = transaction.fee ?? model.fee
+            model.method = transaction.method ?? model.method
 
             if model.modelContext == nil {
                 modelContext.insert(model)
