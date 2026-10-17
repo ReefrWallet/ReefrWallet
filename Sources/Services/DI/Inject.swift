@@ -56,6 +56,7 @@ struct Inject {
         let container = ServiceContainer()
             .registerModelContainer()
             .registerCore()
+            .registerDapps()
         return container
     }
 
@@ -63,6 +64,7 @@ struct Inject {
         let container = ServiceContainer()
             .registerModelContainer(useInMemoryStore: true)
             .registerCore()
+            .registerDapps()
         return container
     }
 }

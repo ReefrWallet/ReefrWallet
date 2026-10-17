@@ -15,6 +15,7 @@ private let watchOnlyRawKind = KeyStore.Kind.watchOnly.rawValue
 
 enum PresentedSheet: Identifiable {
     case addAccount(KeyStore)
+    case addBrowserDapp
     case addKeyStore
     case addWatchOnlyAccount
     case backUpKeyStore(KeyStore)
@@ -88,6 +89,8 @@ extension SidebarView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+
+            ConnectedDappsSidebarSection("Connected dApps")
         }
         .focused($isAccountsListFocused)
         .onChange(of: sidebarSelection.wrappedValue) {

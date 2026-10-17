@@ -25,6 +25,7 @@ let package = Package(
         .package(url: "https://github.com/attaswift/BigInt", from: "6.0.0"),
         .package(url: "https://github.com/grpc/grpc-swift-2", from: "2.4.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport", from: "2.9.0"),
-        .package(url: "https://github.com/grpc/grpc-swift-protobuf", from: "2.4.0")
+        .package(url: "https://github.com/grpc/grpc-swift-protobuf", from: "2.4.0"),
+        .package(path: "../Vendor/reown-swift")
     ]
 )

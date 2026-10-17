@@ -25,7 +25,10 @@ private final class BrowserController {
 
     init(initialURL: URL) {
         let approver = DappApprover()
-        let session = DappSession(origin: Self.origin(for: initialURL))
+        let session = DappSession(
+            origin: Self.origin(for: initialURL), persistence: DI.injectOrFail(ConnectedDappStore.self)
+        )
+
         let signingService = DI.injectOrFail(DappSigningService.self)
         let bridge = DappBridge(
             providers: [
@@ -42,6 +45,8 @@ private final class BrowserController {
         selectionModel = BrowserAccountSelectionModel(session: session) {
             Task { await bridge.sessionDidChange() }
         }
+
+        Task { await session.restorePermissions() }
     }
 
     /// Matches `DappBridge`'s own `WKSecurityOrigin`-derived origin string

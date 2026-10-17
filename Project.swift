@@ -36,6 +36,14 @@ private let walletInfoPlist: [String: Plist.Value] = Project.commonInfoPlist.mer
     "CFBundleInfoDictionaryVersion": "6.0",
     "CFBundleName": "$(PRODUCT_NAME)",
     "CFBundlePackageType": "$(PRODUCT_BUNDLE_PACKAGE_TYPE)",
+    "CFBundleURLTypes": .array([
+        .dictionary([
+            "CFBundleTypeRole": "Viewer",
+            "CFBundleURLName": "xyz.reefr.wallet.walletconnect",
+            "CFBundleURLSchemes": .array(["wc", "reefr"])
+        ])
+    ]),
+    "NSCameraUsageDescription": "Reefr Wallet uses the camera to scan WalletConnect QR codes.",
     "UIApplicationSceneManifest": .dictionary(["UIApplicationSupportsMultipleScenes": true]),
     "UILaunchScreen": .dictionary([:])
 ]) { $1 }
@@ -58,6 +66,7 @@ private let wallet: Target = .target(
     ],
     dependencies: [
         .external(name: "Moya"),
+        .external(name: "WalletConnect"),
         .external(name: "SwiftyBeaver"),
         .project(target: "WalletKit", path: "WalletKit")
     ]

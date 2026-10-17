@@ -9,7 +9,8 @@
 /// One connected origin's permission/account state, for one browser
 /// window/tab — an actor since ``DappBridge`` (`@MainActor`) and
 /// concurrently-dispatched ``DappProvider``s both touch it. Permissions
-/// are in-memory only for v1: closing the window forgets every grant.
+/// are kept in memory and mirrored to an optional ``DappPermissionPersisting``
+/// store, which restores them when the origin is next visited (ADR-035).
 actor DappSession {
     /// One namespace/origin/account permission grant.
     struct Permission: Hashable, Sendable {
@@ -24,9 +25,21 @@ actor DappSession {
 
     private var isApproving = false
     private var approvalWaiters: [CheckedContinuation<Void, Never>] = []
+    private let persistence: (any DappPermissionPersisting)?
 
-    init(origin: String) {
+    init(origin: String, persistence: (any DappPermissionPersisting)? = nil) {
         self.origin = origin
+        self.persistence = persistence
+    }
+
+    /// Loads the persisted grants for the current origin — call once after
+    /// creating a session whose initial origin may already be connected.
+    func restorePermissions() async {
+        guard let persistence else {
+            return
+        }
+
+        permissions.formUnion(await persistence.loadPermissions(origin: origin))
     }
 
     /// The namespace `activeAccount`'s blockchain belongs to, or `nil`
@@ -58,12 +71,13 @@ actor DappSession {
     /// session still has that origin and selected account; returns `false`
     /// (granting nothing) when either changed while the prompt was open,
     /// so an approval can't land on a different site or account.
-    func grantPermission(_ namespace: DappNamespace, origin approvedOrigin: String, account: Account) -> Bool {
+    func grantPermission(_ namespace: DappNamespace, origin approvedOrigin: String, account: Account) async -> Bool {
         guard approvedOrigin == origin, selectedAccount(namespace) == account else {
             return false
         }
 
         permissions.insert(Permission(origin: origin, namespace: namespace, accountAddress: account.address))
+        await persist()
         return true
     }
 
@@ -78,7 +92,7 @@ actor DappSession {
     ///
     /// An account the app picked on the user's behalf goes through
     /// ``replaceActiveAccount(_:)`` instead, which grants nothing.
-    func setActiveAccount(_ account: Account) {
+    func setActiveAccount(_ account: Account) async {
         let newNamespace = DappNamespace.namespace(for: account.blockchain)
 
         let namespaceAlreadyPermitted = newNamespace.map { namespace in
@@ -89,6 +103,7 @@ actor DappSession {
 
         if namespaceAlreadyPermitted, let newNamespace {
             permissions.insert(Permission(origin: origin, namespace: newNamespace, accountAddress: account.address))
+            await persist()
         }
     }
 
@@ -126,12 +141,13 @@ actor DappSession {
     /// switch, so revoking only the currently-active account's grant
     /// would leave an earlier account's carried-forward grant intact,
     /// silently reconnecting it if the selector switches back.
-    func revokePermission(_ namespace: DappNamespace) {
+    func revokePermission(_ namespace: DappNamespace) async {
         permissions = permissions.filter { !($0.origin == origin && $0.namespace == namespace) }
+        await persist()
     }
 
     /// Updates the origin, clearing every permission grant for the
-    /// previous origin — a different page must re-request access. The
+    /// previous origin and restoring any persisted for the new one. The
     /// active account carries over unchanged: it's controlled by the
     /// browser's selector, not by which page is loaded, so a dapp on a
     /// freshly navigated origin sees an account to request rather than
@@ -139,13 +155,21 @@ actor DappSession {
     /// Returns `true` when the origin actually changed (so the caller
     /// knows whether to notify every provider via `sessionDidChange`).
     @discardableResult
-    func updateOrigin(_ newOrigin: String) -> Bool {
+    func updateOrigin(_ newOrigin: String) async -> Bool {
         guard newOrigin != origin else {
             return false
         }
 
         origin = newOrigin
         permissions = []
+
+        if let persistence {
+            let restored = await persistence.loadPermissions(origin: newOrigin)
+            if origin == newOrigin {
+                permissions = restored
+            }
+        }
+
         return true
     }
 
@@ -174,6 +198,14 @@ actor DappSession {
         defer { releaseApprovalSlot() }
 
         return try await body()
+    }
+
+    private func persist() async {
+        guard let persistence else {
+            return
+        }
+
+        await persistence.savePermissions(origin: origin, permissions: permissions.filter { $0.origin == origin })
     }
 
     private func acquireApprovalSlot() async {
@@ -206,4 +238,11 @@ struct DappSessionSnapshot: Equatable, Sendable {
     let permittedNamespaces: Set<DappNamespace>
     let activeAccount: Account?
     let activeNamespace: DappNamespace?
+}
+
+/// A durable store for a ``DappSession``'s permission grants, keyed by
+/// origin.
+protocol DappPermissionPersisting: Sendable {
+    func loadPermissions(origin: String) async -> Set<DappSession.Permission>
+    func savePermissions(origin: String, permissions: Set<DappSession.Permission>) async
 }

@@ -32,6 +32,7 @@ extension ServiceContainer {
                     for: AccountModel.self,
                         BalanceModel.self,
                         BlockchainModel.self,
+                        ConnectedDappModel.self,
                         KeyStoreModel.self,
                         TokenModel.self,
                         SavedAddressModel.self,
@@ -105,6 +106,24 @@ extension ServiceContainer {
 
         register(TransactionSyncService.self) {
             TransactionSyncService()
+        }
+
+        return self
+    }
+}
+
+extension ServiceContainer {
+    func registerDapps() -> Self {
+        register(ConnectedDappStore.self) {
+            MainActor.assumeIsolated {
+                ConnectedDappStore(modelContainer: DI.injectOrFail(ModelContainer.self))
+            }
+        }
+
+        register(WalletConnectService.self) {
+            MainActor.assumeIsolated {
+                WalletConnectService()
+            }
         }
 
         return self

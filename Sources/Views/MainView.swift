@@ -28,6 +28,7 @@ extension EnvironmentValues {
 
 struct MainView: View {
     @Query private var allAccounts: [AccountModel]
+    @Query private var connectedDapps: [ConnectedDappModel]
     @Query private var keyStores: [KeyStoreModel]
 
     @State private var presentedSheet: PresentedSheet?
@@ -36,6 +37,8 @@ struct MainView: View {
 #if os(macOS)
     @Environment(\.openWindow) private var openWindow
 #endif
+
+    private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
     var body: some View {
         NavigationSplitView {
@@ -50,6 +53,13 @@ struct MainView: View {
             } else if let keyStoreModel = keyStores.first(where: { $0.id == sidebarSelection }),
                       let keyStore = try? KeyStore(model: keyStoreModel) {
                 KeyStoreDetailsView(keyStore)
+            } else if let dapp = connectedDapps.first(where: { $0.id == sidebarSelection }) {
+                switch dapp.kind {
+                case .browser:
+                    BrowserDappDetailsView(dapp: dapp)
+                case .walletConnect:
+                    WalletConnectSessionsView()
+                }
             } else {
                 EmptyStateView("No Selection")
                     .task(id: sidebarSelection) {
@@ -61,6 +71,9 @@ struct MainView: View {
             switch sheet {
             case let .addAccount(keyStore):
                 AddAccountView(keyStore: keyStore)
+                    .environment(\.sidebarSelection, $sidebarSelection)
+            case .addBrowserDapp:
+                AddBrowserDappSheet()
                     .environment(\.sidebarSelection, $sidebarSelection)
             case .addKeyStore:
                 AddKeyStoreView()
@@ -79,6 +92,23 @@ struct MainView: View {
                 BrowserView()
             }
         }
+        .sheet(item: pendingProposalBinding) { pending in
+            WalletConnectProposalSheet(pending: pending)
+        }
+        .sheet(isPresented: isRequestSheetPresented) {
+            if let request = walletConnect.approver.currentRequest {
+                DappRequestSheet(request: request) { result in
+                    walletConnect.approver.resolve(result)
+                }
+            }
+        }
+        .task {
+            walletConnect.start()
+        }
+        .onOpenURL { url in
+            sidebarSelection = connectedDapps.first { $0.kind == .walletConnect }?.id
+            Task { await walletConnect.pair(uri: url.absoluteString) }
+        }
         .toolbar {
             ToolbarItem {
                 Button {
@@ -94,6 +124,24 @@ struct MainView: View {
 }
 
 private extension MainView {
+    var isRequestSheetPresented: Binding<Bool> {
+        Binding(
+            get: { walletConnect.approver.currentRequest != nil },
+            set: { if !$0 { walletConnect.approver.rejectPending() } }
+        )
+    }
+
+    var pendingProposalBinding: Binding<WalletConnectPendingProposal?> {
+        Binding(
+            get: { walletConnect.pendingProposal },
+            set: { newValue in
+                if newValue == nil, walletConnect.pendingProposal != nil {
+                    Task { await walletConnect.rejectProposal() }
+                }
+            }
+        )
+    }
+
     func openBrowser() {
 #if os(macOS)
         openWindow(id: "browser")
@@ -119,7 +167,9 @@ private extension MainView {
                 && (try? KeyStore(model: keyStoreModel)) != nil
         }
 
-        if !hasSelectedAccount && !hasSelectedKeyStore {
+        let hasSelectedDapp = connectedDapps.contains { $0.id == sidebarSelection }
+
+        if !hasSelectedAccount && !hasSelectedKeyStore && !hasSelectedDapp {
             self.sidebarSelection = nil
         }
     }
