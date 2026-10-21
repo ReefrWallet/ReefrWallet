@@ -77,7 +77,7 @@ final class ReownWalletConnectClient: WalletConnectClient {
     }
 
     func pair(uri: String) async throws {
-        guard let uri = WalletConnectURI(string: uri) else {
+        guard let uri = try? WalletConnectURI(uriString: uri) else {
             throw WalletConnectError.invalidURI
         }
 

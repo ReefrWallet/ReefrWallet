@@ -7,21 +7,17 @@ struct KeyStoreKindIcon: View {
     var body: some View {
         switch kind {
         case .local:
-            // Wallet body is short relative to its antennas: draw larger and lower.
-            makeImage("LocalKeyIcon", height: 19)
-                .offset(y: 1)
+            makeImage("localKey16")
         case .trezor:
-            makeImage("TrezorIcon", height: 16)
+            makeImage("trezor16")
         case .watchOnly:
             EmptyView()
         }
     }
 
-    private func makeImage(_ name: String, height: CGFloat) -> some View {
+    private func makeImage(_ name: String) -> some View {
         Image(name)
             .resizable()
-            .scaledToFit()
-            .frame(height: height)
             .frame(width: 16, height: 16)
     }
 }

@@ -112,7 +112,7 @@ private extension TransferParametersView {
                     Button {
                         decimalAmountText = maxSendableAmount
                     } label: {
-                        Image(systemName: "gauge.with.dots.needle.100percent")
+                        Image("max16")
                     }
                     .frame(width: 48)
                     .help("Maximum Amount")
@@ -136,7 +136,7 @@ private extension TransferParametersView {
                     Button {
                         onOpenAddressBook()
                     } label: {
-                        Image(systemName: "book")
+                        Image("addressBook16")
                     }
                     .frame(width: 48)
                     .help("Fill from Address Book")

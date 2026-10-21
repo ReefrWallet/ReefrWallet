@@ -20,8 +20,23 @@ struct SettingsView: View {
     @AppStorage("CoinGeckoAPIKey") private var coinGeckoAPIKey: String = ""
     @AppStorage("TronGridAPIKey") private var tronGridAPIKey: String = ""
 
+    @AppStorage(PreferredBrowser.bundleIdKey) private var preferredBrowserBundleId: String = ""
+
     var body: some View {
         Form {
+            #if os(macOS)
+            Section(header: Text("dApps")) {
+                Picker("Open dApps In", selection: $preferredBrowserBundleId) {
+                    Text("System Default Browser").tag("")
+
+                    ForEach(PreferredBrowser.installedApps) { app in
+                        Text(app.name).tag(app.bundleId)
+                    }
+                }
+                .accessibilityIdentifier("settings-preferred-browser-picker")
+            }
+            #endif
+
             Section(header: Text("Transaction History")) {
                 TextField("Aptos Labs API Key", text: $aptosAPIKey)
 

@@ -89,6 +89,20 @@ enum BalancesTableEntry: Identifiable {
         }
     }
 
+    /// Tokens.xcassets icon name for the token's symbol, if the catalog has one.
+    var tokenImageName: String? {
+        guard case let .balance(balance) = self else {
+            return nil
+        }
+
+        let name = "\(balance.token.symbol.lowercased())Token16"
+        #if os(macOS)
+        return NSImage(named: name) == nil ? nil : name
+        #else
+        return UIImage(named: name) == nil ? nil : name
+        #endif
+    }
+
     var usdPrice: Decimal {
         if case let .balance(balance) = self {
             balance.token.usdPrice ?? 0

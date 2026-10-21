@@ -129,6 +129,9 @@
     "Custom RPC Endpoint" : {
 
     },
+    "dApps" : {
+
+    },
     "Data" : {
 
     },
@@ -268,6 +271,9 @@
 
     },
     "Sender" : {
+
+    },
+    "System Default Browser" : {
 
     },
     "Taproot (BIP-86)" : {

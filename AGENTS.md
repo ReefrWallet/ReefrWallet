@@ -26,7 +26,5 @@
 - Use `.asJSONString()`/`.encoded()`/`.decoded()` from Codable+Extensions.swift for JSON (de-)serialization.
 
 ## Design
-- iPhone: https://www.figma.com/design/BVzlL19u6OSqBXMERw1U46/Reefr-Wallet-%E2%80%93-Transaction-List-Entries?node-id=0-1
-- iPad: https://www.figma.com/design/BVzlL19u6OSqBXMERw1U46/Reefr-Wallet-%E2%80%93-Transaction-List-Entries?node-id=21-250
-- macOS: https://www.figma.com/design/BVzlL19u6OSqBXMERw1U46/Reefr-Wallet-%E2%80%93-Transaction-List-Entries?node-id=4-76
-
+- Use Penpot MCP server at https://design.penpot.app/mcp/stream?userToken=eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.KLj0WBlQKiGZwyQ6M3U53Ujc2LFe57QoVKsr8qYSULdNCy7eTRpOTg.AyqJTCwVaCphNIoX.-HMuE_5pkl1FwgP9Cpr3aeTTihSJqU9kkxRCrO8th4If7O_imsbwA-RY4uEvxpBGhOqrYU8dnZ8kjmfQI-oBI0xst1aknudsVI5RsiHQhfZ0QN9_PBNVFwAxgT9gYcw9yY31EvKVRxc-z7XzimLdMkYe6j-6tjLF2_YxwltMdzXCSvCGErLWRoEyGJUykuEckimzK9T7Rsspu-HlyL5N8FQ.e4t7y0SxHhAUjLAF9rPfIg
+- All template icons in Penpot are magenta to make non-colored images visible early.

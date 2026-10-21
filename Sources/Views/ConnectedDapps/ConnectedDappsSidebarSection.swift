@@ -57,7 +57,7 @@ struct ConnectedDappsSidebarSection: View {
 
             if let hub = walletConnectHubs.first {
                 HStack(spacing: 8) {
-                    Image(systemName: "link")
+                    Image("walletConnect16")
                         .frame(width: 20, height: 20)
 
                     Text("WalletConnect")

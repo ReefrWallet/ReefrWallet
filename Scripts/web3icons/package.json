@@ -1,0 +1,12 @@
+{
+  "name": "reefr-web3icons",
+  "private": true,
+  "description": "Builds Resources/Networks.xcassets and Resources/Tokens.xcassets from @web3icons/core. Run: ../make_web3icons.sh",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@web3icons/core": "4.0.58"
+  }
+}

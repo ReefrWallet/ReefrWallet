@@ -80,9 +80,13 @@ private extension AccountBalancesView {
                 switch entry {
                 case let .balance(balance):
                     HStack {
-                        WebImageView(url: balance.token.imageURL)
-                            .frame(width: 16, height: 16)
-                            .clipShape(Circle())
+                        if let tokenImageName = entry.tokenImageName {
+                            Image(tokenImageName)
+                        } else {
+                            WebImageView(url: balance.token.imageURL)
+                                .frame(width: 16, height: 16)
+                                .clipShape(Circle())
+                        }
                         Text(entry.displayName)
                     }
                     .style(.medium, foreground: .primary)

@@ -172,11 +172,13 @@ private extension SidebarView {
 
     var addMenu: some View {
         Menu {
-            if let selectedKeyStore, let keyStore = try? KeyStore(model: selectedKeyStore) {
+            if let selectedKeyStore,
+               !selectedKeyStore.isWatchOnly,
+               let keyStore = try? KeyStore(model: selectedKeyStore) {
                 addAccountMenuItem(keyStore: keyStore)
-            }
 
-            Divider()
+                Divider()
+            }
 
             addKeyMenuItem
 
@@ -219,11 +221,11 @@ private extension SidebarView {
 
     @ViewBuilder
     func makeAccountContextMenu(_ account: AccountModel) -> some View {
-        if let keyStore = try? KeyStore(model: account.keyStore) {
+        if !account.keyStore.isWatchOnly, let keyStore = try? KeyStore(model: account.keyStore) {
             addAccountMenuItem(keyStore: keyStore)
-        }
 
-        Divider()
+            Divider()
+        }
 
         Button {
             sidebarSelection.wrappedValue = account.id

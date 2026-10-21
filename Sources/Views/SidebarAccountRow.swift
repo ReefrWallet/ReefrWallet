@@ -43,7 +43,7 @@ struct SidebarAccountRow: View {
                     .accessibilityIdentifier("sidebar-account-label-\(account.name)")
             }
         } icon: {
-            account.blockchain.blockchain.logoImage
+            account.blockchain.blockchain.networkImage
                 .resizable()
                 .scaledToFit()
                 .frame(width: 16, height: 16)

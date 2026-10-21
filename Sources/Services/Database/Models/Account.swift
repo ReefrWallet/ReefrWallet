@@ -202,7 +202,7 @@ extension Account {
                 endpointURL: URL(string: "https://ethereum-sepolia-rpc.publicnode.com")!,
                 isTestnet: true,
                 nativeToken: nativeToken,
-                systemImage: "eth-logo"
+                systemImage: "ethToken16"
             )
 
             nativeToken.blockchain = blockchain
@@ -261,7 +261,7 @@ extension Account {
                 endpointURL: URL(string: "https://fullnode.testnet.sui.io:443")!,
                 isTestnet: true,
                 nativeToken: nativeToken,
-                systemImage: "sui-logo"
+                systemImage: "suiToken16"
             )
 
             nativeToken.blockchain = blockchain

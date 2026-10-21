@@ -90,6 +90,18 @@ private extension WalletConnectSessionsView {
             Text("Expires \(session.expiry.formatted(date: .abbreviated, time: .omitted))")
                 .style(.caption, foreground: .secondary)
 
+            if let url = URL(string: session.url) {
+                Button {
+                    PreferredBrowser.open(url)
+                } label: {
+                    Label("Open in Browser", systemImage: "safari")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .help("Open in Browser")
+                .accessibilityIdentifier("walletconnect-open-in-browser-button")
+            }
+
             Button("Disconnect", role: .destructive) {
                 Task { await walletConnect.disconnect(topic: session.topic) }
             }
