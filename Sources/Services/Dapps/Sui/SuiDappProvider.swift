@@ -177,8 +177,9 @@ private extension SuiDappProvider {
 
         let publicKeyBase64: String
         do {
-            let signer = try await transactionService.makeSigner(for: account)
-            publicKeyBase64 = signer.account.publicKey.rawBytes.base64EncodedString()
+            publicKeyBase64 = try await transactionService.withSigner(for: account) { signer in
+                signer.account.publicKey.rawBytes.base64EncodedString()
+            }
         } catch {
             throw .internalError("\(error)")
         }

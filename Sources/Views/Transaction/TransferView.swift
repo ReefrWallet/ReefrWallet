@@ -54,7 +54,7 @@ extension TransferView {
             case .preparing:
                 "Preparing transaction..."
             case .signing:
-                "Follow instructions on your Trezor"
+                "Signing transaction..."
             case .sending:
                 "Sending transaction..."
             }
@@ -91,6 +91,7 @@ extension TransferView: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
+        .hardwareKeyPromptHost()
         .sheet(isPresented: $isProgressPresented) {
             let image = Image(systemName: progress.systemImage)
                 .resizable()
@@ -110,6 +111,7 @@ extension TransferView: View {
                     .style(.large, foreground: .primary)
             }
             .padding(20)
+            .hardwareKeyPromptHost()
         }
         .alert("Transaction Failed", isPresented: $isErrorAlertPresented) {
             Button("OK") {

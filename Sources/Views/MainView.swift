@@ -69,29 +69,32 @@ struct MainView: View {
             }
         }
         .sheet(item: $presentedSheet) { sheet in
-            switch sheet {
-            case let .addAccount(keyStore):
-                AddAccountView(keyStore: keyStore)
-                    .environment(\.sidebarSelection, $sidebarSelection)
-            case .addBrowserDapp:
-                AddBrowserDappSheet()
-                    .environment(\.sidebarSelection, $sidebarSelection)
-            case .addKeyStore:
-                AddKeyStoreView()
-                    .environment(\.sidebarSelection, $sidebarSelection)
-            case .addWatchOnlyAccount:
-                if let watchOnlyKeyStore = keyStores.first(where: { $0.kind == .watchOnly }),
-                   let keyStore = try? KeyStore(model: watchOnlyKeyStore) {
+            Group {
+                switch sheet {
+                case let .addAccount(keyStore):
                     AddAccountView(keyStore: keyStore)
                         .environment(\.sidebarSelection, $sidebarSelection)
+                case .addBrowserDapp:
+                    AddBrowserDappSheet()
+                        .environment(\.sidebarSelection, $sidebarSelection)
+                case .addKeyStore:
+                    AddKeyStoreView()
+                        .environment(\.sidebarSelection, $sidebarSelection)
+                case .addWatchOnlyAccount:
+                    if let watchOnlyKeyStore = keyStores.first(where: { $0.kind == .watchOnly }),
+                       let keyStore = try? KeyStore(model: watchOnlyKeyStore) {
+                        AddAccountView(keyStore: keyStore)
+                            .environment(\.sidebarSelection, $sidebarSelection)
+                    }
+
+                case let .backUpKeyStore(keyStore):
+                    BackupKeyStoreView(keyStore: keyStore)
+
+                case let .browser(url):
+                    BrowserView(initialURL: url)
                 }
-
-            case let .backUpKeyStore(keyStore):
-                BackupKeyStoreView(keyStore: keyStore)
-
-            case let .browser(url):
-                BrowserView(initialURL: url)
             }
+            .hardwareKeyPromptHost()
         }
         .sheet(item: pendingProposalBinding) { pending in
             WalletConnectProposalSheet(pending: pending)
@@ -101,8 +104,10 @@ struct MainView: View {
                 DappRequestSheet(request: request) { result in
                     walletConnect.approver.resolve(result)
                 }
+                .hardwareKeyPromptHost()
             }
         }
+        .hardwareKeyPromptHost()
         .task {
             walletConnect.start()
         }

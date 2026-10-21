@@ -79,11 +79,13 @@ final class TransactionService: @unchecked Sendable {
     ///   alongside the original `txRequest` to ``sendTransaction``).
     func signTransaction(_ txRequest: Data, account: Account) async throws -> Data {
         if case .cardano = account.blockchain {
+            // Cardano uses special signing flow
             return try await signCardanoTransaction(txRequest, account: account)
         }
 
-        let signer = try await makeSigner(for: account)
-        return try await signer.sign(transaction: txRequest)
+        return try await withSigner(for: account) { signer in
+            try await signer.sign(transaction: txRequest)
+        }
     }
 
     /// Broadcasts a signed transaction and returns its hash / digest.
@@ -117,30 +119,22 @@ extension TransactionService {
     /// Constructs the appropriate ``Signer`` for `account` by looking up its
     /// keystore and deriving (or fetching from hardware) the private key.
     func makeSigner(for account: Account) async throws -> any Signer {
-        guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
-            throw ReefrError.notFound
+        try await makeSigner(for: account, keyStore: fetchKeyStore(for: account))
+    }
+
+    /// Runs `body` with `account`'s signer. For a hardware key store it runs
+    /// inside a ``HardwareService`` session, so hardware key prompts stay up
+    /// until it finishes. Use instead of ``makeSigner(for:)`` whenever the
+    /// signer may touch a device.
+    func withSigner<T>(for account: Account, _ body: (any Signer) async throws -> T) async throws -> T {
+        let keyStore = try await fetchKeyStore(for: account)
+
+        guard case .trezor = keyStore.kind else {
+            return try await body(makeSigner(for: account, keyStore: keyStore))
         }
 
-        guard let derivationPathString = account.derivationPath else {
-            // Watch-only accounts cannot sign transactions.
-            throw ReefrError.notSupported
-        }
-
-        let derivationPath = try DerivationPath(string: derivationPathString)
-
-        switch keyStore.kind {
-        case .local:
-            let rawKey = try keyStore.localSeed()
-            return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
-        case .trezor:
-            guard let deviceId = keyStore.deviceId else {
-                throw ReefrError.invalidData
-            }
-
-            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
-            return try await makeTrezorSigner(for: account, device: device, derivationPath: derivationPath)
-        case .watchOnly:
-            throw ReefrError.notSupported
+        return try await hardwareService.session {
+            try await body(makeSigner(for: account, keyStore: keyStore))
         }
     }
 
@@ -160,10 +154,40 @@ extension TransactionService {
 }
 
 private extension TransactionService {
-    func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
+    func fetchKeyStore(for account: Account) async throws -> KeyStore {
         guard let keyStore = try await databaseService.fetchKeyStore(id: account.keyStoreId) else {
             throw ReefrError.notFound
         }
+
+        return keyStore
+    }
+
+    func makeSigner(for account: Account, keyStore: KeyStore) async throws -> any Signer {
+        guard let derivationPathString = account.derivationPath else {
+            // Watch-only accounts cannot sign transactions.
+            throw ReefrError.notSupported
+        }
+
+        let derivationPath = try DerivationPath(string: derivationPathString)
+
+        switch keyStore.kind {
+        case .local:
+            let rawKey = try keyStore.localSeed()
+            return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
+        case .trezor:
+            guard let deviceId = keyStore.deviceId else {
+                throw ReefrError.invalidData
+            }
+
+            let device = try await hardwareService.connect(.trezor, deviceId: deviceId, keyName: keyStore.name)
+            return try await makeTrezorSigner(for: account, device: device, derivationPath: derivationPath)
+        case .watchOnly:
+            throw ReefrError.notSupported
+        }
+    }
+
+    func signCardanoTransaction(_ request: Data, account: Account) async throws -> Data {
+        let keyStore = try await fetchKeyStore(for: account)
 
         guard let rawAccountIndex = account.accountIndex, let accountIndex = UInt32(exactly: rawAccountIndex) else {
             throw ReefrError.invalidData
@@ -186,10 +210,13 @@ private extension TransactionService {
                 throw ReefrError.invalidData
             }
 
-            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
+            return try await hardwareService.session {
+                let device = try await hardwareService.connect(.trezor, deviceId: deviceId, keyName: keyStore.name)
 
-            return try await CardanoTrezorSigner(network: network, accountIndex: accountIndex, device: device)
-                .sign(transaction: request)
+                return try await CardanoTrezorSigner(network: network, accountIndex: accountIndex, device: device)
+                    .sign(transaction: request)
+            }
+
         case .watchOnly:
             throw ReefrError.notSupported
         }

@@ -1,16 +1,23 @@
 import SwiftData
 import WalletKit
 
+/// Creates, validates and deletes blockchain accounts.
 final class AccountService {
     private lazy var balancesService = DI.injectOrFail(BalancesService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
     private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
     private let databaseService: DatabaseService
 
+    /// - Parameter databaseService: The database to use; the DI container's by default.
     init(databaseService: DatabaseService? = nil) {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
     }
 
+    /// Stops `account`'s transaction sync and deletes it from the database.
+    ///
+    /// - Parameter account: A stored account.
+    /// - Throws: ``ReefrError/invalidData`` if `account` was never stored,
+    ///   or a database error.
     func deleteAccount(_ account: Account) async throws {
         guard let accountId = account.id else {
             throw ReefrError.invalidData
@@ -20,6 +27,15 @@ final class AccountService {
         try await databaseService.deleteAccount(id: accountId)
     }
 
+    /// Whether `address` parses as an address on `blockchain`.
+    ///
+    /// Cardano expects an account descriptor body; Bitcoin a plain address,
+    /// not an xpub.
+    ///
+    /// - Parameters:
+    ///   - address: The address to check.
+    ///   - blockchain: The blockchain `address` should belong to.
+    /// - Returns: `true` if `address` is valid on `blockchain`.
     func isValidAddress(_ address: String, for blockchain: Blockchain) -> Bool {
         do {
             switch blockchain {
@@ -49,6 +65,33 @@ final class AccountService {
         }
     }
 
+    /// Derives, stores and starts syncing the next account on `keyStore`.
+    ///
+    /// Uses the next unused account index for `blockchain` in `keyStore`.
+    /// Local keys derive from the key store's secret; Trezor keys read
+    /// from the device inside a ``HardwareService`` session, prompting to
+    /// connect or confirm as needed; watch-only key stores store
+    /// `watchOnlyAddress` in canonical form. Transaction sync and a balance
+    /// refresh start in the background.
+    ///
+    /// - Parameters:
+    ///   - blockchain: The blockchain to create the account on.
+    ///   - keyStore: The stored key store to create the account in.
+    ///   - rpcURLOverride: A custom RPC endpoint for this account.
+    ///   - signatureScheme: The curve to use; only Aptos and Sui offer a
+    ///     choice, other chains accept `nil` or their only curve.
+    ///   - bitcoinScriptType: The script type; required for Bitcoin.
+    ///   - bitcoinBackend: The Bitcoin indexing backend.
+    ///   - watchOnlyAddress: The address to watch; required for watch-only
+    ///     key stores, ignored otherwise.
+    /// - Returns: The stored account.
+    /// - Throws: ``ReefrError/invalidData`` for an unsupported curve, a
+    ///   missing script type, device ID or watch-only address, or an
+    ///   unstored key store; ``ReefrError/invalidAddress`` for an invalid
+    ///   watch-only address; ``ReefrError/notSupported`` for a Cardano
+    ///   account on a local key store without mnemonic entropy;
+    ///   ``ReefrError/notImplemented`` for a chain the key store kind can't
+    ///   derive; or a derivation, device or database error.
     @MainActor @discardableResult // swiftlint:disable:next function_body_length
     func makeAccount(
         _ blockchain: Blockchain,
@@ -102,13 +145,15 @@ final class AccountService {
                 throw ReefrError.invalidData
             }
 
-            let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
-            let result = try await makeTrezorAddress(
-                blockchain: blockchain,
-                accountIndex: accountIndex,
-                device: device,
-                bitcoinScriptType: bitcoinScriptType
-            )
+            let result = try await hardwareService.session {
+                let device = try await hardwareService.connect(.trezor, deviceId: deviceId, keyName: keyStore.name)
+                return try await makeTrezorAddress(
+                    blockchain: blockchain,
+                    accountIndex: accountIndex,
+                    device: device,
+                    bitcoinScriptType: bitcoinScriptType
+                )
+            }
 
             address = result.address
             derivationPath = result.derivationPath

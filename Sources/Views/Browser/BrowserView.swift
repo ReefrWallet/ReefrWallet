@@ -118,8 +118,10 @@ extension BrowserView: View {
                     DappRequestSheet(request: request) { result in
                         controller.approver.resolve(result)
                     }
+                    .hardwareKeyPromptHost()
                 }
             }
+            .hardwareKeyPromptHost()
             .alert(
                 "Request Failed",
                 isPresented: isFailureAlertPresented,
