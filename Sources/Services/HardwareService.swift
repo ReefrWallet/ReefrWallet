@@ -15,7 +15,9 @@ final class HardwareService {
     /// Hardware key prompts for the UI to present.
     let promptCenter = HardwareKeyPromptCenter()
 
+    private static let maxConnectAttempts = 5
     private static let maxReconnectAttempts = 3
+    private static let retryDelay = Duration.seconds(1)
 
     /// Scans for connected hardware keys.
     ///
@@ -34,7 +36,9 @@ final class HardwareService {
     /// Connects to the hardware key with `deviceId`.
     ///
     /// If the key isn't connected, shows a "Connect `keyName`" prompt and
-    /// waits until it appears. Call inside ``session(_:)`` so confirmation
+    /// waits until it appears. A just-plugged key fails its handshake while
+    /// booting, so a failed connection is retried after a second, up to 5
+    /// attempts. Call inside ``session(showsWait:_:)`` so confirmation
     /// prompts raised while the device is in use get dismissed.
     ///
     /// - Parameters:
@@ -52,34 +56,47 @@ final class HardwareService {
         keyName: String,
         transport: HardwareTransportKind = .usb
     ) async throws -> HardwareDevice {
-        let deviceInfo = try await waitForDevice(vendor, deviceId: deviceId, keyName: keyName, transport: transport)
-        await promptCenter.register(keyName: keyName, deviceId: deviceId)
+        var attempt = 1
 
-        let device = try await manager.connect(deviceInfo, delegate: self)
-        return device
+        while true {
+            // Rescan every attempt: the manager consumes a scan entry on connect.
+            let deviceInfo = try await waitForDevice(vendor, deviceId: deviceId, keyName: keyName, transport: transport)
+            await promptCenter.didConnect(keyName: keyName, deviceId: deviceId)
+
+            do {
+                return try await manager.connect(deviceInfo, delegate: self)
+            } catch WalletKitError.deviceDisconnected where attempt < Self.maxConnectAttempts {
+                attempt += 1
+                try await Task.sleep(for: Self.retryDelay)
+            }
+        }
     }
 
     /// Runs a hardware key operation, keeping its prompts up until it finishes.
     ///
     /// Devices don't report when the user has confirmed on them, so a
     /// "Continue on" prompt stays up until the outermost session ends.
-    /// `operation` is rerun, up to 3 attempts in all, when it throws
+    /// `operation` is rerun after a second, up to 3 attempts in all, when it throws
     /// `WalletKitError.deviceDisconnected`, so it should connect through
     /// ``connect(_:deviceId:keyName:transport:)`` itself. Sessions nest.
     ///
-    /// - Parameter operation: Work that connects to and uses a hardware key.
+    /// - Parameters:
+    ///   - showsWait: Whether to show "please wait" once the key is
+    ///     connected, for slow work with no confirmation, like exporting
+    ///     public keys. A confirm prompt replaces it.
+    ///   - operation: Work that connects to and uses a hardware key.
     /// - Returns: The result of `operation`.
     /// - Throws: Whatever `operation` throws, including the last
     ///   `WalletKitError.deviceDisconnected` once attempts run out.
-    func session<T>(_ operation: () async throws -> T) async throws -> T {
-        await promptCenter.beginSession()
+    func session<T>(showsWait: Bool = false, _ operation: () async throws -> T) async throws -> T {
+        await promptCenter.beginSession(showsWait: showsWait)
 
         do {
             let result = try await retryingOnDisconnect(operation)
-            await promptCenter.endSession()
+            await promptCenter.endSession(showsWait: showsWait)
             return result
         } catch {
-            await promptCenter.endSession()
+            await promptCenter.endSession(showsWait: showsWait)
             throw error
         }
     }
@@ -102,6 +119,7 @@ private extension HardwareService {
                 return try await operation()
             } catch WalletKitError.deviceDisconnected where attempt < Self.maxReconnectAttempts {
                 attempt += 1
+                try await Task.sleep(for: Self.retryDelay)
             }
         }
     }

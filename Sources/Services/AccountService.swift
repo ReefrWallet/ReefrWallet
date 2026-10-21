@@ -145,7 +145,7 @@ final class AccountService {
                 throw ReefrError.invalidData
             }
 
-            let result = try await hardwareService.session {
+            let result = try await hardwareService.session(showsWait: true) {
                 let device = try await hardwareService.connect(.trezor, deviceId: deviceId, keyName: keyStore.name)
                 return try await makeTrezorAddress(
                     blockchain: blockchain,

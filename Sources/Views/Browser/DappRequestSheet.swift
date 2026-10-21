@@ -14,7 +14,10 @@ import WalletKit
 /// dispatched on the request's preview enum (`Browser/Previews/*`).
 struct DappRequestSheet: View {
     let request: DappApprovalRequest
-    let onResolve: (DappApprovalResult) -> Void
+    /// Whether the request was approved and is being handled.
+    var isProcessing = false
+    /// The user's decision, and whether to keep the sheet up while it runs.
+    let onResolve: (DappApprovalResult, Bool) -> Void
 
     @State private var editedFees: Fees?
     @State private var isHardwareAccount = false
@@ -37,10 +40,15 @@ struct DappRequestSheet: View {
             }
 
             Spacer()
-            buttons
+            if isProcessing {
+                progress
+            } else {
+                buttons
+            }
         }
         .padding()
         .frame(minWidth: 380, minHeight: 240)
+        .interactiveDismissDisabled(isProcessing)
         .task {
             isHardwareAccount = (try? await databaseService.fetchKeyStore(id: account.keyStoreId))?.isHardware ?? false
         }
@@ -120,7 +128,7 @@ private extension DappRequestSheet {
         HStack {
             Spacer()
             Button("Reject") {
-                onResolve(.rejected)
+                onResolve(.rejected, false)
             }
             .accessibilityIdentifier("dapp-reject-button")
 
@@ -128,7 +136,7 @@ private extension DappRequestSheet {
             Button("Close Browser") {
                 // Walking away from the prompt is still a rejection, and the
                 // waiting provider has to be told before the window goes.
-                onResolve(.rejected)
+                onResolve(.rejected, false)
 
                 withTransaction(\.dismissBehavior, .destructive) {
                     dismissWindow(id: "browser", value: browserWindowURL ?? WalletApp.defaultBrowserURL)
@@ -138,9 +146,20 @@ private extension DappRequestSheet {
 #endif
 
             Button("Approve") {
-                onResolve(approvedResult)
+                onResolve(approvedResult, isHardwareAccount)
             }
             .accessibilityIdentifier("dapp-approve-button")
+        }
+    }
+
+    var progress: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+                .controlSize(.small)
+
+            Text("Signing...")
+                .style(.medium, foreground: .secondary)
         }
     }
 }

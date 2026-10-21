@@ -58,7 +58,10 @@ struct WalletConnectRequestRouter {
                 origin: origin, session: session, approving: approving, signingService: signingService
             )
 
-            let result = try await provider.handle(method: adapted.method, params: adapted.params, context: context)
+            let result = try await DappRequestScope.run(approving: approving) {
+                try await provider.handle(method: adapted.method, params: adapted.params, context: context)
+            }
+
             let response = try WalletConnectMethodAdapter.adaptResult(
                 method: method, result: result, namespace: namespace, request: requestParams
             )

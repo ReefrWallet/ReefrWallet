@@ -17,13 +17,18 @@ struct HardwareKeyPromptSheet: View {
 
     var body: some View {
         VStack {
-            Image(systemName: prompt.systemImage)
+            let image = Image(systemName: prompt.systemImage)
                 .resizable()
                 .scaledToFit()
                 .style(foreground: .secondary)
                 .frame(width: 64, height: 64)
-                .symbolEffect(.breathe)
                 .padding(.bottom)
+
+            if prompt.kind == .wait {
+                image.symbolEffect(.rotate.byLayer, options: .repeat(.continuous))
+            } else {
+                image.symbolEffect(.breathe)
+            }
 
             Text(prompt.message)
                 .style(.large, foreground: .primary)
@@ -89,4 +94,8 @@ extension View {
 
 #Preview("Connect") {
     HardwareKeyPromptSheet(prompt: HardwareKeyPrompt(keyName: "Trezor #1", kind: .connect)) {}
+}
+
+#Preview("Wait") {
+    HardwareKeyPromptSheet(prompt: HardwareKeyPrompt(keyName: "Trezor #1", kind: .wait)) {}
 }

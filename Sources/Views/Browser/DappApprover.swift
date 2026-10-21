@@ -18,7 +18,21 @@ final class DappApprover: DappApproving {
     private(set) var currentRequest: DappApprovalRequest?
     /// The last approved request's failure, shown as an alert until dismissed.
     var failureMessage: String?
+    /// Whether `currentRequest` was approved and is still being handled.
+    private(set) var isProcessing = false
+    private var pendingRequestId: UUID?
     private var pendingResult: ((DappApprovalResult) -> Void)?
+    private var processingRequestId: UUID?
+
+    func didFinishRequest(_ requestId: UUID) async {
+        guard isProcessing, processingRequestId == requestId else {
+            return
+        }
+
+        currentRequest = nil
+        isProcessing = false
+        processingRequestId = nil
+    }
 
     func reportFailure(_ message: String) async {
         failureMessage = message
@@ -31,6 +45,9 @@ final class DappApprover: DappApproving {
         rejectPending()
 
         currentRequest = request
+        isProcessing = false
+        pendingRequestId = DappRequestScope.id
+        processingRequestId = nil
         return await withCheckedContinuation { continuation in
             pendingResult = { result in
                 continuation.resume(returning: result)
@@ -56,9 +73,21 @@ final class DappApprover: DappApproving {
 
     /// Resolves the currently presented request with the user's decision.
     /// A no-op when nothing is pending.
-    func resolve(_ result: DappApprovalResult) {
-        currentRequest = nil
+    ///
+    /// With `keepsPresented`, an approved request stays presented until it
+    /// finishes, so hardware key prompts can present on top of its sheet.
+    func resolve(_ result: DappApprovalResult, keepsPresented: Bool = false) {
+        if case .rejected = result {
+            currentRequest = nil
+        } else if keepsPresented, let pendingRequestId {
+            isProcessing = true
+            processingRequestId = pendingRequestId
+        } else {
+            currentRequest = nil
+        }
+
         pendingResult?(result)
+        pendingRequestId = nil
         pendingResult = nil
     }
 }

@@ -18,6 +18,8 @@ struct HardwareKeyPrompt: Equatable, Identifiable {
         case confirm
         /// The key isn't connected.
         case connect
+        /// The key is connected and busy, e.g. exporting public keys.
+        case wait
     }
 
     /// The key store's name.
@@ -36,6 +38,8 @@ struct HardwareKeyPrompt: Equatable, Identifiable {
             "Continue on \(keyName)"
         case .connect:
             "Connect \(keyName) to continue"
+        case .wait:
+            "Reading from \(keyName), please wait..."
         }
     }
 
@@ -46,6 +50,8 @@ struct HardwareKeyPrompt: Equatable, Identifiable {
             "hand.tap"
         case .connect:
             "cable.connector"
+        case .wait:
+            "progress.indicator"
         }
     }
 }
@@ -70,6 +76,8 @@ final class HardwareKeyPromptCenter {
     private var keyNames: [String: String] = [:]
     /// Number of open ``HardwareService`` sessions.
     private var sessionCount = 0
+    /// Number of open sessions that show ``HardwareKeyPrompt/Kind/wait`` once connected.
+    private var waitSessionCount = 0
 
     nonisolated init() {}
 
@@ -84,12 +92,16 @@ final class HardwareKeyPromptCenter {
     }
 
     /// Opens a session; the outermost one resets ``isCancelled``.
-    func beginSession() {
+    func beginSession(showsWait: Bool) {
         if sessionCount == 0 {
             isCancelled = false
         }
 
         sessionCount += 1
+
+        if showsWait {
+            waitSessionCount += 1
+        }
     }
 
     /// Cancels waiting for the key to be connected and hides the prompt.
@@ -98,23 +110,32 @@ final class HardwareKeyPromptCenter {
         prompt = nil
     }
 
+    /// Remembers `keyName` for confirm prompts from `deviceId`, and shows
+    /// "please wait" if an open session asked for it.
+    func didConnect(keyName: String, deviceId: String) {
+        keyNames[deviceId] = keyName
+
+        if waitSessionCount > 0 {
+            prompt = HardwareKeyPrompt(keyName: keyName, kind: .wait)
+        }
+    }
+
     /// Hides the prompt.
     func dismiss() {
         prompt = nil
     }
 
     /// Closes a session; closing the outermost one hides the prompt.
-    func endSession() {
+    func endSession(showsWait: Bool) {
         sessionCount = max(sessionCount - 1, 0)
+
+        if showsWait {
+            waitSessionCount = max(waitSessionCount - 1, 0)
+        }
 
         if sessionCount == 0 {
             prompt = nil
         }
-    }
-
-    /// Remembers `keyName` for confirm prompts from `deviceId`.
-    func register(keyName: String, deviceId: String) {
-        keyNames[deviceId] = keyName
     }
 
     /// Unregisters a host when it disappears.

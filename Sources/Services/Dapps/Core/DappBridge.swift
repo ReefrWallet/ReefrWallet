@@ -98,7 +98,10 @@ final class DappBridge: NSObject {
 
         let outcome: DispatchOutcome
         do {
-            let result = try await provider.handle(method: method, params: params, context: context)
+            let result = try await DappRequestScope.run(approving: approving) { () async throws(DappError) in
+                try await provider.handle(method: method, params: params, context: context)
+            }
+
             outcome = .success(result)
         } catch {
             printDebug("\(namespace.rawValue).\(method) from \(origin) failed: \(error)")

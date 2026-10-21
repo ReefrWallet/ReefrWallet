@@ -115,8 +115,11 @@ extension BrowserView: View {
             }
             .sheet(isPresented: isApprovalSheetPresented) {
                 if let request = controller.approver.currentRequest {
-                    DappRequestSheet(request: request) { result in
-                        controller.approver.resolve(result)
+                    DappRequestSheet(
+                        request: request,
+                        isProcessing: controller.approver.isProcessing
+                    ) { result, keepsPresented in
+                        controller.approver.resolve(result, keepsPresented: keepsPresented)
                     }
                     .hardwareKeyPromptHost()
                 }

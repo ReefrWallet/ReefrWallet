@@ -101,8 +101,11 @@ struct MainView: View {
         }
         .sheet(isPresented: isRequestSheetPresented) {
             if let request = walletConnect.approver.currentRequest {
-                DappRequestSheet(request: request) { result in
-                    walletConnect.approver.resolve(result)
+                DappRequestSheet(
+                    request: request,
+                    isProcessing: walletConnect.approver.isProcessing
+                ) { result, keepsPresented in
+                    walletConnect.approver.resolve(result, keepsPresented: keepsPresented)
                 }
                 .hardwareKeyPromptHost()
             }

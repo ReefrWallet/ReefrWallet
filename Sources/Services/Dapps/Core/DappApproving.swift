@@ -6,6 +6,7 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import Foundation
 import WalletKit
 
 /// One thing a dapp is asking the wallet to approve — connecting, signing
@@ -137,11 +138,42 @@ enum DappApprovalResult: Sendable {
 protocol DappApproving: Sendable {
     func approve(_ request: DappApprovalRequest) async -> DappApprovalResult
 
+    /// Called once the request with `requestId` (``DappRequestScope/id``)
+    /// has been fully handled.
+    func didFinishRequest(_ requestId: UUID) async
+
     /// Tells the user an approved request failed (e.g. the hardware wallet
     /// was unavailable) — dapps often swallow the rejected promise.
     func reportFailure(_ message: String) async
 }
 
 extension DappApproving {
+    func didFinishRequest(_ requestId: UUID) async {}
+
     func reportFailure(_ message: String) async {}
+}
+
+/// Identifies the dapp request being handled, so an approver can tell when
+/// the request it approved has finished.
+enum DappRequestScope {
+    @TaskLocal static var id: UUID?
+
+    /// Runs `operation` as the request `requestId`, then reports it finished
+    /// to `approving`.
+    static func run<T, E: Error>(
+        _ requestId: UUID = UUID(),
+        approving: any DappApproving,
+        _ operation: () async throws(E) -> T
+    ) async throws(E) -> T {
+        let result: Result<T, E> = await $id.withValue(requestId) {
+            do throws(E) {
+                return .success(try await operation())
+            } catch {
+                return .failure(error)
+            }
+        }
+
+        await approving.didFinishRequest(requestId)
+        return try result.get()
+    }
 }
