@@ -9,18 +9,18 @@
 import SwiftUI
 
 struct StyledView: ViewModifier {
-    @State private var size: Size?
-    @State private var foregroundColor: Color?
-    @State private var backgroundColor: Color?
+    private let size: Size?
+    private let foregroundColor: Color?
+    private let backgroundColor: Color?
 
     init(
         size: Size? = nil,
         foregroundColor: Color? = nil,
         backgroundColor: Color? = nil
     ) {
-        self._size = State(initialValue: size)
-        self._foregroundColor = State(initialValue: foregroundColor)
-        self._backgroundColor = State(initialValue: backgroundColor)
+        self.size = size
+        self.foregroundColor = foregroundColor
+        self.backgroundColor = backgroundColor
     }
 
     func body(content: Content) -> some View {

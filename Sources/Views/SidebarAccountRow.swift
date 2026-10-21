@@ -32,6 +32,7 @@ struct SidebarAccountRow: View {
                 // only the *behavior* branches on the live `isSelected()`
                 // read inside the handler.
                 Text(account.name)
+                    .style(foreground: isSelected() ? .white : .sidebarLabel)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         if isSelected() {
@@ -47,6 +48,7 @@ struct SidebarAccountRow: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 16, height: 16)
+                .style(foreground: isSelected() ? .white : .sidebarIcon)
         }
     }
 }

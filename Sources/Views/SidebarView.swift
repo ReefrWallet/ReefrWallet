@@ -92,6 +92,10 @@ extension SidebarView: View {
 
             ConnectedDappsSidebarSection("Connected dApps")
         }
+        #if os(macOS)
+        .scrollContentBackground(.hidden)
+        .background(Color.sidebarBackground)
+        #endif
         .focused($isAccountsListFocused)
         .onChange(of: sidebarSelection.wrappedValue) {
             // Switching accounts/key stores in the sidebar should steal
@@ -325,6 +329,7 @@ private extension SidebarView {
         } header: {
             HStack(spacing: 4) {
                 KeyStoreKindIcon(kind: keyStore.kind)
+                    .style(foreground: .sidebarControl)
 
                 if editingId == keyStore.id {
                     TextField(keyStore.name, text: $editingName)
@@ -368,6 +373,7 @@ private extension SidebarView {
                     }
                 }
             }
+            .style(foreground: .sidebarLabel)
         }
         .id(keyStore.id)
     }
@@ -401,10 +407,13 @@ extension SidebarView {
     }
 
     func makeKeysSection(_ title: String, keyStores: [KeyStoreModel]) -> some View {
-        Section(title) {
+        Section {
             ForEach(keyStores) { keyStore in
                 makeKeyStoreItem(keyStore)
             }
+        } header: {
+            Text(title)
+                .style(foreground: .sidebarSecondaryLabel)
         }
     }
 
@@ -418,6 +427,7 @@ extension SidebarView {
             } header: {
                 HStack {
                     Text(title)
+                        .style(foreground: .sidebarSecondaryLabel)
 
                     Spacer()
 

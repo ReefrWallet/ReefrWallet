@@ -12,12 +12,11 @@ struct SidebarAddButton: View {
         Button(action: action) {
             Image(systemName: "plus")
                 // Fixed size: key store headers use the larger row font.
-                .style(.smallIcon)
+                .style(.smallIcon, foreground: .sidebarControl)
                 .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
-        .foregroundStyle(.secondary)
         .padding(.trailing, trailingPadding)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier(accessibilityId)

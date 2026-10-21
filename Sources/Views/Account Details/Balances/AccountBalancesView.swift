@@ -87,6 +87,7 @@ private extension AccountBalancesView {
                                 .frame(width: 16, height: 16)
                                 .clipShape(Circle())
                         }
+
                         Text(entry.displayName)
                     }
                     .style(.medium, foreground: .primary)

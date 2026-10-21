@@ -40,6 +40,7 @@ struct ConnectedDappsSidebarSection: View {
                     DappIconView(url: dapp.iconURL)
 
                     Text(dapp.name)
+                        .style(foreground: sidebarSelection.wrappedValue == dapp.id ? .white : .sidebarLabel)
                         .lineLimit(1)
                 }
                 .tag(dapp.id)
@@ -61,12 +62,16 @@ struct ConnectedDappsSidebarSection: View {
                         .frame(width: 20, height: 20)
 
                     Text("WalletConnect")
+                        .style(foreground: sidebarSelection.wrappedValue == hub.id ? .white : .sidebarLabel)
 
                     Spacer()
 
                     if !walletConnect.sessions.isEmpty {
                         Text("\(walletConnect.sessions.count)")
-                            .style(.small, foreground: .secondary)
+                            .style(
+                                .small,
+                                foreground: sidebarSelection.wrappedValue == hub.id ? .white : .sidebarSecondaryLabel
+                            )
                     }
                 }
                 .tag(hub.id)
@@ -75,6 +80,7 @@ struct ConnectedDappsSidebarSection: View {
         } header: {
             HStack {
                 Text(title)
+                    .style(foreground: .sidebarSecondaryLabel)
 
                 Spacer()
 
