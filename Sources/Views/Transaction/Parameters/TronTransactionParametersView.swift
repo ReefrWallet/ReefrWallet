@@ -15,8 +15,13 @@ import WalletKit
 struct TronTransactionParametersView: View {
     let account: Account
     let preview: TronTransactionPreview
+    let site: String
 
     var body: some View {
+        ParameterSection {
+            ParameterRow("Site", value: site)
+        }
+
         ParameterSection("Transaction") {
             FromRow(account: account)
 

@@ -23,8 +23,13 @@ import WalletKit
 struct SolanaTransactionParametersView: View {
     let account: Account
     let preview: SolanaTransactionPreview
+    let site: String
 
     var body: some View {
+        ParameterSection {
+            ParameterRow("Site", value: site)
+        }
+
         ParameterSection("Transaction") {
             FromRow(account: account)
             ParameterRow("Fee payer", value: preview.feePayer.string)

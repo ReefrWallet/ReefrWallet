@@ -14,8 +14,13 @@ import WalletKit
 struct EthereumTransactionParametersView: View {
     let account: Account
     let call: EthereumCallPreview
+    let site: String
 
     var body: some View {
+        ParameterSection {
+            ParameterRow("Site", value: site)
+        }
+
         ParameterSection("Transaction") {
             FromRow(account: account)
             ParameterRow("To", value: call.to ?? "Contract creation")

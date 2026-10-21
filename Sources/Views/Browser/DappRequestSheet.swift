@@ -50,19 +50,18 @@ struct DappRequestSheet: View {
 private extension DappRequestSheet {
     var connectSheet: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Connect")
+            Text("Connect Request")
                 .style(.largeHeader)
                 .accessibilityIdentifier("dapp-request-title")
 
             ParameterSection {
-                websiteRow
+                siteRow
                 FromRow(account: account, title: "Account")
             }
 
             Text("This site is requesting to connect to this account.")
-                .style(.medium)
-
-            Spacer()
+                .style(.small, foreground: .secondary)
+                .padding(.top, 4)
 
             if isProcessing {
                 HStack {
@@ -77,8 +76,10 @@ private extension DappRequestSheet {
                 connectButtons
             }
         }
-        .padding()
-        .frame(minWidth: 380, minHeight: 240)
+        .padding(20)
+#if os(macOS)
+        .frame(width: 480)
+#endif
     }
 
     var connectButtons: some View {
@@ -87,11 +88,13 @@ private extension DappRequestSheet {
             Button("Reject") {
                 onResolve(.rejected, false)
             }
+            .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("dapp-reject-button")
 
             Button("Approve") {
                 onResolve(.approved, isHardwareAccount)
             }
+            .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("dapp-approve-button")
         }
     }
@@ -103,17 +106,17 @@ private extension DappRequestSheet {
         signSheet(title: isTypedData ? "Sign Typed Data" : "Sign Message") {
             switch preview {
             case let .aptosMessage(fullMessage):
-                SignMessageParametersView(account: account, message: fullMessage)
+                SignMessageParametersView(account: account, message: fullMessage, site: site)
             case let .ethereumPersonal(message):
-                SignMessageParametersView(account: account, message: message)
+                SignMessageParametersView(account: account, message: message, site: site)
             case let .ethereumTypedData(summary):
-                EthereumTypedDataParametersView(account: account, summary: summary)
+                EthereumTypedDataParametersView(account: account, site: site, summary: summary)
             case let .solanaMessage(message):
-                SignMessageParametersView(account: account, message: message)
+                SignMessageParametersView(account: account, message: message, site: site)
             case let .suiPersonal(message):
-                SignMessageParametersView(account: account, message: message)
+                SignMessageParametersView(account: account, message: message, site: site)
             case let .tronMessage(message):
-                SignMessageParametersView(account: account, message: message)
+                SignMessageParametersView(account: account, message: message, site: site)
             }
         } fees: {
             EmptyView()
@@ -140,14 +143,7 @@ private extension DappRequestSheet {
                 confirm: "dapp-approve-button",
                 title: "dapp-request-title"
             ),
-            parameters: {
-                // Not in Penpot: the user should see who is asking.
-                ParameterSection {
-                    websiteRow
-                }
-
-                parameters()
-            },
+            parameters: parameters,
             fees: fees
         )
     }
@@ -160,7 +156,7 @@ private extension DappRequestSheet {
                 isConfirmEnabled: editedFees != nil,
                 onEstimateFees: onEstimateEthereumFees
             ) {
-                EthereumTransactionParametersView(account: account, call: call)
+                EthereumTransactionParametersView(account: account, call: call, site: site)
             } fees: {
                 TransactionFeesView(
                     blockchain: account.blockchain,
@@ -176,15 +172,15 @@ private extension DappRequestSheet {
             signSheet(title: "Sign Transaction") {
                 switch preview {
                 case let .aptos(preview):
-                    AptosTransactionParametersView(account: account, preview: preview)
+                    AptosTransactionParametersView(account: account, preview: preview, site: site)
                 case .ethereum:
                     EmptyView()
                 case let .solana(preview):
-                    SolanaTransactionParametersView(account: account, preview: preview)
+                    SolanaTransactionParametersView(account: account, preview: preview, site: site)
                 case let .sui(preview):
-                    SuiTransactionParametersView(account: account, preview: preview)
+                    SuiTransactionParametersView(account: account, preview: preview, site: site)
                 case let .tron(preview):
-                    TronTransactionParametersView(account: account, preview: preview)
+                    TronTransactionParametersView(account: account, preview: preview, site: site)
                 }
             } fees: {
                 TransactionFeesView(
@@ -197,8 +193,8 @@ private extension DappRequestSheet {
         }
     }
 
-    var websiteRow: some View {
-        ParameterRow("Website", value: origin)
+    var siteRow: some View {
+        ParameterRow("Site", value: site)
     }
 }
 
@@ -273,5 +269,20 @@ private extension DappRequestSheet {
         case let .signMessage(origin, _, _, _): origin
         case let .sendTransaction(origin, _, _, _): origin
         }
+    }
+
+    /// ``origin`` as the address bar shows it: `WKSecurityOrigin`'s port 0
+    /// (the scheme's default) dropped, root path added.
+    var site: String {
+        guard var components = URLComponents(string: origin) else {
+            return origin
+        }
+
+        if components.port == 0 {
+            components.port = nil
+        }
+
+        components.path = "/"
+        return components.string ?? origin
     }
 }

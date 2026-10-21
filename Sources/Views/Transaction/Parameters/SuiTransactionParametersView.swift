@@ -17,8 +17,13 @@ import WalletKit
 struct SuiTransactionParametersView: View {
     let account: Account
     let preview: SuiTransactionPreview
+    let site: String
 
     var body: some View {
+        ParameterSection {
+            ParameterRow("Site", value: site)
+        }
+
         ParameterSection("Transaction") {
             FromRow(account: account)
             ParameterRow("Commands", value: "\(preview.summary.commandCount)")

@@ -8,16 +8,15 @@
 
 import SwiftUI
 
-/// An `eth_signTypedData_v4` payload: From, the EIP-712 domain fields, then
+/// An `eth_signTypedData_v4` payload: site and account, the EIP-712 domain fields, then
 /// the pretty-printed message.
 struct EthereumTypedDataParametersView: View {
     let account: Account
+    let site: String
     let summary: EthereumTypedDataSummary
 
     var body: some View {
-        ParameterSection {
-            FromRow(account: account)
-        }
+        SignerSection(account: account, site: site)
 
         ParameterSection("Domain") {
             ForEach(domainRows, id: \.label) { row in

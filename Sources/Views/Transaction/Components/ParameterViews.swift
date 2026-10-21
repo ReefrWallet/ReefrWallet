@@ -235,3 +235,29 @@ struct ParameterValue: View {
 #endif
     }
 }
+
+// MARK: - SignerSection
+
+/// The requesting site and signing account of a message request. One section
+/// on iOS; separate sections on macOS, as in Penpot.
+struct SignerSection: View {
+    let account: Account
+    let site: String
+
+    var body: some View {
+#if os(macOS)
+        ParameterSection {
+            ParameterRow("Site", value: site)
+        }
+
+        ParameterSection {
+            FromRow(account: account, title: "Account")
+        }
+#else
+        ParameterSection {
+            ParameterRow("Site", value: site)
+            FromRow(account: account, title: "Account")
+        }
+#endif
+    }
+}

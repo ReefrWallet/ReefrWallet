@@ -14,8 +14,13 @@ import WalletKit
 struct AptosTransactionParametersView: View {
     let account: Account
     let preview: AptosTransactionPreview
+    let site: String
 
     var body: some View {
+        ParameterSection {
+            ParameterRow("Site", value: site)
+        }
+
         ParameterSection("Transaction") {
             FromRow(account: account)
             ParameterRow("Function", value: preview.transaction.payload.identifier, lineLimit: 3)
