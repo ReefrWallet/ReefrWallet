@@ -135,7 +135,7 @@ private extension FeeEstimationService {
         return Fees(
             aptosGasUnitPrice: String(gas.gasUnitPrice),
             aptosMaxGasAmount: String(gas.maxGasAmount),
-            nativeFeeReserve: token.isNativeToken ? String(try AptosRawTransaction.maxFee(of: transaction)) : nil
+            nativeFeeReserve: String(try AptosRawTransaction.maxFee(of: transaction))
         )
     }
 
@@ -212,14 +212,8 @@ private extension FeeEstimationService {
             parameters: [.address(recipientAddress), .uint256(amount)]
         )
 
-        let fees = try await estimateFees(
+        return try await estimateFees(
             to: EthereumAddress(string: tokenAddress), value: 0, data: calldata, account: account
-        )
-
-        return Fees(
-            ethereumBaseFee: fees.ethereumBaseFee,
-            ethereumMaxFee: fees.ethereumMaxFee,
-            ethereumMaxPriorityFee: fees.ethereumMaxPriorityFee
         )
     }
 
@@ -247,7 +241,7 @@ private extension FeeEstimationService {
         let estimate = try await client.estimateFee(transaction: envelope)
 
         return Fees(
-            nativeFeeReserve: token.isNativeToken ? String(estimate.fee) : nil,
+            nativeFeeReserve: String(estimate.fee),
             solanaComputeUnitLimit: estimate.computeUnitLimit.map(String.init),
             solanaPriorityFee: String(estimate.computeUnitPrice)
         )
@@ -269,7 +263,7 @@ private extension FeeEstimationService {
         let grossCost = String(try await client.gasCostSummary(transactionData: bcs).grossCost)
 
         return Fees(
-            nativeFeeReserve: token.isNativeToken ? grossCost : nil,
+            nativeFeeReserve: grossCost,
             suiGasBudget: grossCost,
             suiGasPrice: String(try await gasPrice)
         )

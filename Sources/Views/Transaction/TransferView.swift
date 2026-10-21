@@ -23,12 +23,14 @@ struct TransferView {
     @State private var isProgressPresented = false
     @State private var parameters: TransferParameters?
     @State private var progress: Progress = .preparing
+    @State private var token: Token
 
     @Environment(\.dismiss) private var dismiss
 
     init(balance: Balance) {
         account = balance.account
         initialBalance = balance
+        _token = .init(initialValue: balance.token)
     }
 }
 
@@ -66,31 +68,30 @@ extension TransferView {
 
 extension TransferView: View {
     var body: some View {
-        VStack(alignment: .leading) {
-            Text("Send")
-                .style(.largeHeader)
-                .padding(.bottom)
-                .accessibilityIdentifier("transfer-sheet-title")
-
-            Form {
-                TransferParametersView(
-                    balance: initialBalance,
-                    nativeFeeReserve: nativeFeeReserve,
-                    parameters: $parameters
-                )
-
-                TransactionFeesView(
-                    blockchain: account.blockchain,
-                    estimatedFees: estimatedFees,
-                    fees: $fees
-                )
-            }
-            .padding(.bottom)
-
-            buttons
+        TransactionSheet(
+            title: "Send",
+            confirmTitle: "Next",
+            isConfirmEnabled: isNextButtonEnabled,
+            isEstimateFeesEnabled: parameters != nil,
+            onEstimateFees: onEstimateFees,
+            onCancel: onCancel,
+            onConfirm: onNext,
+            accessibilityIds: .init(confirm: "transfer-next-button", title: "transfer-sheet-title")
+        ) {
+            TransferParametersView(
+                balance: initialBalance,
+                nativeFeeReserve: nativeFeeReserve,
+                parameters: $parameters,
+                token: $token
+            )
+        } fees: {
+            TransactionFeesView(
+                blockchain: account.blockchain,
+                estimatedFees: estimatedFees,
+                isTronFeeLimitEnabled: !token.isNativeToken,
+                fees: $fees
+            )
         }
-        .padding()
-        .frame(maxWidth: .infinity)
         .hardwareKeyPromptHost()
         .sheet(isPresented: $isProgressPresented) {
             let image = Image(systemName: progress.systemImage)
@@ -126,22 +127,6 @@ extension TransferView: View {
         }
         .onChange(of: parameters) { _, newValue in
             scheduleFeeEstimation(for: newValue)
-        }
-    }
-}
-
-// MARK: - Subviews
-
-private extension TransferView {
-    var buttons: some View {
-        HStack {
-            Button("Estimate Fees", action: onEstimateFees)
-                .disabled(parameters == nil)
-            Spacer()
-            Button("Cancel", action: onCancel)
-            Button("Next", action: onNext)
-                .disabled(!isNextButtonEnabled)
-                .accessibilityIdentifier("transfer-next-button")
         }
     }
 }

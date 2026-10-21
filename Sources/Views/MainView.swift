@@ -22,7 +22,6 @@ struct PresentSheetAction {
 // MARK: - MainView
 
 extension EnvironmentValues {
-    @Entry var browserWindowURL: URL?
     @Entry var presentSheet: PresentSheetAction?
     @Entry var sidebarSelection: Binding<PersistentIdentifier?> = .constant(nil)
 }
@@ -34,10 +33,6 @@ struct MainView: View {
 
     @State private var presentedSheet: PresentedSheet?
     @State private var sidebarSelection: PersistentIdentifier?
-
-#if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-#endif
 
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
@@ -118,17 +113,6 @@ struct MainView: View {
             sidebarSelection = connectedDapps.first { $0.kind == .walletConnect }?.id
             Task { await walletConnect.pair(uri: url.absoluteString) }
         }
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    openBrowser()
-                } label: {
-                    Label("Browser", systemImage: "globe")
-                }
-                .accessibilityIdentifier("open-browser-button")
-                .accessibilityValue(String(allAccounts.count))
-            }
-        }
     }
 }
 
@@ -149,14 +133,6 @@ private extension MainView {
                 }
             }
         )
-    }
-
-    func openBrowser() {
-#if os(macOS)
-        openWindow(id: "browser", value: WalletApp.dappURL ?? WalletApp.defaultBrowserURL)
-#else
-        presentedSheet = .browser(WalletApp.dappURL ?? WalletApp.defaultBrowserURL)
-#endif
     }
 
     @MainActor

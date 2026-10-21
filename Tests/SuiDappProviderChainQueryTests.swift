@@ -161,7 +161,7 @@ struct SuiDappProviderChainQueryTests {
 
         // The approval screen itself must surface that call, not just the
         // decoder.
-        let view = SuiTransactionPreviewView(preview: suiPreview)
+        let view = SuiTransactionParametersView(account: fixture.account, preview: suiPreview)
         #expect(view.moveCallDescriptions.count == 1)
         let description = try #require(view.moveCallDescriptions.first)
         let package = try #require(suiPreview.summary.moveCalls.first?.package.string)

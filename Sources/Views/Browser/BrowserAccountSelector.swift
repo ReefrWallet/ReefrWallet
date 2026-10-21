@@ -35,6 +35,8 @@ struct BrowserAccountSelector: View {
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("browser-account-selector")
         .accessibilityLabel(accessibilityLabel)
+        // macOS toolbars cache the item's accessibility label; a new identity refreshes it.
+        .id(selectorTitle)
     }
 }
 
@@ -69,6 +71,8 @@ private extension BrowserAccountSelector {
                 Image(systemName: "checkmark")
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     func accountMenu(for group: BrowserAccountSelectionGroup) -> some View {
@@ -104,6 +108,7 @@ private extension BrowserAccountSelector {
                         Spacer()
                         Image(systemName: "chevron.right")
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("browser-key-store-menu-item-\(group.name)")

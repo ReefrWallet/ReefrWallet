@@ -70,7 +70,6 @@ import WalletKit
         WindowGroup("Browser", id: "browser", for: URL.self) { $url in
             let initialURL = url ?? Self.dappURL ?? Self.defaultBrowserURL
             BrowserView(initialURL: initialURL)
-                .environment(\.browserWindowURL, initialURL)
                 .accessibilityIdentifier("browser-window")
         }
         .defaultSize(width: 1100, height: 700)

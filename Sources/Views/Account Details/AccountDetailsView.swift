@@ -165,7 +165,15 @@ private extension AccountDetailsView {
 private extension AccountDetailsView {
     var supportsTransfers: Bool {
         if case .cardano = account.blockchain {
-            return keyStore.kind == .local && keyStore.mnemonicEntropy != nil
+            switch keyStore.kind {
+            case .local:
+                // Local Cardano signing derives Icarus keys from the BIP-39 entropy.
+                return keyStore.mnemonicEntropy != nil
+            case .trezor:
+                return true
+            case .watchOnly:
+                return false
+            }
         }
 
         return true

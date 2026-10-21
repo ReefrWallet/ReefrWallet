@@ -29,6 +29,8 @@ struct TransferParametersView {
     let nativeFeeReserve: BigUInt?
 
     @Binding var parameters: TransferParameters?
+    /// The selected token, even while the rest of the form is invalid.
+    @Binding var token: Token
 
     @State private var decimalAmountText = "0"
     @State private var cardanoRecipientLovelaceText = ""
@@ -38,10 +40,16 @@ struct TransferParametersView {
 
     @Query var accountBalances: [BalanceModel]
 
-    init(balance: Balance, nativeFeeReserve: BigUInt?, parameters: Binding<TransferParameters?>) {
+    init(
+        balance: Balance,
+        nativeFeeReserve: BigUInt?,
+        parameters: Binding<TransferParameters?>,
+        token: Binding<Token>
+    ) {
         account = balance.account
         self.nativeFeeReserve = nativeFeeReserve
         _parameters = parameters
+        _token = token
 
         guard let accountId = account.id else {
             preconditionFailure()
@@ -60,25 +68,27 @@ struct TransferParametersView {
 
 extension TransferParametersView: View {
     var body: some View {
-        Group {
-            accountSection
-            tokenSection
-            amountSection
-            cardanoRecipientLovelaceSection
-            receiverSection
-                .padding(.bottom)
-                .sheet(isPresented: $isAddressBookPresented) {
-                    let selectedAddress = Binding<String?> { nil } set: { address in
-                        if let address {
-                            receiverText = address
-                        }
-                    }
+        ParameterSection("Transfer") {
+            FromRow(account: account)
+            tokenRow
+            amountRow
+            cardanoRecipientLovelaceRow
+            receiverRow
+        }
+        .sheet(isPresented: $isAddressBookPresented) {
+            let selectedAddress = Binding<String?> { nil } set: { address in
+                if let address {
+                    receiverText = address
+                }
+            }
 
-                    AddressBookView(blockchain: account.blockchain, selectedAddress: selectedAddress)
-                }
-                .onChange(of: validatedParameters, initial: true) { _, newValue in
-                    parameters = newValue
-                }
+            AddressBookView(blockchain: account.blockchain, selectedAddress: selectedAddress)
+        }
+        .onChange(of: selectedBalanceId) {
+            onSelectBalance()
+        }
+        .onChange(of: validatedParameters, initial: true) { _, newValue in
+            parameters = newValue
         }
     }
 }
@@ -86,114 +96,67 @@ extension TransferParametersView: View {
 // MARK: - Subviews
 
 private extension TransferParametersView {
-    var accountSection: some View {
-        Section {
-            LabeledContent {
-                HStack {
-                    Text(displayAddress)
-                        .style(.medium, foreground: .secondary)
+    var amountRow: some View {
+        ParameterRow("Amount") {
+            HStack {
+                TextField("", text: $decimalAmountText)
+                    .accessibilityIdentifier("transfer-amount-field")
+
+                Button {
+                    decimalAmountText = maxSendableAmount
+                } label: {
+                    Image("max16")
                 }
-                .frame(height: 28)
-            } label: {
-                Text("From")
-                    .style(.small, foreground: .secondary)
-            }
-        }
-    }
-
-    var amountSection: some View {
-        Section {
-            LabeledContent {
-                HStack {
-                    TextField("", text: $decimalAmountText)
-                        .style(.medium, foreground: .primary)
-                        .accessibilityIdentifier("transfer-amount-field")
-
-                    Button {
-                        decimalAmountText = maxSendableAmount
-                    } label: {
-                        Image("max16")
-                    }
-                    .frame(width: 48)
-                    .help("Maximum Amount")
-                }
-                .frame(height: 28)
-            } label: {
-                Text("Amount")
-                    .style(.small, foreground: .secondary)
-            }
-        }
-    }
-
-    var receiverSection: some View {
-        Section {
-            LabeledContent {
-                HStack {
-                    TextField("", text: $receiverText)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("transfer-receiver-field")
-
-                    Button {
-                        onOpenAddressBook()
-                    } label: {
-                        Image("addressBook16")
-                    }
-                    .frame(width: 48)
-                    .help("Fill from Address Book")
-                }
-                .frame(height: 28)
-            } label: {
-                Text("Receiver")
-                    .style(.small, foreground: .secondary)
+                .buttonStyle(.borderless)
+                .help("Maximum Amount")
             }
         }
     }
 
     @ViewBuilder
-    var cardanoRecipientLovelaceSection: some View {
+    var cardanoRecipientLovelaceRow: some View {
         if isCardanoNativeAsset {
-            Section {
-                LabeledContent {
-                    TextField("", text: $cardanoRecipientLovelaceText)
-                        .style(.medium, foreground: .primary)
-                        .frame(height: 28)
-                } label: {
-                    Text("Recipient ADA (lovelace)")
-                        .style(.small, foreground: .secondary)
-                }
+            ParameterRow("Recipient ADA (lovelace)") {
+                TextField("", text: $cardanoRecipientLovelaceText)
             }
         }
     }
 
-    var tokenSection: some View {
-        Section {
-            HStack(spacing: 2) {
+    var receiverRow: some View {
+        ParameterRow("Receiver") {
+            HStack {
+                TextField("", text: $receiverText, prompt: Text(receiverPrompt))
+                    .accessibilityIdentifier("transfer-receiver-field")
+
+                Button {
+                    onOpenAddressBook()
+                } label: {
+                    Image("addressBook16")
+                }
+                .buttonStyle(.borderless)
+                .help("Fill from Address Book")
+            }
+        }
+    }
+
+    var tokenRow: some View {
+        ParameterRow("Token") {
+            VStack(alignment: .leading, spacing: 4) {
                 Picker(selection: $selectedBalanceId) {
                     ForEach(accountBalances, id: \.self) { balance in
                         Text(balance.token.symbol)
-                            .style(.medium)
                             .tag(balance.id as PersistentIdentifier?)
                     }
                 } label: {
-                    Text("Token")
-                        .style(.small, foreground: .secondary)
+                    EmptyView()
                 }
-
-                Spacer()
+                .labelsHidden()
 
                 if let selectedBalance {
-                    Text("Balance:")
-                        .style(.medium, foreground: .secondary)
-
-                    Text(verbatim: String(describing: selectedBalance.decimalAmount))
-                        .style(.medium, foreground: .secondary)
-                        .fixedSize()
-
-                    Text(selectedBalance.token.symbol)
-                        .style(.medium, foreground: .secondary)
+                    Text(verbatim: "Balance: \(selectedBalance.decimalAmount) \(selectedBalance.token.symbol)")
+                        .style(.small, foreground: .secondary)
                 }
             }
-            .frame(height: 28)
         }
     }
 }
@@ -201,16 +164,17 @@ private extension TransferParametersView {
 // MARK: - Callbacks
 
 private extension TransferParametersView {
-    var displayAddress: String {
-        guard case .cardano = account.blockchain else {
-            return account.address
-        }
-
-        return (try? CardanoAccountDescriptor(string: account.address).receiveAddress.string) ?? account.address
-    }
-
     func onOpenAddressBook() {
         // TODO: Address boook
+    }
+
+    /// An amount for the previous token is meaningless for the new one.
+    func onSelectBalance() {
+        decimalAmountText = "0"
+
+        if let selectedBalance {
+            token = selectedBalance.token
+        }
     }
 }
 
@@ -236,6 +200,17 @@ private extension TransferParametersView {
             decimalAmount: decimalAmountText,
             recipient: receiverText
         )
+    }
+
+    /// The receiver field's placeholder, e.g. "0x…" or "bc1…".
+    var receiverPrompt: String {
+        switch account.blockchain {
+        case .aptos, .evm, .sui: "0x…"
+        case .bitcoin: "bc1…"
+        case .cardano: "addr1…"
+        case .solana: "Address"
+        case .tron: "T…"
+        }
     }
 
     var maxSendableAmount: String {

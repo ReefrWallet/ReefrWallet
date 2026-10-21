@@ -1,5 +1,5 @@
 //
-//  TronPreviewViews.swift
+//  TronTransactionParametersView.swift
 //  Reefr Wallet
 //
 //  Created by Andrey Yurkevich on 13.10.26.
@@ -9,49 +9,29 @@
 import SwiftUI
 import WalletKit
 
-/// Shows a TronWeb `signMessageV2` message as UTF-8 text, or hex if the
-/// bytes aren't valid UTF-8.
-struct TronMessagePreviewView: View {
-    let message: Data
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Message")
-                .style(.small, foreground: .secondary)
-
-            Text(String(data: message, encoding: .utf8) ?? message.hexEncoded)
-                .style(.medium)
-                .textSelection(.enabled)
-        }
-    }
-}
-
-/// Shows a dapp-supplied Tron transaction decoded from the exact bytes
-/// that get signed, decoding TRC-20 `transfer`/`approve`/`transferFrom`
-/// calls and Stake 2.0 stake/unstake/withdraw.
-struct TronTransactionPreviewView: View {
+/// A dapp-supplied Tron transaction decoded from the exact bytes that get
+/// signed, decoding TRC-20 `transfer`/`approve`/`transferFrom` calls and
+/// Stake 2.0 stake/unstake/withdraw. Fees are shown by ``TransactionFeesView``.
+struct TronTransactionParametersView: View {
+    let account: Account
     let preview: TronTransactionPreview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        ParameterSection("Transaction") {
+            FromRow(account: account)
+
             ForEach(rows, id: \.label) { row in
-                LabeledContent {
-                    Text(row.value)
-                        .style(.medium)
-                        .textSelection(.enabled)
-                        .lineLimit(row.label == "Raw bytes" ? 3 : nil)
-                } label: {
-                    Text(row.label)
-                        .style(.small, foreground: .secondary)
-                }
+                ParameterRow(row.label, value: row.value, lineLimit: nil)
             }
         }
+
+        ParameterBlock("Raw bytes", text: preview.transaction.rawBytes.hexEncoded, lineLimit: 3)
     }
 }
 
 // MARK: - Rows
 
-extension TronTransactionPreviewView {
+extension TronTransactionParametersView {
     struct Row {
         let label: String
         let value: String
@@ -92,21 +72,12 @@ extension TronTransactionPreviewView {
             rows = [Row(label: "Action", value: "Withdraw unstaked TRX")]
         }
 
-        if let fee = preview.fee {
-            rows.append(Row(label: "Estimated fee", value: Self.estimatedFee(fee)))
-        }
-
-        if let feeLimit = transaction.feeLimit {
-            rows.append(Row(label: "Fee limit", value: "\(Self.trx(feeLimit)) (maximum energy burn)"))
-        }
-
         if let memo = transaction.memo, !memo.isEmpty {
             rows.append(Row(label: "Memo", value: String(data: memo, encoding: .utf8) ?? memo.hexEncoded))
         }
 
         let expiration = Date(timeIntervalSince1970: TimeInterval(transaction.expiration) / 1000)
         rows.append(Row(label: "Expires", value: expiration.formatted(date: .abbreviated, time: .standard)))
-        rows.append(Row(label: "Raw bytes", value: transaction.rawBytes.hexEncoded))
         return rows
     }
 
@@ -121,14 +92,6 @@ extension TronTransactionPreviewView {
         case .energy: "Energy"
         case .tronPower: "Tron Power"
         }
-    }
-
-    static func estimatedFee(_ fee: TronFeeEstimate) -> String {
-        let resources = fee.energy > 0
-            ? "\(fee.energy.formatted()) energy, \(fee.bandwidth.formatted()) bandwidth"
-            : "\(fee.bandwidth.formatted()) bandwidth"
-        let cost = fee.burnedSun == 0 ? "0 TRX, covered by staked resources" : "≈ \(trx(fee.burnedSun))"
-        return "\(cost) (\(resources))"
     }
 
     /// Decodes the common TRC-20 calls; anything else shows its selector

@@ -280,8 +280,8 @@ struct TronDappProviderTests {
         let word = value.serialize().leftPadded(toCount: 32)
         let token = TronTransactionPreview.Token(decimals: 6, symbol: "USDT")
 
-        #expect(TronTransactionPreviewView.amount(word, token) == expected)
-        #expect(TronTransactionPreviewView.amount(Data(count: 31) + [0x05], nil) == "5 (base units)")
+        #expect(TronTransactionParametersView.amount(word, token) == expected)
+        #expect(TronTransactionParametersView.amount(Data(count: 31) + [0x05], nil) == "5 (base units)")
     }
 
     @Test

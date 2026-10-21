@@ -1,4 +1,4 @@
-// Unit tests for TronTransactionPreviewView's calldata decoding — the
+// Unit tests for TronTransactionParametersView's calldata decoding — the
 // approval sheet's TRC-20 rows. The sheet is the only place the user sees
 // what they're signing, so a decode that disagrees with the TVM is a
 // spoofing vector, not a cosmetic bug.
@@ -13,14 +13,14 @@ private let recipientWord = Data(repeating: 0, count: 12) + Data(repeating: 0x11
 private let usdt = TronTransactionPreview.Token(decimals: 6, symbol: "USDT")
 
 private func amountRow(_ data: Data, token: TronTransactionPreview.Token? = usdt) -> String? {
-    TronTransactionPreviewView
+    TronTransactionParametersView
         .callRows(data, token: token)
         .first { $0.label == "Amount" }?
         .value
 }
 
 @Suite(.timeLimit(.minutes(1)))
-struct TronTransactionPreviewRowsTests {
+struct TronTransactionParametersRowsTests {
     @Test
     func decodesAWellFormedTransfer() throws {
         let amount = Data(repeating: 0, count: 29) + Data([0x01, 0x31, 0x2d]) // 78_125 base units
@@ -51,7 +51,7 @@ struct TronTransactionPreviewRowsTests {
         let approveSelector = Data([0x09, 0x5e, 0xa7, 0xb3])
         let maxWord = Data(repeating: 0xff, count: 32)
 
-        let allowance = TronTransactionPreviewView
+        let allowance = TronTransactionParametersView
             .callRows(approveSelector + recipientWord + maxWord, token: usdt)
             .first { $0.label == "Allowance" }?
             .value

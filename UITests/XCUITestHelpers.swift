@@ -36,6 +36,34 @@ extension XCUIApplication {
 
         XCTFail("Hidden Balances never expanded.")
     }
+
+    /// Adds `url` as a sidebar dApp (or selects the existing one) and opens
+    /// it in a Browser window.
+    func openDappInBrowser(_ url: String, timeout: TimeInterval = 10) {
+        let addButton = descendant(withIdentifier: "sidebar-add-dapp-button")
+        XCTAssertTrue(addButton.waitForExistence(timeout: timeout), "Expected the sidebar's Add dApp button.")
+        // The section header merges into one element with the button's
+        // identifier, so click the trailing "+" rather than the center.
+        addButton.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+            .withOffset(CGVector(dx: -18, dy: 0))
+            .click()
+
+        let urlField = descendant(withIdentifier: "add-dapp-url-field")
+        XCTAssertTrue(urlField.waitForExistence(timeout: 5), "Expected the Add dApp sheet.")
+        urlField.click()
+        urlField.typeText(url)
+        descendant(withIdentifier: "add-dapp-add-button").click()
+
+        let openButton = descendant(withIdentifier: "dapp-open-button")
+        XCTAssertTrue(openButton.waitForExistence(timeout: 5), "Expected the dApp details pane.")
+        openButton.click()
+    }
+
+    private func descendant(withIdentifier identifier: String) -> XCUIElement {
+        descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .firstMatch
+    }
 }
 
 extension XCUIElement {

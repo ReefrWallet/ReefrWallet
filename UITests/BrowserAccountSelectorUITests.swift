@@ -34,15 +34,16 @@ final class BrowserAccountSelectorUITests: XCTestCase {
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = [
             "--test",
+            "-ApplePersistenceIgnoreState", "YES",
             "--mnemonic", mnemonic,
             "--evm-rpc-url", anvilNode.endpoint.absoluteString,
             "--create-evm-accounts",
+            "--create-solana-accounts",
             "--dapp-url", fixtureServer.url.absoluteString
         ]
     }
 
     override func tearDown() {
-        closeBrowserWindows()
         app?.terminate()
         app = nil
         fixtureServer?.stop()
@@ -55,9 +56,9 @@ final class BrowserAccountSelectorUITests: XCTestCase {
         try openBrowser()
 
         let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
-        XCTAssertTrue(selector.waitForExistence(timeout: 15))
+        XCTAssertTrue(selector.waitForExistence(timeout: 10))
 
-        XCTAssertTrue(waitForSelectedAccount(in: selector, timeout: 15), "Selector label: \(selector.label)")
+        XCTAssertTrue(waitForSelectedAccount(in: selector, timeout: 10), "Selector label: \(selector.label)")
         XCTAssertTrue(selector.label.contains("Local Key"), "Expected the selector to show its key store.")
         XCTAssertTrue(selector.label.contains("Sepolia #1"), "Expected the selector to show its active account.")
 
@@ -68,6 +69,7 @@ final class BrowserAccountSelectorUITests: XCTestCase {
 
     func testSelectingADifferentAccountUpdatesTheSelector() throws {
         try openBrowser()
+        connectAndApproveEthereumFixture()
         selectAccount("Sepolia #2")
 
         let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
@@ -79,7 +81,6 @@ final class BrowserAccountSelectorUITests: XCTestCase {
 
     func testSwitchingToADifferentChainFamilyDisconnectsThenReconnectsOnSwitchingBack() throws {
         try openBrowser()
-        selectAccount("Sepolia #1")
         connectAndApproveEthereumFixture()
 
         selectAccount("Devnet #1")
@@ -107,35 +108,15 @@ final class BrowserAccountSelectorUITests: XCTestCase {
 // MARK: - Browser/selector actions
 
 private extension BrowserAccountSelectorUITests {
-    func closeBrowserWindows() {
-        let sheetCloseButton = app.firstDescendant(withIdentifier: "dapp-close-browser-button")
-        let closeButton = sheetCloseButton.exists
-            ? sheetCloseButton
-            : app.firstDescendant(withIdentifier: "browser-close-button")
-
-        guard closeButton.exists else {
-            return
-        }
-
-        closeButton.click()
-
-        let closed = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == false"),
-            object: closeButton
-        )
-
-        _ = XCTWaiter.wait(for: [closed], timeout: 10)
-    }
-
     func openBrowser() throws {
         app.launch()
         app.activate()
-        closeBrowserWindows()
 
-        let openBrowserButton = app.firstDescendant(withIdentifier: "open-browser-button")
-        XCTAssertTrue(openBrowserButton.waitForExistence(timeout: 15))
-        XCTAssertTrue(waitForAccountBootstrap(in: openBrowserButton, timeout: 15))
-        openBrowserButton.click()
+        let accountLabel = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "sidebar-account-label-"))
+            .firstMatch
+        XCTAssertTrue(accountLabel.waitForExistence(timeout: 10), "Expected bootstrapped accounts in the sidebar.")
+        app.openDappInBrowser(fixtureServer.url.absoluteString)
 
         // macOS can restore many stale "Browser" windows from earlier
         // test runs into this same process at launch, and `openWindow`
@@ -176,12 +157,12 @@ private extension BrowserAccountSelectorUITests {
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
         selector.click()
 
-        let keyStore = app.menuItems["Local Key"]
-        XCTAssertTrue(keyStore.waitForExistence(timeout: 10), "Expected the Local Key submenu.")
+        let keyStore = app.firstDescendant(withIdentifier: "browser-key-store-menu-item-Local Key")
+        XCTAssertTrue(keyStore.waitForExistence(timeout: 10), "Expected the Local Key item.")
         keyStore.click()
 
-        let item = app.menuItems[name]
-        XCTAssertTrue(item.waitForExistence(timeout: 10), "Expected a \"\(name)\" row in the Local Key submenu.")
+        let item = app.firstDescendant(withIdentifier: "browser-account-menu-item-\(name)")
+        XCTAssertTrue(item.waitForExistence(timeout: 10), "Expected a \"\(name)\" row in the Local Key list.")
         item.click()
     }
 
@@ -192,7 +173,7 @@ private extension BrowserAccountSelectorUITests {
         )
 
         let approveButton = browserWindow.firstDescendant(withIdentifier: "dapp-approve-button")
-        XCTAssertTrue(approveButton.waitForExistence(timeout: 20), "Expected the connect approval prompt to appear.")
+        XCTAssertTrue(approveButton.waitForExistence(timeout: 10), "Expected the connect approval prompt to appear.")
         approveButton.click()
 
         XCTAssertTrue(waitForWebText(containing: "ACTIVE", timeout: 10), "Expected the fixture to connect.")
@@ -202,20 +183,6 @@ private extension BrowserAccountSelectorUITests {
 // MARK: - Web/native content assertions
 
 private extension BrowserAccountSelectorUITests {
-    func waitForAccountBootstrap(in button: XCUIElement, timeout: TimeInterval) -> Bool {
-        let deadline = Date.now.addingTimeInterval(timeout)
-
-        while Date.now < deadline {
-            if let count = Int(button.value as? String ?? ""), count > 0 {
-                return true
-            }
-
-            _ = button.waitForExistence(timeout: 0.5)
-        }
-
-        return false
-    }
-
     func waitForSelectedAccount(in selector: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date.now.addingTimeInterval(timeout)
 

@@ -23,9 +23,6 @@
     "%@ accounts" : {
 
     },
-    "%@ MIST" : {
-
-    },
     "%@, %@" : {
       "comment" : "Asset counts: NFTs, then tokens",
       "localizations" : {
@@ -96,9 +93,6 @@
     "Amount" : {
 
     },
-    "Balance:" : {
-
-    },
     "Base fee" : {
 
     },
@@ -112,6 +106,9 @@
 
     },
     "Compute unit limit" : {
+
+    },
+    "Connect" : {
 
     },
     "Connect App" : {
@@ -156,13 +153,7 @@
     "Gas budget" : {
 
     },
-    "Gas limit" : {
-
-    },
     "Gas limit or fees were set by the site." : {
-
-    },
-    "Gas price" : {
 
     },
     "Gas price (MIST)" : {
@@ -183,16 +174,7 @@
     "Market Data" : {
 
     },
-    "Max fee per gas" : {
-
-    },
     "Max gas" : {
-
-    },
-    "Max network fee" : {
-
-    },
-    "Max priority fee per gas" : {
 
     },
     "Max transaction cost (USD)" : {
@@ -205,9 +187,6 @@
 
     },
     "Native SegWit (BIP-84)" : {
-
-    },
-    "Network fee is calculated when the transaction is prepared." : {
 
     },
     "New BIP-39 Mnemonic" : {
@@ -234,7 +213,7 @@
     "Primary type" : {
 
     },
-    "Priority fee (micro-lamports/CU)" : {
+    "Priority fee (µLamports/CU)" : {
 
     },
     "Programs" : {
@@ -271,6 +250,9 @@
 
     },
     "Sender" : {
+
+    },
+    "Signing..." : {
 
     },
     "System Default Browser" : {
@@ -331,9 +313,6 @@
 
     },
     "WalletConnect" : {
-
-    },
-    "You'll be asked to confirm this on your Trezor." : {
 
     }
   },

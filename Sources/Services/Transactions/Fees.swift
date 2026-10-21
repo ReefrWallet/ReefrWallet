@@ -26,7 +26,7 @@ struct Fees: Equatable {
     /// The Solana compute-unit limit, if overridden. `nil` leaves the
     /// runtime's default per-instruction budget in effect.
     let solanaComputeUnitLimit: String?
-    /// The Solana priority fee, in micro-lamports per compute unit.
+    /// The Solana priority fee, in µLamports per compute unit.
     let solanaPriorityFee: String?
 
     let suiGasBudget: String?
@@ -35,8 +35,8 @@ struct Fees: Equatable {
     /// Maximum SUN a TRC-20 call may spend. This does not affect validator priority.
     let tronFeeLimit: String?
 
-    /// Total fee cost in the chain's smallest unit, only set when the token being sent
-    /// is the native asset. Used to compute the spendable maximum after reserving gas.
+    /// Total fee cost in the chain's smallest unit: the USD cost shown, and the
+    /// gas reserved from a native-asset send's spendable maximum.
     let nativeFeeReserve: String?
 
     init(

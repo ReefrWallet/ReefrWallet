@@ -9,9 +9,9 @@
 import SwiftUI
 import WalletKit
 
-/// The generic approval prompt for a ``DappApprovalRequest`` — origin,
-/// account, chain, Reject/Approve — with the chain-specific detail
-/// dispatched on the request's preview enum (`Browser/Previews/*`).
+/// The approval prompt for a ``DappApprovalRequest``. Sign requests use the
+/// shared ``TransactionSheet`` with the chain's parameters and fees views
+/// (ADR-042); connect requests keep their own short layout.
 struct DappRequestSheet: View {
     let request: DappApprovalRequest
     /// Whether the request was approved and is being handled.
@@ -20,34 +20,24 @@ struct DappRequestSheet: View {
     let onResolve: (DappApprovalResult, Bool) -> Void
 
     @State private var editedFees: Fees?
+    @State private var feeEstimationTask: Task<Void, Never>?
     @State private var isHardwareAccount = false
-
-#if os(macOS)
-    @Environment(\.dismissWindow) private var dismissWindow
-    @Environment(\.browserWindowURL) private var browserWindowURL
-#endif
+    /// Ethereum fees re-fetched with Estimate Fees, replacing the request's.
+    @State private var reestimatedFees: Fees?
 
     private let databaseService = DI.injectOrFail(DatabaseService.self)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            Divider()
-            detail
-            if isHardwareAccount {
-                Text("You'll be asked to confirm this on your Trezor.")
-                    .style(.small, foreground: .secondary)
-            }
-
-            Spacer()
-            if isProcessing {
-                progress
-            } else {
-                buttons
+        Group {
+            switch request {
+            case .connect:
+                connectSheet
+            case let .signMessage(_, _, account, preview):
+                messageSheet(account: account, preview: preview)
+            case let .sendTransaction(_, _, account, preview):
+                transactionSheet(account: account, preview: preview)
             }
         }
-        .padding()
-        .frame(minWidth: 380, minHeight: 240)
         .interactiveDismissDisabled(isProcessing)
         .task {
             isHardwareAccount = (try? await databaseService.fetchKeyStore(id: account.keyStoreId))?.isHardware ?? false
@@ -58,73 +48,40 @@ struct DappRequestSheet: View {
 // MARK: - Subviews
 
 private extension DappRequestSheet {
-    var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+    var connectSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Connect")
                 .style(.largeHeader)
                 .accessibilityIdentifier("dapp-request-title")
 
-            Text(origin)
-                .style(.small, foreground: .secondary)
-
-            LabeledContent {
-                Text(account.address)
-                    .style(.small)
-            } label: {
-                Text(account.name)
-                    .style(.small, foreground: .secondary)
+            ParameterSection {
+                websiteRow
+                FromRow(account: account, title: "Account")
             }
-        }
-    }
 
-    @ViewBuilder
-    var detail: some View {
-        switch request {
-        case .connect:
             Text("This site is requesting to connect to this account.")
                 .style(.medium)
-        case let .signMessage(_, _, _, preview):
-            switch preview {
-            case let .aptosMessage(fullMessage):
-                AptosMessagePreviewView(fullMessage: fullMessage)
-            case let .ethereumPersonal(message):
-                EthereumPersonalPreviewView(message: message)
-            case let .ethereumTypedData(summary):
-                EthereumTypedDataPreviewView(summary: summary)
-            case let .solanaMessage(message):
-                SolanaMessagePreviewView(message: message)
-            case let .suiPersonal(message):
-                SuiPersonalPreviewView(message: message)
-            case let .tronMessage(message):
-                TronMessagePreviewView(message: message)
-            }
 
-        case let .sendTransaction(_, _, account, preview):
-            switch preview {
-            case let .aptos(preview):
-                AptosTransactionPreviewView(preview: preview)
+            Spacer()
 
-            case let .ethereum(call, fees):
-                EthereumCallPreviewView(
-                    blockchain: account.blockchain,
-                    call: call,
-                    estimatedFees: fees,
-                    fees: $editedFees
-                )
+            if isProcessing {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .controlSize(.small)
 
-            case let .solana(preview):
-                SolanaTransactionPreviewView(preview: preview)
-
-            case let .sui(preview):
-                SuiTransactionPreviewView(preview: preview)
-
-            case let .tron(preview):
-                TronTransactionPreviewView(preview: preview)
+                    Text("Signing...")
+                        .style(.medium, foreground: .secondary)
+                }
+            } else {
+                connectButtons
             }
         }
+        .padding()
+        .frame(minWidth: 380, minHeight: 240)
     }
 
-    var buttons: some View {
+    var connectButtons: some View {
         HStack {
             Spacer()
             Button("Reject") {
@@ -132,34 +89,154 @@ private extension DappRequestSheet {
             }
             .accessibilityIdentifier("dapp-reject-button")
 
-#if os(macOS)
-            Button("Close Browser") {
-                // Walking away from the prompt is still a rejection, and the
-                // waiting provider has to be told before the window goes.
-                onResolve(.rejected, false)
-
-                withTransaction(\.dismissBehavior, .destructive) {
-                    dismissWindow(id: "browser", value: browserWindowURL ?? WalletApp.defaultBrowserURL)
-                }
-            }
-            .accessibilityIdentifier("dapp-close-browser-button")
-#endif
-
             Button("Approve") {
-                onResolve(approvedResult, isHardwareAccount)
+                onResolve(.approved, isHardwareAccount)
             }
             .accessibilityIdentifier("dapp-approve-button")
         }
     }
 
-    var progress: some View {
-        HStack {
-            Spacer()
-            ProgressView()
-                .controlSize(.small)
+    @ViewBuilder
+    func messageSheet(account: Account, preview: DappMessagePreview) -> some View {
+        let isTypedData = if case .ethereumTypedData = preview { true } else { false }
 
-            Text("Signing...")
-                .style(.medium, foreground: .secondary)
+        signSheet(title: isTypedData ? "Sign Typed Data" : "Sign Message") {
+            switch preview {
+            case let .aptosMessage(fullMessage):
+                SignMessageParametersView(account: account, message: fullMessage)
+            case let .ethereumPersonal(message):
+                SignMessageParametersView(account: account, message: message)
+            case let .ethereumTypedData(summary):
+                EthereumTypedDataParametersView(account: account, summary: summary)
+            case let .solanaMessage(message):
+                SignMessageParametersView(account: account, message: message)
+            case let .suiPersonal(message):
+                SignMessageParametersView(account: account, message: message)
+            case let .tronMessage(message):
+                SignMessageParametersView(account: account, message: message)
+            }
+        } fees: {
+            EmptyView()
+        }
+    }
+
+    func signSheet<Parameters: View, Fees: View>(
+        title: String,
+        isConfirmEnabled: Bool = true,
+        onEstimateFees: (() -> Void)? = nil,
+        @ViewBuilder parameters: () -> Parameters,
+        @ViewBuilder fees: () -> Fees
+    ) -> some View {
+        TransactionSheet(
+            title: title,
+            confirmTitle: "Confirm",
+            isConfirmEnabled: isConfirmEnabled,
+            isProcessing: isProcessing,
+            onEstimateFees: onEstimateFees,
+            onCancel: { onResolve(.rejected, false) },
+            onConfirm: { onResolve(approvedResult, isHardwareAccount) },
+            accessibilityIds: .init(
+                cancel: "dapp-reject-button",
+                confirm: "dapp-approve-button",
+                title: "dapp-request-title"
+            ),
+            parameters: {
+                // Not in Penpot: the user should see who is asking.
+                ParameterSection {
+                    websiteRow
+                }
+
+                parameters()
+            },
+            fees: fees
+        )
+    }
+
+    @ViewBuilder
+    func transactionSheet(account: Account, preview: DappTransactionPreview) -> some View {
+        if case let .ethereum(call, _) = preview {
+            signSheet(
+                title: "Sign Transaction",
+                isConfirmEnabled: editedFees != nil,
+                onEstimateFees: onEstimateEthereumFees
+            ) {
+                EthereumTransactionParametersView(account: account, call: call)
+            } fees: {
+                TransactionFeesView(
+                    blockchain: account.blockchain,
+                    estimatedFees: reestimatedFees ?? preview.fees,
+                    // Not in Penpot: the user should know the site picked these values.
+                    warning: call.hasDappFeeOverrides && reestimatedFees == nil
+                        ? "Gas limit or fees were set by the site."
+                        : nil,
+                    fees: $editedFees
+                )
+            }
+        } else {
+            signSheet(title: "Sign Transaction") {
+                switch preview {
+                case let .aptos(preview):
+                    AptosTransactionParametersView(account: account, preview: preview)
+                case .ethereum:
+                    EmptyView()
+                case let .solana(preview):
+                    SolanaTransactionParametersView(account: account, preview: preview)
+                case let .sui(preview):
+                    SuiTransactionParametersView(account: account, preview: preview)
+                case let .tron(preview):
+                    TronTransactionParametersView(account: account, preview: preview)
+                }
+            } fees: {
+                TransactionFeesView(
+                    blockchain: account.blockchain,
+                    estimatedFees: preview.fees,
+                    isEditable: false,
+                    fees: .constant(nil)
+                )
+            }
+        }
+    }
+
+    var websiteRow: some View {
+        ParameterRow("Website", value: origin)
+    }
+}
+
+// MARK: - Callbacks
+
+private extension DappRequestSheet {
+    /// Re-fetches fee rates for the request's gas limit. Ethereum only: the
+    /// other chains' fees are fixed by the dapp (ADR-042).
+    func onEstimateEthereumFees() {
+        guard case let .sendTransaction(_, _, account, .ethereum(call, _)) = request else {
+            return
+        }
+
+        feeEstimationTask?.cancel()
+        feeEstimationTask = Task {
+            do {
+                let service = DI.injectOrFail(FeeEstimationService.self)
+                let estimate = try await service.estimateCall(
+                    to: try call.to.map { try EthereumAddress(string: $0) },
+                    value: call.value,
+                    data: call.data,
+                    gasLimit: call.gasLimit,
+                    account: account
+                )
+
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                reestimatedFees = service.ethereumFees(
+                    rates: estimate.rates,
+                    gasLimit: call.gasLimit,
+                    maxFee: estimate.rates.maxFeePerGas,
+                    maxPriorityFee: estimate.rates.maxPriorityFeePerGas
+                )
+            } catch {
+                printError(error)
+            }
         }
     }
 }
@@ -175,14 +252,14 @@ private extension DappRequestSheet {
         }
     }
 
-    /// `.approvedWithFees` for a transaction (carrying any fee edits the
-    /// user made), `.approved` for every other request kind.
+    /// `.approvedWithFees` for an Ethereum transaction (carrying any fee
+    /// edits the user made), `.approved` for every other request kind.
     var approvedResult: DappApprovalResult {
         guard case let .sendTransaction(_, _, _, .ethereum(_, estimatedFees)) = request else {
             return .approved
         }
 
-        return .approvedWithFees(editedFees ?? estimatedFees)
+        return .approvedWithFees(editedFees ?? reestimatedFees ?? estimatedFees)
     }
 
     /// The origin the request actually came from — carried on the
@@ -195,14 +272,6 @@ private extension DappRequestSheet {
         case let .connect(origin, _, _): origin
         case let .signMessage(origin, _, _, _): origin
         case let .sendTransaction(origin, _, _, _): origin
-        }
-    }
-
-    var title: String {
-        switch request {
-        case .connect: "Connect"
-        case .signMessage: "Signature Request"
-        case .sendTransaction: "Transaction Request"
         }
     }
 }

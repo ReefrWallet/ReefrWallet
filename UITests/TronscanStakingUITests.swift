@@ -59,6 +59,7 @@ final class TronscanStakingUITests: XCTestCase {
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = [
             "--test",
+            "-ApplePersistenceIgnoreState", "YES",
             "--store-path", storeDirectory.appending(path: "keystore.sqlite").path,
             "--mnemonic", mnemonic,
             "--create-tron-accounts",
@@ -119,18 +120,9 @@ private extension TronscanStakingUITests {
         )
     }
 
-    /// Closes browser windows macOS restored from earlier sessions, so
-    /// there's exactly one web view, then opens one at `--dapp-url`.
+    /// Opens the only Browser window at the Stake page.
     func openFreshBrowser() {
-        let openBrowserButton = app.firstDescendant(withIdentifier: "open-browser-button")
-        XCTAssertTrue(openBrowserButton.waitForExistence(timeout: 10))
-
-        let closeButtons = app.descendants(matching: .any).matching(identifier: "browser-close-button")
-        while closeButtons.firstMatch.waitForExistence(timeout: 2) {
-            closeButtons.firstMatch.click()
-        }
-
-        openBrowserButton.click()
+        app.openDappInBrowser(Self.stakeHomeURL)
         XCTAssertTrue(
             app.firstDescendant(withIdentifier: "browser-address-field").waitForExistence(timeout: 10),
             "Expected the Browser window to open."
@@ -142,7 +134,7 @@ private extension TronscanStakingUITests {
     func connectWallet() -> String {
         let connectWallet = webElement(labelBeginsWith: "Connect Wallet")
         XCTAssertTrue(
-            connectWallet.waitForExistence(timeout: 20),
+            connectWallet.waitForExistence(timeout: 10),
             "Expected Tronscan's Connect Wallet button. \(diagnostics(matching: "Connect"))"
         )
 
@@ -185,14 +177,14 @@ private extension TronscanStakingUITests {
         stakeNow.click()
 
         let getResource = webElement(labelBeginsWith: resource.getButtonLabel)
-        XCTAssertTrue(getResource.waitForExistence(timeout: 15), "Expected \(resource.getButtonLabel) on the Stake 2.0 page.")
+        XCTAssertTrue(getResource.waitForExistence(timeout: 10), "Expected \(resource.getButtonLabel) on the Stake 2.0 page.")
         scrollIntoView(getResource)
         getResource.click()
     }
 
     func submitStake(for resource: Resource) {
         let option = web.radioButtons[resource.optionLabel]
-        XCTAssertTrue(option.waitForExistence(timeout: 15), "Expected Tronscan's stake dialog.")
+        XCTAssertTrue(option.waitForExistence(timeout: 10), "Expected Tronscan's stake dialog.")
         option.click()
 
         let amount = web.textFields

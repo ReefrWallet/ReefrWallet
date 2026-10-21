@@ -24,6 +24,7 @@ final class DappBrowserUITests: XCTestCase {
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = [
             "--test",
+            "-ApplePersistenceIgnoreState", "YES",
             "--mnemonic", mnemonic,
             "--evm-rpc-url", anvilNode.endpoint.absoluteString,
             "--create-evm-accounts",
@@ -45,12 +46,10 @@ final class DappBrowserUITests: XCTestCase {
 
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
-        let openBrowserButton = app.firstDescendant(withIdentifier: "open-browser-button")
-        XCTAssertTrue(openBrowserButton.waitForExistence(timeout: 15))
-        openBrowserButton.click()
+        app.openDappInBrowser(fixtureServer.url.absoluteString)
 
         let addressField = app.firstDescendant(withIdentifier: "browser-address-field")
-        XCTAssertTrue(addressField.waitForExistence(timeout: 15), "Expected the Browser window to open.")
+        XCTAssertTrue(addressField.waitForExistence(timeout: 10), "Expected the Browser window to open.")
 
         XCTAssertTrue(
             waitForWebText(containing: "has-window-ethereum", timeout: 5),
@@ -61,7 +60,7 @@ final class DappBrowserUITests: XCTestCase {
         // retry loop) appears once the browser window's account picker has
         // a default Ethereum account selected.
         let approveButton = app.firstDescendant(withIdentifier: "dapp-approve-button")
-        XCTAssertTrue(approveButton.waitForExistence(timeout: 20), "Expected the connect approval prompt to appear.")
+        XCTAssertTrue(approveButton.waitForExistence(timeout: 10), "Expected the connect approval prompt to appear.")
         approveButton.click()
 
         // Approve the subsequent personal_sign prompt.
@@ -70,7 +69,7 @@ final class DappBrowserUITests: XCTestCase {
         secondApproveButton.click()
 
         XCTAssertTrue(
-            waitForWebText(containing: "done", timeout: 15),
+            waitForWebText(containing: "done", timeout: 10),
             "Expected the fixture page to report status \"done\" after connecting and signing."
         )
 
