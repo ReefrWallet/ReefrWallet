@@ -165,11 +165,12 @@ struct SolanaDappProviderTests {
             "account": .object(["address": .string(flipped)])
         ])
 
-        do {
-            _ = try await fixture.provider.handle(method: "signMessage", params: params, context: context)
-            Issue.record("expected a differently-cased address to be rejected")
-        } catch DappError.unauthorized {
-            // Expected.
+        let error = await #expect(throws: DappError.self) {
+            try await fixture.provider.handle(method: "signMessage", params: params, context: context)
+        }
+        guard case .unauthorized = error else {
+            Issue.record("expected unauthorized, got \(String(describing: error))")
+            return
         }
     }
 
