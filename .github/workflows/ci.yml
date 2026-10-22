@@ -36,6 +36,12 @@ jobs:
       env:
         MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Link mise for Xcode build scripts
+      # SwiftLint phases call $HOME/.local/bin/mise; mise-action installs elsewhere.
+      run: |
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$(command -v mise)" "$HOME/.local/bin/mise"
+
     - name: Run tests
       run: make test
       env:
