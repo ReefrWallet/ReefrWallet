@@ -49,3 +49,7 @@ jobs:
         # process; this lets `.localNode` tests (Tests/Support/LocalNodeTrait.swift)
         # see CI=true and be skipped.
         TEST_RUNNER_CI: "true"
+
+    - name: Show Tuist build errors
+      if: failure()
+      run: grep -h -E "error:|\[x\]" ~/.local/state/tuist/sessions/*/logs.txt | sort -u | head -100
