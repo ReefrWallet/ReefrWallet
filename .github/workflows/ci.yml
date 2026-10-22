@@ -49,11 +49,3 @@ jobs:
         # process; this lets `.localNode` tests (Tests/Support/LocalNodeTrait.swift)
         # see CI=true and be skipped.
         TEST_RUNNER_CI: "true"
-
-    - name: Show raw build errors
-      if: failure()
-      run: |
-        xcodebuild build-for-testing -workspace ReefrWallet.xcworkspace -scheme ReefrWallet-Workspace \
-          -destination 'platform=macOS' -only-testing ReefrWalletTests-macOS \
-          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=- 2>&1 \
-          | grep -E -A8 "error:" | head -150

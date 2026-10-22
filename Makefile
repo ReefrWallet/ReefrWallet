@@ -15,7 +15,7 @@ clean:
 
 test: ReefrWallet.xcworkspace
 	@echo "==> Running Swift tests"
-	@mise x tuist -- tuist test --skip-ui-tests --no-upload --test-targets ReefrWalletTests-macOS -- \
+	@xcodebuild test -workspace ReefrWallet.xcworkspace -scheme ReefrWalletTests-macOS \
 		-destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=-
 
 # Regenerate every vendor/*.js from the pinned package-lock.json.
