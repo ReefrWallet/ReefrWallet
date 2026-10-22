@@ -50,6 +50,10 @@ jobs:
         # see CI=true and be skipped.
         TEST_RUNNER_CI: "true"
 
-    - name: Show Tuist build errors
+    - name: Show raw build errors
       if: failure()
-      run: grep -h -E "error:|\[x\]" ~/.local/state/tuist/sessions/*/logs.txt | sort -u | head -100
+      run: |
+        xcodebuild build-for-testing -workspace ReefrWallet.xcworkspace -scheme ReefrWallet-Workspace \
+          -destination 'platform=macOS' -only-testing ReefrWalletTests-macOS \
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=- 2>&1 \
+          | grep -E -A8 "error:" | head -150
