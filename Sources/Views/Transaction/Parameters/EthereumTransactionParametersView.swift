@@ -28,7 +28,7 @@ struct EthereumTransactionParametersView: View {
         }
 
         if !call.data.isEmpty {
-            ParameterBlock("Data", text: call.data.hexEncoded, lineLimit: 4)
+            ParameterBlock("Data", text: call.data.hexEncoded, maxLines: 4)
         }
     }
 }

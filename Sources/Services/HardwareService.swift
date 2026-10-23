@@ -5,7 +5,24 @@
 //  Created by Andrey Yurkevich on 22/08/2026.
 //
 
+import Foundation
 import WalletKit
+
+// MARK: - HardwareServiceError
+
+enum HardwareServiceError: LocalizedError {
+    case wrongDevice(vendor: HardwareVendor)
+
+    var errorDescription: String? {
+        switch self {
+        case let .wrongDevice(vendor):
+            "The connected \(vendor.displayName) is not the one this key store was created with. "
+                + "Connect the correct device and try again."
+        }
+    }
+}
+
+// MARK: - HardwareService
 
 /// Connects to hardware keys and relays their user-interaction requests to
 /// ``promptCenter``.
@@ -35,8 +52,10 @@ final class HardwareService {
 
     /// Connects to the hardware key with `deviceId`.
     ///
-    /// If the key isn't connected, shows a "Connect" prompt and
-    /// waits until it appears. A just-plugged key fails its handshake while
+    /// Scans only report a placeholder id, so connected keys are tried in
+    /// turn until one reports the real `deviceId`.
+    /// If no key is connected, shows a "Connect" prompt and
+    /// waits until one appears. A just-plugged key fails its handshake while
     /// booting, so a failed connection is retried after a second, up to 5
     /// attempts. Call inside ``session(showsWait:_:)`` so confirmation
     /// prompts raised while the device is in use get dismissed.
@@ -46,7 +65,9 @@ final class HardwareService {
     ///   - deviceId: The key's device identifier, as stored in its key store.
     ///   - transport: The transport to connect over.
     /// - Returns: The connected device.
-    /// - Throws: `WalletKitError.userCancelled` if the user cancels the
+    /// - Throws: ``HardwareServiceError/wrongDevice(vendor:)`` if none of
+    ///   the connected keys has `deviceId`,
+    ///   `WalletKitError.userCancelled` if the user cancels the
     ///   connect prompt, `CancellationError` if the task is cancelled while
     ///   waiting, or any scan or connection error.
     func connect(
@@ -54,19 +75,40 @@ final class HardwareService {
         deviceId: String,
         transport: HardwareTransportKind = .usb
     ) async throws -> HardwareDevice {
-        var attempt = 1
+        guard let device = try await connect(vendor, transport: transport, where: { $0.id == deviceId }) else {
+            throw HardwareServiceError.wrongDevice(vendor: vendor)
+        }
+
+        return device
+    }
+
+    /// Connects to the first connected key whose info satisfies `isWanted`,
+    /// waiting for a key to appear like ``connect(_:deviceId:transport:)``.
+    ///
+    /// - Parameters:
+    ///   - vendor: The key's vendor.
+    ///   - transport: The transport to connect over.
+    ///   - isWanted: Whether a connected key's real info is the one wanted.
+    /// - Returns: The connected device, or `nil` if no connected key is wanted.
+    func connect(
+        _ vendor: HardwareVendor,
+        transport: HardwareTransportKind = .usb,
+        where isWanted: (HardwareDeviceInfo) -> Bool
+    ) async throws -> HardwareDevice? {
+        var index = 0
 
         while true {
-            // Rescan every attempt: the manager consumes a scan entry on connect.
-            let deviceInfo = try await waitForDevice(vendor, deviceId: deviceId, transport: transport)
-            await promptCenter.didConnect(vendorName: vendor.displayName)
-
-            do {
-                return try await manager.connect(deviceInfo, delegate: self)
-            } catch WalletKitError.deviceDisconnected where attempt < Self.maxConnectAttempts {
-                attempt += 1
-                try await Task.sleep(for: Self.retryDelay)
+            guard let device = try await connectDevice(vendor, transport: transport, at: index) else {
+                return nil
             }
+
+            if isWanted(device.info) {
+                return device
+            }
+
+            await device.disconnect()
+            await waitUntilDisconnected(device)
+            index += 1
         }
     }
 
@@ -101,12 +143,46 @@ final class HardwareService {
 }
 
 private extension HardwareService {
-    func findDevice(
+    func connectDevice(
         _ vendor: HardwareVendor,
-        deviceId: String,
+        transport: HardwareTransportKind,
+        at index: Int
+    ) async throws -> HardwareDevice? {
+        var attempt = 1
+
+        while true {
+            // Rescan every attempt: the manager consumes a scan entry on connect.
+            let deviceInfos = try await waitForDevices(vendor, transport: transport)
+
+            guard index < deviceInfos.count else {
+                return nil
+            }
+
+            await promptCenter.didConnect(vendorName: vendor.displayName)
+
+            do {
+                return try await manager.connect(deviceInfos[index], delegate: self)
+            } catch WalletKitError.deviceDisconnected where attempt < Self.maxConnectAttempts {
+                attempt += 1
+                try await Task.sleep(for: Self.retryDelay)
+            }
+        }
+    }
+
+    func findDevices(
+        _ vendor: HardwareVendor,
         transport: HardwareTransportKind
-    ) async throws -> HardwareDeviceInfo? {
-        try await scanDevices(vendor, transport: transport).first { $0.id == deviceId }
+    ) async throws -> [HardwareDeviceInfo]? {
+        let devices = try await scanDevices(vendor, transport: transport)
+        return devices.isEmpty ? nil : devices
+    }
+
+    /// The manager drops a disconnected device from its cache only once its
+    /// worker thread has stopped.
+    func waitUntilDisconnected(_ device: HardwareDevice) async {
+        for _ in 0 ..< 20 where device.isConnected {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 
     func retryingOnDisconnect<T>(_ operation: () async throws -> T) async throws -> T {
@@ -122,13 +198,12 @@ private extension HardwareService {
         }
     }
 
-    func waitForDevice(
+    func waitForDevices(
         _ vendor: HardwareVendor,
-        deviceId: String,
         transport: HardwareTransportKind
-    ) async throws -> HardwareDeviceInfo {
-        if let deviceInfo = try await findDevice(vendor, deviceId: deviceId, transport: transport) {
-            return deviceInfo
+    ) async throws -> [HardwareDeviceInfo] {
+        if let deviceInfos = try await findDevices(vendor, transport: transport) {
+            return deviceInfos
         }
 
         await promptCenter.showConnect(vendorName: vendor.displayName)
@@ -141,9 +216,9 @@ private extension HardwareService {
                     throw WalletKitError.userCancelled
                 }
 
-                if let deviceInfo = try await findDevice(vendor, deviceId: deviceId, transport: transport) {
+                if let deviceInfos = try await findDevices(vendor, transport: transport) {
                     await promptCenter.dismiss()
-                    return deviceInfo
+                    return deviceInfos
                 }
             }
         } catch {
@@ -166,7 +241,7 @@ extension HardwareService: HardwareDeviceDelegate {
     }
 }
 
-private extension HardwareVendor {
+extension HardwareVendor {
     var displayName: String {
         switch self {
         case .trezor: "Trezor"

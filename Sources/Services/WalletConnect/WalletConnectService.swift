@@ -11,22 +11,39 @@ import Observation
 import SwiftData
 import WalletKit
 
-/// One chain a proposal asks for, with the accounts the user may pick.
-struct WalletConnectChainChoice: Identifiable {
-    let accounts: [Account]
+/// A chain a proposal asks for.
+struct WalletConnectProposedChain: Identifiable {
     let blockchain: Blockchain
     let chain: String
     let isRequired: Bool
-    var selected: Account?
 
     var id: String {
         chain
     }
 }
 
+/// One namespace a proposal asks for. A single account is picked as the
+/// default for all of its chains, as WalletConnect does.
+struct WalletConnectNamespaceChoice: Identifiable {
+    let accounts: [Account]
+    let chains: [WalletConnectProposedChain]
+    let keyNames: [PersistentIdentifier: String]
+    let namespace: String
+    var selected: Account?
+
+    var id: String {
+        namespace
+    }
+
+    /// `"<key> · <account>"`.
+    func label(for account: Account) -> String {
+        keyNames[account.keyStoreId].map { "\($0) · \(account.name)" } ?? account.name
+    }
+}
+
 /// A proposal waiting for the user's decision.
 struct WalletConnectPendingProposal: Identifiable {
-    var choices: [WalletConnectChainChoice]
+    var choices: [WalletConnectNamespaceChoice]
     let proposal: WalletConnectProposal
 
     var id: String {
@@ -148,8 +165,11 @@ final class WalletConnectService {
         presentNextProposal()
     }
 
-    func updateSelection(chain: String, account: Account) {
-        guard var pending = pendingProposal, let index = pending.choices.firstIndex(where: { $0.chain == chain }) else {
+    func updateSelection(namespace: String, account: Account) {
+        guard
+            var pending = pendingProposal,
+            let index = pending.choices.firstIndex(where: { $0.namespace == namespace })
+        else {
             return
         }
 
@@ -157,30 +177,23 @@ final class WalletConnectService {
         pendingProposal = pending
     }
 
-    /// The CAIP-2 chains of `choices` grouped by namespace.
-    static func namespaces(for choices: [WalletConnectChainChoice]) -> [WalletConnectApprovedNamespace] {
-        var grouped: [String: [WalletConnectChainChoice]] = [:]
-
-        for choice in choices where choice.selected != nil {
-            grouped[String(choice.chain.prefix { $0 != ":" }), default: []].append(choice)
-        }
-
-        return grouped.keys.sorted().compactMap { namespace -> WalletConnectApprovedNamespace? in
+    /// One approved namespace per choice, giving the selected account on every chain.
+    static func namespaces(for choices: [WalletConnectNamespaceChoice]) -> [WalletConnectApprovedNamespace] {
+        choices.sorted { $0.namespace < $1.namespace }.compactMap { choice -> WalletConnectApprovedNamespace? in
             guard
-                let chosen = grouped[namespace],
-                let dappNamespace = WalletConnectChain.dappNamespace(caip2: chosen[0].chain)
+                let account = choice.selected,
+                let first = choice.chains.first,
+                let dappNamespace = WalletConnectChain.dappNamespace(caip2: first.chain)
             else {
                 return nil
             }
 
             return WalletConnectApprovedNamespace(
-                accounts: chosen.compactMap { choice in
-                    choice.selected.map { WalletConnectAccountRef(address: $0.address, chain: choice.chain) }
-                },
-                chains: chosen.map(\.chain),
+                accounts: choice.chains.map { WalletConnectAccountRef(address: account.address, chain: $0.chain) },
+                chains: choice.chains.map(\.chain),
                 events: WalletConnectChain.events[dappNamespace] ?? [],
                 methods: WalletConnectChain.methods[dappNamespace] ?? [],
-                namespace: namespace
+                namespace: choice.namespace
             )
         }
     }
@@ -214,27 +227,45 @@ final class WalletConnectService {
         }
 
         let accounts = await signingAccounts()
-        var choices: [WalletConnectChainChoice] = []
+        var chainsByNamespace: [String: [WalletConnectProposedChain]] = [:]
 
         for chain in proposal.allChains {
             guard let blockchain = WalletConnectChain.blockchain(caip2: chain) else {
                 continue
             }
 
-            let candidates = accounts.filter { $0.blockchain == blockchain }
-            choices.append(
-                WalletConnectChainChoice(
-                    accounts: candidates,
-                    blockchain: blockchain,
-                    chain: chain,
-                    isRequired: proposal.requiredChains.contains(chain),
-                    selected: candidates.first
+            chainsByNamespace[String(chain.prefix { $0 != ":" }), default: []].append(
+                WalletConnectProposedChain(
+                    blockchain: blockchain, chain: chain, isRequired: proposal.requiredChains.contains(chain)
                 )
             )
         }
 
-        let unsatisfied = proposal.requiredChains.filter { chain in
-            !choices.contains { $0.chain == chain && $0.selected != nil }
+        var keyNames: [PersistentIdentifier: String] = [:]
+        for account in accounts where keyNames[account.keyStoreId] == nil {
+            keyNames[account.keyStoreId] = (try? await databaseService.fetchKeyStore(id: account.keyStoreId))?.name
+        }
+
+        let choices = chainsByNamespace.keys.sorted().map { namespace -> WalletConnectNamespaceChoice in
+            let chains = chainsByNamespace[namespace] ?? []
+            var seen: Set<String> = []
+            let candidates = accounts.filter { account in
+                chains.contains {
+                    WalletConnectChain.dappNamespace(caip2: $0.chain)?.matches(account.blockchain) == true
+                } && seen.insert("\(account.keyStoreId.hashValue)/\(account.address)").inserted
+            }
+
+            return WalletConnectNamespaceChoice(
+                accounts: candidates,
+                chains: chains,
+                keyNames: keyNames,
+                namespace: namespace,
+                selected: candidates.first
+            )
+        }
+
+        let unsatisfied = choices.filter { choice in
+            choice.selected == nil && choice.chains.contains(where: \.isRequired)
         }
 
         guard unsatisfied.isEmpty else {
@@ -285,17 +316,21 @@ final class WalletConnectService {
     }
 
     private func handle(_ request: WalletConnectRequest) async {
+        Logger.verbose("WC handle start: \(request.method) id: \(request.id)")
         let result = await result(for: request)
+        Logger.verbose("WC handle done: \(request.method) id: \(request.id) ok: \((try? result.get()) != nil)")
 
         do {
             try await client.respond(topic: request.topic, requestId: request.id, result: result)
         } catch {
+            Logger.verbose("WC handle respond threw: \(error)")
             failureMessage = "Couldn't reply to the dapp: \(error.localizedDescription)"
         }
     }
 
     private func result(for request: WalletConnectRequest) async -> Result<Data, WalletConnectRPCError> {
         guard request.verification != .scam else {
+            Logger.verbose("WC request refused: verification is scam")
             return .failure(WalletConnectRequestRouter.rpcError(.unauthorized))
         }
 
@@ -303,9 +338,17 @@ final class WalletConnectService {
             let session = sessions.first(where: { $0.topic == request.topic }),
             let approved = session.accounts.first(where: { $0.chain == request.chainId }),
             let blockchain = WalletConnectChain.blockchain(caip2: request.chainId),
-            let account = try? await databaseService.fetchAllAccounts()
-                .first(where: { $0.address == approved.address && $0.blockchain == blockchain })
+            let all = try? await databaseService.fetchAllAccounts(),
+            let account = all.first(where: { $0.address == approved.address && $0.blockchain == blockchain })
+                ?? all.first(where: {
+                    $0.address == approved.address
+                        && WalletConnectChain.dappNamespace(caip2: request.chainId)?.matches($0.blockchain) == true
+                })
         else {
+            Logger.verbose(
+                "WC request unauthorized: no session/account for topic \(request.topic.prefix(8)) chain \(request.chainId); "
+                    + "sessions: \(sessions.count)"
+            )
             return .failure(WalletConnectRequestRouter.rpcError(.unauthorized))
         }
 

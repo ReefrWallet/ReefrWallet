@@ -87,6 +87,7 @@ final class HardwareKeyPromptCenter {
     /// Registers a host when it appears.
     func addHost(_ id: UUID) {
         hostIds.append(id)
+        Logger.verbose("HUD addHost \(id.short), hosts: \(hostDescription)")
     }
 
     /// Opens a session; the outermost one resets ``isCancelled``.
@@ -100,16 +101,21 @@ final class HardwareKeyPromptCenter {
         if showsWait {
             waitSessionCount += 1
         }
+
+        Logger.verbose("HUD beginSession showsWait: \(showsWait), sessions: \(sessionCount)")
     }
 
     /// Cancels waiting for the key to be connected and hides the prompt.
     func cancel() {
+        Logger.verbose("HUD cancel")
         isCancelled = true
         prompt = nil
     }
 
     /// Shows "please wait" for `vendorName` if an open session asked for it.
     func didConnect(vendorName: String) {
+        Logger.verbose("HUD didConnect, waitSessions: \(waitSessionCount)")
+
         if waitSessionCount > 0 {
             prompt = HardwareKeyPrompt(vendorName: vendorName, kind: .wait)
         }
@@ -117,6 +123,7 @@ final class HardwareKeyPromptCenter {
 
     /// Hides the prompt.
     func dismiss() {
+        Logger.verbose("HUD dismiss, prompt: \(String(describing: prompt?.kind))")
         prompt = nil
     }
 
@@ -128,6 +135,8 @@ final class HardwareKeyPromptCenter {
             waitSessionCount = max(waitSessionCount - 1, 0)
         }
 
+        Logger.verbose("HUD endSession showsWait: \(showsWait), sessions: \(sessionCount)")
+
         if sessionCount == 0 {
             prompt = nil
         }
@@ -136,16 +145,31 @@ final class HardwareKeyPromptCenter {
     /// Unregisters a host when it disappears.
     func removeHost(_ id: UUID) {
         hostIds.removeAll { $0 == id }
+        Logger.verbose("HUD removeHost \(id.short), hosts: \(hostDescription)")
     }
 
     /// Shows "Continue on" for the device's vendor, e.g. "Trezor".
     func showConfirm(vendorName: String) {
+        Logger.verbose("HUD showConfirm, hosts: \(hostDescription)")
         prompt = HardwareKeyPrompt(vendorName: vendorName, kind: .confirm)
     }
 
     /// Shows "Connect" for `vendorName`.
     func showConnect(vendorName: String) {
+        Logger.verbose("HUD showConnect, hosts: \(hostDescription)")
         isCancelled = false
         prompt = HardwareKeyPrompt(vendorName: vendorName, kind: .connect)
+    }
+
+    /// Registered host ids, top last, for logging.
+    var hostDescription: String {
+        hostIds.map(\.short).joined(separator: ", ")
+    }
+}
+
+extension UUID {
+    /// First 4 characters, for logging.
+    var short: String {
+        String(uuidString.prefix(4))
     }
 }

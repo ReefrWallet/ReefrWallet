@@ -187,7 +187,6 @@ extension AddAccountView: View {
         .alert("Error", isPresented: $isAlertPresented) {
             Button("OK") {
                 isAlertPresented = false
-                dismiss()
             }
         } message: {
             Text(alertMessage(error))

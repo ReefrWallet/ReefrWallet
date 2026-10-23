@@ -153,6 +153,9 @@ private struct HardwareKeyPromptHost: ViewModifier {
                 }
             }
             .animation(.default, value: prompt == nil)
+            .onChange(of: prompt == nil) { _, isHidden in
+                Logger.verbose("HUD host \(hostId.short) presented: \(!isHidden), top: \(promptCenter.topHostId?.short ?? "-"), center prompt: \(String(describing: promptCenter.prompt?.kind))")
+            }
             .onAppear {
                 promptCenter.addHost(hostId)
             }

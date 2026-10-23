@@ -46,7 +46,7 @@ struct SolanaTransactionParametersView: View {
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, lineLimit: 3)
+        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 6)
     }
 
     private var versionText: String {

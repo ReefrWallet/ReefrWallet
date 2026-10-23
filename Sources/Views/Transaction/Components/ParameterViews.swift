@@ -42,50 +42,70 @@ struct FromRow: View {
 
 // MARK: - ParameterBlock
 
-/// A titled monospaced box for raw bytes, call data and messages. Taller
-/// content scrolls inside the box on macOS so the sheet keeps its size.
+/// A titled monospaced box for raw bytes, call data and messages. Fits its
+/// text and scrolls past `maxLines`.
 struct ParameterBlock: View {
-    private let lineLimit: Int?
+    private let maxLines: Int
     private let text: String
     private let title: String
 
-    init(_ title: String, text: String, lineLimit: Int? = nil) {
-        self.lineLimit = lineLimit
+    init(_ title: String, text: String, maxLines: Int = 10) {
+        self.maxLines = maxLines
         self.text = text
         self.title = title
     }
 
     var body: some View {
         ParameterSection(title) {
+            ScrollingMonoText(text, maxLines: maxLines)
 #if os(macOS)
-            ViewThatFits(in: .vertical) {
-                content
-                ScrollView {
-                    content
-                }
-            }
-            .frame(maxHeight: 180)
+            .padding(12)
             .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
             .overlay {
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(.quaternary)
             }
-#else
-            content
 #endif
         }
     }
+}
 
-    private var content: some View {
+// MARK: - ScrollingMonoText
+
+/// Selectable monospaced text sized to its content, up to `maxLines` lines,
+/// scrolling vertically beyond that.
+struct ScrollingMonoText: View {
+    private let maxLines: Int
+    private let text: String
+
+    @State private var fullHeight: CGFloat = 0
+    @State private var limitedHeight: CGFloat = 0
+
+    init(_ text: String, maxLines: Int) {
+        self.maxLines = maxLines
+        self.text = text
+    }
+
+    var body: some View {
+        ScrollView {
+            label
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { fullHeight = $0 }
+        }
+        .frame(height: min(fullHeight, limitedHeight))
+        .background(alignment: .top) {
+            label
+                .lineLimit(maxLines)
+                .hidden()
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { limitedHeight = $0 }
+        }
+    }
+
+    private var label: some View {
         Text(text)
             .style(.smallMono)
-            .lineLimit(lineLimit)
             .textSelection(.enabled)
-            .help(lineLimit == nil ? "" : text)
             .frame(maxWidth: .infinity, alignment: .leading)
-#if os(macOS)
-            .padding(12)
-#endif
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

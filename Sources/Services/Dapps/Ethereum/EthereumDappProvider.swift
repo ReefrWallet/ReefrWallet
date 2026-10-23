@@ -48,6 +48,8 @@ struct EthereumDappProvider: DappProvider {
     }
 
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
+        Logger.verbose("Eth handle: \(method)")
+
         switch method {
         case "eth_requestAccounts":
             return try await requestAccounts(context: context)
@@ -332,11 +334,14 @@ private extension EthereumDappProvider {
             )
         }
 
+        Logger.verbose("Eth personal_sign approval: \(result)")
+
         guard case .approved = result else {
             throw .userRejected
         }
 
         let signature = try await context.signingService.signMessage(.ethereumPersonal(messageData), account: account)
+        Logger.verbose("Eth personal_sign signature: \(signature.hexEncoded)")
         return .string(signature.hexEncoded)
     }
 
@@ -384,6 +389,8 @@ private extension EthereumDappProvider {
             )
         }
 
+        Logger.verbose("Eth signTypedData approval: \(result)")
+
         guard case .approved = result else {
             throw .userRejected
         }
@@ -393,6 +400,7 @@ private extension EthereumDappProvider {
             account: account
         )
 
+        Logger.verbose("Eth signTypedData signature: \(signature.hexEncoded)")
         return .string(signature.hexEncoded)
     }
 }
@@ -407,6 +415,8 @@ private extension EthereumDappProvider {
 
         let request = try EthereumTransactionRequest(txJSON)
         let account = try await authorizedAccount(matching: request.from, context: context)
+
+        Logger.verbose("Eth sendTransaction: to \(request.toString) value \(request.value) from \(account.address)")
 
         let estimate: (gasLimit: BigUInt, rates: EthereumFeeRates)
         do {
@@ -440,13 +450,18 @@ private extension EthereumDappProvider {
             )
         }
 
+        Logger.verbose("Eth sendTransaction approval: \(approval)")
+
         let options = [try Self.feeOverride(approval: approval, previewFees: fees, gasLimit: estimate.gasLimit)]
 
         do {
-            return try await broadcast(
+            let hash = try await broadcast(
                 sender: account, to: request.to, value: request.value, data: request.data, options: options
             )
+            Logger.verbose("Eth sendTransaction broadcast: \(hash)")
+            return hash
         } catch {
+            Logger.verbose("Eth sendTransaction failed: \(error)")
             throw .internalError("\(error)")
         }
     }
@@ -462,7 +477,9 @@ private extension EthereumDappProvider {
         let builder = EthereumTransactionBuilder(client: client)
         let sender = try EthereumAddress(string: account.address)
         let txBytes = try await builder.buildCall(sender: sender, to: to, value: value, data: data, options: options)
+        Logger.verbose("Eth broadcast: built \(txBytes.count) bytes, signing")
         let signature = try await transactionService.signTransaction(txBytes, account: account)
+        Logger.verbose("Eth broadcast: signed, sending")
         let hash = try await transactionService.sendTransaction(txBytes, signature, account: account)
         return .string(hash)
     }

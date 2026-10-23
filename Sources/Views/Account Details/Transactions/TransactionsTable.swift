@@ -22,12 +22,14 @@ struct TransactionsTable: View {
             TableColumn("Date") { model in
                 Text(model.timestamp.map(Self.dateText) ?? "—")
                     .style(Self.textSize, foreground: .secondary)
+                    .help(model.timestamp?.formatted(date: .complete, time: .standard) ?? "")
             }
             .width(min: 90, ideal: 126)
 
             TableColumn(schema.methodTitle) { model in
                 Text(model.method ?? model.title)
                     .style(Self.textSize, foreground: .primary)
+                    .help(model.method ?? model.title)
             }
             .width(min: 80, ideal: 124)
 
@@ -38,12 +40,14 @@ struct TransactionsTable: View {
                 Text(model.subtitle)
                     .truncationMode(.middle)
                     .style(.callout, foreground: .primary)
+                    .help(model.subtitle)
             }
             .width(min: 120, ideal: 198)
 
             TableColumn(schema.hashTitle) { model in
                 Text(model.identifier.shortened(prefix: 8, suffix: 6))
                     .style(.mono, foreground: .secondary)
+                    .help(model.identifier)
             }
             .width(min: 100, ideal: 140)
             #endif
@@ -51,6 +55,7 @@ struct TransactionsTable: View {
             TableColumn(schema.amountTitle) { model in
                 TransactionAmountText(model: model, size: Self.monoSize)
                     .frame(maxWidth: .infinity, alignment: .trailing)
+                    .help(model.rawAmountText ?? model.amountText)
             }
             .width(min: 90, ideal: 140)
 
@@ -58,6 +63,7 @@ struct TransactionsTable: View {
                 Text(model.feeText)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(Self.monoSize, foreground: Self.feeColor)
+                    .help(model.fee == nil ? "" : "\(model.feeText) \(model.feeSymbol)")
             }
             .width(min: 60, ideal: 92)
         }
@@ -90,12 +96,14 @@ private extension TransactionsTable {
         TableColumn(schema.hashTitle) { model in
             Text(model.identifier.shortened(prefix: 8, suffix: 6))
                 .style(.smallMono, foreground: .primary)
+                .help(model.identifier)
         }
         .width(min: 90, ideal: 128)
 
         TableColumn(schema.blockTitle) { model in
             Text(model.blockHeight.map(String.init) ?? "—")
                 .style(.smallMono, foreground: .primary)
+                .help(model.blockLabel)
         }
         .width(min: 60, ideal: 80)
 
@@ -103,6 +111,7 @@ private extension TransactionsTable {
             Text(model.fromLabel ?? "—")
                 .truncationMode(.middle)
                 .style(.small, foreground: .primary)
+                .help(model.sender ?? model.fromLabel ?? "")
         }
         .width(min: 80, ideal: 130)
         .defaultVisibility(schema.fromTitle == nil ? .hidden : .automatic)
@@ -119,6 +128,7 @@ private extension TransactionsTable {
             Text(model.toLabel ?? "—")
                 .truncationMode(.middle)
                 .style(.small, foreground: .primary)
+                .help(model.recipient ?? model.toLabel ?? "")
         }
         .width(min: 80, ideal: 140)
         .defaultVisibility(schema.toTitle == nil ? .hidden : .automatic)

@@ -2,7 +2,7 @@ import WalletKit
 
 final class KeyStoreService {
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
-    private lazy var deviceManager = HardwareDeviceManager()
+    private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
 
     @discardableResult @MainActor
     func addLocalKey(_ mnemonic: Mnemonic) async throws -> KeyStore? {
@@ -22,19 +22,26 @@ final class KeyStoreService {
 
     @MainActor
     func connectTrezor() async throws {
-        let devices = try await deviceManager.scan(vendors: [.trezor], transports: [.usb])
-        printInfo("Found \(devices.count) devices")
+        let addedIds = try await Set(databaseService.hardwareDeviceIds())
 
-        guard let device = devices.first else {
-            throw ReefrError.notFound
+        let device = try await hardwareService.session {
+            let device = try await hardwareService.connect(.trezor, where: { !addedIds.contains($0.id) })
+            await device?.disconnect()
+            return device
         }
 
+        guard let device else {
+            throw ReefrError.alreadyExists
+        }
+
+        let info = device.info
         let keyStore = KeyStore(
-            deviceId: device.id,
+            deviceId: info.id,
             kind: .trezor,
-            name: device.label ?? "Trezor",
-            transport: .usb,
-            vendor: device.vendor
+            name: info.label ?? "\(info.vendor.displayName) \(info.model)",
+            model: info.model,
+            transport: info.transport,
+            vendor: info.vendor
         )
 
         try await databaseService.insertKeyStore(keyStore)

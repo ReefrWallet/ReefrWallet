@@ -8,8 +8,8 @@
 
 import SwiftUI
 
-/// The session-proposal prompt: who is asking, and which account to give
-/// them on each requested network.
+/// The session-proposal prompt: who is asking, which default account to
+/// give them per namespace, and the networks they asked for.
 struct WalletConnectProposalSheet: View {
     let pending: WalletConnectPendingProposal
 
@@ -37,7 +37,7 @@ struct WalletConnectProposalSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(pending.choices) { choice in
-                        makeChoiceRow(choice)
+                        makeChoiceSection(choice)
                     }
                 }
             }
@@ -82,41 +82,45 @@ private extension WalletConnectProposalSheet {
         }
     }
 
-    func makeChoiceRow(_ choice: WalletConnectChainChoice) -> some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(choice.blockchain.displayName)
+    func makeChoiceSection(_ choice: WalletConnectNamespaceChoice) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Default account")
                     .style(.medium)
 
-                if choice.isRequired {
-                    Text("Required")
-                        .style(.caption, foreground: .secondary)
-                }
-            }
+                Spacer()
 
-            Spacer()
-
-            if choice.accounts.isEmpty {
-                Text("No account")
-                    .style(.small, foreground: .secondary)
-            } else {
-                Picker("Account", selection: selection(for: choice)) {
-                    ForEach(choice.accounts) { account in
-                        Text(account.name).tag(Optional(account))
+                if choice.accounts.isEmpty {
+                    Text("No account")
+                        .style(.small, foreground: .secondary)
+                } else {
+                    Picker("Account", selection: selection(for: choice)) {
+                        ForEach(choice.accounts) { account in
+                            Text(choice.label(for: account)).tag(Optional(account))
+                        }
                     }
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .labelsHidden()
-                .fixedSize()
             }
+
+            Text("Blockchains: \(chainNames(choice))")
+                .style(.small, foreground: .secondary)
         }
     }
 
-    func selection(for choice: WalletConnectChainChoice) -> Binding<Account?> {
+    func chainNames(_ choice: WalletConnectNamespaceChoice) -> String {
+        choice.chains
+            .map { $0.blockchain.displayName.replacingOccurrences(of: " Mainnet", with: "") }
+            .joined(separator: ", ")
+    }
+
+    func selection(for choice: WalletConnectNamespaceChoice) -> Binding<Account?> {
         Binding(
             get: { choice.selected },
             set: { account in
                 if let account {
-                    walletConnect.updateSelection(chain: choice.chain, account: account)
+                    walletConnect.updateSelection(namespace: choice.namespace, account: account)
                 }
             }
         )

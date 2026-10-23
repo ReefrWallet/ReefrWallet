@@ -27,6 +27,8 @@ struct KeyStore: Equatable, Hashable, Sendable {
     let name: String
     let mnemonicEntropy: Data?
     let mnemonicWordlist: Wordlist?
+    /// Hardware model, e.g. `Safe 5`; `nil` for software key stores.
+    let model: String?
     let transport: HardwareTransportKind?
     let vendor: HardwareVendor?
 
@@ -37,6 +39,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
         name: String,
         mnemonicEntropy: Data? = nil,
         mnemonicWordlist: Wordlist? = nil,
+        model: String? = nil,
         transport: HardwareTransportKind?,
         vendor: HardwareVendor?
     ) {
@@ -47,6 +50,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
         self.name = name
         self.mnemonicEntropy = mnemonicEntropy
         self.mnemonicWordlist = mnemonicWordlist
+        self.model = model
         self.transport = transport
         self.vendor = vendor
     }
@@ -83,6 +87,8 @@ final class KeyStoreModel {
     var mnemonicEntropy: Data?
     /// Serialized BIP-39 wordlist used to reconstruct the conventional seed.
     var rawMnemonicWordlist: String?
+    /// Hardware model, `nil` for software key store
+    var model: String?
     /// Harware transport, `nil` for software key store
     var rawTransport: String?
     /// Hardware vendor, `nil` for software key store
@@ -97,7 +103,8 @@ final class KeyStoreModel {
         name: String,
         mnemonicEntropy: Data? = nil,
         mnemonicWordlist: Wordlist? = nil,
-        transport: HardwareTransportKind? = .usb,
+        model: String? = nil,
+        transport: HardwareTransportKind? = nil,
         vendor: HardwareVendor? = nil
     ) {
         self.accounts = []
@@ -105,6 +112,7 @@ final class KeyStoreModel {
         self.name = name
         self.mnemonicEntropy = mnemonicEntropy
         self.rawMnemonicWordlist = mnemonicWordlist?.storageIdentifier
+        self.model = model
         self.rawKind = kind.rawValue
         self.rawTransport = transport?.rawValue
         self.rawVendor = vendor?.rawValue
@@ -123,6 +131,7 @@ extension KeyStore {
         name = model.name
         mnemonicEntropy = model.mnemonicEntropy
         mnemonicWordlist = model.rawMnemonicWordlist.flatMap(Wordlist.init(storageIdentifier:))
+        self.model = model.model
 
         if let rawTransport = model.rawTransport {
             transport = HardwareTransportKind(rawValue: rawTransport)
@@ -143,7 +152,8 @@ extension KeyStoreModel {
         self.init(
             .trezor,
             deviceId: info.id,
-            name: info.label ?? "\(info.vendor) \(info.model)",
+            name: info.label ?? "\(info.vendor.displayName) \(info.model)",
+            model: info.model,
             transport: info.transport,
             vendor: info.vendor
         )
@@ -156,6 +166,7 @@ extension KeyStoreModel {
             name: config.name,
             mnemonicEntropy: config.mnemonicEntropy,
             mnemonicWordlist: config.mnemonicWordlist,
+            model: config.model,
             transport: config.transport,
             vendor: config.vendor
         )
