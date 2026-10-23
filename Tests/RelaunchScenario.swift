@@ -247,7 +247,6 @@ func insertScenarioAccounts(
 
     for (index, address) in addresses.enumerated() {
         var account = ReefrWallet.Account(
-            accountIndex: nil,
             address: address,
             blockchain: blockchain,
             derivationPath: nil,

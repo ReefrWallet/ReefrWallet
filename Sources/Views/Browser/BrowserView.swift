@@ -121,7 +121,7 @@ extension BrowserView: View {
                     ) { result, keepsPresented in
                         controller.approver.resolve(result, keepsPresented: keepsPresented)
                     }
-                    .hardwareKeyPromptHost()
+                    .hardwareKeyPromptHost(progress: controller.approver.progressPrompt)
                 }
             }
             .hardwareKeyPromptHost()

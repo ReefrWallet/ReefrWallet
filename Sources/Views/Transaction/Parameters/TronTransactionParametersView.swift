@@ -26,11 +26,17 @@ struct TronTransactionParametersView: View {
             FromRow(account: account)
 
             ForEach(rows, id: \.label) { row in
-                ParameterRow(row.label, value: row.value, lineLimit: nil)
+                if row.isCallData {
+                    ParameterRow(row.label) {
+                        ScrollingMonoText(row.value, maxLines: 4)
+                    }
+                } else {
+                    ParameterRow(row.label, value: row.value, lineLimit: nil)
+                }
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.transaction.rawBytes.hexEncoded, lineLimit: 3)
+        ParameterBlock("Raw bytes", text: preview.transaction.rawBytes.hexEncoded, maxLines: 6)
     }
 }
 
@@ -38,6 +44,7 @@ struct TronTransactionParametersView: View {
 
 extension TronTransactionParametersView {
     struct Row {
+        var isCallData = false
         let label: String
         let value: String
     }
@@ -119,7 +126,7 @@ extension TronTransactionParametersView {
                 + [Row(label: "Amount", value: amount(words[2], token))]
         default:
             return [Row(label: "Function", value: data.isEmpty ? "None" : selector)]
-                + (data.count > 4 ? [Row(label: "Call data", value: data.hexEncoded)] : [])
+                + (data.count > 4 ? [Row(isCallData: true, label: "Call data", value: data.hexEncoded)] : [])
         }
     }
 

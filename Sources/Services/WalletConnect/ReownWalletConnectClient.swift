@@ -94,12 +94,20 @@ final class ReownWalletConnectClient: WalletConnectClient {
 
         switch result {
         case let .success(data):
+            Logger.verbose("WC respond success id: \(requestId) result: \(String(decoding: data, as: UTF8.self))")
             response = .response(try JSONDecoder().decode(AnyCodable.self, from: data))
         case let .failure(error):
+            Logger.verbose("WC respond error id: \(requestId) code: \(error.code) message: \(error.message)")
             response = .error(JSONRPCError(code: error.code, message: error.message))
         }
 
-        try await Sign.instance.respond(topic: topic, requestId: id, response: response)
+        do {
+            try await Sign.instance.respond(topic: topic, requestId: id, response: response)
+            Logger.verbose("WC respond delivered id: \(requestId)")
+        } catch {
+            Logger.verbose("WC respond failed id: \(requestId) error: \(error)")
+            throw error
+        }
     }
 
     func sessions() -> [WalletConnectSessionInfo] {
@@ -165,8 +173,14 @@ private extension ReownWalletConnectClient {
                     let id = (try? JSONEncoder().encode(request.id)).flatMap({ String(data: $0, encoding: .utf8) }),
                     let params = try? JSONEncoder().encode(request.params)
                 else {
+                    Logger.verbose("WC request dropped: id or params not encodable, method: \(request.method)")
                     return
                 }
+
+                Logger.verbose(
+                    "WC request received: \(request.method) id: \(id) chain: \(request.chainId.absoluteString) "
+                        + "topic: \(request.topic.prefix(8)) params: \(String(decoding: params, as: UTF8.self))"
+                )
 
                 MainActor.assumeIsolated {
                     self?.onRequest?(

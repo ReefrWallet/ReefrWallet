@@ -34,6 +34,11 @@ extension DatabaseService {
         return model.persistentModelID
     }
 
+    /// Ids of the hardware devices that already have a key store.
+    func hardwareDeviceIds() throws -> [String] {
+        try modelContext.fetch(FetchDescriptor<KeyStoreModel>()).compactMap(\.deviceId)
+    }
+
     func renameKeyStore(id: PersistentIdentifier, name: String) throws {
         guard let keyStore = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
             .first(where: { $0.persistentModelID == id }) else {

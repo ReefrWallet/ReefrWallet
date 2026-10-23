@@ -3,7 +3,7 @@
 ## General
 - Prefer Xcode mcp tools over make/xcodebuild/xcrun/tuist.
 - Prefer the codebase memory MCP graph tools for code discovery before grep/file search: use `codebase-memory` skill.
-- Respect warnings and fix them when building code.
+- Respect warnings from compiler, linter and documentation compiler, and fix them when building code.
 - Be as succinct and concise as possible in decisions logs and documentation you produce, including source code comments. Don't overexplain.
 ## Memory & System Constraints
 - You are working in a codebase that uses Architectural Decision Records (ADRs).
@@ -28,3 +28,33 @@
 ## Design
 - Use Penpot MCP server at https://design.penpot.app/mcp/stream?userToken=eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.KLj0WBlQKiGZwyQ6M3U53Ujc2LFe57QoVKsr8qYSULdNCy7eTRpOTg.AyqJTCwVaCphNIoX.-HMuE_5pkl1FwgP9Cpr3aeTTihSJqU9kkxRCrO8th4If7O_imsbwA-RY4uEvxpBGhOqrYU8dnZ8kjmfQI-oBI0xst1aknudsVI5RsiHQhfZ0QN9_PBNVFwAxgT9gYcw9yY31EvKVRxc-z7XzimLdMkYe6j-6tjLF2_YxwltMdzXCSvCGErLWRoEyGJUykuEckimzK9T7Rsspu-HlyL5N8FQ.e4t7y0SxHhAUjLAF9rPfIg
 - All template icons in Penpot are magenta to make non-colored images visible early.
+
+## Commit messages
+
+Before writing a message, inspect the staged diff and relevant context. Describe only changes included in the commit. Follow explicit repository conventions when they differ from the defaults below.
+
+- Separate the subject and body with one blank line.
+- Aim for a subject of 50 characters or fewer; stay within 72.
+- Start the subject with a capital letter.
+- Omit the trailing period.
+- Use an imperative verb: “Add”, “Fix”, “Remove”, or “Simplify”.
+- Wrap body prose at 72 characters.
+- Explain the problem, resulting behavior, and reason for the change. Include meaningful trade-offs or consequences; avoid narrating code.
+- Don't add co-authored by (agent name) notice.
+
+Omit the body when the subject provides sufficient context. Avoid vague subjects such as “Update code” or “Fix issues”.
+
+Never invent motivation, issue references, or test results. Include validation claims only when verified. Put relevant issue references at the bottom.
+
+If the subject is difficult to summarize, check whether the commit combines unrelated changes.
+
+Example:
+
+```
+Prevent duplicate transfer submissions
+
+Repeated taps could submit a transfer more than once while the
+initial request was pending. Disable submission until it completes
+so each pending transfer produces a single request.
+```
+

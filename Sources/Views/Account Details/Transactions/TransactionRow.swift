@@ -22,6 +22,7 @@ struct TransactionRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .style(.caption, foreground: .secondary)
+                    .help(model.sender ?? model.recipient ?? model.subtitle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

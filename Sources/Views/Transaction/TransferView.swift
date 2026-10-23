@@ -20,9 +20,9 @@ struct TransferView {
     @State private var feeEstimationTask: Task<Void, Never>?
     @State private var fees: Fees?
     @State private var isErrorAlertPresented = false
-    @State private var isProgressPresented = false
     @State private var parameters: TransferParameters?
-    @State private var progress: Progress = .preparing
+    /// The send in flight, shown in the prompt popup; `nil` when idle.
+    @State private var progress: Progress?
     @State private var token: Token
 
     @Environment(\.dismiss) private var dismiss
@@ -36,29 +36,21 @@ struct TransferView {
 
 extension TransferView {
     enum Progress {
+        case complete
         case preparing
-        case signing
         case sending
+        case signing
 
-        var systemImage: String {
+        var prompt: HostedPrompt {
             switch self {
+            case .complete:
+                .complete("Complete")
             case .preparing:
-                "progress.indicator"
-            case .signing:
-                "lock.square.dashed"
+                .progress("Preparing transaction")
             case .sending:
-                "progress.indicator"
-            }
-        }
-
-        var message: String {
-            switch self {
-            case .preparing:
-                "Preparing transaction..."
+                .progress("Sending transaction")
             case .signing:
-                "Signing transaction..."
-            case .sending:
-                "Sending transaction..."
+                .progress("Signing transaction")
             }
         }
     }
@@ -73,6 +65,7 @@ extension TransferView: View {
             confirmTitle: "Next",
             isConfirmEnabled: isNextButtonEnabled,
             isEstimateFeesEnabled: parameters != nil,
+            isProcessing: progress != nil,
             onEstimateFees: onEstimateFees,
             onCancel: onCancel,
             onConfirm: onNext,
@@ -92,28 +85,7 @@ extension TransferView: View {
                 fees: $fees
             )
         }
-        .hardwareKeyPromptHost()
-        .sheet(isPresented: $isProgressPresented) {
-            let image = Image(systemName: progress.systemImage)
-                .resizable()
-                .scaledToFit()
-                .style(foreground: .secondary)
-                .frame(width: 64, height: 64)
-                .padding(.bottom)
-
-            VStack {
-                if case .sending = progress {
-                    image.symbolEffect(.rotate.byLayer, options: .repeat(.continuous))
-                } else {
-                    image.symbolEffect(.breathe)
-                }
-
-                Text(progress.message)
-                    .style(.large, foreground: .primary)
-            }
-            .padding(20)
-            .hardwareKeyPromptHost()
-        }
+        .hardwareKeyPromptHost(progress: progress?.prompt)
         .alert("Transaction Failed", isPresented: $isErrorAlertPresented) {
             Button("OK") {
                 isErrorAlertPresented = false
@@ -156,12 +128,14 @@ private extension TransferView {
 
         Task { @MainActor in
             do {
-                isProgressPresented = true
+                progress = .preparing
                 try await sendTransaction(parameters: parameters, fees: fees)
-                isProgressPresented = false
+                progress = .complete
+                try? await Task.sleep(for: .seconds(1))
+                progress = nil
                 dismiss()
             } catch {
-                isProgressPresented = false
+                progress = nil
                 self.error = error.localizedDescription
                 isErrorAlertPresented = true
             }

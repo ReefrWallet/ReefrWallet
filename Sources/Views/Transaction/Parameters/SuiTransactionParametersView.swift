@@ -33,7 +33,7 @@ struct SuiTransactionParametersView: View {
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, lineLimit: 3)
+        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 6)
     }
 
     /// Each decoded Move call as `package::module::function`, with the

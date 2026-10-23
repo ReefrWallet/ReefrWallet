@@ -12,8 +12,12 @@ import SwiftyBeaver
 final class Logger {
     static let shared = Logger()
 
+    /// Whether verbose messages are logged: pass `--verbose` on the command line.
+    private static let isVerbose = CommandLine.arguments.contains("--verbose")
+
     private init() {
         let console = ConsoleDestination()
+        console.levelString.verbose = "VERBOSE"
         console.levelString.debug = "DEBUG"
         console.levelString.info = "INFO"
         console.levelString.warning = "WARNING"
@@ -45,14 +49,15 @@ final class Logger {
         context: Any? = nil
     ) {
 #if DEBUG
-        let fileString = String(describing: file)
-        let functionString = String(describing: function)
+        guard level != .verbose || Self.isVerbose else {
+            return
+        }
 
         SwiftyBeaver.custom(
             level: level,
             message: "\(message())",
-            file: fileString,
-            function: functionString,
+            file: String(describing: file),
+            function: String(describing: function),
             line: line,
             context: nil
         )
@@ -60,6 +65,17 @@ final class Logger {
     }
 
     // MARK: Levels
+
+    /// Logs a trace message (lowest priority)
+    static func verbose(
+        _ message: @autoclosure () -> Any,
+        _ file: StaticString = #file,
+        _ function: StaticString = #function,
+        _ line: Int = #line,
+        context: Any? = nil
+    ) {
+        Logger.trace(.verbose, message(), file, function, line: line, context: context)
+    }
 
     /// Logs a debugging message (low priority)
     static func debug(

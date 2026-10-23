@@ -15,7 +15,7 @@ Swift multi-chain crypto wallet app for macOS, built on top of [WalletKit](https
 Requires [mise](https://mise.jdx.dev) and [Tuist](https://tuist.dev) as well as Rust toolkit and [WalletKit dependencies](https://github.com/ReefrWallet/WalletKit#requirements).
 
 ```sh
-make workspace  # generate ReefrWallet.xcworkspace
+make workspace
 ```
 
 Then open `ReefrWallet.xcworkspace` in Xcode to build and run the app.

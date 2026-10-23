@@ -5,6 +5,9 @@ import WalletKit
 struct EtherscanTransactionHistorySource: TransactionHistorySource {
     static let apiKeyDefaultsKey = "EtherscanAPIKey"
 
+    /// Open upper bound; must exceed every chain tip (Arbitrum is past 500M).
+    private static let maxBlock = UInt64(Int64.max)
+
     /// Scheme + host only (no path) — matches `RateGateRegistry`'s
     /// per-origin keying, not the API's full base URL.
     private static let origin = "https://api.etherscan.io"
@@ -54,16 +57,16 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
         } ?? EtherscanCursor(
             direction: request.direction,
             lowerBound: request.lowerBound ?? 0,
-            upperBound: request.upperBound ?? 99_999_999,
+            upperBound: request.upperBound ?? Self.maxBlock,
             tokens: EtherscanListCursor(
                 boundary: request.direction == .descending
-                    ? request.upperBound ?? 99_999_999
+                    ? request.upperBound ?? Self.maxBlock
                     : request.lowerBound ?? 0,
                 page: 1
             ),
             transactions: EtherscanListCursor(
                 boundary: request.direction == .descending
-                    ? request.upperBound ?? 99_999_999
+                    ? request.upperBound ?? Self.maxBlock
                     : request.lowerBound ?? 0,
                 page: 1
             )

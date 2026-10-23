@@ -328,7 +328,7 @@ private extension SidebarView {
             }
         } header: {
             HStack(spacing: 4) {
-                KeyStoreKindIcon(kind: keyStore.kind)
+                KeyStoreKindIcon(kind: keyStore.kind, model: keyStore.model)
                     .style(foreground: .sidebarControl)
 
                 if editingId == keyStore.id {

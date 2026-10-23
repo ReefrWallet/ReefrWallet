@@ -38,7 +38,7 @@ struct AptosTransactionParametersView: View {
             ParameterRow("Expires", value: expiration)
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, lineLimit: 3)
+        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 6)
     }
 
     private var expiration: String {

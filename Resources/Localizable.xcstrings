@@ -96,6 +96,9 @@
     "Base fee" : {
 
     },
+    "Blockchains: %@" : {
+
+    },
     "Camera scanning isn't available on this device." : {
 
     },
@@ -133,6 +136,9 @@
 
     },
     "Data" : {
+
+    },
+    "Default account" : {
 
     },
     "Domain" : {
@@ -237,9 +243,6 @@
     "Recovery Phrase for \"%@\"" : {
 
     },
-    "Required" : {
-
-    },
     "Required signers" : {
 
     },
@@ -253,9 +256,6 @@
 
     },
     "Sender" : {
-
-    },
-    "Signing..." : {
 
     },
     "System Default Browser" : {

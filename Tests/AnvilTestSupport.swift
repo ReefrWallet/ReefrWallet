@@ -58,7 +58,7 @@ struct Deployer {
 
 func makeFundedDeployer(node: EthereumNode, blockchain: Blockchain) async throws -> Deployer {
     let privateKey = try randomEthereumPrivateKey()
-    let derivationPath = try DerivationPath(blockchain, accountIndex: 0, curve: .secp256k1)
+    let derivationPath = try DerivationPath(string: "m/44'/60'/0'/0/0")
     let signer = try EthereumPKeySigner(chainId: node.chainId, privateKey: privateKey, derivationPath: derivationPath)
     let address = try signer.address()
     try await node.setBalance(address, wei: BigUInt(10_000_000_000_000_000_000))

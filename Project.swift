@@ -215,7 +215,8 @@ private let walletScheme: Scheme = .scheme(
             .launchArgument(name: "--drop-accounts", isEnabled: false),
             .launchArgument(name: "--drop-balances", isEnabled: false),
             .launchArgument(name: "--drop-tokens", isEnabled: false),
-            .launchArgument(name: "--drop-transactions", isEnabled: false)
+            .launchArgument(name: "--drop-transactions", isEnabled: false),
+            .launchArgument(name: "--verbose", isEnabled: true)
         ])
     )
 )

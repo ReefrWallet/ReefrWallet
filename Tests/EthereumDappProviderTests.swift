@@ -506,12 +506,11 @@ private struct EthereumDappProviderFixture {
     /// independent check that the dapp bridge produces the same
     /// signature this account's real key would.
     func makeIndependentSigner() throws -> EthereumPKeySigner {
-        guard case let .evm(chain) = account.blockchain, let derivationPathString = account.derivationPath else {
+        guard case let .evm(chain) = account.blockchain, let derivationPath = account.derivationPath else {
             throw ReefrError.invalidData
         }
 
         let seed = try Seed(rawBytes: try keyStore.localSeed())
-        let derivationPath = try DerivationPath(string: derivationPathString)
         let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
         return try EthereumPKeySigner(chainId: chain.chainId, privateKey: privateKey, derivationPath: derivationPath)
     }

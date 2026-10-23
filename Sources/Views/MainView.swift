@@ -102,10 +102,19 @@ struct MainView: View {
                 ) { result, keepsPresented in
                     walletConnect.approver.resolve(result, keepsPresented: keepsPresented)
                 }
-                .hardwareKeyPromptHost()
+                .hardwareKeyPromptHost(progress: walletConnect.approver.progressPrompt)
             }
         }
         .hardwareKeyPromptHost()
+        .alert(
+            "Request Failed",
+            isPresented: isFailureAlertPresented,
+            presenting: walletConnect.approver.failureMessage
+        ) { _ in
+            Button("OK") {}
+        } message: { message in
+            Text(message)
+        }
         .task {
             walletConnect.start()
         }
@@ -117,6 +126,17 @@ struct MainView: View {
 }
 
 private extension MainView {
+    var isFailureAlertPresented: Binding<Bool> {
+        Binding(
+            get: { walletConnect.approver.failureMessage != nil && walletConnect.approver.currentRequest == nil },
+            set: { isPresented in
+                if !isPresented {
+                    walletConnect.approver.failureMessage = nil
+                }
+            }
+        )
+    }
+
     var isRequestSheetPresented: Binding<Bool> {
         Binding(
             get: { walletConnect.approver.currentRequest != nil },

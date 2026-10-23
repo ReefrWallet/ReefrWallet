@@ -142,7 +142,7 @@ private extension AccountDetailsView {
 
                 if let derivationPath = account.derivationPath {
                     Text(verbatim: .dot)
-                    Text(derivationPath)
+                    Text(derivationPath.string)
                 }
 
                 Text(verbatim: .dot)

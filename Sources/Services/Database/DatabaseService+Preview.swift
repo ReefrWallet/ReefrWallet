@@ -15,10 +15,9 @@ extension DatabaseService {
         }
 
         var account = Account(
-            accountIndex: 0,
             address: "0x0",
             blockchain: blockchain,
-            derivationPath: "m/44/60/0/0/0",
+            derivationPath: try DerivationPath(string: "m/44'/60'/0'/0/0"),
             keyStoreId: keyStoreId,
             name: "Ethereum #1"
         )

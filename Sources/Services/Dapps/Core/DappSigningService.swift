@@ -35,19 +35,26 @@ final class DappSigningService: @unchecked Sendable {
     ///   support message signing (no chain but Ethereum does yet) or
     ///   signing otherwise fails.
     func signMessage(_ message: SignableMessage, account: Account) async throws(DappError) -> Data {
+        Logger.verbose("Dapp signMessage start: \(account.address)")
+
         do {
-            return try await transactionService.withSigner(for: account) { signer in
+            let signature = try await transactionService.withSigner(for: account) { signer in
                 guard let messageSigner = signer as? any MessageSigner else {
                     throw DappError.internalError("this account's signer does not support message signing")
                 }
 
                 return try await messageSigner.sign(message: message)
             }
+            Logger.verbose("Dapp signMessage done: \(signature.count) bytes")
+            return signature
         } catch ReefrError.notSupported {
+            Logger.verbose("Dapp signMessage: not supported")
             throw DappError.unauthorized
         } catch let error as DappError {
+            Logger.verbose("Dapp signMessage DappError: \(error)")
             throw error
         } catch {
+            Logger.verbose("Dapp signMessage error: \(error)")
             throw DappError.internalError("\(error)")
         }
     }

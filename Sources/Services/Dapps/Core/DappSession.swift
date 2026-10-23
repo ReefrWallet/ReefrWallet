@@ -194,8 +194,13 @@ actor DappSession {
     /// behind it — the serial approval queue shared across namespaces,
     /// so two dapp requests never present overlapping approval prompts.
     func withExclusiveApproval<T: Sendable>(_ body: @Sendable () async throws -> T) async rethrows -> T {
+        Logger.verbose("Dapp approval slot: waiting, busy: \(isApproving), queued: \(approvalWaiters.count)")
         await acquireApprovalSlot()
-        defer { releaseApprovalSlot() }
+        Logger.verbose("Dapp approval slot: acquired")
+        defer {
+            releaseApprovalSlot()
+            Logger.verbose("Dapp approval slot: released")
+        }
 
         return try await body()
     }
