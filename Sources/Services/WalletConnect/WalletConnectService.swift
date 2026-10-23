@@ -126,6 +126,17 @@ final class WalletConnectService {
         update(sessions.filter { $0.topic != topic })
     }
 
+    /// Disconnects every session approved with any of `addresses`.
+    func disconnectSessions(addresses: Set<String>) async {
+        let topics = sessions
+            .filter { session in session.accounts.contains { addresses.contains($0.address) } }
+            .map(\.topic)
+
+        for topic in topics {
+            await disconnect(topic: topic)
+        }
+    }
+
     nonisolated static func pairingURI(from string: String) -> String {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
 

@@ -1,6 +1,7 @@
 import WalletKit
 
 final class KeyStoreService {
+    private lazy var accountService = DI.injectOrFail(AccountService.self)
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
 
@@ -45,6 +46,19 @@ final class KeyStoreService {
         )
 
         try await databaseService.insertKeyStore(keyStore)
+    }
+
+    /// Deletes `keyStore` with its accounts and disconnects dapps from them.
+    ///
+    /// - Throws: ``ReefrError/notFound`` if `keyStore` was never stored, or a database error.
+    func deleteKeyStore(_ keyStore: KeyStore) async throws {
+        guard let keyStoreId = keyStore.id else {
+            throw ReefrError.notFound
+        }
+
+        let accounts = try await databaseService.fetchAccounts(keyStoreId: keyStoreId)
+        try await databaseService.deleteKeyStore(id: keyStoreId)
+        await accountService.disconnectDapps(from: accounts)
     }
 
     func generateSeedPhrase() -> String {
