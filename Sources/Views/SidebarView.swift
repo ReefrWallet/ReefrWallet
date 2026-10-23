@@ -59,6 +59,7 @@ struct SidebarView {
 
     private let accountService = DI.injectOrFail(AccountService.self)
     private let databaseService = DI.injectOrFail(DatabaseService.self)
+    private let keyStoreService = DI.injectOrFail(KeyStoreService.self)
 }
 
 // MARK: - View
@@ -140,11 +141,7 @@ extension SidebarView: View {
 
                     Task {
                         do {
-                            guard let keyStoreId = deletingKeyStore.id else {
-                                throw ReefrError.notFound
-                            }
-
-                            try await databaseService.deleteKeyStore(id: keyStoreId)
+                            try await keyStoreService.deleteKeyStore(deletingKeyStore)
                         } catch {
                             printError("\(deletingKeyStore.name): \(error)")
                         }

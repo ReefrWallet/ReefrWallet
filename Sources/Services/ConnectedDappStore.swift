@@ -50,6 +50,22 @@ final class ConnectedDappStore: DappPermissionPersisting {
         save()
     }
 
+    /// Drops every browser grant for `addresses`.
+    func revokeGrants(addresses: Set<String>) {
+        let models = (try? context.fetch(FetchDescriptor<ConnectedDappModel>())) ?? []
+
+        for model in models where model.kind == .browser {
+            let grants = model.grants
+            let kept = grants.filter { !addresses.contains($0.accountAddress) }
+
+            if kept.count != grants.count {
+                model.grants = kept
+            }
+        }
+
+        save()
+    }
+
     /// The single "WalletConnect" sidebar entry, created on first use.
     @discardableResult
     func ensureWalletConnectHub() -> ConnectedDappModel {

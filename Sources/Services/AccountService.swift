@@ -26,6 +26,27 @@ final class AccountService {
 
         await transactionSyncService.stop(account)
         try await databaseService.deleteAccount(id: accountId)
+        await disconnectDapps(from: [account])
+    }
+
+    /// Disconnects browser and WalletConnect dapps from the addresses of
+    /// deleted `accounts`, unless a remaining account still uses them.
+    ///
+    /// - Parameter accounts: Accounts already removed from the database.
+    func disconnectDapps(from accounts: [Account]) async {
+        let remaining = Set(((try? await databaseService.fetchAllAccounts()) ?? []).map(\.address))
+        let addresses = Set(accounts.map(\.address)).subtracting(remaining)
+
+        guard !addresses.isEmpty else {
+            return
+        }
+
+        await MainActor.run {
+            DI.injectOrFail(ConnectedDappStore.self).revokeGrants(addresses: addresses)
+        }
+
+        let walletConnect = await MainActor.run { DI.injectOrFail(WalletConnectService.self) }
+        await walletConnect.disconnectSessions(addresses: addresses)
     }
 
     /// Whether `address` parses as an address on `blockchain`.
