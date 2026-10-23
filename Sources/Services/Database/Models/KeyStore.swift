@@ -25,7 +25,8 @@ struct KeyStore: Equatable, Hashable, Sendable {
     var id: PersistentIdentifier?
     let kind: Kind
     let name: String
-    let mnemonicEntropy: Data?
+    /// BIP-39 entropy sealed by ``KeyVault``.
+    let sealedEntropy: Data?
     let mnemonicWordlist: Wordlist?
     /// Hardware model, e.g. `Safe 5`; `nil` for software key stores.
     let model: String?
@@ -37,9 +38,9 @@ struct KeyStore: Equatable, Hashable, Sendable {
         id: PersistentIdentifier? = nil,
         kind: Kind,
         name: String,
-        mnemonicEntropy: Data? = nil,
         mnemonicWordlist: Wordlist? = nil,
         model: String? = nil,
+        sealedEntropy: Data? = nil,
         transport: HardwareTransportKind?,
         vendor: HardwareVendor?
     ) {
@@ -48,9 +49,9 @@ struct KeyStore: Equatable, Hashable, Sendable {
         self.id = id
         self.kind = kind
         self.name = name
-        self.mnemonicEntropy = mnemonicEntropy
         self.mnemonicWordlist = mnemonicWordlist
         self.model = model
+        self.sealedEntropy = sealedEntropy
         self.transport = transport
         self.vendor = vendor
     }
@@ -83,7 +84,7 @@ final class KeyStoreModel {
     var name: String
     /// Serialized ``Kind``
     var rawKind: String
-    /// Original BIP-39 entropy for Cardano's Icarus key derivation.
+    /// BIP-39 entropy sealed by ``KeyVault`` (raw before ADR-046).
     var mnemonicEntropy: Data?
     /// Serialized BIP-39 wordlist used to reconstruct the conventional seed.
     var rawMnemonicWordlist: String?
@@ -129,7 +130,7 @@ extension KeyStore {
         id = model.id
         kind = Kind(rawValue: model.rawKind)!
         name = model.name
-        mnemonicEntropy = model.mnemonicEntropy
+        sealedEntropy = model.mnemonicEntropy
         mnemonicWordlist = model.rawMnemonicWordlist.flatMap(Wordlist.init(storageIdentifier:))
         self.model = model.model
 
@@ -164,7 +165,7 @@ extension KeyStoreModel {
             config.kind,
             deviceId: config.deviceId,
             name: config.name,
-            mnemonicEntropy: config.mnemonicEntropy,
+            mnemonicEntropy: config.sealedEntropy,
             mnemonicWordlist: config.mnemonicWordlist,
             model: config.model,
             transport: config.transport,
@@ -176,15 +177,21 @@ extension KeyStoreModel {
 // MARK: - KeyStore Helpers
 
 extension KeyStore {
-    func localSeed() throws -> Data {
-        guard kind == .local, let mnemonicEntropy else {
+    /// Decrypts the BIP-39 entropy, asking the user to authenticate.
+    func localEntropy(reason: String = "Authenticate to access your key") async throws -> Data {
+        guard kind == .local, let sealedEntropy else {
             throw ReefrError.invalidData
         }
 
-        return try Mnemonic.fromEntropy(
-            mnemonicEntropy,
-            wordlist: mnemonicWordlist ?? .english
-        ).toSeed().exportRaw()
+        return try await DI.injectOrFail(KeyVault.self).open(sealedEntropy, reason: reason)
+    }
+
+    func localMnemonic(reason: String = "Authenticate to access your key") async throws -> Mnemonic {
+        try await Mnemonic.fromEntropy(localEntropy(reason: reason), wordlist: mnemonicWordlist ?? .english)
+    }
+
+    func localSeed(reason: String = "Authenticate to access your key") async throws -> Data {
+        try await localMnemonic(reason: reason).toSeed().exportRaw()
     }
 
     var description: String {

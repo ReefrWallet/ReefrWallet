@@ -161,16 +161,12 @@ final class AccountService {
 
         switch keyStore.kind {
         case .local:
-            let rawKey = try keyStore.localSeed()
-
             guard let path else {
                 throw ReefrError.invalidData
             }
 
             if case let .cardano(network) = blockchain {
-                guard let entropy = keyStore.mnemonicEntropy else {
-                    throw ReefrError.notSupported
-                }
+                let entropy = try await keyStore.localEntropy(reason: "Authenticate to add an account")
 
                 address = try CardanoAccountDescriptor(
                     entropy: entropy,
@@ -178,6 +174,8 @@ final class AccountService {
                     path: path
                 ).string
             } else {
+                let rawKey = try await keyStore.localSeed(reason: "Authenticate to add an account")
+
                 address = try makeLocalAddress(
                     blockchain: blockchain,
                     rawKey: rawKey,

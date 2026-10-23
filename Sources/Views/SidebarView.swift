@@ -83,15 +83,22 @@ extension SidebarView: View {
                 VStack(alignment: .center) {
                     Text("No keys")
                         .style(.medium, foreground: .secondary)
-                        .padding()
-                        .contextMenu {
-                            addMenu
-                        }
+                        .padding(.top)
+
+                    Button("Add Key") {
+                        presentSheet?(.addKeyStore)
+                    }
+                    .padding(.bottom)
+                }
+                .contextMenu {
+                    addMenu
                 }
                 .frame(maxWidth: .infinity)
             }
 
-            ConnectedDappsSidebarSection("Connected dApps")
+            if !keyStores.isEmpty {
+                ConnectedDappsSidebarSection("Connected dApps")
+            }
         }
         #if os(macOS)
         .scrollContentBackground(.hidden)
@@ -453,25 +460,20 @@ extension SidebarView {
 
         Task {
             let balancesService = DI.injectOrFail(BalancesService.self)
-            let tokenPriceService = DI.injectOrFail(TokenPriceService.self)
+            let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
 
-            // Balances first for every account, prices after: a price sweep fires
-            // many RPC calls and shouldn't delay (or rate-limit) the next account's balances.
             for account in accounts {
                 do {
+                    printVerbose("Refresh: balances start \(account.name)")
                     try await balancesService.updateBalances(account)
+                    printVerbose("Refresh: balances done \(account.name)")
                 } catch {
                     printError("\(account.name): \(error)")
                 }
             }
 
-            for account in accounts {
-                do {
-                    try await tokenPriceService.updateTokenPrices(account)
-                } catch {
-                    printError("\(account.name): \(error)")
-                }
-            }
+            // Prices refresh on their own schedule; just skip the current idle wait.
+            await tokenPriceScheduler.refreshNow()
 
             isUpdating = false
         }

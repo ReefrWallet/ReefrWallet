@@ -168,7 +168,7 @@ private extension AccountDetailsView {
             switch keyStore.kind {
             case .local:
                 // Local Cardano signing derives Icarus keys from the BIP-39 entropy.
-                return keyStore.mnemonicEntropy != nil
+                return keyStore.sealedEntropy != nil
             case .trezor:
                 return true
             case .watchOnly:

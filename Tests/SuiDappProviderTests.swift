@@ -395,7 +395,7 @@ struct SuiDappProviderFixture {
         }
 
         let curve = account.signatureScheme ?? .ed25519
-        let seed = try Seed(rawBytes: try keyStore.localSeed())
+        let seed = try Seed(rawBytes: try keyStore.plainSeed())
         let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
         return try SuiPKeySigner(curve: curve, network: network, privateKey: privateKey, derivationPath: derivationPath)
     }

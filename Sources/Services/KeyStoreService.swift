@@ -4,15 +4,16 @@ final class KeyStoreService {
     private lazy var accountService = DI.injectOrFail(AccountService.self)
     private lazy var databaseService = DI.injectOrFail(DatabaseService.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
+    private lazy var keyVault = DI.injectOrFail(KeyVault.self)
 
     @discardableResult @MainActor
     func addLocalKey(_ mnemonic: Mnemonic) async throws -> KeyStore? {
-        let keyStore = KeyStore(
+        let keyStore = try KeyStore(
             deviceId: nil,
             kind: .local,
             name: "Local Key",
-            mnemonicEntropy: mnemonic.entropy,
             mnemonicWordlist: mnemonic.wordlist,
+            sealedEntropy: keyVault.seal(mnemonic.entropy),
             transport: nil,
             vendor: nil
         )

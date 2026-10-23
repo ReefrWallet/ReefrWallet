@@ -509,8 +509,8 @@ extension DatabaseServiceTests {
             id: id,
             kind: .local,
             name: name,
-            mnemonicEntropy: Data(repeating: 1, count: 16),
             mnemonicWordlist: .english,
+            sealedEntropy: Data(repeating: 1, count: 16),
             transport: nil,
             vendor: nil
         )

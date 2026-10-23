@@ -10,6 +10,7 @@ import Foundation
 
 enum ReefrError: LocalizedError {
     case alreadyExists
+    case authenticationFailed
     case clientNotAvailable
     case internalError
     case invalidAddress
@@ -21,6 +22,7 @@ enum ReefrError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .alreadyExists: "The item already exists."
+        case .authenticationFailed: "Authentication failed or was cancelled."
         case .clientNotAvailable: "No network client is available for this blockchain."
         case .internalError: "An internal error occurred."
         case .invalidAddress: "The address is invalid."

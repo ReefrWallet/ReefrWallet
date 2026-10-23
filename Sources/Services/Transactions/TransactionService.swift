@@ -170,7 +170,7 @@ private extension TransactionService {
 
         switch keyStore.kind {
         case .local:
-            let rawKey = try keyStore.localSeed()
+            let rawKey = try await keyStore.localSeed(reason: "Authenticate to sign with your key")
             return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
@@ -193,10 +193,7 @@ private extension TransactionService {
 
         switch keyStore.kind {
         case .local:
-            guard let entropy = keyStore.mnemonicEntropy else {
-                throw ReefrError.invalidData
-            }
-
+            let entropy = try await keyStore.localEntropy(reason: "Authenticate to sign with your key")
             let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
             return try transaction.signed(entropy: entropy, path: derivationPath)
         case .trezor:

@@ -56,8 +56,8 @@ func makeLocalKeyStore(
         deviceId: nil,
         kind: .local,
         name: name,
-        mnemonicEntropy: mnemonic.entropy,
         mnemonicWordlist: mnemonic.wordlist,
+        sealedEntropy: mnemonic.entropy,
         transport: nil,
         vendor: nil
     ))
@@ -67,8 +67,8 @@ func makeLocalKeyStore(
         id: keyStoreId,
         kind: .local,
         name: name,
-        mnemonicEntropy: mnemonic.entropy,
         mnemonicWordlist: mnemonic.wordlist,
+        sealedEntropy: mnemonic.entropy,
         transport: nil,
         vendor: nil
     )

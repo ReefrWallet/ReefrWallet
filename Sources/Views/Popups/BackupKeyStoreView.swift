@@ -18,17 +18,10 @@ struct BackupKeyStoreView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var seedPhrase: String
+    @State private var seedPhrase = ""
 
     init(keyStore: KeyStore) {
         self.keyStore = keyStore
-
-        if let entropy = keyStore.mnemonicEntropy,
-           let mnemonic = try? Mnemonic.fromEntropy(entropy, wordlist: keyStore.mnemonicWordlist ?? .english) {
-            _seedPhrase = State(initialValue: mnemonic.phrase)
-        } else {
-            _seedPhrase = State(initialValue: "")
-        }
     }
 
     var body: some View {
@@ -41,6 +34,15 @@ struct BackupKeyStoreView: View {
             buttonsView
         }
         .padding()
+        .task {
+            do {
+                let mnemonic = try await keyStore.localMnemonic(reason: "Authenticate to show your recovery phrase")
+                seedPhrase = mnemonic.phrase
+            } catch {
+                printError(error)
+                dismiss()
+            }
+        }
     }
 }
 
@@ -68,8 +70,8 @@ private let previewKeyStore = KeyStore(
     deviceId: nil,
     kind: .local,
     name: "Local Key",
-    mnemonicEntropy: Mnemonic.generate(wordCount: .`24`).entropy,
     mnemonicWordlist: .english,
+    sealedEntropy: Mnemonic.generate(wordCount: .`24`).entropy,
     transport: nil,
     vendor: nil
 )

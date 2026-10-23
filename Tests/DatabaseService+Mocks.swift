@@ -13,8 +13,8 @@ extension DatabaseService {
             deviceId: nil,
             kind: .local,
             name: name,
-            mnemonicEntropy: mnemonic.entropy,
             mnemonicWordlist: mnemonic.wordlist,
+            sealedEntropy: mnemonic.entropy,
             transport: nil,
             vendor: nil
         ))
@@ -24,8 +24,8 @@ extension DatabaseService {
             id: id,
             kind: .local,
             name: name,
-            mnemonicEntropy: mnemonic.entropy,
             mnemonicWordlist: mnemonic.wordlist,
+            sealedEntropy: mnemonic.entropy,
             transport: nil,
             vendor: nil
         )
@@ -76,7 +76,7 @@ private extension DatabaseService {
             throw ReefrError.invalidData
         }
 
-        let seed = try Seed(rawBytes: keyStore.localSeed())
+        let seed = try Seed(rawBytes: keyStore.plainSeed())
 
         return try (0 ..< count).map { index in
             let derivationPath = try DerivationPath(string: path(index))

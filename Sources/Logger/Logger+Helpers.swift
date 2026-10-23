@@ -43,3 +43,12 @@ public func printError(
 ) {
     Logger.error(message(), file, function, line)
 }
+
+public func printVerbose(
+    _ message: @autoclosure () -> Any,
+    _ file: StaticString = #file,
+    _ function: StaticString = #function,
+    _ line: Int = #line
+) {
+    Logger.verbose(message(), file, function, line)
+}

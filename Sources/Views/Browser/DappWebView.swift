@@ -108,6 +108,14 @@ private extension DappWebView {
         }
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        #if os(macOS)
+        webView.underPageBackgroundColor = .windowBackgroundColor
+        #else
+        webView.isOpaque = false
+        webView.backgroundColor = .systemBackground
+        webView.scrollView.backgroundColor = .systemBackground
+        webView.underPageBackgroundColor = .systemBackground
+        #endif
         webView.navigationDelegate = coordinator
         webView.uiDelegate = coordinator
         controller.bridge.attach(to: webView)

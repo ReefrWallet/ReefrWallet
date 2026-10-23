@@ -14,6 +14,7 @@ struct AddBrowserDappSheet: View {
     @State private var text = ""
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
     private let store = DI.injectOrFail(ConnectedDappStore.self)
@@ -23,7 +24,7 @@ struct AddBrowserDappSheet: View {
             Text("Add dApp")
                 .style(.largeHeader)
 
-            TextField("https://app.example.com", text: $text)
+            TextField("", text: $text, prompt: Text("https://app.example.com").foregroundStyle(.secondary))
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("add-dapp-url-field")
                 .onSubmit(add)
@@ -65,6 +66,12 @@ struct AddBrowserDappSheet: View {
         }
 
         sidebarSelection.wrappedValue = store.addBrowserDapp(url: url).id
-        dismiss()
+
+        // Replaces this sheet with the browser.
+        if let presentSheet {
+            presentSheet(.browser(url))
+        } else {
+            dismiss()
+        }
     }
 }

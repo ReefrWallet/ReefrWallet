@@ -109,7 +109,7 @@ struct SolanaDappProviderFixture {
             throw ReefrError.invalidData
         }
 
-        let seed = try Seed(rawBytes: try keyStore.localSeed())
+        let seed = try Seed(rawBytes: try keyStore.plainSeed())
         let privateKey = try seed.masterKey(curve: .ed25519).derive(derivationPath).privateKey()
         return try SolanaPKeySigner(network: network, privateKey: privateKey, derivationPath: derivationPath)
     }

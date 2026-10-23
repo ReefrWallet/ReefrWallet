@@ -15,6 +15,10 @@ extension DatabaseService {
             return
         }
 
+        if let sealed = keyStore.mnemonicEntropy {
+            DI.inject(KeyVault.self)?.discard(sealed)
+        }
+
         modelContext.delete(keyStore)
         try modelContext.save()
     }

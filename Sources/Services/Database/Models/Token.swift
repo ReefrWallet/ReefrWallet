@@ -17,11 +17,15 @@ struct Token: Hashable, Sendable {
     let blockchain: Blockchain?
     var coinGeckoId: String?
     var decimalsCount: UInt8
+    /// Whether the most recent price fetch failed; `usdPrice` then holds the last good quote, if any.
+    var hasPriceFetchError = false
     var imageURL: URL?
     var isHidden: Bool
     var isIncludedInBalance: Bool?
     let isNativeToken: Bool
     var name: String
+    /// When a price fetch last completed, successfully or not.
+    var priceUpdatedAt: Date?
     var symbol: String
     var usdPrice: Decimal?
 }
@@ -81,11 +85,13 @@ final class TokenModel {
     var address: String?
     var coinGeckoId: String?
     var decimalsCount: UInt8
+    var hasPriceFetchError = false
     var imageURL: URL?
     var isIncludedInBalance: Bool?
     var isNativeToken: Bool
     var isWhitelisted: Bool?
     var name: String
+    var priceUpdatedAt: Date?
     var symbol: String
     var usdPrice: Decimal?
 
@@ -128,11 +134,13 @@ extension Token {
         blockchain = model.blockchain?.blockchain
         coinGeckoId = model.coinGeckoId
         decimalsCount = model.decimalsCount
+        hasPriceFetchError = model.hasPriceFetchError
         imageURL = model.imageURL
         isHidden = model.isHidden
         isIncludedInBalance = model.isIncludedInBalance
         isNativeToken = model.isNativeToken
         name = model.name
+        priceUpdatedAt = model.priceUpdatedAt
         symbol = model.symbol
         usdPrice = model.usdPrice
     }

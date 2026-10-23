@@ -30,9 +30,17 @@ struct CoinGeckoPriceSource: PriceSource {
     }
 
     func resolvedPrice(_ token: Token, rpcURL _: URL) async throws -> CoinGeckoPrice? {
-        guard let apiKey, !apiKey.isEmpty, let identifier = identifier(for: token) else {
+        guard let apiKey, !apiKey.isEmpty else {
+            printVerbose("CoinGecko skipped: no API key (defaults '\(Self.apiKeyDefaultsKey)' / env COINGECKO_API_KEY)")
             return nil
         }
+
+        guard let identifier = identifier(for: token) else {
+            printVerbose("CoinGecko skipped: no identifier for \(token.symbol) (non-mainnet or unmapped chain)")
+            return nil
+        }
+
+        printVerbose("CoinGecko request: \(identifier)")
 
         let response: [String: [String: Decimal]]
 

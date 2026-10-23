@@ -96,6 +96,10 @@ extension ServiceContainer {
             KeyStoreService()
         }
 
+        register(TokenPriceScheduler.self) {
+            TokenPriceScheduler()
+        }
+
         register(TokenPriceService.self) {
             TokenPriceService()
         }
@@ -106,6 +110,17 @@ extension ServiceContainer {
 
         register(TransactionSyncService.self) {
             TransactionSyncService()
+        }
+
+        return self
+    }
+
+    func registerKeyVault() -> Self {
+        register(KeyVault.self) {
+            switch Inject.mode {
+            case .standard: KeychainKeyVault()
+            case .preview, .test: PassthroughKeyVault()
+            }
         }
 
         return self

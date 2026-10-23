@@ -831,7 +831,7 @@ private struct TransactionSyncFixture {
     }
 
     private func requiredRawKey() throws -> Data {
-        try keyStore.localSeed()
+        try keyStore.plainSeed()
     }
 
     private func requiredID(_ account: ReefrWallet.Account) throws -> PersistentIdentifier {

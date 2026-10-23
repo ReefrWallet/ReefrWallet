@@ -145,6 +145,72 @@ extension DatabaseService {
         return tokenModel.persistentModelID
     }
 
+    /// Returns account-relevant tokens whose price is due, oldest (or never fetched) first: native
+    /// tokens of chains with accounts, plus tokens some account holds. A token whose last fetch
+    /// failed is due after `failureRetryInterval` instead of `refreshInterval`.
+    func fetchTokensDueForPriceUpdate(
+        now: Date,
+        refreshInterval: TimeInterval,
+        failureRetryInterval: TimeInterval,
+        limit: Int
+    ) throws -> [TokenPriceRequest] {
+        let accounts = try modelContext.fetch(FetchDescriptor<AccountModel>())
+        let accountBlockchains = Set(accounts.map(\.blockchain.serialized))
+
+        guard !accountBlockchains.isEmpty else {
+            return []
+        }
+
+        // An account's RPC override wins over the chain default, as in balance sync.
+        let rpcURLOverrides = Dictionary(
+            accounts.compactMap { account in
+                account.rpcURLOverride.flatMap(URL.init(string:)).map { (account.blockchain.serialized, $0) }
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        return try modelContext.fetch(FetchDescriptor<TokenModel>())
+            .filter { token in
+                guard let serialized = token.blockchain?.serialized,
+                      accountBlockchains.contains(serialized) else {
+                    return false
+                }
+
+                guard token.isNativeToken || (token.balances ?? []).contains(where: { $0.amount > 0 }) else {
+                    return false
+                }
+
+                guard let priceUpdatedAt = token.priceUpdatedAt else {
+                    return true
+                }
+
+                let interval = token.hasPriceFetchError ? failureRetryInterval : refreshInterval
+                return now.timeIntervalSince(priceUpdatedAt) >= interval
+            }
+            .sorted { ($0.priceUpdatedAt ?? .distantPast) < ($1.priceUpdatedAt ?? .distantPast) }
+            .prefix(limit)
+            .compactMap { model in
+                let token = Token(model: model)
+
+                guard let blockchain = token.blockchain, let serialized = model.blockchain?.serialized else {
+                    return nil
+                }
+
+                return TokenPriceRequest(
+                    rpcURL: rpcURLOverrides[serialized] ?? blockchain.rpcURL,
+                    token: token
+                )
+            }
+    }
+
+    /// Stamps `token` as fetched at `date` with a failed fetch, keeping its last good price.
+    func markTokenPriceFetchFailed(_ token: Token, at date: Date) throws {
+        let tokenModel = try tokenModel(for: token)
+        tokenModel.hasPriceFetchError = true
+        tokenModel.priceUpdatedAt = date
+        try modelContext.save()
+    }
+
     func updateTokenPrices(_ tokens: [Token]) throws {
         for token in tokens {
             try updateTokenPrice(token, shouldSaveContext: false)
@@ -154,9 +220,14 @@ extension DatabaseService {
     }
 }
 
+/// A token due for a price fetch, with the RPC endpoint its on-chain sources should use.
+struct TokenPriceRequest: Sendable {
+    let rpcURL: URL
+    let token: Token
+}
+
 private extension DatabaseService {
-    @discardableResult
-    func updateTokenPrice(_ token: Token, shouldSaveContext: Bool) throws -> PersistentIdentifier {
+    func tokenModel(for token: Token) throws -> TokenModel {
         guard let blockchain = token.blockchain else {
             throw ReefrError.invalidData
         }
@@ -171,8 +242,17 @@ private extension DatabaseService {
             throw ReefrError.notFound
         }
 
-        tokenModel.usdPrice = token.usdPrice
+        return tokenModel
+    }
+
+    /// Stores a successful quote: price, CoinGecko id, and a fresh, error-free timestamp.
+    @discardableResult
+    func updateTokenPrice(_ token: Token, shouldSaveContext: Bool) throws -> PersistentIdentifier {
+        let tokenModel = try tokenModel(for: token)
         tokenModel.coinGeckoId = token.coinGeckoId
+        tokenModel.hasPriceFetchError = false
+        tokenModel.priceUpdatedAt = .now
+        tokenModel.usdPrice = token.usdPrice
 
         if shouldSaveContext {
             try modelContext.save()

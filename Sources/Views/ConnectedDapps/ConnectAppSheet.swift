@@ -27,7 +27,7 @@ struct ConnectAppSheet: View {
                 .style(.small, foreground: .secondary)
 
             HStack {
-                TextField("wc:…", text: $uri)
+                TextField("", text: $uri, prompt: Text("wc:…").foregroundStyle(.secondary))
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("connect-app-uri-field")
                     .onSubmit(connect)

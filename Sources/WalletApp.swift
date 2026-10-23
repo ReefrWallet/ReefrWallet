@@ -30,6 +30,7 @@ import WalletKit
         let keyStoreService = keyStoreService!
         let persistedDatabaseService = databaseService!
         let syncService = transactionSyncService!
+        let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
         Task {
             await Self.processPostStartupOptions(
                 accountService: accountService,
@@ -38,9 +39,15 @@ import WalletKit
             )
 
 #if DEBUG
+            if !Self.commandLineFlag("--disable-price-updates") {
+                await tokenPriceScheduler.start()
+            }
+
             guard !Self.commandLineFlag("--disable-transaction-sync") else {
                 return
             }
+#else
+            await tokenPriceScheduler.start()
 #endif
 
             await syncService.startAll()

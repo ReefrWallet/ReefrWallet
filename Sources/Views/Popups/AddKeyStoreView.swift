@@ -74,6 +74,11 @@ struct AddKeyStoreView: View {
         .alert("Error", isPresented: $isAlertPresented) {
             Button("OK") {
                 isAlertPresented = false
+
+                if case .alreadyExists = error as? ReefrError {
+                    return
+                }
+
                 dismiss()
             }
         } message: {
@@ -95,6 +100,7 @@ private extension AddKeyStoreView {
                 Text(backButtonLabel)
             }
             .focusable(viewState == .chooseAction)
+            .focusEffectDisabled()
             .disabled(isBackButtonDisabled)
 
             Button {
@@ -103,6 +109,7 @@ private extension AddKeyStoreView {
                 Text(nextButtonLabel)
             }
             .focused($focus, equals: .next)
+            .keyboardShortcut(.defaultAction)
             .disabled(isNextButtonDisabled)
         }
     }

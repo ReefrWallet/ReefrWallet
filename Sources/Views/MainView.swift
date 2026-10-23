@@ -71,6 +71,7 @@ struct MainView: View {
                         .environment(\.sidebarSelection, $sidebarSelection)
                 case .addBrowserDapp:
                     AddBrowserDappSheet()
+                        .environment(\.presentSheet, PresentSheetAction(presentedSheet: $presentedSheet))
                         .environment(\.sidebarSelection, $sidebarSelection)
                 case .addKeyStore:
                     AddKeyStoreView()

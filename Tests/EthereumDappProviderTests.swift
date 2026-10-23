@@ -510,7 +510,7 @@ private struct EthereumDappProviderFixture {
             throw ReefrError.invalidData
         }
 
-        let seed = try Seed(rawBytes: try keyStore.localSeed())
+        let seed = try Seed(rawBytes: try keyStore.plainSeed())
         let privateKey = try seed.masterKey(curve: .secp256k1).derive(derivationPath).privateKey()
         return try EthereumPKeySigner(chainId: chain.chainId, privateKey: privateKey, derivationPath: derivationPath)
     }
