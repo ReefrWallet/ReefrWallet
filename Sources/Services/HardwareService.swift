@@ -35,7 +35,7 @@ final class HardwareService {
 
     /// Connects to the hardware key with `deviceId`.
     ///
-    /// If the key isn't connected, shows a "Connect `keyName`" prompt and
+    /// If the key isn't connected, shows a "Connect" prompt and
     /// waits until it appears. A just-plugged key fails its handshake while
     /// booting, so a failed connection is retried after a second, up to 5
     /// attempts. Call inside ``session(showsWait:_:)`` so confirmation
@@ -44,7 +44,6 @@ final class HardwareService {
     /// - Parameters:
     ///   - vendor: The key's vendor.
     ///   - deviceId: The key's device identifier, as stored in its key store.
-    ///   - keyName: The key store's name, shown in prompts.
     ///   - transport: The transport to connect over.
     /// - Returns: The connected device.
     /// - Throws: `WalletKitError.userCancelled` if the user cancels the
@@ -53,15 +52,14 @@ final class HardwareService {
     func connect(
         _ vendor: HardwareVendor,
         deviceId: String,
-        keyName: String,
         transport: HardwareTransportKind = .usb
     ) async throws -> HardwareDevice {
         var attempt = 1
 
         while true {
             // Rescan every attempt: the manager consumes a scan entry on connect.
-            let deviceInfo = try await waitForDevice(vendor, deviceId: deviceId, keyName: keyName, transport: transport)
-            await promptCenter.didConnect(keyName: keyName, deviceId: deviceId)
+            let deviceInfo = try await waitForDevice(vendor, deviceId: deviceId, transport: transport)
+            await promptCenter.didConnect(vendorName: vendor.displayName)
 
             do {
                 return try await manager.connect(deviceInfo, delegate: self)
@@ -78,7 +76,7 @@ final class HardwareService {
     /// "Continue on" prompt stays up until the outermost session ends.
     /// `operation` is rerun after a second, up to 3 attempts in all, when it throws
     /// `WalletKitError.deviceDisconnected`, so it should connect through
-    /// ``connect(_:deviceId:keyName:transport:)`` itself. Sessions nest.
+    /// ``connect(_:deviceId:transport:)`` itself. Sessions nest.
     ///
     /// - Parameters:
     ///   - showsWait: Whether to show "please wait" once the key is
@@ -127,14 +125,13 @@ private extension HardwareService {
     func waitForDevice(
         _ vendor: HardwareVendor,
         deviceId: String,
-        keyName: String,
         transport: HardwareTransportKind
     ) async throws -> HardwareDeviceInfo {
         if let deviceInfo = try await findDevice(vendor, deviceId: deviceId, transport: transport) {
             return deviceInfo
         }
 
-        await promptCenter.showConnect(keyName: keyName)
+        await promptCenter.showConnect(vendorName: vendor.displayName)
 
         do {
             while true {
@@ -162,9 +159,17 @@ extension HardwareService: HardwareDeviceDelegate {
     }
 
     func hardwareDevice(_ device: HardwareDevice, waitingForConfirmation request: HardwareButtonRequest) async {
-        await promptCenter.showConfirm(deviceId: device.info.id, fallbackName: device.info.label ?? "Hardware Key")
+        await promptCenter.showConfirm(vendorName: device.info.vendor.displayName)
     }
 
     func hardwareDeviceDidDisconnect(_ device: WalletKit.HardwareDevice) {
+    }
+}
+
+private extension HardwareVendor {
+    var displayName: String {
+        switch self {
+        case .trezor: "Trezor"
+        }
     }
 }

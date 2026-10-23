@@ -15,7 +15,7 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
     let confirmTitle: String
     let isConfirmEnabled: Bool
     var isEstimateFeesEnabled = true
-    /// Replaces Cancel/Confirm with a progress indicator.
+    /// Disables Cancel/Confirm while the confirmed operation runs.
     var isProcessing = false
     /// `nil` hides the Estimate Fees button.
     var onEstimateFees: (() -> Void)?
@@ -67,13 +67,9 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    if isProcessing {
-                        ProgressView()
-                    } else {
-                        Button(confirmTitle, action: onConfirm)
-                            .disabled(!isConfirmEnabled)
-                            .accessibilityIdentifier(accessibilityIds.confirm)
-                    }
+                    Button(confirmTitle, action: onConfirm)
+                        .disabled(!isConfirmEnabled || isProcessing)
+                        .accessibilityIdentifier(accessibilityIds.confirm)
                 }
             }
         }
@@ -102,23 +98,16 @@ private extension TransactionSheet {
 
             Spacer()
 
-            if isProcessing {
-                ProgressView()
-                    .controlSize(.small)
+            Button("Cancel", action: onCancel)
+                .keyboardShortcut(.cancelAction)
+                .disabled(isProcessing)
+                .accessibilityIdentifier(accessibilityIds.cancel)
 
-                Text("Signing...")
-                    .style(.medium, foreground: .secondary)
-            } else {
-                Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier(accessibilityIds.cancel)
-
-                // Prominent, not `.defaultAction`: Return in a field must not send.
-                Button(confirmTitle, action: onConfirm)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isConfirmEnabled)
-                    .accessibilityIdentifier(accessibilityIds.confirm)
-            }
+            // Prominent, not `.defaultAction`: Return in a field must not send.
+            Button(confirmTitle, action: onConfirm)
+                .buttonStyle(.borderedProminent)
+                .disabled(!isConfirmEnabled || isProcessing)
+                .accessibilityIdentifier(accessibilityIds.confirm)
         }
     }
 

@@ -21,11 +21,8 @@ struct DappRequestSheet: View {
 
     @State private var editedFees: Fees?
     @State private var feeEstimationTask: Task<Void, Never>?
-    @State private var isHardwareAccount = false
     /// Ethereum fees re-fetched with Estimate Fees, replacing the request's.
     @State private var reestimatedFees: Fees?
-
-    private let databaseService = DI.injectOrFail(DatabaseService.self)
 
     var body: some View {
         Group {
@@ -39,9 +36,6 @@ struct DappRequestSheet: View {
             }
         }
         .interactiveDismissDisabled(isProcessing)
-        .task {
-            isHardwareAccount = (try? await databaseService.fetchKeyStore(id: account.keyStoreId))?.isHardware ?? false
-        }
     }
 }
 
@@ -63,18 +57,7 @@ private extension DappRequestSheet {
                 .style(.small, foreground: .secondary)
                 .padding(.top, 4)
 
-            if isProcessing {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .controlSize(.small)
-
-                    Text("Signing...")
-                        .style(.medium, foreground: .secondary)
-                }
-            } else {
-                connectButtons
-            }
+            connectButtons
         }
         .padding(20)
 #if os(macOS)
@@ -92,7 +75,7 @@ private extension DappRequestSheet {
             .accessibilityIdentifier("dapp-reject-button")
 
             Button("Approve") {
-                onResolve(.approved, isHardwareAccount)
+                onResolve(.approved, false)
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("dapp-approve-button")
@@ -137,7 +120,7 @@ private extension DappRequestSheet {
             isProcessing: isProcessing,
             onEstimateFees: onEstimateFees,
             onCancel: { onResolve(.rejected, false) },
-            onConfirm: { onResolve(approvedResult, isHardwareAccount) },
+            onConfirm: { onResolve(approvedResult, true) },
             accessibilityIds: .init(
                 cancel: "dapp-reject-button",
                 confirm: "dapp-approve-button",

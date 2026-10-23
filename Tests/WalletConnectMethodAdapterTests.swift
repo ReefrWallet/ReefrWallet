@@ -26,7 +26,7 @@ struct WalletConnectMethodAdapterTests {
         ).persistentModelID
 
         _ = container
-        return ReefrWallet.Account(accountIndex: 0, address: address, blockchain: blockchain, derivationPath: nil, keyStoreId: keyStoreId, name: "a")
+        return ReefrWallet.Account(address: address, blockchain: blockchain, derivationPath: nil, keyStoreId: keyStoreId, name: "a")
     }
 
     @Test

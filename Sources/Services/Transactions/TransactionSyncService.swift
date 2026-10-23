@@ -347,11 +347,34 @@ private extension TransactionSyncService {
         }
 
         do {
-            return try await source.transactionHistory(account: account, request: request)
+            let page = try await source.transactionHistory(account: account, request: request)
+            logForward(account: account, source: "\(type(of: source))", request: request, page: page)
+
+            return page
         } catch let error where request.cursor == nil && !(error is CancellationError) {
             printError("\(account.name): indexed forward history failed, scanning the node instead: \(error)")
-            return try await client.transactionHistory(account.address, request: request)
+            let page = try await client.transactionHistory(account.address, request: request)
+            logForward(account: account, source: "node (fallback)", request: request, page: page)
+
+            return page
         }
+    }
+
+    func logForward(
+        account: Account,
+        source: String,
+        request: BlockchainTransactionHistoryRequest,
+        page: BlockchainTransactionPage
+    ) {
+        guard !page.transactions.isEmpty else {
+            return
+        }
+
+        let range = "\(request.lowerBound.map(String.init) ?? "-")...\(request.upperBound.map(String.init) ?? "tip")"
+
+        printDebug(
+            "\(account.name): forward \(source) \(range): \(page.transactions.count) txs, head \(page.head.map(String.init) ?? "-")"
+        )
     }
 
     /// The newest stored transaction's block, when forward history comes from an indexer
@@ -377,10 +400,43 @@ private extension TransactionSyncService {
     ) async throws -> BlockchainTransactionPage {
         if account.rpcURLOverride == nil,
            let source = transactionHistorySources.first(where: { $0.supports(account) }) {
-            return try await source.transactionHistory(account: account, request: request)
+            let page: BlockchainTransactionPage
+
+            do {
+                page = try await source.transactionHistory(account: account, request: request)
+            } catch {
+                printError("\(account.name): \(type(of: source)) history failed: \(error)")
+                throw error
+            }
+
+            guard page.head == nil, page.reachedBoundary, case .evm = account.blockchain else {
+                return page
+            }
+
+            return BlockchainTransactionPage(
+                transactions: page.transactions,
+                nextCursor: page.nextCursor,
+                reachedBoundary: true,
+                head: try await nodeHead(account: account, client: client)
+            )
         }
 
         return try await client.transactionHistory(account.address, request: request)
+    }
+
+    /// An indexer reports no head for an account without history, which would
+    /// stall forward sync forever. The node's tip is the right head then: an
+    /// empty range above the tip returns it without fetching any block.
+    internal func nodeHead(account: Account, client: any BlockchainClientProtocol) async throws -> UInt64? {
+        try await client.transactionHistory(
+            account.address,
+            request: BlockchainTransactionHistoryRequest(
+                cursor: nil,
+                direction: .ascending,
+                lowerBound: .max,
+                upperBound: nil
+            )
+        ).head
     }
 
     func commit(

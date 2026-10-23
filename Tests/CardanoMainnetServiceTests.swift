@@ -96,7 +96,6 @@ private extension CardanoMainnetServiceTests {
         let keyStoreId = try #require(keyStore.id)
 
         var account = Account(
-            accountIndex: nil,
             address: try CardanoMainnetAccount.descriptor().string,
             blockchain: CardanoMainnetAccount.blockchain,
             derivationPath: nil,

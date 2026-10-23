@@ -45,6 +45,8 @@ extension StyledView {
         case callout
         /// 17pt semibold, list row titles and amounts.
         case headline
+        /// 18pt medium, HUD popup messages.
+        case hud
         /// 14pt monospaced, iPad hashes and amounts.
         case mono
         /// 11pt monospaced, Mac hashes and amounts.
@@ -110,6 +112,8 @@ private extension View {
             font(.system(size: 15, weight: .regular))
         case .headline:
             font(.system(size: 17, weight: .semibold))
+        case .hud:
+            font(.system(size: 18, weight: .medium))
         case .mono:
             font(.system(size: 14, weight: .regular, design: .monospaced))
         case .smallMono:

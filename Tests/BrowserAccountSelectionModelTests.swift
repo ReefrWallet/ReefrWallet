@@ -44,10 +44,9 @@ private func insertAccount(
     }
 
     let account = Account(
-        accountIndex: 0,
         address: address,
         blockchain: blockchain,
-        derivationPath: nil,
+        derivationPath: try DerivationPath(string: "m/44'/60'/0'/0/0"),
         keyStoreId: keyStoreId,
         name: name
     )

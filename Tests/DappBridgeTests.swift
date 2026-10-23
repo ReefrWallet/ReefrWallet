@@ -69,7 +69,6 @@ private func makeTestAccount(
     )
 
     return Account(
-        accountIndex: 0,
         address: address,
         blockchain: .evm(.ethereum(.sepolia)),
         derivationPath: nil,

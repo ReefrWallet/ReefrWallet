@@ -81,6 +81,7 @@ struct ParameterBlock: View {
             .style(.smallMono)
             .lineLimit(lineLimit)
             .textSelection(.enabled)
+            .help(lineLimit == nil ? "" : text)
             .frame(maxWidth: .infinity, alignment: .leading)
 #if os(macOS)
             .padding(12)
@@ -214,6 +215,7 @@ struct ParameterValue: View {
                 .lineLimit(lineLimit)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
+                .help(value)
 
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
@@ -226,6 +228,7 @@ struct ParameterValue: View {
                 .lineLimit(lineLimit)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
+                .help(value)
 
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)

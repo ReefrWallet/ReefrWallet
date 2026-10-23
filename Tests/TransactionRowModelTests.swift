@@ -224,7 +224,6 @@ private extension TransactionRowModelTests {
         let service = try service ?? makeDatabaseService()
         let keyStore = try await service.watchOnlyKeyStore()
         var account = Account(
-            accountIndex: nil,
             address: Self.owner,
             blockchain: blockchain,
             derivationPath: nil,

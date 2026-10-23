@@ -23,7 +23,6 @@ struct TransactionSyncServiceTests {
         }
 
         var account = Account(
-            accountIndex: nil,
             address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",
             blockchain: .tron(.testnet),
             derivationPath: nil,
@@ -176,7 +175,6 @@ struct TransactionSyncServiceTests {
 
         var accounts = addresses.enumerated().map { index, address in
             Account(
-                accountIndex: nil,
                 address: address,
                 blockchain: .evm(.ethereum(.sepolia)),
                 derivationPath: nil,
@@ -264,7 +262,6 @@ struct TransactionSyncServiceTests {
         }
 
         var account = Account(
-            accountIndex: nil,
             address: "0x18A25e76658ce696cF263FDec6434Be2BfDdb89A",
             blockchain: .evm(.ethereum(.mainnet)),
             derivationPath: nil,
@@ -320,6 +317,40 @@ struct TransactionSyncServiceTests {
         let balances = try await databaseService.fetchBalances(accountId: accountId)
         try await printTokenState(account: account, databaseService: databaseService)
         #expect(balances.count > 30, "Expected more than 30 token balances, found \(balances.count).")
+    }
+
+    @Test(.localNode)
+    func nodeHeadReturnsTipWithoutScanningBlocks() async throws {
+        let anvilNode = try await startAnvilNode()
+
+        defer {
+            anvilNode.stop()
+        }
+
+        try await anvilNode.mine(blocks: 3)
+
+        let databaseService = try makeDatabaseService()
+        let mnemonic = try Mnemonic.fromPhrase("test test test test test test test test test test test junk")
+        let keyStore = try await databaseService.makeMockKeyStore(mnemonic: mnemonic)
+
+        let account = try #require(
+            try await databaseService.makeMockEthereumAccounts(
+                keyStore: keyStore,
+                chainId: anvilNode.chainId,
+                rpcURLOverride: anvilNode.endpoint
+            ).first
+        )
+
+        let client = try DI.injectOrFail(BlockchainClientProvider.self).makeClient(
+            blockchain: account.blockchain,
+            rpcURL: account.rpcURLOverride,
+            backend: account.bitcoinBackend
+        )
+
+        let service = TransactionSyncService(databaseService: databaseService, transactionHistorySources: [])
+        let head = try await service.nodeHead(account: account, client: client)
+
+        #expect(head == (try await anvilNode.blockNumber()))
     }
 
     @Test
@@ -393,7 +424,6 @@ struct TransactionSyncServiceTests {
         }
 
         var account = Account(
-            accountIndex: nil,
             address: address,
             blockchain: .sui(.mainnet),
             derivationPath: nil,
@@ -452,7 +482,6 @@ struct TransactionSyncServiceTests {
 
         var accounts = addresses.enumerated().map { index, address in
             Account(
-                accountIndex: nil,
                 address: address,
                 blockchain: .sui(.testnet),
                 derivationPath: nil,
@@ -770,13 +799,13 @@ private struct TransactionSyncFixture {
     }
 
     private func ethereumSigner(at index: UInt64) throws -> EthereumPKeySigner {
-        let path = try DerivationPath(.evm(.custom(anvilNode.chainId)), accountIndex: index, curve: .secp256k1)
+        let path = try DerivationPath(string: "m/44'/60'/0'/0/\(index)")
         let privateKey = try Seed(rawBytes: requiredRawKey()).masterKey(curve: .secp256k1).derive(path).privateKey()
         return try EthereumPKeySigner(chainId: anvilNode.chainId, privateKey: privateKey, derivationPath: path)
     }
 
     private func suiSigner(at index: UInt64) throws -> SuiPKeySigner {
-        let path = try DerivationPath(.sui(.testnet), accountIndex: index, curve: .ed25519)
+        let path = try DerivationPath(string: "m/44'/784'/0'/0'/\(index)'")
         let privateKey = try Seed(rawBytes: requiredRawKey()).masterKey(curve: .ed25519).derive(path).privateKey()
         return try SuiPKeySigner(curve: .ed25519, privateKey: privateKey, derivationPath: path)
     }

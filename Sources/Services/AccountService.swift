@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftData
 import WalletKit
 
@@ -84,8 +85,13 @@ final class AccountService {
     ///   - bitcoinBackend: The Bitcoin indexing backend.
     ///   - watchOnlyAddress: The address to watch; required for watch-only
     ///     key stores, ignored otherwise.
+    ///   - derivationPath: The account path; must match the blockchain's
+    ///     shape, see ``DerivationPath/validate(for:curve:scriptType:)``.
+    ///     Defaults to the next account's path. Unused for watch-only.
     /// - Returns: The stored account.
-    /// - Throws: ``ReefrError/invalidData`` for an unsupported curve, a
+    /// - Throws: ``ReefrError/alreadyExists`` if the key store already has an
+    ///   account on `blockchain` with the same custom path;
+    ///   ``ReefrError/invalidData`` for an unsupported curve, a
     ///   missing script type, device ID or watch-only address, or an
     ///   unstored key store; ``ReefrError/invalidAddress`` for an invalid
     ///   watch-only address; ``ReefrError/notSupported`` for a Cardano
@@ -100,63 +106,81 @@ final class AccountService {
         signatureScheme: Curve? = nil,
         bitcoinScriptType: BitcoinScriptType? = nil,
         bitcoinBackend: BitcoinBackendKind? = nil,
-        watchOnlyAddress: String? = nil
+        watchOnlyAddress: String? = nil,
+        derivationPath: DerivationPath? = nil
     ) async throws -> Account {
-        let accountIndex = try await nextAccountIndex(for: blockchain, in: keyStore)
         let effectiveSignatureScheme = try makeSignatureScheme(blockchain: blockchain, requested: signatureScheme)
+        let existing = try await existingAccounts(for: blockchain, in: keyStore)
+
+        let path: DerivationPath?
+        if keyStore.isWatchOnly {
+            path = nil
+        } else if let derivationPath {
+            try derivationPath.validate(
+                for: blockchain,
+                curve: effectiveSignatureScheme,
+                scriptType: bitcoinScriptType
+            )
+
+            guard !existing.contains(where: { $0.derivationPath == derivationPath }) else {
+                throw ReefrError.alreadyExists
+            }
+
+            path = derivationPath
+        } else {
+            path = try nextPath(
+                for: blockchain,
+                after: existing,
+                curve: effectiveSignatureScheme,
+                scriptType: bitcoinScriptType
+            )
+        }
 
         let address: String
-        let derivationPath: String?
 
         switch keyStore.kind {
         case .local:
             let rawKey = try keyStore.localSeed()
 
-            let result: AddressResult
+            guard let path else {
+                throw ReefrError.invalidData
+            }
+
             if case let .cardano(network) = blockchain {
                 guard let entropy = keyStore.mnemonicEntropy else {
                     throw ReefrError.notSupported
                 }
 
-                let descriptor = try CardanoAccountDescriptor(
+                address = try CardanoAccountDescriptor(
                     entropy: entropy,
                     network: network,
-                    accountIndex: UInt32(accountIndex)
-                )
-
-                result = AddressResult(
-                    address: descriptor.string,
-                    derivationPath: "m/1852'/1815'/\(accountIndex)'"
-                )
+                    path: path
+                ).string
             } else {
-                result = try makeLocalAddress(
+                address = try makeLocalAddress(
                     blockchain: blockchain,
                     rawKey: rawKey,
-                    accountIndex: accountIndex,
+                    path: path,
                     signatureScheme: effectiveSignatureScheme,
                     bitcoinScriptType: bitcoinScriptType
                 )
             }
 
-            address = result.address
-            derivationPath = result.derivationPath
         case .trezor:
-            guard let deviceId = keyStore.deviceId else {
+            guard let deviceId = keyStore.deviceId, let path else {
                 throw ReefrError.invalidData
             }
 
-            let result = try await hardwareService.session(showsWait: true) {
-                let device = try await hardwareService.connect(.trezor, deviceId: deviceId, keyName: keyStore.name)
+            address = try await hardwareService.session(showsWait: true) {
+                let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
                 return try await makeTrezorAddress(
                     blockchain: blockchain,
-                    accountIndex: accountIndex,
+                    path: path,
                     device: device,
                     bitcoinScriptType: bitcoinScriptType
                 )
             }
 
-            address = result.address
-            derivationPath = result.derivationPath
         case .watchOnly:
             let trimmedAddress = watchOnlyAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -185,8 +209,6 @@ final class AccountService {
             } else {
                 address = trimmedAddress
             }
-
-            derivationPath = nil
         }
 
         guard let keyStoreId = keyStore.id else {
@@ -197,13 +219,28 @@ final class AccountService {
             ? blockchain.displayName
             : (blockchain.isMainnet ? blockchain.name : blockchain.networkName)
 
+        // A path that isn't a default one is named after itself; watch-only
+        // accounts have no path and are numbered by count.
+        let accountName: String
+        if let path {
+            let index = defaultAccountIndex(
+                of: path,
+                for: blockchain,
+                curve: effectiveSignatureScheme,
+                scriptType: bitcoinScriptType
+            )
+
+            accountName = index.map { "\(name) #\($0 + 1)" } ?? "\(name) \(path.string)"
+        } else {
+            accountName = "\(name) #\(existing.count + 1)"
+        }
+
         var account = Account(
-            accountIndex: accountIndex,
             address: address,
             blockchain: blockchain,
-            derivationPath: derivationPath,
+            derivationPath: path,
             keyStoreId: keyStoreId,
-            name: "\(name) #\(accountIndex + 1)",
+            name: accountName,
             rpcURLOverride: rpcURLOverride,
             signatureScheme: effectiveSignatureScheme,
             bitcoinBackend: bitcoinBackend
@@ -223,12 +260,210 @@ final class AccountService {
 
         return account
     }
+
+    /// The derivation path ``makeAccount`` would use for the next account on
+    /// `keyStore`; `nil` on error.
+    @MainActor
+    func nextDerivationPath(
+        _ blockchain: Blockchain,
+        keyStore: KeyStore,
+        signatureScheme: Curve? = nil,
+        bitcoinScriptType: BitcoinScriptType? = nil
+    ) async -> DerivationPath? {
+        guard let existing = try? await existingAccounts(for: blockchain, in: keyStore) else {
+            return nil
+        }
+
+        return try? nextPath(
+            for: blockchain,
+            after: existing,
+            curve: try? makeSignatureScheme(blockchain: blockchain, requested: signatureScheme),
+            scriptType: bitcoinScriptType
+        )
+    }
 }
 
 private extension AccountService {
-    struct AddressResult: Sendable {
+    /// The default path of account `accountIndex` on `blockchain`.
+    func defaultPath(
+        for blockchain: Blockchain,
+        accountIndex: UInt64,
+        curve: Curve?,
+        scriptType: BitcoinScriptType?
+    ) throws -> DerivationPath {
+        switch blockchain {
+        case let .bitcoin(network):
+            guard let scriptType else {
+                throw ReefrError.invalidData
+            }
+
+            return try .bitcoinAccount(
+                network: network,
+                scriptType: scriptType,
+                accountIndex: UInt32(truncatingIfNeeded: accountIndex)
+            )
+
+        case .cardano:
+            return try .cardanoAccount(accountIndex: UInt32(truncatingIfNeeded: accountIndex))
+        default:
+            return try DerivationPath(blockchain, accountIndex: accountIndex, curve: curve)
+        }
+    }
+
+    /// The index `N` if `path` is the default path of account `N`, else `nil`.
+    /// Without a `scriptType`, a Bitcoin path may be either script type's.
+    func defaultAccountIndex(
+        of path: DerivationPath,
+        for blockchain: Blockchain,
+        curve: Curve?,
+        scriptType: BitcoinScriptType?
+    ) -> UInt64? {
+        // Position of the segment holding the account index.
+        let position = switch blockchain {
+        case .aptos, .solana: 2
+        default: path.segments.count - 1
+        }
+
+        guard path.segments.indices.contains(position) else {
+            return nil
+        }
+
+        let index = UInt64(path.segments[position].index)
+        let scriptTypes: [BitcoinScriptType?] = if case .bitcoin = blockchain, scriptType == nil {
+            [.p2wpkh, .p2tr]
+        } else {
+            [scriptType]
+        }
+
+        let matches = scriptTypes.contains {
+            (try? defaultPath(for: blockchain, accountIndex: index, curve: curve, scriptType: $0)) == path
+        }
+
+        return matches ? index : nil
+    }
+
+    func existingAccounts(for blockchain: Blockchain, in keyStore: KeyStore) async throws -> [Account] {
+        guard let keyStoreId = keyStore.id else {
+            throw ReefrError.invalidData
+        }
+
+        return try await databaseService.fetchAccounts(keyStoreId: keyStoreId, blockchain: blockchain)
+    }
+
+    /// The default path after the highest default-path account among `accounts`.
+    func nextPath(
+        for blockchain: Blockchain,
+        after accounts: [Account],
+        curve: Curve?,
+        scriptType: BitcoinScriptType?
+    ) throws -> DerivationPath {
+        let indices = accounts.compactMap { account in
+            account.derivationPath.flatMap {
+                defaultAccountIndex(of: $0, for: blockchain, curve: account.signatureScheme, scriptType: nil)
+            }
+        }
+
+        return try defaultPath(
+            for: blockchain,
+            accountIndex: indices.max().map { $0 + 1 } ?? 0,
+            curve: curve,
+            scriptType: scriptType
+        )
+    }
+
+    func makeLocalAddress(
+        blockchain: Blockchain,
+        rawKey: Data,
+        path: DerivationPath,
+        signatureScheme: Curve?,
+        bitcoinScriptType: BitcoinScriptType? = nil
+    ) throws -> String {
+        // Bitcoin has no single derivation path (an account xpub, not one
+        // address, sits at its account-level path) — handled by its own
+        // branch below rather than the shared `curve`/`DerivationPath`
+        // flow the other chains use.
+        if case let .bitcoin(network) = blockchain {
+            return try makeLocalBitcoinAddress(
+                network: network, rawKey: rawKey, path: path, scriptType: bitcoinScriptType
+            )
+        }
+
+        let curve: Curve
+        switch blockchain {
+        case .evm:
+            curve = .secp256k1
+        case .tron:
+            curve = .secp256k1
+        case .solana:
+            curve = .ed25519
+        case .aptos, .sui:
+            guard let signatureScheme else {
+                throw ReefrError.invalidData
+            }
+
+            curve = signatureScheme
+        default:
+            throw ReefrError.notImplemented
+        }
+
+        let seed = try Seed(rawBytes: rawKey)
+
         let address: String
-        let derivationPath: String
+        switch blockchain {
+        case .aptos:
+            let publicKey = try seed.masterKey(curve: curve).derive(path).privateKey().publicKey
+            address = try AptosAddress(publicKey: publicKey, curve: curve).string
+        case .evm:
+            let privateKey = try seed.masterKey(curve: curve).derive(path).privateKey()
+            let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: path)
+            address = try signer.address().checksummed
+        case .tron:
+            let publicKey = try seed.masterKey(curve: curve).derive(path).privateKey().publicKey
+            address = try TronAddress(publicKey: publicKey).string
+        case .solana:
+            let publicKey = try seed.masterKey(curve: curve).derive(path).privateKey().publicKey
+            address = try SolanaAddress(publicKey: publicKey).string
+        case .sui:
+            let publicKey = try seed.masterKey(curve: curve).derive(path).privateKey().publicKey
+            address = try SuiAddress(publicKey: publicKey, curve: curve).string
+        default:
+            throw ReefrError.notImplemented
+        }
+
+        return address
+    }
+
+    /// Derives the account-level xpub at `path`,
+    /// computes its BIP-32 master fingerprint, and builds the resulting
+    /// `wpkh(...)`/`tr(...)` descriptor — stored as `Account.address` and
+    /// re-parsed via `BitcoinDescriptor(string:network:)` everywhere else
+    /// that needs it (the client, the builder, the signer).
+    func makeLocalBitcoinAddress(
+        network: BitcoinNetwork,
+        rawKey: Data,
+        path accountDerivationPath: DerivationPath,
+        scriptType: BitcoinScriptType?
+    ) throws -> String {
+        guard let scriptType else {
+            throw ReefrError.invalidData
+        }
+
+        let seed = try Seed(rawBytes: rawKey)
+        let masterKey = try seed.masterKey(curve: .secp256k1)
+        let masterFingerprint = try BitcoinDescriptor.fingerprint(of: masterKey.publicKey)
+
+        let accountKey = try masterKey.derive(accountDerivationPath)
+        let accountPathText = String(accountDerivationPath.string.dropFirst(2)) // drop the leading "m/".
+
+        let descriptor = try BitcoinDescriptor(
+            xpub: accountKey.serializedPublic(),
+            scriptType: scriptType,
+            network: network,
+            masterFingerprint: masterFingerprint,
+            accountPath: accountPathText
+        )
+
+        return descriptor.string
     }
 
     func makeSignatureScheme(blockchain: Blockchain, requested signatureScheme: Curve?) throws -> Curve? {
@@ -264,164 +499,53 @@ private extension AccountService {
         }
     }
 
-    func makeLocalAddress(
-        blockchain: Blockchain,
-        rawKey: Data,
-        accountIndex: UInt64,
-        signatureScheme: Curve?,
-        bitcoinScriptType: BitcoinScriptType? = nil
-    ) throws -> AddressResult {
-        // Bitcoin has no single derivation path (an account xpub, not one
-        // address, sits at its account-level path) — handled by its own
-        // branch below rather than the shared `curve`/`DerivationPath`
-        // flow the other chains use.
-        if case let .bitcoin(network) = blockchain {
-            return try makeLocalBitcoinAddress(
-                network: network, rawKey: rawKey, accountIndex: accountIndex, scriptType: bitcoinScriptType
-            )
-        }
-
-        let curve: Curve
-        switch blockchain {
-        case .evm:
-            curve = .secp256k1
-        case .tron:
-            curve = .secp256k1
-        case .solana:
-            curve = .ed25519
-        case .aptos, .sui:
-            guard let signatureScheme else {
-                throw ReefrError.invalidData
-            }
-
-            curve = signatureScheme
-        default:
-            throw ReefrError.notImplemented
-        }
-
-        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: curve)
-        let seed = try Seed(rawBytes: rawKey)
-
-        let address: String
-        switch blockchain {
-        case .aptos:
-            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
-            address = try AptosAddress(publicKey: publicKey, curve: curve).string
-        case .evm:
-            let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
-            let signer = try EthereumPKeySigner(privateKey: privateKey, derivationPath: derivationPath)
-            address = try signer.address().checksummed
-        case .tron:
-            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
-            address = try TronAddress(publicKey: publicKey).string
-        case .solana:
-            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
-            address = try SolanaAddress(publicKey: publicKey).string
-        case .sui:
-            let publicKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey().publicKey
-            address = try SuiAddress(publicKey: publicKey, curve: curve).string
-        default:
-            throw ReefrError.notImplemented
-        }
-
-        return AddressResult(address: address, derivationPath: derivationPath.string)
-    }
-
-    /// Derives the account-level xpub at
-    /// `DerivationPath.bitcoinAccount(network:scriptType:accountIndex:)`,
-    /// computes its BIP-32 master fingerprint, and builds the resulting
-    /// `wpkh(...)`/`tr(...)` descriptor — stored as `Account.address` and
-    /// re-parsed via `BitcoinDescriptor(string:network:)` everywhere else
-    /// that needs it (the client, the builder, the signer).
-    func makeLocalBitcoinAddress(
-        network: BitcoinNetwork,
-        rawKey: Data,
-        accountIndex: UInt64,
-        scriptType: BitcoinScriptType?
-    ) throws -> AddressResult {
-        guard let scriptType else {
-            throw ReefrError.invalidData
-        }
-
-        let seed = try Seed(rawBytes: rawKey)
-        let masterKey = try seed.masterKey(curve: .secp256k1)
-        let masterFingerprint = try BitcoinDescriptor.fingerprint(of: masterKey.publicKey)
-
-        let accountDerivationPath = try DerivationPath.bitcoinAccount(
-            network: network,
-            scriptType: scriptType,
-            accountIndex: UInt32(truncatingIfNeeded: accountIndex)
-        )
-
-        let accountKey = try masterKey.derive(accountDerivationPath)
-        let accountPathText = String(accountDerivationPath.string.dropFirst(2)) // drop the leading "m/".
-
-        let descriptor = try BitcoinDescriptor(
-            xpub: accountKey.serializedPublic(),
-            scriptType: scriptType,
-            network: network,
-            masterFingerprint: masterFingerprint,
-            accountPath: accountPathText
-        )
-
-        return AddressResult(address: descriptor.string, derivationPath: accountDerivationPath.string)
-    }
-
     func makeTrezorAddress(
         blockchain: Blockchain,
-        accountIndex: UInt64,
+        path: DerivationPath,
         device: HardwareDevice,
         bitcoinScriptType: BitcoinScriptType? = nil
-    ) async throws -> AddressResult {
+    ) async throws -> String {
         // Bitcoin has no single derivation path (an account xpub, not one
         // address, sits at its account-level path) — handled by its own
         // branch below rather than the shared `curve`/`DerivationPath`
         // flow the other chains use, matching `makeLocalAddress`.
         if case let .bitcoin(network) = blockchain {
             return try await makeTrezorBitcoinAddress(
-                network: network, accountIndex: accountIndex, scriptType: bitcoinScriptType, device: device
+                network: network, path: path, scriptType: bitcoinScriptType, device: device
             )
         }
 
         if case let .cardano(network) = blockchain {
-            let derivationPath = try DerivationPath(
-                string: "m/1852'/1815'/\(accountIndex)'"
-            )
-
-            let xpub = try await device.cardanoXpub(path: derivationPath)
-            let descriptor = try CardanoAccountDescriptor(xpub: xpub, network: network)
-            return AddressResult(address: descriptor.string, derivationPath: derivationPath.string)
+            let xpub = try await device.cardanoXpub(path: path)
+            return try CardanoAccountDescriptor(xpub: xpub, network: network).string
         }
-
-        let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: .secp256k1)
 
         switch blockchain {
         case .evm:
-            let signer = try await EthereumTrezorSigner(device: device, derivationPath: derivationPath)
-            return AddressResult(address: try signer.address().string, derivationPath: derivationPath.string)
+            let signer = try await EthereumTrezorSigner(device: device, derivationPath: path)
+            return try signer.address().string
         case .tron:
-            let publicKey = try await device.publicKey(path: derivationPath, curve: .secp256k1)
-            let address = try TronAddress(publicKey: publicKey)
-            return AddressResult(address: address.string, derivationPath: derivationPath.string)
+            let publicKey = try await device.publicKey(path: path, curve: .secp256k1)
+            return try TronAddress(publicKey: publicKey).string
         case .solana:
-            let signer = try await SolanaTrezorSigner(device: device, derivationPath: derivationPath)
-            return AddressResult(address: try signer.address().string, derivationPath: derivationPath.string)
+            let signer = try await SolanaTrezorSigner(device: device, derivationPath: path)
+            return try signer.address().string
         default:
             throw ReefrError.notImplemented
         }
     }
 
-    /// Reads the account-level xpub for `scriptType`/`accountIndex` off
+    /// Reads the account-level xpub for `scriptType` at `path` off
     /// `device` (``BitcoinTrezorSigner``'s two device reads: the master
     /// fingerprint, then the account xpub) and builds the resulting
     /// `wpkh(...)`/`tr(...)` descriptor — stored as `Account.address`, the
     /// same as ``makeLocalBitcoinAddress``'s software-derived equivalent.
     func makeTrezorBitcoinAddress(
         network: BitcoinNetwork,
-        accountIndex: UInt64,
+        path: DerivationPath,
         scriptType: BitcoinScriptType?,
         device: HardwareDevice
-    ) async throws -> AddressResult {
+    ) async throws -> String {
         guard let scriptType else {
             throw ReefrError.invalidData
         }
@@ -429,29 +553,10 @@ private extension AccountService {
         let signer = try await BitcoinTrezorSigner(
             network: network,
             scriptType: scriptType,
-            accountIndex: UInt32(truncatingIfNeeded: accountIndex),
+            path: path,
             device: device
         )
 
-        let descriptor = try signer.address()
-        return AddressResult(address: descriptor.string, derivationPath: signer.account.derivationPath.string)
-    }
-
-    /// Return next account index that has not yet been configured
-    func nextAccountIndex(for blockchain: Blockchain, in keyStore: KeyStore) async throws -> UInt64 {
-        guard let keyStoreId = keyStore.id else {
-            throw ReefrError.invalidData
-        }
-
-        let accounts = try await databaseService.fetchAccounts(keyStoreId: keyStoreId, blockchain: blockchain)
-        let nextIndex: UInt64 = accounts.reduce(into: 0, { partialResult, account in
-            let accountIndex = account.accountIndex ?? 0
-
-            if accountIndex >= partialResult {
-                partialResult = accountIndex + 1
-            }
-        })
-
-        return nextIndex
+        return try signer.address().string
     }
 }

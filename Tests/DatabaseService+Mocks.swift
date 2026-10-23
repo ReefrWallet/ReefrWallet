@@ -42,7 +42,8 @@ extension DatabaseService {
             curve: .secp256k1,
             keyStore: keyStore,
             rpcURLOverride: rpcURLOverride,
-            count: count
+            count: count,
+            path: { "m/44'/60'/0'/0/\($0)" }
         )
     }
 
@@ -56,7 +57,8 @@ extension DatabaseService {
             curve: .ed25519,
             keyStore: keyStore,
             rpcURLOverride: rpcURLOverride,
-            count: count
+            count: count,
+            path: { "m/44'/784'/0'/0'/\($0)'" }
         )
     }
 }
@@ -67,7 +69,8 @@ private extension DatabaseService {
         curve: Curve,
         keyStore: KeyStore,
         rpcURLOverride: URL,
-        count: Int
+        count: Int,
+        path: (Int) -> String
     ) throws -> [ReefrWallet.Account] {
         guard count > 0, let keyStoreId = keyStore.id else {
             throw ReefrError.invalidData
@@ -76,8 +79,7 @@ private extension DatabaseService {
         let seed = try Seed(rawBytes: keyStore.localSeed())
 
         return try (0 ..< count).map { index in
-            let accountIndex = UInt64(index)
-            let derivationPath = try DerivationPath(blockchain, accountIndex: accountIndex, curve: curve)
+            let derivationPath = try DerivationPath(string: path(index))
             let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
 
             let address = try makeMockAddress(
@@ -88,10 +90,9 @@ private extension DatabaseService {
             )
 
             var account = Account(
-                accountIndex: accountIndex,
                 address: address,
                 blockchain: blockchain,
-                derivationPath: derivationPath.string,
+                derivationPath: derivationPath,
                 keyStoreId: keyStoreId,
                 name: "\(blockchain.displayName) #\(index + 1)",
                 rpcURLOverride: rpcURLOverride,

@@ -29,6 +29,10 @@ struct AddAccountView {
     @State private var selectedBitcoinScriptType: BitcoinScriptType = .p2wpkh
     @State private var selectedBitcoinBackend: BitcoinBackendKind = .electrum
 
+    @State private var customDerivationPath = ""
+    @State private var nextDerivationPath: DerivationPath?
+    @State private var useCustomDerivationPath = false
+
     @State private var customEndpointURL: String = ""
     @State private var useCustomEndpoint: Bool = false
 
@@ -112,6 +116,28 @@ extension AddAccountView: View {
                     }
                 }
 
+                if supportsCustomDerivationPath {
+                    Section {
+                        let displayedDerivationPath: Binding<String> = .init(get: {
+                            useCustomDerivationPath && !customDerivationPath.isEmpty
+                                ? customDerivationPath
+                                : nextDerivationPath?.string ?? ""
+                        }, set: { newValue in
+                            if useCustomDerivationPath {
+                                customDerivationPath = newValue
+                            }
+                        })
+
+                        TextField("Derivation Path", text: displayedDerivationPath)
+                            .disabled(!useCustomDerivationPath)
+                            .padding(.top)
+                            .accessibilityIdentifier("add-account-derivation-path-field")
+
+                        Toggle("Custom Derivation Path", isOn: $useCustomDerivationPath)
+                            .accessibilityIdentifier("add-account-derivation-path-toggle")
+                    }
+                }
+
                 Section {
                     let displayedRpcUrl: Binding<String> = .init(get: {
                         if useCustomEndpoint, !customEndpointURL.isEmpty {
@@ -165,6 +191,16 @@ extension AddAccountView: View {
             }
         } message: {
             Text(alertMessage(error))
+        }
+        .task(
+            id: PathKey(blockchain: pathBlockchain, keyScheme: selectedKeyScheme, scriptType: selectedBitcoinScriptType)
+        ) {
+            nextDerivationPath = await accountService.nextDerivationPath(
+                pathBlockchain,
+                keyStore: keyStore,
+                signatureScheme: selectedKeyScheme,
+                bitcoinScriptType: selectedBitcoinScriptType
+            )
         }
         .onChange(of: selectedBlockchain, initial: true) { _, newValue in
             didSelectBlockchain(newValue)
@@ -274,7 +310,50 @@ private extension AddAccountView {
             return true
         }
 
+        if derivationPathOverride != nil, !isDerivationPathValid {
+            return true
+        }
+
         return false
+    }
+
+    var supportsCustomDerivationPath: Bool {
+        !keyStore.isWatchOnly
+    }
+
+    var isDerivationPathValid: Bool {
+        (try? parsedCustomDerivationPath()) != nil
+    }
+
+    func parsedCustomDerivationPath() throws -> DerivationPath {
+        try DerivationPath(
+            string: trimmedDerivationPath,
+            for: pathBlockchain,
+            curve: selectedKeyScheme ?? (selectedBlockchain.hasKeySchemeChoice ? .ed25519 : nil),
+            scriptType: selectedBitcoinScriptType
+        )
+    }
+
+    /// Bitcoin's coin type depends on the selected network.
+    var pathBlockchain: Blockchain {
+        if case .bitcoin = selectedBlockchain, let selectedNetwork {
+            return selectedNetwork
+        }
+
+        return selectedBlockchain
+    }
+
+    var trimmedDerivationPath: String {
+        customDerivationPath.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// `nil` unless the user ticked the override and typed a path.
+    var derivationPathOverride: String? {
+        guard supportsCustomDerivationPath, useCustomDerivationPath, !trimmedDerivationPath.isEmpty else {
+            return nil
+        }
+
+        return trimmedDerivationPath
     }
 
     var trimmedAddress: String {
@@ -301,7 +380,8 @@ private extension AddAccountView {
             signatureScheme: signatureScheme,
             bitcoinScriptType: isBitcoin ? selectedBitcoinScriptType : nil,
             bitcoinBackend: isBitcoin ? selectedBitcoinBackend : nil,
-            watchOnlyAddress: watchOnlyAddress
+            watchOnlyAddress: watchOnlyAddress,
+            derivationPath: derivationPathOverride == nil ? nextDerivationPath : try parsedCustomDerivationPath()
         )
 
         sidebarSelection.wrappedValue = account.id
@@ -358,6 +438,12 @@ private extension AddAccountView {
             }
         }
     }
+}
+
+private struct PathKey: Hashable {
+    let blockchain: Blockchain
+    let keyScheme: Curve?
+    let scriptType: BitcoinScriptType
 }
 
 // MARK: - Blockchain + Key Scheme

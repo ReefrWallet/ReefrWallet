@@ -14,10 +14,9 @@ import WalletKit
 struct Account: Equatable, Hashable, Identifiable, Sendable {
     var id: PersistentIdentifier?
 
-    let accountIndex: UInt64?
     let address: String
     let blockchain: Blockchain
-    let derivationPath: String?
+    let derivationPath: DerivationPath?
     let keyStoreId: PersistentIdentifier
     let name: String
     let rpcURLOverride: URL?
@@ -29,10 +28,9 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let bitcoinBackend: BitcoinBackendKind?
 
     init(
-        accountIndex: UInt64?,
         address: String,
         blockchain: Blockchain,
-        derivationPath: String?,
+        derivationPath: DerivationPath?,
         keyStoreId: PersistentIdentifier,
         name: String,
         rpcURLOverride: URL? = nil,
@@ -41,7 +39,6 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     ) {
         id = nil
 
-        self.accountIndex = accountIndex
         self.address = address
         self.blockchain = blockchain
         self.derivationPath = derivationPath
@@ -57,7 +54,6 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
 
 @Model
 final class AccountModel {
-    var accountIndex: UInt64?
     var address: String
     var derivationPath: String?
     var name: String
@@ -81,7 +77,6 @@ final class AccountModel {
     var keyStore: KeyStoreModel
 
     init(
-        accountIndex: UInt64? = nil,
         address: String,
         blockchain: BlockchainModel,
         derivationPath: String? = nil,
@@ -91,11 +86,10 @@ final class AccountModel {
         signatureScheme: Curve? = nil,
         bitcoinBackend: BitcoinBackendKind? = nil
     ) {
-        guard accountIndex != nil || keyStore.isWatchOnly else {
-            preconditionFailure("Missing account index")
+        guard derivationPath != nil || keyStore.isWatchOnly else {
+            preconditionFailure("Missing derivation path")
         }
 
-        self.accountIndex = accountIndex
         self.address = address
         self.balances = []
         self.transactions = []
@@ -115,10 +109,9 @@ final class AccountModel {
 extension Account {
     init(model: AccountModel) throws {
         id = model.id
-        accountIndex = model.accountIndex
         address = model.address
         blockchain = model.blockchain.blockchain
-        derivationPath = model.derivationPath
+        derivationPath = try model.derivationPath.map { try DerivationPath(string: $0) }
         keyStoreId = model.keyStore.id
         name = model.name
 
@@ -145,10 +138,9 @@ extension Account {
 extension AccountModel {
     convenience init(account: Account, blockchain: BlockchainModel, keyStore: KeyStoreModel) throws {
         self.init(
-            accountIndex: account.accountIndex,
             address: account.address,
             blockchain: blockchain,
-            derivationPath: account.derivationPath,
+            derivationPath: account.derivationPath?.string,
             keyStore: keyStore,
             name: account.name,
             rpcURLOverride: account.rpcURLOverride,
@@ -160,10 +152,28 @@ extension AccountModel {
 
 // MARK: - Comparable
 
+private extension AccountModel {
+    var parsedDerivationPath: DerivationPath? {
+        derivationPath.flatMap { try? DerivationPath(string: $0) }
+    }
+}
+
 extension AccountModel: Comparable {
     static func < (lhs: AccountModel, rhs: AccountModel) -> Bool {
-        (lhs.blockchain.blockchain.displayName, lhs.accountIndex ?? 0)
-            < (rhs.blockchain.blockchain.displayName, rhs.accountIndex ?? 0)
+        let lhsName = lhs.blockchain.blockchain.displayName
+        let rhsName = rhs.blockchain.blockchain.displayName
+
+        guard lhsName == rhsName else {
+            return lhsName < rhsName
+        }
+
+        // Accounts without a path (watch-only) go last, by name.
+        switch (lhs.parsedDerivationPath, rhs.parsedDerivationPath) {
+        case let (lhsPath?, rhsPath?): return lhsPath < rhsPath
+        case (_?, nil): return true
+        case (nil, _?): return false
+        case (nil, nil): return lhs.name < rhs.name
+        }
     }
 }
 
@@ -209,9 +219,9 @@ extension Account {
             blockchain.tokens.append(nativeToken)
 
             let account = AccountModel(
-                accountIndex: 1,
                 address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
                 blockchain: blockchain,
+                derivationPath: "m/44'/60'/0'/0/0",
                 keyStore: keyStore,
                 name: "Ethereum Sepolia #1"
             )
@@ -268,9 +278,9 @@ extension Account {
             blockchain.tokens.append(nativeToken)
 
             let account = AccountModel(
-                accountIndex: 1,
                 address: "0x5525d71aec7ef111b6648b62e451aa218e3a93821f15f70f3d7e465aa975248a",
                 blockchain: blockchain,
+                derivationPath: "m/44'/784'/0'/0'/0'",
                 keyStore: keyStore,
                 name: "Sui Testnet #1"
             )

@@ -22,24 +22,24 @@ struct HardwareKeyPrompt: Equatable, Identifiable {
         case wait
     }
 
-    /// The key store's name.
-    let keyName: String
+    /// The device vendor's name, e.g. "Trezor".
+    let vendorName: String
     let kind: Kind
 
     /// Stable across kinds so a presented sheet updates in place.
     var id: String {
-        keyName
+        vendorName
     }
 
     /// Text shown to the user.
     var message: String {
         switch kind {
         case .confirm:
-            "Continue on \(keyName)"
+            "Continue on \(vendorName)"
         case .connect:
-            "Connect \(keyName) to continue"
+            "Connect \(vendorName) to continue"
         case .wait:
-            "Reading from \(keyName), please wait..."
+            "Reading from \(vendorName), please wait"
         }
     }
 
@@ -72,8 +72,6 @@ final class HardwareKeyPromptCenter {
 
     /// Registered hosts in appearance order.
     private var hostIds: [UUID] = []
-    /// Key store names by device ID.
-    private var keyNames: [String: String] = [:]
     /// Number of open ``HardwareService`` sessions.
     private var sessionCount = 0
     /// Number of open sessions that show ``HardwareKeyPrompt/Kind/wait`` once connected.
@@ -110,13 +108,10 @@ final class HardwareKeyPromptCenter {
         prompt = nil
     }
 
-    /// Remembers `keyName` for confirm prompts from `deviceId`, and shows
-    /// "please wait" if an open session asked for it.
-    func didConnect(keyName: String, deviceId: String) {
-        keyNames[deviceId] = keyName
-
+    /// Shows "please wait" for `vendorName` if an open session asked for it.
+    func didConnect(vendorName: String) {
         if waitSessionCount > 0 {
-            prompt = HardwareKeyPrompt(keyName: keyName, kind: .wait)
+            prompt = HardwareKeyPrompt(vendorName: vendorName, kind: .wait)
         }
     }
 
@@ -143,15 +138,14 @@ final class HardwareKeyPromptCenter {
         hostIds.removeAll { $0 == id }
     }
 
-    /// Shows "Continue on" for `deviceId`, named by its key store, or by
-    /// `fallbackName` if it wasn't registered.
-    func showConfirm(deviceId: String, fallbackName: String) {
-        prompt = HardwareKeyPrompt(keyName: keyNames[deviceId] ?? fallbackName, kind: .confirm)
+    /// Shows "Continue on" for the device's vendor, e.g. "Trezor".
+    func showConfirm(vendorName: String) {
+        prompt = HardwareKeyPrompt(vendorName: vendorName, kind: .confirm)
     }
 
-    /// Shows "Connect" for `keyName`.
-    func showConnect(keyName: String) {
+    /// Shows "Connect" for `vendorName`.
+    func showConnect(vendorName: String) {
         isCancelled = false
-        prompt = HardwareKeyPrompt(keyName: keyName, kind: .connect)
+        prompt = HardwareKeyPrompt(vendorName: vendorName, kind: .connect)
     }
 }

@@ -522,10 +522,9 @@ extension DatabaseServiceTests {
         name: String = "Test Account"
     ) -> ReefrWallet.Account {
         Account(
-            accountIndex: 0,
             address: "0x0000000000000000000000000000000000000001",
             blockchain: blockchain,
-            derivationPath: nil,
+            derivationPath: try? DerivationPath(string: "m/44'/60'/0'/0/0"),
             keyStoreId: keyStoreId,
             name: name
         )

@@ -390,13 +390,12 @@ struct SuiDappProviderFixture {
     /// independent check that the dapp bridge produces the same
     /// signature this account's real key would.
     func makeIndependentSigner() throws -> SuiPKeySigner {
-        guard let derivationPathString = account.derivationPath, case let .sui(network) = account.blockchain else {
+        guard let derivationPath = account.derivationPath, case let .sui(network) = account.blockchain else {
             throw ReefrError.invalidData
         }
 
         let curve = account.signatureScheme ?? .ed25519
         let seed = try Seed(rawBytes: try keyStore.localSeed())
-        let derivationPath = try DerivationPath(string: derivationPathString)
         let privateKey = try seed.masterKey(curve: curve).derive(derivationPath).privateKey()
         return try SuiPKeySigner(curve: curve, network: network, privateKey: privateKey, derivationPath: derivationPath)
     }

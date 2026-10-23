@@ -18,20 +18,49 @@ final class DappApprover: DappApproving {
     private(set) var currentRequest: DappApprovalRequest?
     /// The last approved request's failure, shown as an alert until dismissed.
     var failureMessage: String?
+    /// Whether the approved `currentRequest` finished and "Complete" is showing.
+    private(set) var isCompleted = false
     /// Whether `currentRequest` was approved and is still being handled.
     private(set) var isProcessing = false
     private var pendingRequestId: UUID?
     private var pendingResult: ((DappApprovalResult) -> Void)?
     private var processingRequestId: UUID?
 
-    func didFinishRequest(_ requestId: UUID) async {
+    private static let completionDelay = Duration.seconds(1)
+
+    /// The popup to show over the approved request's sheet.
+    var progressPrompt: HostedPrompt? {
+        if isCompleted {
+            .complete("Complete")
+        } else if isProcessing {
+            .progress("Signing")
+        } else {
+            nil
+        }
+    }
+
+    func didFinishRequest(_ requestId: UUID, error: (any Error)?) async {
         guard isProcessing, processingRequestId == requestId else {
             return
         }
 
-        currentRequest = nil
-        isProcessing = false
-        processingRequestId = nil
+        if let error {
+            printError("Approved dapp request failed: \(error)")
+            failureMessage = failureMessage ?? error.localizedDescription
+            finishProcessing()
+            return
+        }
+
+        // Show "Complete" without holding up the dapp's response.
+        isCompleted = true
+        Task {
+            try? await Task.sleep(for: Self.completionDelay)
+            guard isCompleted, processingRequestId == requestId else {
+                return
+            }
+
+            finishProcessing()
+        }
     }
 
     func reportFailure(_ message: String) async {
@@ -45,6 +74,7 @@ final class DappApprover: DappApproving {
         rejectPending()
 
         currentRequest = request
+        isCompleted = false
         isProcessing = false
         pendingRequestId = DappRequestScope.id
         processingRequestId = nil
@@ -69,6 +99,13 @@ final class DappApprover: DappApproving {
         }
 
         resolve(.rejected)
+    }
+
+    private func finishProcessing() {
+        currentRequest = nil
+        isCompleted = false
+        isProcessing = false
+        processingRequestId = nil
     }
 
     /// Resolves the currently presented request with the user's decision.

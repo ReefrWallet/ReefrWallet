@@ -183,7 +183,6 @@ private extension BalancesServiceTests {
         endpointURL: URL
     ) -> ReefrWallet.Account {
         Account(
-            accountIndex: nil,
             address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
             blockchain: blockchain,
             derivationPath: nil,
@@ -195,7 +194,6 @@ private extension BalancesServiceTests {
 
     func makeTronAccount(keyStoreId: PersistentIdentifier) -> ReefrWallet.Account {
         Account(
-            accountIndex: nil,
             address: "TGtcCdz2aV9vvCEtQL5BY8z2BnLi4oJ3sK",
             blockchain: .tron(.testnet),
             derivationPath: nil,

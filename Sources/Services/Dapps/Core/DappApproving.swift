@@ -139,8 +139,8 @@ protocol DappApproving: Sendable {
     func approve(_ request: DappApprovalRequest) async -> DappApprovalResult
 
     /// Called once the request with `requestId` (``DappRequestScope/id``)
-    /// has been fully handled.
-    func didFinishRequest(_ requestId: UUID) async
+    /// has been fully handled, with the error it failed with, if any.
+    func didFinishRequest(_ requestId: UUID, error: (any Error)?) async
 
     /// Tells the user an approved request failed (e.g. the hardware wallet
     /// was unavailable) — dapps often swallow the rejected promise.
@@ -148,7 +148,7 @@ protocol DappApproving: Sendable {
 }
 
 extension DappApproving {
-    func didFinishRequest(_ requestId: UUID) async {}
+    func didFinishRequest(_ requestId: UUID, error: (any Error)?) async {}
 
     func reportFailure(_ message: String) async {}
 }
@@ -173,7 +173,12 @@ enum DappRequestScope {
             }
         }
 
-        await approving.didFinishRequest(requestId)
+        if case let .failure(error) = result {
+            await approving.didFinishRequest(requestId, error: error)
+        } else {
+            await approving.didFinishRequest(requestId, error: nil)
+        }
+
         return try result.get()
     }
 }
