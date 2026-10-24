@@ -459,6 +459,7 @@ extension SidebarView {
         }
 
         Task {
+            let approvalService = DI.injectOrFail(ApprovalService.self)
             let balancesService = DI.injectOrFail(BalancesService.self)
             let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
 
@@ -469,6 +470,16 @@ extension SidebarView {
                     printVerbose("Refresh: balances done \(account.name)")
                 } catch {
                     printError("\(account.name): \(error)")
+                }
+
+                guard approvalService.supports(account) else {
+                    continue
+                }
+
+                do {
+                    try await approvalService.updateApprovals(account)
+                } catch {
+                    printError("\(account.name) approvals: \(error)")
                 }
             }
 

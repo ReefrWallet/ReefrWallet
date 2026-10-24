@@ -31,6 +31,7 @@ import WalletKit
         let persistedDatabaseService = databaseService!
         let syncService = transactionSyncService!
         let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
+        let approvalService = DI.injectOrFail(ApprovalService.self)
         Task {
             await Self.processPostStartupOptions(
                 accountService: accountService,
@@ -51,6 +52,7 @@ import WalletKit
 #endif
 
             await syncService.startAll()
+            await approvalService.refreshAll()
         }
     }
 

@@ -23,6 +23,9 @@
     "%@ accounts" : {
 
     },
+    "%@ Approvals" : {
+
+    },
     "%@, %@" : {
       "comment" : "Asset counts: NFTs, then tokens",
       "localizations" : {

@@ -98,6 +98,9 @@ final class TokenModel {
     var symbol: String
     var usdPrice: Decimal?
 
+    @Relationship(deleteRule: .cascade, inverse: \ApprovalModel.token)
+    var approvals: [ApprovalModel]? = []
+
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.token)
     var balances: [BalanceModel]?
 

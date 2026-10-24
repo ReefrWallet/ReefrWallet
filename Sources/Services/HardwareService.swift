@@ -32,6 +32,13 @@ final class HardwareService {
     /// Hardware key prompts for the UI to present.
     let promptCenter = HardwareKeyPromptCenter()
 
+    /// Devices connected so far, kept alive between sessions. WalletKit's manager hands back
+    /// the already-open device on a repeat connect and keeps the delegate it was first
+    /// connected with, whose weak reference to its ``HardwareDevice`` is nil once that is
+    /// released — and the confirm prompts then never reach ``promptCenter``.
+    private var connectedDevices: [String: HardwareDevice] = [:]
+    private let connectedDevicesLock = NSLock()
+
     private static let maxConnectAttempts = 5
     private static let maxReconnectAttempts = 3
     private static let retryDelay = Duration.seconds(1)
@@ -95,6 +102,10 @@ final class HardwareService {
         transport: HardwareTransportKind = .usb,
         where isWanted: (HardwareDeviceInfo) -> Bool
     ) async throws -> HardwareDevice? {
+        if let device = cachedDevice(vendor, transport: transport, where: isWanted) {
+            return device
+        }
+
         var index = 0
 
         while true {
@@ -103,9 +114,11 @@ final class HardwareService {
             }
 
             if isWanted(device.info) {
+                cache(device)
                 return device
             }
 
+            forget(device)
             await device.disconnect()
             await waitUntilDisconnected(device)
             index += 1
@@ -143,6 +156,42 @@ final class HardwareService {
 }
 
 private extension HardwareService {
+    func cache(_ device: HardwareDevice) {
+        connectedDevicesLock.lock()
+        defer {
+            connectedDevicesLock.unlock()
+        }
+
+        connectedDevices[device.info.id] = device
+    }
+
+    /// A still-connected device from an earlier session that satisfies `isWanted`.
+    func cachedDevice(
+        _ vendor: HardwareVendor,
+        transport: HardwareTransportKind,
+        where isWanted: (HardwareDeviceInfo) -> Bool
+    ) -> HardwareDevice? {
+        connectedDevicesLock.lock()
+        defer {
+            connectedDevicesLock.unlock()
+        }
+
+        connectedDevices = connectedDevices.filter { $0.value.isConnected }
+
+        return connectedDevices.values.first { device in
+            device.info.vendor == vendor && device.info.transport == transport && isWanted(device.info)
+        }
+    }
+
+    func forget(_ device: HardwareDevice) {
+        connectedDevicesLock.lock()
+        defer {
+            connectedDevicesLock.unlock()
+        }
+
+        connectedDevices[device.info.id] = nil
+    }
+
     func connectDevice(
         _ vendor: HardwareVendor,
         transport: HardwareTransportKind,

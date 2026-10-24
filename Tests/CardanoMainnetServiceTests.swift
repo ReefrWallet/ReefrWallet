@@ -111,6 +111,8 @@ private extension CardanoMainnetServiceTests {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: AccountModel.self,
+                ApprovalModel.self,
+                ApprovalScanModel.self,
                 BalanceModel.self,
                 BlockchainModel.self,
                 KeyStoreModel.self,

@@ -482,6 +482,12 @@ private extension TransactionSyncService {
         if updatesBalances {
             await enqueueBalanceUpdates(for: page.transactions, account: account)
         }
+
+        // Approvals come from the account's own transactions; a new one may grant or revoke.
+        if track == .ascending, account.blockchain.supportsApprovals,
+           page.transactions.contains(where: { $0.sender?.caseInsensitiveCompare(account.address) == .orderedSame }) {
+            DI.injectOrFail(ApprovalService.self).enqueueRefresh(account)
+        }
     }
 
     func recordFailure(_ error: any Swift.Error, account: Account) async {

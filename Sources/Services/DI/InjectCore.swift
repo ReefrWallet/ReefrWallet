@@ -30,6 +30,8 @@ extension ServiceContainer {
             do {
                 return try ModelContainer(
                     for: AccountModel.self,
+                        ApprovalModel.self,
+                        ApprovalScanModel.self,
                         BalanceModel.self,
                         BlockchainModel.self,
                         ConnectedDappModel.self,
@@ -52,6 +54,10 @@ extension ServiceContainer {
     func registerCore() -> Self {
         register(AccountService.self) {
             AccountService()
+        }
+
+        register(ApprovalService.self) {
+            ApprovalService()
         }
 
         register(BalancesService.self) {

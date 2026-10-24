@@ -61,6 +61,12 @@ final class AccountModel {
     var signatureScheme: String?
     var bitcoinBackend: String?
 
+    @Relationship(deleteRule: .cascade, inverse: \ApprovalModel.account)
+    var approvals: [ApprovalModel] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \ApprovalScanModel.account)
+    var approvalScans: [ApprovalScanModel] = []
+
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
 

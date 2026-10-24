@@ -59,6 +59,13 @@ extension AccountDetailsView: View {
                     .tabItem {
                         Label("Transactions", systemImage: "list.bullet")
                     }
+
+                if account.blockchain.supportsApprovals {
+                    AccountApprovalsView(account)
+                        .tabItem {
+                            Label("Approvals", systemImage: "checkmark.shield")
+                        }
+                }
             }
         }
         .toolbar {
