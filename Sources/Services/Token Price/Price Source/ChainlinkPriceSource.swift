@@ -7,6 +7,10 @@ struct ChainlinkPriceSource: PriceSource {
 
     let clientProvider: BlockchainClientProvider
 
+    var id: String {
+        "chainlink"
+    }
+
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal? {
         guard case let .evm(blockchain)? = token.blockchain else {
             return nil

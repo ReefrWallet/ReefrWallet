@@ -47,6 +47,34 @@ struct TokenPriceServiceTests {
         }
     }
 
+    @Test func triesTheLastSuccessfulSourceFirst() async throws {
+        let service = TokenPriceService(sources: [
+            StubPriceSource(id: "first", price: 1),
+            StubPriceSource(id: "second", price: 2)
+        ])
+
+        var token = testToken
+        token.priceSourceId = "second"
+        let price = try await service.resolvedPrice(token, rpcURL: testRPCURL)
+
+        #expect(price.usdPrice == 2)
+        #expect(price.sourceId == "second")
+    }
+
+    @Test func fallsBackToRegistryOrderWhenTheLastSourceFails() async throws {
+        let service = TokenPriceService(sources: [
+            StubPriceSource(id: "first", price: 1),
+            StubPriceSource(id: "second", shouldThrow: true)
+        ])
+
+        var token = testToken
+        token.priceSourceId = "second"
+        let price = try await service.resolvedPrice(token, rpcURL: testRPCURL)
+
+        #expect(price.usdPrice == 1)
+        #expect(price.sourceId == "first")
+    }
+
     @Test func cetusDoesNotAttemptAQuoteOutsideSuiMainnet() async throws {
         let source = CetusPriceSource(clientProvider: BlockchainClientProvider())
 
@@ -151,10 +179,12 @@ struct TokenPriceServiceTests {
 }
 
 private struct StubPriceSource: PriceSource {
+    let id: String
     let shouldThrow: Bool
     let value: Decimal?
 
-    init(shouldThrow: Bool = false, price: Decimal? = nil) {
+    init(id: String = "stub", shouldThrow: Bool = false, price: Decimal? = nil) {
+        self.id = id
         self.shouldThrow = shouldThrow
         value = price
     }

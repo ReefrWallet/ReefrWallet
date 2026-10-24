@@ -37,22 +37,31 @@ final class TokenPriceService: @unchecked Sendable {
 
         var updatedToken = token
         updatedToken.coinGeckoId = coinGeckoId
+        updatedToken.priceSourceId = price.sourceId
         updatedToken.usdPrice = price.usdPrice
         try await databaseService.updateTokenPrices([updatedToken])
         return price.usdPrice
     }
 
-    func resolvedPrice(_ token: Token, rpcURL: URL) async throws -> CoinGeckoPrice {
+    /// Tries sources in registry order, except that `token`'s last successful source goes first.
+    func resolvedPrice(_ token: Token, rpcURL: URL) async throws -> ResolvedTokenPrice {
         var mostRecentError: (any Swift.Error)?
 
-        for source in sources {
+        let orderedSources = sources.filter { $0.id == token.priceSourceId }
+            + sources.filter { $0.id != token.priceSourceId }
+
+        for source in orderedSources {
             let name = String(describing: type(of: source))
 
             do {
                 if let coinGecko = source as? CoinGeckoPriceSource {
                     if let price = try await coinGecko.resolvedPrice(token, rpcURL: rpcURL) {
                         printVerbose("\(token.symbol): \(name) -> \(price.usdPrice)")
-                        return price
+                        return ResolvedTokenPrice(
+                            coinGeckoId: price.coinGeckoId,
+                            sourceId: source.id,
+                            usdPrice: price.usdPrice
+                        )
                     }
 
                     printVerbose("\(token.symbol): \(name) -> no price")
@@ -61,7 +70,7 @@ final class TokenPriceService: @unchecked Sendable {
 
                 if let usdPrice = try await source.usdPrice(token, rpcURL: rpcURL) {
                     printVerbose("\(token.symbol): \(name) -> \(usdPrice)")
-                    return CoinGeckoPrice(coinGeckoId: nil, usdPrice: usdPrice)
+                    return ResolvedTokenPrice(coinGeckoId: nil, sourceId: source.id, usdPrice: usdPrice)
                 }
 
                 printVerbose("\(token.symbol): \(name) -> unsupported/no price")
@@ -77,4 +86,10 @@ final class TokenPriceService: @unchecked Sendable {
 
         throw WalletKitError.unsupportedFeature
     }
+}
+
+struct ResolvedTokenPrice: Sendable {
+    let coinGeckoId: String?
+    let sourceId: String
+    let usdPrice: Decimal
 }

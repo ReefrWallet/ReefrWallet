@@ -132,11 +132,12 @@ private extension TokenPriceScheduler {
 
             var updatedToken = token
             updatedToken.coinGeckoId = price.coinGeckoId ?? token.coinGeckoId
+            updatedToken.priceSourceId = price.sourceId
             updatedToken.usdPrice = price.usdPrice
             try await databaseService.updateTokenPrices([updatedToken])
 
             rateLimitBackoff = nil
-            printVerbose("\(request.description): \(price.usdPrice) USD")
+            printVerbose("\(request.description): \(price.usdPrice) USD from \(price.sourceId)")
             return .updated
         } catch {
             // Stamp failures too, so a token that always fails can't hold up the rest of the queue.

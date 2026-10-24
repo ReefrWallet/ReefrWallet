@@ -17,6 +17,7 @@ struct TokenPriceSchedulerTests {
         let unheld = try #require(tokens.first { $0.address == unheldTokenAddress })
 
         for token in [held, native] {
+            #expect(token.priceSourceId == ScriptedPriceSource.id)
             #expect(token.usdPrice == 2)
             #expect(token.priceUpdatedAt != nil)
             #expect(!token.hasPriceFetchError)
@@ -38,6 +39,28 @@ struct TokenPriceSchedulerTests {
         #expect(held.usdPrice == nil)
         #expect(try await fixture.dueAddresses(after: TokenPriceScheduler.refreshInterval + 1).isEmpty)
         #expect(try await fixture.dueAddresses(after: TokenPriceScheduler.failureRetryInterval + 1).count == 2)
+    }
+
+    @Test func failedFetchForgetsTheSourceButKeepsThePrice() async throws {
+        let isFailing = Flag(false)
+
+        let fixture = try await Fixture(source: ScriptedPriceSource { _ in
+            guard !isFailing.value else {
+                throw TestError.failed
+            }
+
+            return 3
+        })
+
+        _ = await fixture.scheduler.updateDueTokens()
+        isFailing.value = true
+        let later = Date.now.addingTimeInterval(TokenPriceScheduler.refreshInterval + 1)
+        _ = await fixture.scheduler.updateDueTokens(now: later)
+
+        let held = try #require(try await fixture.tokens().first { $0.address == heldTokenAddress })
+        #expect(held.hasPriceFetchError)
+        #expect(held.priceSourceId == nil)
+        #expect(held.usdPrice == 3)
     }
 
     @Test func staleTokensAreOrderedOldestFirst() async throws {
@@ -155,7 +178,13 @@ private final class Flag: @unchecked Sendable {
 }
 
 private struct ScriptedPriceSource: PriceSource {
+    static let id = "scripted"
+
     let price: @Sendable (Token) throws -> Decimal?
+
+    var id: String {
+        Self.id
+    }
 
     func usdPrice(_ token: Token, rpcURL _: URL) async throws -> Decimal? {
         try price(token)

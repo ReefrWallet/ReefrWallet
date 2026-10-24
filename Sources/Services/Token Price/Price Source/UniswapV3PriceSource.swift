@@ -10,6 +10,10 @@ struct UniswapV3PriceSource: PriceSource {
 
     let clientProvider: BlockchainClientProvider
 
+    var id: String {
+        "uniswapV3"
+    }
+
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal? {
         guard case let .evm(blockchain)? = token.blockchain, let address = token.address else {
             return nil

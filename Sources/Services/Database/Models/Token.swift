@@ -24,6 +24,8 @@ struct Token: Hashable, Sendable {
     var isIncludedInBalance: Bool?
     let isNativeToken: Bool
     var name: String
+    /// The `PriceSource.id` that quoted `usdPrice`; `nil` after a failed fetch.
+    var priceSourceId: String?
     /// When a price fetch last completed, successfully or not.
     var priceUpdatedAt: Date?
     var symbol: String
@@ -91,6 +93,7 @@ final class TokenModel {
     var isNativeToken: Bool
     var isWhitelisted: Bool?
     var name: String
+    var priceSourceId: String?
     var priceUpdatedAt: Date?
     var symbol: String
     var usdPrice: Decimal?
@@ -140,6 +143,7 @@ extension Token {
         isIncludedInBalance = model.isIncludedInBalance
         isNativeToken = model.isNativeToken
         name = model.name
+        priceSourceId = model.priceSourceId
         priceUpdatedAt = model.priceUpdatedAt
         symbol = model.symbol
         usdPrice = model.usdPrice

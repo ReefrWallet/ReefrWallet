@@ -25,6 +25,10 @@ struct CoinGeckoPriceSource: PriceSource {
         )))
     }
 
+    var id: String {
+        "coinGecko"
+    }
+
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal? {
         try await resolvedPrice(token, rpcURL: rpcURL)?.usdPrice
     }

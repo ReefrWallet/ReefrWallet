@@ -7,6 +7,10 @@ struct CetusPriceSource: PriceSource {
 
     let clientProvider: BlockchainClientProvider
 
+    var id: String {
+        "cetus"
+    }
+
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal? {
         guard case let .sui(network)? = token.blockchain, network == .mainnet, token.isNativeToken else {
             return nil

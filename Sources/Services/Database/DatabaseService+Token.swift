@@ -203,10 +203,12 @@ extension DatabaseService {
             }
     }
 
-    /// Stamps `token` as fetched at `date` with a failed fetch, keeping its last good price.
+    /// Stamps `token` as fetched at `date` with a failed fetch, keeping its last good price but
+    /// forgetting its source, so the next fetch tries sources in registry order.
     func markTokenPriceFetchFailed(_ token: Token, at date: Date) throws {
         let tokenModel = try tokenModel(for: token)
         tokenModel.hasPriceFetchError = true
+        tokenModel.priceSourceId = nil
         tokenModel.priceUpdatedAt = date
         try modelContext.save()
     }
@@ -245,12 +247,13 @@ private extension DatabaseService {
         return tokenModel
     }
 
-    /// Stores a successful quote: price, CoinGecko id, and a fresh, error-free timestamp.
+    /// Stores a successful quote: price, its source, CoinGecko id, and a fresh, error-free timestamp.
     @discardableResult
     func updateTokenPrice(_ token: Token, shouldSaveContext: Bool) throws -> PersistentIdentifier {
         let tokenModel = try tokenModel(for: token)
         tokenModel.coinGeckoId = token.coinGeckoId
         tokenModel.hasPriceFetchError = false
+        tokenModel.priceSourceId = token.priceSourceId
         tokenModel.priceUpdatedAt = .now
         tokenModel.usdPrice = token.usdPrice
 
