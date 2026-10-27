@@ -10,17 +10,18 @@ import WalletKit
 
 /// One wallet-provider namespace a dapp can talk to — `window.ethereum`
 /// for Ethereum, Wallet Standard for Sui/Solana, TronLink-style
-/// `window.tronLink`/`window.tronWeb` for Tron. Cardano (CIP-30) and
-/// Bitcoin plug in the same way later: chain-agnostic
+/// `window.tronLink`/`window.tronWeb` for Tron, CIP-30 `window.cardano` for
+/// Cardano. Bitcoin plugs in the same way later: chain-agnostic
 /// bridge/session/approval code dispatches on this case, while only the
 /// namespace's own `DappProvider` and JS files know anything chain-specific.
 enum DappNamespace: String, CaseIterable, Sendable {
     case aptos
+    case cardano
     case ethereum
     case solana
     case sui
     case tron
-    // Later: case bitcoin, cardano.
+    // Later: case bitcoin.
 
     /// Third-party JS libraries this namespace's provider scripts depend
     /// on — `Resources/Browser/vendor/<name>.js` for each, injected before
@@ -28,7 +29,7 @@ enum DappNamespace: String, CaseIterable, Sendable {
     /// first use and never touches page globals (ADR-030, ADR-032).
     var libraryScriptNames: [String] {
         switch self {
-        case .aptos, .ethereum, .solana: []
+        case .aptos, .cardano, .ethereum, .solana: []
         case .sui: ["sui-sdk"]
         case .tron: ["tronweb"]
         }
@@ -42,6 +43,7 @@ enum DappNamespace: String, CaseIterable, Sendable {
     var providerScriptNames: [String] {
         switch self {
         case .aptos: ["aptos"]
+        case .cardano: ["cardano"]
         case .ethereum: ["ethereum", "ethereum-wallet-standard"]
         case .solana: ["solana", "solana-legacy"]
         case .sui: ["sui"]
@@ -61,6 +63,12 @@ enum DappNamespace: String, CaseIterable, Sendable {
         switch self {
         case .aptos:
             if case .aptos = blockchain {
+                return true
+            }
+
+            return false
+        case .cardano:
+            if case .cardano = blockchain {
                 return true
             }
 

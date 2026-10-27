@@ -89,6 +89,9 @@ struct TronDappProvider: DappProvider {
         case let .internalError(reason):
             code = -32603
             message = reason
+        case .cardano:
+            code = -32603
+            message = "Unexpected Cardano error."
         }
 
         return .object(["code": .number(Double(code)), "message": .string(message)])
@@ -201,6 +204,7 @@ private extension TronDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.tron, account: account)
         let signature = try await context.signingService.signMessage(.tronMessage(message), account: account)
         return .object(["signature": .string(signature.hexEncoded)])
     }
@@ -238,6 +242,8 @@ private extension TronDappProvider {
         guard case .approved = result else {
             throw .userRejected
         }
+
+        try await context.authorize(.tron, account: account)
 
         do {
             let signature = try await transactionService.signTransaction(envelope, account: account)

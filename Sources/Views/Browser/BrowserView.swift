@@ -32,7 +32,8 @@ private final class BrowserController {
         let signingService = DI.injectOrFail(DappSigningService.self)
         let bridge = DappBridge(
             providers: [
-                AptosDappProvider(), EthereumDappProvider(), SolanaDappProvider(), SuiDappProvider(), TronDappProvider()
+                AptosDappProvider(), CardanoDappProvider(), EthereumDappProvider(), SolanaDappProvider(),
+                SuiDappProvider(), TronDappProvider()
             ],
             session: session,
             approving: approver,

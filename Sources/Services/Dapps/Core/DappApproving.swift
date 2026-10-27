@@ -23,6 +23,8 @@ enum DappApprovalRequest: Sendable {
 enum DappMessagePreview: Sendable {
     /// The full AIP-62 message the wallet assembled and will sign.
     case aptosMessage(String)
+    /// A CIP-8 `signData` payload and the address it is signed for.
+    case cardanoCIP8(address: String, keyRole: CardanoKeyRole, payload: Data)
     case ethereumPersonal(Data)
     case ethereumTypedData(EthereumTypedDataSummary)
     case solanaMessage(Data)
@@ -30,18 +32,41 @@ enum DappMessagePreview: Sendable {
     /// A TronWeb `signMessageV2` message's raw bytes.
     case tronMessage(Data)
 
-    // Later: .cardanoCIP8, .bitcoinBIP322.
+    // Later: .bitcoinBIP322.
 }
 
 /// A transaction a dapp asked the user to send, per chain.
 enum DappTransactionPreview: Sendable {
     case aptos(AptosTransactionPreview)
+    case cardano(CardanoTransactionPreview)
     case ethereum(EthereumCallPreview, Fees)
     case solana(SolanaTransactionPreview)
     case sui(SuiTransactionPreview)
     case tron(TronTransactionPreview)
 
     // Later: other chains' call/transfer previews.
+}
+
+/// Which key signs a CIP-8 message.
+enum CardanoKeyRole: Sendable {
+    case payment
+    case stake
+}
+
+/// A dapp-supplied Cardano transaction (CIP-30 `signTx`), for the approval
+/// detail view. `transaction` is decoded fail-closed from `rawBytes` before
+/// this is constructed; ``CardanoDappProvider`` rejects anything it can't
+/// decode, or that isn't signable as requested, before any prompt.
+struct CardanoTransactionPreview: Sendable {
+    /// Required signers with no valid witness and no key in this account.
+    let missingSignerCount: Int
+    let partialSign: Bool
+    let rawBytes: Data
+    /// The account's keys that will sign.
+    let signingPaths: [CardanoSigningPath]
+    let transaction: CardanoDappTransaction
+    /// Pre-existing witnesses that already verify.
+    let validWitnessCount: Int
 }
 
 /// A dapp-supplied Solana transaction (`solana:signTransaction`/

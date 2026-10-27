@@ -90,6 +90,8 @@ private extension DappRequestSheet {
             switch preview {
             case let .aptosMessage(fullMessage):
                 SignMessageParametersView(account: account, message: fullMessage, site: site)
+            case let .cardanoCIP8(_, keyRole, payload):
+                CardanoMessageParametersView(account: account, keyRole: keyRole, message: payload, site: site)
             case let .ethereumPersonal(message):
                 SignMessageParametersView(account: account, message: message, site: site)
             case let .ethereumTypedData(summary):
@@ -156,6 +158,8 @@ private extension DappRequestSheet {
                 switch preview {
                 case let .aptos(preview):
                     AptosTransactionParametersView(account: account, preview: preview, site: site)
+                case let .cardano(preview):
+                    CardanoTransactionParametersView(account: account, preview: preview, site: site)
                 case .ethereum:
                     EmptyView()
                 case let .solana(preview):

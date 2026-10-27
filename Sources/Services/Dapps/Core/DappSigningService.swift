@@ -28,6 +28,53 @@ final class DappSigningService: @unchecked Sendable {
         self.transactionService = transactionService ?? DI.injectOrFail(TransactionService.self)
     }
 
+    /// Signs a Cardano dapp transaction and returns its witness set. `authorize`
+    /// re-validates the approved request immediately before the key is touched.
+    func signCardanoTransaction(
+        _ transaction: Data,
+        paths: [CardanoSigningPath],
+        account: Account,
+        authorize: @Sendable () async throws(DappError) -> Void
+    ) async throws(DappError) -> Data {
+        try await cardanoSign(account: account, authorize: authorize) { signer in
+            try await signer.signDappTransaction(transaction, paths: paths)
+        }
+    }
+
+    /// Signs a CIP-8 payload with the key at `path`; `authorize` as above.
+    func signCardanoData(
+        _ payload: Data,
+        address: Data,
+        path: CardanoSigningPath,
+        account: Account,
+        authorize: @Sendable () async throws(DappError) -> Void
+    ) async throws(DappError) -> CardanoSignedData {
+        try await cardanoSign(account: account, authorize: authorize) { signer in
+            try await signer.signData(payload, address: address, path: path)
+        }
+    }
+
+    private func cardanoSign<T>(
+        account: Account,
+        authorize: @Sendable () async throws(DappError) -> Void,
+        _ body: (any CardanoDappSigner) async throws -> T
+    ) async throws(DappError) -> T {
+        do {
+            return try await transactionService.withCardanoDappSigner(
+                for: account,
+                beforeKeyAccess: { try await authorize() },
+                body
+            )
+        } catch ReefrError.notSupported {
+            throw DappError.unauthorized
+        } catch let error as DappError {
+            throw error
+        } catch {
+            Logger.verbose("Dapp Cardano signing error: \(error)")
+            throw DappError.internalError("\(error)")
+        }
+    }
+
     /// Signs `message` with `account`'s key.
     ///
     /// - Throws: ``DappError/unauthorized`` for a watch-only account, or
@@ -45,6 +92,7 @@ final class DappSigningService: @unchecked Sendable {
 
                 return try await messageSigner.sign(message: message)
             }
+
             Logger.verbose("Dapp signMessage done: \(signature.count) bytes")
             return signature
         } catch ReefrError.notSupported {

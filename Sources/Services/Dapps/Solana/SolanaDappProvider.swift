@@ -92,6 +92,8 @@ struct SolanaDappProvider: DappProvider {
             message = "Unrecognized Solana network."
         case let .internalError(reason):
             message = reason
+        case .cardano:
+            message = "Unexpected Cardano error."
         }
 
         return .object(["message": .string(message)])
@@ -236,6 +238,7 @@ private extension SolanaDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.solana, account: account)
         let signature = try await context.signingService.signMessage(.solanaMessage(messageData), account: account)
         return .object(["signedMessage": .string(messageBase64), "signature": .string(signature.base64EncodedString())])
     }
@@ -281,10 +284,7 @@ private extension SolanaDappProvider {
             }
         }
 
-        let transaction: SolanaWireTransaction
-        do {
-            transaction = try SolanaWireTransaction(parsing: rawBytes)
-        } catch {
+        guard let transaction = try? SolanaWireTransaction(parsing: rawBytes) else {
             throw .invalidParams("unable to parse this transaction")
         }
 
@@ -315,6 +315,8 @@ private extension SolanaDappProvider {
         guard case .approved = result else {
             throw .userRejected
         }
+
+        try await context.authorize(.solana, account: account)
 
         do {
             let envelope = try SolanaUnsignedTransaction(message: transaction.messageBytes).encoded()

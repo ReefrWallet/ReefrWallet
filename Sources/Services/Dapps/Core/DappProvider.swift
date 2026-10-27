@@ -15,6 +15,14 @@ struct DappRequestContext: Sendable {
     let signingService: DappSigningService
 }
 
+extension DappRequestContext {
+    /// Re-validates the origin, account and permission captured when the
+    /// request began; call after approval, right before signing.
+    func authorize(_ namespace: DappNamespace, account: Account) async throws(DappError) {
+        try await session.authorize(namespace, origin: origin, account: account)
+    }
+}
+
 /// One `window.__reefr._emit(namespace, event, payload)` push to the page
 /// — `accountsChanged`, `chainChanged`, `disconnect`, ....
 struct DappEvent: Sendable {
@@ -40,7 +48,6 @@ protocol DappProvider: Sendable {
     func sessionDidChange(_ session: DappSessionSnapshot) -> [DappEvent]
 
     /// Maps `error` onto this namespace's wire format (EIP-1193's numeric
-    /// codes for Ethereum; CIP-30's `APIError`/`TxSignError` will do the
-    /// same for Cardano later).
+    /// codes for Ethereum; CIP-30's `APIError`/`TxSignError` for Cardano).
     func wireError(_ error: DappError) -> JSONValue
 }

@@ -81,6 +81,22 @@ actor DappSession {
         return true
     }
 
+    /// Re-checks, just before key material is touched, that the request a
+    /// user approved still belongs to the same site and account and that the
+    /// permission is intact. Navigation or an account switch can happen while
+    /// an approval sheet is open (ADR-025); a connect-time check alone misses
+    /// that.
+    func authorize(_ namespace: DappNamespace, origin approvedOrigin: String, account: Account) throws(DappError) {
+        guard approvedOrigin == origin, selectedAccount(namespace) == account else {
+            throw .disconnected
+        }
+
+        let permission = Permission(origin: origin, namespace: namespace, accountAddress: account.address)
+        guard permissions.contains(permission) else {
+            throw .unauthorized
+        }
+    }
+
     /// Switches the browser's one active account to one the *user* picked —
     /// the unified key-store/account selector, or `wallet_switchEthereumChain`
     /// moving to the same key on a different EVM network. Carries a

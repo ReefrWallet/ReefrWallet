@@ -138,6 +138,45 @@ extension TransactionService {
         }
     }
 
+    /// Runs `body` with `account`'s Cardano dapp signer (CIP-30). The key store
+    /// is unlocked, or the hardware session started, only after
+    /// `beforeKeyAccess` returns, so a dapp's approval can be re-validated
+    /// immediately before key material is touched.
+    func withCardanoDappSigner<T>(
+        for account: Account,
+        beforeKeyAccess: () async throws -> Void,
+        _ body: (any CardanoDappSigner) async throws -> T
+    ) async throws -> T {
+        let keyStore = try await fetchKeyStore(for: account)
+
+        guard let derivationPath = account.derivationPath, case let .cardano(network) = account.blockchain else {
+            throw ReefrError.notSupported
+        }
+
+        switch keyStore.kind {
+        case .local:
+            try await beforeKeyAccess()
+            let entropy = try await keyStore.localEntropy(reason: "Authenticate to sign with your key")
+            return try await body(CardanoPKeySigner(entropy: entropy, network: network, path: derivationPath))
+        case .trezor:
+            guard let deviceId = keyStore.deviceId else {
+                throw ReefrError.invalidData
+            }
+
+            let descriptor = try CardanoAccountDescriptor(string: account.address)
+
+            return try await hardwareService.session {
+                try await beforeKeyAccess()
+                let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
+                let signer = try CardanoTrezorSigner(descriptor: descriptor, path: derivationPath, device: device)
+
+                return try await body(signer)
+            }
+        case .watchOnly:
+            throw ReefrError.notSupported
+        }
+    }
+
     /// Whether `account`'s key lives on a hardware wallet — answered from
     /// its key store, without connecting to the device.
     func isHardwareBacked(_ account: Account) async throws -> Bool {

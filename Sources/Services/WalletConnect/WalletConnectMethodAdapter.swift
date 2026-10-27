@@ -24,6 +24,9 @@ enum WalletConnectMethodAdapter {
         switch namespace {
         case .aptos:
             return try aptos(method: method, params: params, account: account)
+        case .cardano:
+            // CIP-30 is a browser API; WalletConnect has no Cardano methods here.
+            throw .unsupportedMethod
         case .ethereum:
             guard WalletConnectChain.methods[.ethereum]?.contains(method) == true else {
                 throw .unsupportedMethod

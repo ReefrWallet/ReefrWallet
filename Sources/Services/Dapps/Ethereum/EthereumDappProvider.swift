@@ -120,6 +120,9 @@ struct EthereumDappProvider: DappProvider {
         case let .internalError(reason):
             code = -32603
             message = reason
+        case .cardano:
+            code = -32603
+            message = "Unexpected Cardano error."
         }
 
         return .object(["code": .number(Double(code)), "message": .string(message)])
@@ -340,6 +343,7 @@ private extension EthereumDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.ethereum, account: account)
         let signature = try await context.signingService.signMessage(.ethereumPersonal(messageData), account: account)
         Logger.verbose("Eth personal_sign signature: \(signature.hexEncoded)")
         return .string(signature.hexEncoded)
@@ -395,6 +399,7 @@ private extension EthereumDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.ethereum, account: account)
         let signature = try await context.signingService.signMessage(
             .ethereumTypedData(json: jsonString(typedData)),
             account: account
@@ -456,7 +461,8 @@ private extension EthereumDappProvider {
 
         do {
             let hash = try await broadcast(
-                sender: account, to: request.to, value: request.value, data: request.data, options: options
+                sender: account, to: request.to, value: request.value, data: request.data, options: options,
+                authorize: { try await context.authorize(.ethereum, account: account) }
             )
             Logger.verbose("Eth sendTransaction broadcast: \(hash)")
             return hash
@@ -471,13 +477,15 @@ private extension EthereumDappProvider {
         to: EthereumAddress?,
         value: BigUInt,
         data: Data,
-        options: [BlockchainTransactionBuilderOptions]
+        options: [BlockchainTransactionBuilderOptions],
+        authorize: (() async throws -> Void)? = nil
     ) async throws -> JSONValue {
         let client = try clientProvider.ethereumClient(for: account)
         let builder = EthereumTransactionBuilder(client: client)
         let sender = try EthereumAddress(string: account.address)
         let txBytes = try await builder.buildCall(sender: sender, to: to, value: value, data: data, options: options)
         Logger.verbose("Eth broadcast: built \(txBytes.count) bytes, signing")
+        try await authorize?()
         let signature = try await transactionService.signTransaction(txBytes, account: account)
         Logger.verbose("Eth broadcast: signed, sending")
         let hash = try await transactionService.sendTransaction(txBytes, signature, account: account)
