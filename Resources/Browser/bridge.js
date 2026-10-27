@@ -25,6 +25,12 @@
                         var wireError = (response && response.error) || { code: -32603, message: 'Internal error' };
                         var error = new Error(wireError.message);
                         error.code = wireError.code;
+                        // Keep provider-specific fields (CIP-30's `info`, `maxSize`).
+                        Object.keys(wireError).forEach(function (key) {
+                            if (!(key in error)) {
+                                error[key] = wireError[key];
+                            }
+                        });
                         reject(error);
                     },
                     function (nativeError) {
