@@ -55,6 +55,11 @@ extension CardanoTransactionParametersView {
             rows.append(Row(label: "Other signers", value: "\(preview.validWitnessCount) already signed"))
         }
 
+        if preview.unresolvedCount > 0 {
+            // Not in Penpot: requirements the wallet couldn't look up are not signers.
+            rows.append(Row(label: "Not checked", value: "\(preview.unresolvedCount) requirement(s)"))
+        }
+
         if let ttl = transaction.ttl {
             rows.append(Row(label: "Valid until", value: "Slot \(ttl)"))
         }

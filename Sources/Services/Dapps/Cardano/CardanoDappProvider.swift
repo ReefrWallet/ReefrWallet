@@ -251,11 +251,12 @@ private extension CardanoDappProvider {
         }
 
         let preview = CardanoTransactionPreview(
-            missingSignerCount: signers.missingCount + signers.unresolved.count,
+            missingSignerCount: signers.missingCount,
             partialSign: partialSign,
             rawBytes: bytes,
             signingPaths: signers.toSign,
             transaction: transaction,
+            unresolvedCount: signers.unresolved.count,
             validWitnessCount: signers.validExistingCount
         )
 

@@ -65,6 +65,8 @@ struct CardanoTransactionPreview: Sendable {
     /// The account's keys that will sign.
     let signingPaths: [CardanoSigningPath]
     let transaction: CardanoDappTransaction
+    /// Requirements that couldn't be looked up, so they aren't known to need anyone.
+    let unresolvedCount: Int
     /// Pre-existing witnesses that already verify.
     let validWitnessCount: Int
 }

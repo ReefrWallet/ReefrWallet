@@ -6,6 +6,7 @@ import WalletKit
 struct CardanoTransactionParametersRowsTests {
     private func preview(
         missing: Int = 0,
+        unresolved: Int = 0,
         validWitnesses: Int = 0,
         paths: [CardanoSigningPath] = [CardanoSigningPath(index: 0, role: 0)]
     ) async throws -> CardanoTransactionPreview {
@@ -18,6 +19,7 @@ struct CardanoTransactionParametersRowsTests {
             rawBytes: bytes,
             signingPaths: paths,
             transaction: try CardanoDappTransaction(decoding: bytes),
+            unresolvedCount: unresolved,
             validWitnessCount: validWitnesses
         )
     }
@@ -45,6 +47,13 @@ struct CardanoTransactionParametersRowsTests {
         #expect(value("Other signers", in: waiting) == "2 · sign after you")
         #expect(value("Other signers", in: signed) == "1 already signed")
         #expect(value("Other signers", in: alone) == nil)
+    }
+
+    @Test func unresolvedRequirementsAreNotCountedAsSigners() async throws {
+        let rows = CardanoTransactionParametersView.rows(for: try await preview(unresolved: 3))
+
+        #expect(value("Other signers", in: rows) == nil)
+        #expect(value("Not checked", in: rows) == "3 requirement(s)")
     }
 
     @Test func keyNamesDistinguishPaymentChangeAndStakeKeys() {

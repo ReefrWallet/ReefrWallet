@@ -82,6 +82,9 @@ import WalletKit
                 .accessibilityIdentifier("browser-window")
         }
         .defaultSize(width: 1100, height: 700)
+        .commands {
+            CommandGroup(replacing: .newItem) {}
+        }
         .modelContainer(databaseService.modelContainer)
 
         Settings {

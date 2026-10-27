@@ -83,12 +83,7 @@ extension SidebarView: View {
                 VStack(alignment: .center) {
                     Text("No keys")
                         .style(.medium, foreground: .secondary)
-                        .padding(.top)
-
-                    Button("Add Key") {
-                        presentSheet?(.addKeyStore)
-                    }
-                    .padding(.bottom)
+                        .padding(.vertical)
                 }
                 .contextMenu {
                     addMenu
