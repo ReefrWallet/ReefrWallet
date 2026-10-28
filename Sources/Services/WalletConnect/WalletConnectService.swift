@@ -35,9 +35,9 @@ struct WalletConnectNamespaceChoice: Identifiable {
         namespace
     }
 
-    /// `"<key> · <account>"`.
+    /// `"<key> · <account> (<shortened address>)"`, as in the browser's account drop-down.
     func label(for account: Account) -> String {
-        keyNames[account.keyStoreId].map { "\($0) · \(account.name)" } ?? account.name
+        DappAccountChoice(account: account, keyStoreName: keyNames[account.keyStoreId] ?? "").label
     }
 }
 
@@ -360,6 +360,7 @@ final class WalletConnectService {
                 "WC request unauthorized: no session/account for topic \(request.topic.prefix(8)) chain \(request.chainId); "
                     + "sessions: \(sessions.count)"
             )
+
             return .failure(WalletConnectRequestRouter.rpcError(.unauthorized))
         }
 

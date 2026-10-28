@@ -94,7 +94,7 @@ final class ReownWalletConnectClient: WalletConnectClient {
 
         switch result {
         case let .success(data):
-            Logger.verbose("WC respond success id: \(requestId) result: \(String(decoding: data, as: UTF8.self))")
+            Logger.verbose("WC respond success id: \(requestId) result: \(String(data: data, encoding: .utf8) ?? "")")
             response = .response(try JSONDecoder().decode(AnyCodable.self, from: data))
         case let .failure(error):
             Logger.verbose("WC respond error id: \(requestId) code: \(error.code) message: \(error.message)")
@@ -179,7 +179,7 @@ private extension ReownWalletConnectClient {
 
                 Logger.verbose(
                     "WC request received: \(request.method) id: \(id) chain: \(request.chainId.absoluteString) "
-                        + "topic: \(request.topic.prefix(8)) params: \(String(decoding: params, as: UTF8.self))"
+                        + "topic: \(request.topic.prefix(8)) params: \(String(data: params, encoding: .utf8) ?? "")"
                 )
 
                 MainActor.assumeIsolated {

@@ -12,7 +12,7 @@ import Foundation
 /// own cases (plus this shared set) onto its wire format —
 /// ``EthereumDappProvider`` uses EIP-1193's numeric codes (4001, 4100,
 /// 4200, 4900, 4902, -32602, -32603) via `wireError(_:)`; CIP-30's
-/// `APIError`/`TxSignError` will do the same for Cardano later.
+/// `APIError`/`TxSignError` do the same for Cardano via ``cardano(_:)``.
 enum DappError: LocalizedError, Sendable {
     /// The user rejected the request (declined a connect/sign/send prompt).
     case userRejected
@@ -31,6 +31,10 @@ enum DappError: LocalizedError, Sendable {
     /// The session has no connected account for this namespace.
     case disconnected
 
+    /// A CIP-30 failure with its own code space; only
+    /// ``CardanoDappProvider`` throws it.
+    case cardano(CardanoDappError)
+
     /// A chain-switch request named a chain this wallet has no account
     /// for.
     case chainNotFound
@@ -41,6 +45,7 @@ enum DappError: LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
+        case let .cardano(error): error.errorDescription
         case .chainNotFound: "The requested chain isn't available in this wallet."
         case .disconnected: "No account is connected for this network."
         case let .internalError(reason): "Internal dapp error: \(reason)"

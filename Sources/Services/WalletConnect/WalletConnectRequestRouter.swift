@@ -85,6 +85,7 @@ struct WalletConnectRequestRouter {
 
     static func rpcError(_ error: DappError) -> WalletConnectRPCError {
         switch error {
+        case .cardano: WalletConnectRPCError(code: -32603, message: error.localizedDescription)
         case .chainNotFound: WalletConnectRPCError(code: 4902, message: error.localizedDescription)
         case .disconnected: WalletConnectRPCError(code: 4900, message: error.localizedDescription)
         case .internalError: WalletConnectRPCError(code: -32603, message: error.localizedDescription)

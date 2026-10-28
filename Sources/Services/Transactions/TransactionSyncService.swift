@@ -427,7 +427,7 @@ private extension TransactionSyncService {
     /// An indexer reports no head for an account without history, which would
     /// stall forward sync forever. The node's tip is the right head then: an
     /// empty range above the tip returns it without fetching any block.
-    internal func nodeHead(account: Account, client: any BlockchainClientProtocol) async throws -> UInt64? {
+    func nodeHead(account: Account, client: any BlockchainClientProtocol) async throws -> UInt64? {
         try await client.transactionHistory(
             account.address,
             request: BlockchainTransactionHistoryRequest(

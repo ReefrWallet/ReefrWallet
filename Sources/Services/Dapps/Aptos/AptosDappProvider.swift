@@ -39,6 +39,10 @@ struct AptosDappProvider: DappProvider {
         self.chainId = chainId ?? { try await resolvedClientProvider.aptosClient(for: $0).ledgerInfo().chainId }
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "connect"
+    }
+
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
         switch method {
         case "account":
@@ -78,6 +82,7 @@ struct AptosDappProvider: DappProvider {
         case .disconnected: "No Aptos account is connected."
         case .chainNotFound: "This transaction is for a different Aptos network."
         case let .internalError(reason): reason
+        case .cardano: "Unexpected Cardano error."
         }
 
         if case .userRejected = error {
@@ -262,6 +267,7 @@ private extension AptosDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.aptos, account: account)
         let signer = try await aptosSigner(for: account)
         let signature = try await context.signingService.signMessage(
             .aptosMessage(Data(fullMessage.utf8)),
@@ -311,6 +317,7 @@ private extension AptosDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.aptos, account: account)
         let signer = try await aptosSigner(for: account)
 
         do {

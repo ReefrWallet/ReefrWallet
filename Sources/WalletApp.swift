@@ -76,12 +76,16 @@ import WalletKit
         .modelContainer(databaseService.modelContainer)
 
 #if os(macOS)
-        WindowGroup("Browser", id: "browser", for: URL.self) { $url in
-            let initialURL = url ?? Self.dappURL ?? Self.defaultBrowserURL
-            BrowserView(initialURL: initialURL)
+        WindowGroup("Browser", id: "browser", for: BrowserWindowTarget.self) { $target in
+            let initialURL = target?.url ?? Self.dappURL ?? Self.defaultBrowserURL
+            BrowserView(initialURL: initialURL, namespace: target?.namespace.flatMap(DappNamespace.init(rawValue:)))
                 .accessibilityIdentifier("browser-window")
         }
         .defaultSize(width: 1100, height: 700)
+        .restorationBehavior(.disabled)
+        .commands {
+            CommandGroup(replacing: .newItem) {}
+        }
         .modelContainer(databaseService.modelContainer)
 
         Settings {
@@ -151,6 +155,16 @@ private extension WalletApp {
                         blockchain: .evm(.ethereum(.sepolia)),
                         rpcURL: commandLineURL(after: "--evm-rpc-url"),
                         creationFlag: "--create-evm-accounts"
+                    ),
+                    TestAccountConfiguration(
+                        blockchain: .evm(.ethereum(.mainnet)),
+                        rpcURL: nil,
+                        creationFlag: "--create-ethereum-mainnet-accounts"
+                    ),
+                    TestAccountConfiguration(
+                        blockchain: .solana(.mainnet),
+                        rpcURL: nil,
+                        creationFlag: "--create-solana-mainnet-accounts"
                     ),
                     TestAccountConfiguration(
                         blockchain: .solana(.devnet),

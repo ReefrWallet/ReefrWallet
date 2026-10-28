@@ -24,6 +24,9 @@ extension DappTransactionPreview {
                 nativeFeeReserve: overflow ? nil : String(maxFee)
             )
 
+        case let .cardano(preview):
+            return Fees(nativeFeeReserve: preview.transaction.fee)
+
         case let .ethereum(_, fees):
             return fees
 

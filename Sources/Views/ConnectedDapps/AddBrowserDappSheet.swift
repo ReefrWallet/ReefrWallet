@@ -16,10 +16,6 @@ struct AddBrowserDappSheet: View {
     @State private var text = ""
 
     @Environment(\.dismiss) private var dismiss
-#if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-#endif
-    @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
     private let store = DI.injectOrFail(ConnectedDappStore.self)
@@ -98,7 +94,8 @@ struct AddBrowserDappSheet: View {
                 return
             }
 
-            open(url)
+            sidebarSelection.wrappedValue = store.addBrowserDapp(url: url).id
+            dismiss()
         }
     }
 
@@ -113,21 +110,5 @@ struct AddBrowserDappSheet: View {
         }
 
         return status < 500
-    }
-
-    private func open(_ url: URL) {
-        sidebarSelection.wrappedValue = store.addBrowserDapp(url: url).id
-
-#if os(macOS)
-        openWindow(id: "browser", value: url)
-        dismiss()
-#else
-        // Replaces this sheet with the browser.
-        if let presentSheet {
-            presentSheet(.browser(url))
-        } else {
-            dismiss()
-        }
-#endif
     }
 }

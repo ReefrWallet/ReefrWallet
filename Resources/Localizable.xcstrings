@@ -219,6 +219,9 @@
     "No keys" : {
 
     },
+    "Not connected" : {
+
+    },
     "Not connected. Open it in the browser to connect." : {
 
     },
@@ -274,6 +277,9 @@
 
     },
     "This site is requesting to connect to this account." : {
+
+    },
+    "This site is requesting to connect. It will remember your choice." : {
 
     },
     "To" : {

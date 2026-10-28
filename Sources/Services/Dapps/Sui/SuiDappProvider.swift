@@ -52,6 +52,10 @@ struct SuiDappProvider: DappProvider {
         self.chainClient = chainClient ?? { try resolvedClientProvider.suiClient(for: $0) }
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "connect"
+    }
+
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
         switch method {
         case "connect":
@@ -122,6 +126,8 @@ struct SuiDappProvider: DappProvider {
             message = "Unrecognized Sui network."
         case let .internalError(reason):
             message = reason
+        case .cardano:
+            message = "Unexpected Cardano error."
         }
 
         return .object(["message": .string(message)])
@@ -380,6 +386,7 @@ private extension SuiDappProvider {
             throw .userRejected
         }
 
+        try await context.authorize(.sui, account: account)
         let signature = try await context.signingService.signMessage(.suiPersonal(messageData), account: account)
         return .object(["bytes": .string(messageBase64), "signature": .string(signature.base64EncodedString())])
     }
@@ -453,6 +460,8 @@ private extension SuiDappProvider {
         guard case .approved = result else {
             throw .userRejected
         }
+
+        try await context.authorize(.sui, account: account)
 
         do {
             let signature = try await transactionService.signTransaction(bytes, account: account)
