@@ -22,6 +22,7 @@ final class DappApprover: DappApproving {
     private(set) var isCompleted = false
     /// Whether `currentRequest` was approved and is still being handled.
     private(set) var isProcessing = false
+    private var chosenAccounts: [DappNamespace: Account] = [:]
     private var pendingRequestId: UUID?
     private var pendingResult: ((DappApprovalResult) -> Void)?
     private var processingRequestId: UUID?
@@ -83,6 +84,25 @@ final class DappApprover: DappApproving {
                 continuation.resume(returning: result)
             }
         }
+    }
+
+    /// Asks which account to connect with on each chain; `nil` if the user rejects.
+    func chooseAccounts(origin: String, selections: [DappAccountSelection]) async -> [DappNamespace: Account]? {
+        chosenAccounts = [:]
+        let result = await approve(.chooseAccounts(origin: origin, selections: selections))
+        defer { chosenAccounts = [:] }
+
+        guard case .approved = result else {
+            return nil
+        }
+
+        return chosenAccounts
+    }
+
+    /// The sheet's Approve: records the accounts, then resolves the prompt.
+    func resolveAccountChoices(_ accounts: [DappNamespace: Account]) {
+        chosenAccounts = accounts
+        resolve(.approved)
     }
 
     /// Rejects whatever prompt is still open, if any — the browser window

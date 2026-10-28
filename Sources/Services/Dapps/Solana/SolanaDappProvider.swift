@@ -37,6 +37,10 @@ struct SolanaDappProvider: DappProvider {
         self.transactionService = transactionService ?? DI.injectOrFail(TransactionService.self)
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "connect" && params["onlyIfTrusted"]?.boolValue != true
+    }
+
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
         switch method {
         case "connect":

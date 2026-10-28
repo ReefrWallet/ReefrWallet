@@ -10,6 +10,19 @@ import SwiftData
 import SwiftUI
 import WalletKit
 
+/// What a browser window shows: a dapp, and optionally the chain it was opened
+/// for. Each combination gets its own window, so one dapp can be open on
+/// several chains at once.
+struct BrowserWindowTarget: Codable, Hashable {
+    let url: URL
+    var namespace: String?
+
+    init(url: URL, namespace: DappNamespace? = nil) {
+        self.url = url
+        self.namespace = namespace?.rawValue
+    }
+}
+
 /// One browser tab's bag of dependencies — the ``DappSession``,
 /// ``DappApprover``, ``DappBridge``/``DappWebViewController`` pair, and
 /// the unified selector's ``BrowserAccountSelectionModel`` — bundled into
@@ -37,7 +50,8 @@ private final class BrowserController {
             ],
             session: session,
             approving: approver,
-            signingService: signingService
+            signingService: signingService,
+            accounts: DatabaseDappAccountSource()
         )
 
         self.approver = approver
@@ -48,6 +62,64 @@ private final class BrowserController {
         }
 
         Task { await session.restorePermissions() }
+    }
+
+    /// Picks up connections changed from the dapp's settings, then reloads the page.
+    func reload(groups: [BrowserAccountSelectionGroup], namespace: DappNamespace?) async {
+        await session.reloadPermissions()
+        await selectRememberedAccount(groups: groups, namespace: namespace, after: nil)
+        await webViewController.bridge.sessionDidChange()
+        webViewController.reload()
+    }
+
+    /// Makes every chain the dapp was connected on available to it again,
+    /// whichever account the toolbar shows.
+    private func restoreConnections() async {
+        let source = DatabaseDappAccountSource()
+
+        for namespace in DappNamespace.allCases {
+            guard
+                let address = await session.grantedAddress(namespace),
+                let choice = await source.choices(for: namespace).first(where: { $0.account.address == address })
+            else {
+                continue
+            }
+
+            await session.rememberConnection(namespace, account: choice.account)
+        }
+    }
+
+    /// Selects the account this dapp was last connected with, so reopening it
+    /// shows (and signs with) the wallet it remembers rather than the default.
+    func selectRememberedAccount(
+        groups: [BrowserAccountSelectionGroup],
+        namespace: DappNamespace?,
+        after pick: Task<Void, Never>?
+    ) async {
+        await pick?.value
+        await session.restorePermissions()
+        await restoreConnections()
+
+        // A window opened for one chain starts on that chain's account.
+        let remembered: String?
+        if let namespace, let address = await session.grantedAddress(namespace) {
+            remembered = address
+        } else {
+            remembered = await session.rememberedAddress()
+        }
+
+        guard let address = remembered else {
+            return
+        }
+
+        for group in groups {
+            guard let model = group.accounts.first(where: { $0.address == address }) else {
+                continue
+            }
+
+            await selectionModel.select(model, in: group)?.value
+            return
+        }
     }
 
     /// Matches `DappBridge`'s own `WKSecurityOrigin`-derived origin string
@@ -66,6 +138,7 @@ private final class BrowserController {
 struct BrowserView {
     @Query private var accountModels: [AccountModel]
     @Query private var keyStoreModels: [KeyStoreModel]
+    @Query private var connectedDapps: [ConnectedDappModel]
 
 #if os(macOS)
     @Environment(\.dismissWindow) private var dismissWindow
@@ -75,9 +148,11 @@ struct BrowserView {
     @State private var controller: BrowserController
 
     private let initialURL: URL
+    private let namespace: DappNamespace?
 
-    init(initialURL: URL = URL(string: "https://app.uniswap.org")!) {
+    init(initialURL: URL = URL(string: "https://app.uniswap.org")!, namespace: DappNamespace? = nil) {
         self.initialURL = initialURL
+        self.namespace = namespace
         _addressText = State(initialValue: initialURL.absoluteString)
         _controller = State(initialValue: BrowserController(initialURL: initialURL))
     }
@@ -96,12 +171,16 @@ extension BrowserView: View {
                     controller.selectionModel.syncFromProviderDrivenChange(account, groups: groups)
                 }
 
-                controller.selectionModel.reconcile(groups: groups)
+                let pick = controller.selectionModel.reconcile(groups: groups)
+                await controller.selectRememberedAccount(groups: groups, namespace: namespace, after: pick)
             }
             .task(id: accountModels.count) {
                 controller.selectionModel.reconcile(groups: groups)
             }
             .onChange(of: keyStoreModels) {
+                controller.selectionModel.reconcile(groups: groups)
+            }
+            .onChange(of: supportedNamespaces) {
                 controller.selectionModel.reconcile(groups: groups)
             }
             .onDisappear {
@@ -121,6 +200,8 @@ extension BrowserView: View {
                         isProcessing: controller.approver.isProcessing
                     ) { result, keepsPresented in
                         controller.approver.resolve(result, keepsPresented: keepsPresented)
+                    } onChooseAccounts: { accounts in
+                        controller.approver.resolveAccountChoices(accounts)
                     }
                     .hardwareKeyPromptHost(progress: controller.approver.progressPrompt)
                 }
@@ -163,7 +244,7 @@ private extension BrowserView {
 
         ToolbarItem {
             Button {
-                controller.webViewController.reload()
+                Task { await controller.reload(groups: groups, namespace: namespace) }
             } label: {
                 Label("Reload", systemImage: "arrow.clockwise")
             }
@@ -185,20 +266,13 @@ private extension BrowserView {
     @ToolbarContentBuilder
     var accountSelector: some ToolbarContent {
         ToolbarItem {
-            BrowserAccountSelector(
-                groups: groups,
-                selectedKeyStoreId: controller.selectionModel.selectedKeyStoreId,
-                selectedAccountId: controller.selectionModel.selectedAccountId,
-                onSelectAccount: { account, group in
-                    controller.selectionModel.select(account, in: group)
-                }
-            )
+            BrowserAccountSelector(connected: connectedAccounts)
         }
 
 #if os(macOS)
         ToolbarItem {
             Button {
-                dismissWindow(id: "browser", value: initialURL)
+                dismissWindow(id: "browser", value: BrowserWindowTarget(url: initialURL, namespace: namespace))
             } label: {
                 Label("Close Browser", systemImage: "xmark")
             }
@@ -211,8 +285,62 @@ private extension BrowserView {
 // MARK: - Logic
 
 private extension BrowserView {
+    /// The accounts the drop-down offers: those on blockchains the current site
+    /// has asked to connect on, or every browser-supported account until it has.
     var groups: [BrowserAccountSelectionGroup] {
-        BrowserAccountOrdering.groups(from: keyStoreModels, accounts: accountModels)
+        let groups = BrowserAccountOrdering.groups(from: keyStoreModels, accounts: accountModels)
+        guard !supportedNamespaces.isEmpty else {
+            return groups
+        }
+
+        return groups.map { group in
+            BrowserAccountSelectionGroup(
+                id: group.id,
+                name: group.name,
+                kind: group.kind,
+                accounts: group.accounts.filter { model in
+                    DappNamespace.namespace(for: model.blockchain.blockchain).map(supportedNamespaces.contains) ?? false
+                }
+            )
+        }
+    }
+
+    /// The accounts the site on screen is connected with, one per chain.
+    var connectedAccounts: [DappAccountChoice] {
+        guard let dapp = currentDapp else {
+            return []
+        }
+
+        let names = Dictionary(uniqueKeysWithValues: keyStoreModels.map { ($0.id, $0.name) })
+        let addresses = Set(dapp.grants.map(\.accountAddress))
+
+        return accountModels
+            .compactMap { model -> DappAccountChoice? in
+                guard addresses.contains(model.address), let account = try? Account(model: model) else {
+                    return nil
+                }
+
+                return DappAccountChoice(account: account, keyStoreName: names[account.keyStoreId] ?? "")
+            }
+            .sorted { $0.account.blockchain.displayName < $1.account.blockchain.displayName }
+    }
+
+    /// The saved entry for the site on screen.
+    var currentDapp: ConnectedDappModel? {
+        guard let url = URL(string: controller.webViewController.currentURLString) else {
+            return nil
+        }
+
+        return connectedDapps.first { $0.kind == .browser && $0.origin == ConnectedDappStore.origin(for: url) }
+    }
+
+    /// The chains the current site has asked to connect on or holds a grant for.
+    var supportedNamespaces: Set<DappNamespace> {
+        guard let dapp = currentDapp else {
+            return []
+        }
+
+        return Set((dapp.requestedNamespaces + dapp.grants.map(\.namespace)).compactMap(DappNamespace.init(rawValue:)))
     }
 
     var isApprovalSheetPresented: Binding<Bool> {

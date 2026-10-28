@@ -31,6 +31,11 @@ final class ConnectedDappModel {
     var name: String
     var origin: String
     var serializedGrants: String
+    /// Namespaces the page has asked to connect on, as JSON `[String]`: the
+    /// chains offered when choosing an account for this dapp.
+    var serializedNamespaces: String = "[]"
+    /// The account the browser selects when this dapp opens: the one last chosen for it.
+    var selectedAccountAddress: String?
     var urlString: String
 
     init(
@@ -39,7 +44,8 @@ final class ConnectedDappModel {
         urlString: String,
         origin: String,
         iconURLString: String? = nil,
-        grants: [ConnectedDappGrant] = []
+        grants: [ConnectedDappGrant] = [],
+        namespaces: [String] = []
     ) {
         connectedAt = .now
         self.iconURLString = iconURLString
@@ -47,6 +53,7 @@ final class ConnectedDappModel {
         self.name = name
         self.origin = origin
         serializedGrants = (try? grants.asJSONString()) ?? "[]"
+        serializedNamespaces = (try? Array(Set(namespaces)).sorted().asJSONString()) ?? "[]"
         self.urlString = urlString
     }
 
@@ -57,6 +64,17 @@ final class ConnectedDappModel {
 
         set {
             serializedGrants = (try? newValue.asJSONString()) ?? "[]"
+        }
+    }
+
+    /// The chains this dapp asked to connect on, sorted.
+    var requestedNamespaces: [String] {
+        get {
+            (try? serializedNamespaces.decoded()) ?? []
+        }
+
+        set {
+            serializedNamespaces = (try? Array(Set(newValue)).sorted().asJSONString()) ?? "[]"
         }
     }
 

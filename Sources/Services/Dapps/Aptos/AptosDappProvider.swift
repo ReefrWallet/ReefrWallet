@@ -39,6 +39,10 @@ struct AptosDappProvider: DappProvider {
         self.chainId = chainId ?? { try await resolvedClientProvider.aptosClient(for: $0).ledgerInfo().chainId }
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "connect"
+    }
+
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
         switch method {
         case "account":

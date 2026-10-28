@@ -137,8 +137,12 @@
         features: {
             'standard:connect': {
                 version: '1.0.0',
-                connect: function () {
-                    return window.__reefr.request(NAMESPACE, 'connect', {}).then(function (result) {
+                // A `silent` connect (wallet adapters' auto-connect on load) must
+                // never prompt: it only succeeds if the site is already connected.
+                connect: function (input) {
+                    var params = { onlyIfTrusted: !!(input && input.silent) };
+
+                    return window.__reefr.request(NAMESPACE, 'connect', params).then(function (result) {
                         accounts = (result.accounts || []).map(accountFromJSON);
                         return { accounts: accounts };
                     });

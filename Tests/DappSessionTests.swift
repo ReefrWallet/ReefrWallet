@@ -100,9 +100,10 @@ struct DappSessionTests {
         #expect(await session.grantPermission(.ethereum, origin: session.origin, account: ethereumAccount))
         #expect(await session.isPermitted(.ethereum))
 
+        // Ethereum stays served on its connected account while Solana is on screen.
         await session.setActiveAccount(solanaAccount)
-        #expect(await session.selectedAccount(.ethereum) == nil)
-        #expect(await session.isPermitted(.ethereum) == false)
+        #expect(await session.selectedAccount(.ethereum) == ethereumAccount)
+        #expect(await session.isPermitted(.ethereum))
         #expect(await session.isPermitted(.solana) == false) // no grant for Solana yet
 
         await session.setActiveAccount(ethereumAccount2)

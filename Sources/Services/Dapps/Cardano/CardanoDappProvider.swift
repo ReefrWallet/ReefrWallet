@@ -45,6 +45,10 @@ struct CardanoDappProvider: DappProvider {
         }
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "enable"
+    }
+
     /// CIP-30 has no wallet-initiated events.
     func sessionDidChange(_ session: DappSessionSnapshot) -> [DappEvent] {
         []
@@ -55,7 +59,12 @@ struct CardanoDappProvider: DappProvider {
             return error.wire
         }
 
-        return CardanoDappError.internalError(error.errorDescription ?? "Unexpected error.").wire
+        switch error {
+        case .disconnected, .unauthorized, .userRejected:
+            return CardanoDappError.refused.wire
+        default:
+            return CardanoDappError.internalError(error.errorDescription ?? "Unexpected error.").wire
+        }
     }
 }
 

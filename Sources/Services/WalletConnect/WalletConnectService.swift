@@ -35,9 +35,9 @@ struct WalletConnectNamespaceChoice: Identifiable {
         namespace
     }
 
-    /// `"<key> · <account>"`.
+    /// `"<key> · <account> (<shortened address>)"`, as in the browser's account drop-down.
     func label(for account: Account) -> String {
-        keyNames[account.keyStoreId].map { "\($0) · \(account.name)" } ?? account.name
+        DappAccountChoice(account: account, keyStoreName: keyNames[account.keyStoreId] ?? "").label
     }
 }
 

@@ -52,6 +52,10 @@ struct SuiDappProvider: DappProvider {
         self.chainClient = chainClient ?? { try resolvedClientProvider.suiClient(for: $0) }
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "connect"
+    }
+
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
         switch method {
         case "connect":

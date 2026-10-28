@@ -53,6 +53,10 @@ struct TronDappProvider: DappProvider {
         }
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "connect" && params["onlyIfTrusted"]?.boolValue != true
+    }
+
     /// One `"change"` event with the connected account (or `null`) and the
     /// network TronWeb should report.
     func sessionDidChange(_ session: DappSessionSnapshot) -> [DappEvent] {

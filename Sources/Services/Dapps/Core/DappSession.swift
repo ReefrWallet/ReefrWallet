@@ -22,6 +22,10 @@ actor DappSession {
     private(set) var origin: String
     private(set) var activeAccount: Account?
     private(set) var permissions: Set<Permission> = []
+    /// The account each chain is connected with at this origin, besides the active one.
+    private var connectedAccounts: [DappNamespace: Account] = [:]
+    /// The account last chosen for this origin, restored from persistence.
+    private var rememberedSelection: String?
 
     private var isApproving = false
     private var approvalWaiters: [CheckedContinuation<Void, Never>] = []
@@ -32,6 +36,21 @@ actor DappSession {
         self.persistence = persistence
     }
 
+    /// Records that the page asked to connect on `namespace`.
+    func noteConnectRequest(_ namespace: DappNamespace) async {
+        await persistence?.noteConnectRequest(origin: origin, namespace: namespace)
+    }
+
+    /// The account address the user last connected on `namespace` at this origin.
+    func grantedAddress(_ namespace: DappNamespace) -> String? {
+        permissions.first { $0.origin == origin && $0.namespace == namespace }?.accountAddress
+    }
+
+    /// Every account address this origin holds a grant for.
+    func grantedAddresses() -> [String] {
+        permissions.filter { $0.origin == origin }.map(\.accountAddress).sorted()
+    }
+
     /// Loads the persisted grants for the current origin — call once after
     /// creating a session whose initial origin may already be connected.
     func restorePermissions() async {
@@ -40,6 +59,25 @@ actor DappSession {
         }
 
         permissions.formUnion(await persistence.loadPermissions(origin: origin))
+        rememberedSelection = await persistence.loadSelectedAccount(origin: origin)
+    }
+
+    /// Replaces this origin's grants with the saved ones, so connections changed
+    /// from the dapp's settings take effect while its window is open.
+    func reloadPermissions() async {
+        guard let persistence else {
+            return
+        }
+
+        let saved = await persistence.loadPermissions(origin: origin)
+        permissions = permissions.filter { $0.origin != origin }.union(saved)
+        rememberedSelection = await persistence.loadSelectedAccount(origin: origin)
+    }
+
+    /// The account to select when this origin opens: the one last chosen for it,
+    /// else the first it holds a grant for.
+    func rememberedAddress() -> String? {
+        rememberedSelection ?? grantedAddresses().first
     }
 
     /// The namespace `activeAccount`'s blockchain belongs to, or `nil`
@@ -48,12 +86,29 @@ actor DappSession {
         activeAccount.flatMap { DappNamespace.namespace(for: $0.blockchain) }
     }
 
-    /// The browser's single active account, if it belongs to
-    /// `namespace` — `nil` for every other namespace, which is how
-    /// switching chain families makes the rest look disconnected
-    /// without touching their permission grants.
+    /// The account a dapp sees on `namespace`: the browser's active account when
+    /// it is on that chain; otherwise the account the dapp was connected with
+    /// there, as long as it still holds a grant. A page that uses several chains
+    /// (Ethereum and Solana) is served on each of them while the toolbar shows one.
     func selectedAccount(_ namespace: DappNamespace) -> Account? {
-        namespace == activeNamespace ? activeAccount : nil
+        if namespace == activeNamespace {
+            return activeAccount
+        }
+
+        guard
+            let account = connectedAccounts[namespace],
+            permissions.contains(Permission(origin: origin, namespace: namespace, accountAddress: account.address))
+        else {
+            return nil
+        }
+
+        return account
+    }
+
+    /// Records the account this origin is connected with on `namespace`, without
+    /// changing the browser's active account.
+    func rememberConnection(_ namespace: DappNamespace, account: Account) {
+        connectedAccounts[namespace] = account
     }
 
     /// Whether the origin is permitted to see `namespace`'s currently
@@ -77,6 +132,20 @@ actor DappSession {
         }
 
         permissions.insert(Permission(origin: origin, namespace: namespace, accountAddress: account.address))
+        await persist()
+        return true
+    }
+
+    /// Records the user's connect-sheet choice of `account` on `namespace`, which may
+    /// differ from the selected account (one chain's choice per connect request). Commits
+    /// only if the session is still at `approvedOrigin`.
+    func grantConnection(_ namespace: DappNamespace, origin approvedOrigin: String, account: Account) async -> Bool {
+        guard approvedOrigin == origin else {
+            return false
+        }
+
+        permissions.insert(Permission(origin: origin, namespace: namespace, accountAddress: account.address))
+        connectedAccounts[namespace] = account
         await persist()
         return true
     }
@@ -116,6 +185,12 @@ actor DappSession {
         } ?? false
 
         activeAccount = account
+        if let newNamespace {
+            connectedAccounts[newNamespace] = account
+        }
+
+        rememberedSelection = account.address
+        await persistence?.saveSelectedAccount(origin: origin, address: account.address)
 
         if namespaceAlreadyPermitted, let newNamespace {
             permissions.insert(Permission(origin: origin, namespace: newNamespace, accountAddress: account.address))
@@ -145,6 +220,7 @@ actor DappSession {
     /// afterward; existing permission grants are untouched.
     func clearActiveAccount() {
         activeAccount = nil
+        connectedAccounts = [:]
     }
 
     /// Revokes every permission grant for `namespace` at the current
@@ -178,6 +254,7 @@ actor DappSession {
 
         origin = newOrigin
         permissions = []
+        connectedAccounts = [:]
 
         if let persistence {
             let restored = await persistence.loadPermissions(origin: newOrigin)
@@ -266,4 +343,20 @@ struct DappSessionSnapshot: Equatable, Sendable {
 protocol DappPermissionPersisting: Sendable {
     func loadPermissions(origin: String) async -> Set<DappSession.Permission>
     func savePermissions(origin: String, permissions: Set<DappSession.Permission>) async
+
+    /// The page asked to connect on `namespace`; remembered so the chains it
+    /// supports can be offered later.
+    func noteConnectRequest(origin: String, namespace: DappNamespace) async
+
+    /// The account address last chosen for `origin`.
+    func loadSelectedAccount(origin: String) async -> String?
+    func saveSelectedAccount(origin: String, address: String) async
+}
+
+extension DappPermissionPersisting {
+    func noteConnectRequest(origin: String, namespace: DappNamespace) async {}
+
+    func loadSelectedAccount(origin: String) async -> String? { nil }
+
+    func saveSelectedAccount(origin: String, address: String) async {}
 }

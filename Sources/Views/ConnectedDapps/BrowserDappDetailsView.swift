@@ -13,9 +13,10 @@ import SwiftUI
 struct BrowserDappDetailsView: View {
     let dapp: ConnectedDappModel
 
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
     @Environment(\.presentSheet) private var presentSheet
+    @Query private var accountModels: [AccountModel]
+    @Query private var keyStoreModels: [KeyStoreModel]
 
     private let store = DI.injectOrFail(ConnectedDappStore.self)
 
@@ -32,35 +33,8 @@ struct BrowserDappDetailsView: View {
                         Text(dapp.urlString)
                             .style(.small, foreground: .secondary)
                     }
-                }
-            }
 
-            Section("Access") {
-                if dapp.grants.isEmpty {
-                    Text("Not connected. Open it in the browser to connect.")
-                        .style(.medium, foreground: .secondary)
-                } else {
-                    ForEach(dapp.grants, id: \.self) { grant in
-                        LabeledContent(grant.namespace.capitalized) {
-                            Text(grant.accountAddress)
-                                .style(.smallMono)
-                                .textSelection(.enabled)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                HStack {
-                    Button("Open in Browser", action: open)
-                        .accessibilityIdentifier("dapp-open-button")
-
-                    Button("Disconnect") {
-                        dapp.grants = []
-                        try? modelContext.save()
-                    }
-                    .disabled(dapp.grants.isEmpty)
-                    .accessibilityIdentifier("dapp-disconnect-button")
+                    Spacer()
 
                     Button("Remove", role: .destructive) {
                         store.remove(dapp)
@@ -68,9 +42,83 @@ struct BrowserDappDetailsView: View {
                     .accessibilityIdentifier("dapp-remove-button")
                 }
             }
+
+            Section("Access") {
+                if namespaces.isEmpty {
+                    Text("Not connected. Open it in the browser to connect.")
+                        .style(.medium, foreground: .secondary)
+                } else {
+                    ForEach(namespaces, id: \.self) { namespace in
+                        accountRow(namespace)
+                    }
+                }
+
+                HStack {
+                    Spacer()
+
+                    Button("Open in Browser") { open() }
+                        .accessibilityIdentifier("dapp-open-button")
+                }
+            }
         }
         .formStyle(.grouped)
         .navigationTitle(dapp.name)
+    }
+
+    /// The chains this dapp asked to connect on, plus any it holds a grant for.
+    private var namespaces: [DappNamespace] {
+        let names = Set(dapp.requestedNamespaces + dapp.grants.map(\.namespace))
+
+        return names.compactMap(DappNamespace.init(rawValue:)).sorted { $0.displayName < $1.displayName }
+    }
+
+    /// One row per chain: the account the dapp connects with on it.
+    private func accountRow(_ namespace: DappNamespace) -> some View {
+        LabeledContent(namespace.displayName) {
+            Picker(namespace.displayName, selection: grantBinding(namespace)) {
+                Text("Not connected").tag(String?.none)
+
+                ForEach(choices(for: namespace)) { choice in
+                    Text(choice.label).tag(Optional(choice.account.address))
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityIdentifier("dapp-account-picker-\(namespace.rawValue)")
+        }
+    }
+
+    private func granted(_ namespace: DappNamespace) -> String? {
+        dapp.grants.first { $0.namespace == namespace.rawValue }?.accountAddress
+    }
+
+    private func grantBinding(_ namespace: DappNamespace) -> Binding<String?> {
+        Binding(
+            get: { granted(namespace) },
+            set: { address in
+                guard let address else {
+                    store.disconnect(dapp, namespace: namespace.rawValue)
+                    return
+                }
+
+                store.connect(dapp, accountAddress: address, namespace: namespace.rawValue)
+            }
+        )
+    }
+
+    /// Accounts on `namespace`'s chains.
+    private func choices(for namespace: DappNamespace) -> [DappAccountChoice] {
+        let names = Dictionary(uniqueKeysWithValues: keyStoreModels.map { ($0.id, $0.name) })
+
+        return accountModels
+            .compactMap { model -> DappAccountChoice? in
+                guard let account = try? Account(model: model), namespace.matches(account.blockchain) else {
+                    return nil
+                }
+
+                return DappAccountChoice(account: account, keyStoreName: names[account.keyStoreId] ?? "")
+            }
+            .sorted { ($0.keyStoreName, $0.account.name) < ($1.keyStoreName, $1.account.name) }
     }
 
     private func open() {
@@ -79,7 +127,7 @@ struct BrowserDappDetailsView: View {
         }
 
 #if os(macOS)
-        openWindow(id: "browser", value: url)
+        openWindow(id: "browser", value: BrowserWindowTarget(url: url))
 #else
         presentSheet?(.browser(url))
 #endif

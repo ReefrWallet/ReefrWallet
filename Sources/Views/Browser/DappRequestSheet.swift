@@ -18,6 +18,8 @@ struct DappRequestSheet: View {
     var isProcessing = false
     /// The user's decision, and whether to keep the sheet up while it runs.
     let onResolve: (DappApprovalResult, Bool) -> Void
+    /// The accounts the user picked for a ``DappApprovalRequest/chooseAccounts`` request.
+    var onChooseAccounts: ([DappNamespace: Account]) -> Void = { _ in }
 
     @State private var editedFees: Fees?
     @State private var feeEstimationTask: Task<Void, Never>?
@@ -29,6 +31,14 @@ struct DappRequestSheet: View {
             switch request {
             case .connect:
                 connectSheet
+            case let .chooseAccounts(_, selections):
+                DappAccountChoiceView(
+                    selections: selections,
+                    site: site,
+                    onChoose: onChooseAccounts,
+                    onReject: { onResolve(.rejected, false) }
+                )
+
             case let .signMessage(_, _, account, preview):
                 messageSheet(account: account, preview: preview)
             case let .sendTransaction(_, _, account, preview):
@@ -230,6 +240,8 @@ private extension DappRequestSheet {
     var account: Account {
         switch request {
         case let .connect(_, _, account): account
+        // Never empty: the bridge only asks with at least one choice.
+        case let .chooseAccounts(_, selections): selections[0].choices[0].account
         case let .signMessage(_, _, account, _): account
         case let .sendTransaction(_, _, account, _): account
         }
@@ -253,6 +265,7 @@ private extension DappRequestSheet {
     var origin: String {
         switch request {
         case let .connect(origin, _, _): origin
+        case let .chooseAccounts(origin, _): origin
         case let .signMessage(origin, _, _, _): origin
         case let .sendTransaction(origin, _, _, _): origin
         }

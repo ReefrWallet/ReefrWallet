@@ -52,56 +52,32 @@ final class BrowserAccountSelectorUITests: XCTestCase {
         anvilNode = nil
     }
 
-    func testDefaultLabelsAppearAndOldPerNamespacePickersAreAbsent() throws {
+    func testTheCapsuleSaysNotConnectedUntilTheDappIsConnectedThenShowsItsAccount() throws {
         try openBrowser()
 
         let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
+        XCTAssertEqual(selector.label, "Not Connected", "No account may be shown before the dapp is connected.")
 
-        XCTAssertTrue(waitForSelectedAccount(in: selector, timeout: 10), "Selector label: \(selector.label)")
-        XCTAssertTrue(selector.label.contains("Local Key"), "Expected the selector to show its key store.")
-        XCTAssertTrue(selector.label.contains("Sepolia #1"), "Expected the selector to show its active account.")
+        connectAndApproveEthereumFixture()
+
+        XCTAssertTrue(
+            waitForNativeText(containing: "Local Key · Sepolia #1", in: selector, timeout: 10),
+            "Expected the capsule to show the connected account. Label: \(selector.label)"
+        )
+    }
+
+    func testTheCapsuleIsNotClickableAndOldPerNamespacePickersAreAbsent() throws {
+        try openBrowser()
+        connectAndApproveEthereumFixture()
+
+        let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
+        XCTAssertTrue(selector.waitForExistence(timeout: 10))
+        XCTAssertFalse(selector.isHittable, "The capsule must not be interactive; accounts change from the dapp's settings.")
 
         XCTAssertFalse(browserWindow.firstDescendant(withIdentifier: "browser-ethereum-account-picker").exists)
         XCTAssertFalse(browserWindow.firstDescendant(withIdentifier: "browser-solana-account-picker").exists)
         XCTAssertFalse(browserWindow.firstDescendant(withIdentifier: "browser-sui-account-picker").exists)
-    }
-
-    func testSelectingADifferentAccountUpdatesTheSelector() throws {
-        try openBrowser()
-        connectAndApproveEthereumFixture()
-        selectAccount("Sepolia #2")
-
-        let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
-        XCTAssertTrue(
-            waitForNativeText(containing: "Sepolia #2", in: selector, timeout: 10),
-            "Expected the selector to show the newly selected account."
-        )
-    }
-
-    func testSwitchingToADifferentChainFamilyDisconnectsThenReconnectsOnSwitchingBack() throws {
-        try openBrowser()
-        connectAndApproveEthereumFixture()
-
-        selectAccount("Devnet #1")
-        XCTAssertTrue(
-            waitForWebText(containing: "GONE", timeout: 10),
-            "Expected the Ethereum dapp to see a disconnect when the selector moved to a different chain family."
-        )
-
-        selectAccount("Sepolia #1")
-
-        // No new approval prompt: Ethereum's grant was never revoked,
-        // only reported as inactive while another namespace was selected.
-        XCTAssertFalse(
-            browserWindow.firstDescendant(withIdentifier: "dapp-approve-button").waitForExistence(timeout: 3),
-            "Expected no new connect prompt when switching back to a previously-permitted namespace."
-        )
-
-        XCTAssertTrue(
-            waitForWebText(containing: "ACTIVE", timeout: 10),
-            "Expected the Ethereum dapp to reconnect automatically."
-        )
     }
 }
 
@@ -150,20 +126,6 @@ private extension BrowserAccountSelectorUITests {
             matchedField.waitForExistence(timeout: 5),
             "Expected the Browser window address field to remain available."
         )
-    }
-
-    func selectAccount(_ name: String) {
-        let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
-        XCTAssertTrue(selector.waitForExistence(timeout: 10))
-        selector.click()
-
-        let keyStore = app.firstDescendant(withIdentifier: "browser-key-store-menu-item-Local Key")
-        XCTAssertTrue(keyStore.waitForExistence(timeout: 10), "Expected the Local Key item.")
-        keyStore.click()
-
-        let item = app.firstDescendant(withIdentifier: "browser-account-menu-item-\(name)")
-        XCTAssertTrue(item.waitForExistence(timeout: 10), "Expected a \"\(name)\" row in the Local Key list.")
-        item.click()
     }
 
     func connectAndApproveEthereumFixture() {

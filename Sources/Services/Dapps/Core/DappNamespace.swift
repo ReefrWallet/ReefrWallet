@@ -23,6 +23,18 @@ enum DappNamespace: String, CaseIterable, Sendable {
     case tron
     // Later: case bitcoin.
 
+    /// The chain family's name, as shown to people.
+    var displayName: String {
+        switch self {
+        case .aptos: "Aptos"
+        case .cardano: "Cardano"
+        case .ethereum: "Ethereum"
+        case .solana: "Solana"
+        case .sui: "Sui"
+        case .tron: "Tron"
+        }
+    }
+
     /// Third-party JS libraries this namespace's provider scripts depend
     /// on — `Resources/Browser/vendor/<name>.js` for each, injected before
     /// ``providerScriptNames``. Each is wrapped so it's only evaluated on

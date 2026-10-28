@@ -16,6 +16,48 @@ enum DappApprovalRequest: Sendable {
     case connect(origin: String, namespace: DappNamespace, account: Account)
     case signMessage(origin: String, namespace: DappNamespace, account: Account, preview: DappMessagePreview)
     case sendTransaction(origin: String, namespace: DappNamespace, account: Account, preview: DappTransactionPreview)
+    /// The page asked to connect on chains it isn't connected on yet: which account to use for each.
+    case chooseAccounts(origin: String, selections: [DappAccountSelection])
+}
+
+/// One chain's accounts offered when a dapp first connects, and the one preselected.
+struct DappAccountSelection: Identifiable, Hashable, Sendable {
+    let choices: [DappAccountChoice]
+    let defaultAddress: String
+    let namespace: DappNamespace
+
+    var id: DappNamespace { namespace }
+
+    var defaultChoice: DappAccountChoice {
+        choices.first { $0.account.address == defaultAddress } ?? choices[0]
+    }
+}
+
+/// An account offered when a dapp connects, with the key store it belongs to.
+struct DappAccountChoice: Identifiable, Hashable, Sendable {
+    let account: Account
+    let keyStoreName: String
+
+    var id: String { account.address }
+
+    /// The address shown to people: Cardano accounts are stored as descriptors.
+    var displayAddress: String {
+        guard case .cardano = account.blockchain else {
+            return account.address
+        }
+
+        return (try? CardanoAccountDescriptor(string: account.address).receiveAddress.string) ?? account.address
+    }
+
+    /// `"<key store> · <account> (<shortened address>)"`.
+    var label: String {
+        let address = displayAddress
+        let short = address.count > 20 ? "\(address.prefix(10))…\(address.suffix(6))" : address
+
+        let account = "\(account.name) (\(short))"
+
+        return keyStoreName.isEmpty ? account : "\(keyStoreName) · \(account)"
+    }
 }
 
 /// A message a dapp asked the user to sign, per chain — mirrors
@@ -165,6 +207,10 @@ enum DappApprovalResult: Sendable {
 protocol DappApproving: Sendable {
     func approve(_ request: DappApprovalRequest) async -> DappApprovalResult
 
+    /// Asks the user which account to connect `origin` with on each chain in
+    /// `selections`; `nil` if they decline.
+    func chooseAccounts(origin: String, selections: [DappAccountSelection]) async -> [DappNamespace: Account]?
+
     /// Called once the request with `requestId` (``DappRequestScope/id``)
     /// has been fully handled, with the error it failed with, if any.
     func didFinishRequest(_ requestId: UUID, error: (any Error)?) async
@@ -175,6 +221,10 @@ protocol DappApproving: Sendable {
 }
 
 extension DappApproving {
+    func chooseAccounts(origin: String, selections: [DappAccountSelection]) async -> [DappNamespace: Account]? {
+        nil
+    }
+
     func didFinishRequest(_ requestId: UUID, error: (any Error)?) async {}
 
     func reportFailure(_ message: String) async {}

@@ -47,6 +47,10 @@ struct EthereumDappProvider: DappProvider {
         self.transactionService = transactionService ?? DI.injectOrFail(TransactionService.self)
     }
 
+    func isConnectRequest(method: String, params: JSONValue) -> Bool {
+        method == "eth_requestAccounts" || method == "wallet_requestPermissions"
+    }
+
     func handle(method: String, params: JSONValue, context: DappRequestContext) async throws(DappError) -> JSONValue {
         Logger.verbose("Eth handle: \(method)")
 
@@ -464,6 +468,7 @@ private extension EthereumDappProvider {
                 sender: account, to: request.to, value: request.value, data: request.data, options: options,
                 authorize: { try await context.authorize(.ethereum, account: account) }
             )
+
             Logger.verbose("Eth sendTransaction broadcast: \(hash)")
             return hash
         } catch {

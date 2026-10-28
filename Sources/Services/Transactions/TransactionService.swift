@@ -172,6 +172,7 @@ extension TransactionService {
 
                 return try await body(signer)
             }
+
         case .watchOnly:
             throw ReefrError.notSupported
         }
