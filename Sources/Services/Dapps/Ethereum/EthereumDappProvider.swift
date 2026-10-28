@@ -517,4 +517,4 @@ private extension EthereumDappProvider {
             throw .internalError("\(error)")
         }
     }
-}
+} // swiftlint:disable:this file_length

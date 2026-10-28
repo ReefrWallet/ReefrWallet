@@ -53,6 +53,16 @@ extension DatabaseService {
         try modelContext.save()
     }
 
+    func setKeyStoreCollapsed(id: PersistentIdentifier, isCollapsed: Bool) throws {
+        guard let keyStore = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
+            .first(where: { $0.persistentModelID == id }) else {
+            throw ReefrError.notFound
+        }
+
+        keyStore.isCollapsed = isCollapsed
+        try modelContext.save()
+    }
+
     func usdValue(keyStoreId: PersistentIdentifier) throws -> Decimal {
         guard let keyStoreModel = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
             .first(where: { $0.persistentModelID == keyStoreId }) else {

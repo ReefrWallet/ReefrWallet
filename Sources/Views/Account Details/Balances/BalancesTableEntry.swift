@@ -43,7 +43,7 @@ enum BalancesTableEntry: Identifiable {
         case let .balance(balance):
             balance.token.name
         case .hiddenBalancesTitle:
-            "Hidden Balances"
+            String(localized: .commonHiddenBalances)
         case .none:
             ""
         }

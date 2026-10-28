@@ -4,8 +4,9 @@
 // (16pt color circles) from @web3icons/core SVGs. Run via ../make_web3icons.sh.
 //
 // NETWORKS entries: "<network-id>[=<name>]"           -> "<name>Network16"
-// TOKENS entries:   "<SYMBOL>[=network:<network-id>]" -> "<symbol>Token16"
+// TOKENS entries:   "<SYMBOL>[=network:<network-id>[:fit]]" -> "<symbol>Token16"
 // A `network:` source takes the network's background icon when the token has none.
+// `:fit` shrinks it onto a white circle so a full-bleed square logo fits entirely inside.
 
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -53,6 +54,17 @@ const circular = (svg, id) =>
     )
     .replace(/<\/svg>\s*$/, '</g>\n</svg>\n')
 
+const FIT_SCALE = 0.66
+
+// Square logo scaled to sit entirely inside the circle, on a white disc.
+const fitted = (svg) =>
+  svg
+    .replace(
+      /(<svg[^>]*>)/,
+      `$1\n<circle cx="12" cy="12" r="12" fill="#fff"/>\n<g transform="translate(12 12) scale(${FIT_SCALE}) translate(-12 -12)">`
+    )
+    .replace(/<\/svg>\s*$/, '</g>\n</svg>\n')
+
 const contentsJSON = (properties) => ({
   info: { author: 'xcode', version: 1 },
   ...(properties && { properties }),
@@ -90,7 +102,7 @@ for (const [id, name = id] of entries(process.env.NETWORKS)) {
 const tokensDir = makeCatalog('Tokens')
 for (const [symbol, source] of entries(process.env.TOKENS)) {
   const assetName = `${camelCase(symbol.toLowerCase())}Token${SIZE}`
-  const networkId = source?.match(/^network:(.+)$/)?.[1]
+  const [, networkId, fit] = source?.match(/^network:([^:]+)(:fit)?$/) ?? []
   if (source && !networkId) {
     throw new Error(`Bad token source "${source}"`)
   }
@@ -98,6 +110,6 @@ for (const [symbol, source] of entries(process.env.TOKENS)) {
   const svg = networkId
     ? await loadSVG('networks', 'background', networkId)
     : await loadSVG('tokens', 'background', symbol)
-  writeImageSet(tokensDir, assetName, circular(svg, assetName), false)
+  writeImageSet(tokensDir, assetName, circular(fit ? fitted(svg) : svg, assetName), false)
   console.log(`Tokens: ${assetName}`)
 }

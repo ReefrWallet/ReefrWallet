@@ -36,28 +36,19 @@ struct BrowserDappDetailsView: View {
 
                     Spacer()
 
-                    Button("Remove", role: .destructive) {
-                        store.remove(dapp)
-                    }
-                    .accessibilityIdentifier("dapp-remove-button")
+                    Button(.commonOpenInBrowser) { open() }
+                        .accessibilityIdentifier("dapp-open-button")
                 }
             }
 
-            Section("Access") {
+            Section(.browserDappDetailsAccess) {
                 if namespaces.isEmpty {
-                    Text("Not connected. Open it in the browser to connect.")
+                    Text(.browserDappDetailsNotConnectedHint)
                         .style(.medium, foreground: .secondary)
                 } else {
                     ForEach(namespaces, id: \.self) { namespace in
                         accountRow(namespace)
                     }
-                }
-
-                HStack {
-                    Spacer()
-
-                    Button("Open in Browser") { open() }
-                        .accessibilityIdentifier("dapp-open-button")
                 }
             }
         }
@@ -74,17 +65,15 @@ struct BrowserDappDetailsView: View {
 
     /// One row per chain: the account the dapp connects with on it.
     private func accountRow(_ namespace: DappNamespace) -> some View {
-        LabeledContent(namespace.displayName) {
-            Picker(namespace.displayName, selection: grantBinding(namespace)) {
-                Text("Not connected").tag(String?.none)
+        let choices = choices(for: namespace)
 
-                ForEach(choices(for: namespace)) { choice in
-                    Text(choice.label).tag(Optional(choice.account.address))
-                }
-            }
-            .labelsHidden()
-            .fixedSize()
-            .accessibilityIdentifier("dapp-account-picker-\(namespace.rawValue)")
+        return LabeledContent(namespace.displayName) {
+            AccountChoiceMenu(
+                choices: choices,
+                namespace: namespace,
+                selection: grantBinding(namespace, choices: choices)
+            )
+            .fixedSize(horizontal: !isPhone, vertical: false)
         }
     }
 
@@ -92,16 +81,16 @@ struct BrowserDappDetailsView: View {
         dapp.grants.first { $0.namespace == namespace.rawValue }?.accountAddress
     }
 
-    private func grantBinding(_ namespace: DappNamespace) -> Binding<String?> {
+    private func grantBinding(_ namespace: DappNamespace, choices: [DappAccountChoice]) -> Binding<DappAccountChoice?> {
         Binding(
-            get: { granted(namespace) },
-            set: { address in
-                guard let address else {
+            get: { choices.first { $0.account.address == granted(namespace) } },
+            set: { choice in
+                guard let choice else {
                     store.disconnect(dapp, namespace: namespace.rawValue)
                     return
                 }
 
-                store.connect(dapp, accountAddress: address, namespace: namespace.rawValue)
+                store.connect(dapp, accountAddress: choice.account.address, namespace: namespace.rawValue)
             }
         )
     }

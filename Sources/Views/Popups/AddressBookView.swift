@@ -42,8 +42,8 @@ extension AddressBookView: View {
     var body: some View {
         VStack {
             Table(of: SavedAddressModel.self, selection: $selection) {
-                TableColumn("Address", value: \.address)
-                TableColumn("Memo", value: \.memo)
+                TableColumn(.addressBookAddress, value: \.address)
+                TableColumn(.commonMemo, value: \.memo)
             } rows: {
                 ForEach(savedAddresses) {
                     TableRow($0)
@@ -53,18 +53,18 @@ extension AddressBookView: View {
             Spacer()
 
             HStack {
-                Button("Add New") {
+                Button(.addressBookAddNew) {
                     isAddressBookPresented = true
                 }
 
                 Spacer()
 
                 if isSelectable {
-                    Button("Cancel") {
+                    Button(.commonCancel) {
                         dismiss()
                     }
 
-                    Button("Select") {
+                    Button(.addressBookSelect) {
                         selectedAddress = savedAddresses
                             .first { $0.id == selection }?
                             .address
@@ -72,7 +72,7 @@ extension AddressBookView: View {
                         dismiss()
                     }
                 } else {
-                    Button("Close") {
+                    Button(.addressBookClose) {
                         dismiss()
                     }
                 }

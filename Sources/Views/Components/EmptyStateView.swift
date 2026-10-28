@@ -14,9 +14,9 @@ struct EmptyStateView: View {
     private static let markOpacity: CGFloat = 0.4
     private static let spacing: CGFloat = 16
 
-    let title: LocalizedStringKey
+    let title: LocalizedStringResource
 
-    init(_ title: LocalizedStringKey) {
+    init(_ title: LocalizedStringResource) {
         self.title = title
     }
 
@@ -39,6 +39,6 @@ struct EmptyStateView: View {
 }
 
 #Preview {
-    EmptyStateView("Zero Balances")
+    EmptyStateView(.commonZeroBalances)
         .frame(width: 800, height: 500)
 }

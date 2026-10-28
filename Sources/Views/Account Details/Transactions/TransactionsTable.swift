@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import WalletKit
 
@@ -19,7 +20,7 @@ struct TransactionsTable: View {
             }
             .width(Self.statusColumnWidth)
 
-            TableColumn("Date") { model in
+            TableColumn(.transactionsTableDate) { model in
                 Text(model.timestamp.map(Self.dateText) ?? "—")
                     .style(Self.textSize, foreground: .secondary)
                     .help(model.timestamp?.formatted(date: .complete, time: .standard) ?? "")
@@ -36,7 +37,7 @@ struct TransactionsTable: View {
             #if os(macOS)
             macColumns
             #else
-            TableColumn("Counterparty") { model in
+            TableColumn(.transactionsTableCounterparty) { model in
                 Text(model.subtitle)
                     .truncationMode(.middle)
                     .style(.callout, foreground: .primary)
@@ -165,4 +166,5 @@ private extension TransactionsTable {
         return "\(date.formatted(.dateTime.month(.abbreviated).day())), \(time)"
     }
 }
+#endif
 #endif

@@ -65,12 +65,12 @@ struct TransactionStatusIcon: View {
             Image(systemName: "exclamationmark.circle")
                 .font(.system(size: size))
                 .foregroundStyle(Color.negative)
-                .accessibilityLabel("Failed")
+                .accessibilityLabel(.transactionRowFailed)
         } else if model.isPending {
             Image(systemName: "clock")
                 .font(.system(size: size))
                 .foregroundStyle(Color.caution)
-                .accessibilityLabel("Pending")
+                .accessibilityLabel(.transactionRowPending)
         }
     }
 }
@@ -82,7 +82,7 @@ struct TransactionStatusPill: View {
         if model.isFailed || model.isPending {
             let color = model.isFailed ? Color.negative : Color.caution
 
-            Text(model.isFailed ? "Failed" : "Pending")
+            Text(model.isFailed ? .transactionRowFailed : .transactionRowPending)
                 .style(.caption, foreground: color)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)

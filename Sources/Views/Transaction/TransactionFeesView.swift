@@ -48,8 +48,7 @@ extension TransactionFeesView: View {
         ParameterSection(
             "\(blockchain.name) Fees",
             footer: footer,
-            footerColor: footerColor,
-            isFooterIndented: true
+            footerColor: footerColor
         ) {
             switch blockchain {
             case .aptos:
@@ -85,52 +84,60 @@ extension TransactionFeesView: View {
 private extension TransactionFeesView {
     @ViewBuilder
     var aptosFeesForm: some View {
-        field("Gas unit price (octas)", text: $aptosGasUnitPrice, id: "transfer-aptos-gas-unit-price-field")
-        field("Max gas", text: $aptosMaxGasAmount, id: "transfer-aptos-max-gas-field")
-        ParameterRow("Max transaction cost (USD)", value: transactionCost)
+        field(
+            String(localized: .transactionFeesGasUnitPrice),
+            text: $aptosGasUnitPrice,
+            id: "transfer-aptos-gas-unit-price-field"
+        )
+
+        field(String(localized: .transactionFeesMaxGas), text: $aptosMaxGasAmount, id: "transfer-aptos-max-gas-field")
+        ParameterRow(String(localized: .transactionFeesMaxTransactionCost), value: transactionCost)
     }
 
     @ViewBuilder
     var bitcoinFeesForm: some View {
-        field("Fee rate (sat/vB)", text: $bitcoinFeeRate, id: "transfer-bitcoin-fee-rate-field")
-        ParameterRow("Transaction cost (USD)", value: transactionCost)
+        field(String(localized: .transactionFeesFeeRate), text: $bitcoinFeeRate, id: "transfer-bitcoin-fee-rate-field")
+        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
     @ViewBuilder
     var cardanoFeesForm: some View {
-        ParameterRow("Network fee", value: cardanoFee)
-        ParameterRow("Transaction cost (USD)", value: transactionCost)
+        ParameterRow(String(localized: .transactionFeesNetworkFee), value: cardanoFee)
+        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
     @ViewBuilder
     var evmFeesForm: some View {
-        ParameterRow("Base fee", value: ethereumBaseFee)
-        field("Max priority fee per gas (gwei)", text: $ethereumMaxPriorityFee)
-        field("Max fee per gas (gwei)", text: $ethereumMaxFee)
-        ParameterRow("Transaction cost (USD)", value: transactionCost)
+        ParameterRow(String(localized: .transactionFeesBaseFee), value: ethereumBaseFee)
+        field(String(localized: .transactionFeesMaxPriorityFee), text: $ethereumMaxPriorityFee)
+        field(String(localized: .transactionFeesMaxFee), text: $ethereumMaxFee)
+        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
     @ViewBuilder
     var solanaFeesForm: some View {
-        field("Priority fee (µLamports/CU)", text: $solanaPriorityFee)
-        field("Compute unit limit", text: $solanaComputeUnitLimit)
-        ParameterRow("Transaction cost (USD)", value: transactionCost)
+        field(String(localized: .transactionFeesPriorityFee), text: $solanaPriorityFee)
+        field(String(localized: .transactionFeesComputeUnitLimit), text: $solanaComputeUnitLimit)
+        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
     @ViewBuilder
     var suiFeesForm: some View {
-        ParameterRow("Gas price (MIST)", value: estimatedFees?.suiGasPrice ?? "")
-        field("Gas budget", text: $suiGasBudget)
-        ParameterRow("Transaction cost (USD)", value: transactionCost)
+        ParameterRow(String(localized: .transactionFeesGasPrice), value: estimatedFees?.suiGasPrice ?? "")
+        field(String(localized: .transactionFeesGasBudget), text: $suiGasBudget)
+        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
     @ViewBuilder
     var tronFeesForm: some View {
-        field("TRC-20 fee limit (SUN)", text: $tronFeeLimit, isEnabled: isTronFeeLimitEnabled)
+        field(String(localized: .transactionFeesTrc20FeeLimit), text: $tronFeeLimit, isEnabled: isTronFeeLimitEnabled)
 
         // Not in Penpot: a dapp transaction's estimated burn, after the account's staked resources.
         if let burnedSun = estimatedFees?.nativeFeeReserve.flatMap({ UInt64($0) }) {
-            ParameterRow("Estimated burn", value: TronTransactionParametersView.trx(burnedSun))
+            ParameterRow(
+                String(localized: .transactionFeesEstimatedBurn),
+                value: TronTransactionParametersView.trx(burnedSun)
+            )
         }
     }
 
@@ -163,7 +170,7 @@ private extension TransactionFeesView {
             .precision(.fractionLength(0...2))
             .grouping(.never)
             .locale(Locale(identifier: "en_US_POSIX"))
-        return "\(gwei.formatted(format)) gwei"
+        return String(localized: .transactionFeesGwei(gwei.formatted(format)))
     }
 
     /// The fee of the transaction as built, in ADA. Cardano fees are fixed by
@@ -174,15 +181,15 @@ private extension TransactionFeesView {
         }
 
         let ada = Decimal(lovelace) / Decimal(1_000_000)
-        return "\(ada.formatted(.number.precision(.fractionLength(0...6)))) ADA"
+        return ada.formatted(symbol: "ADA")
     }
 
     var footer: String? {
         switch blockchain {
         case .cardano:
-            "The fee depends only on transaction size. It does not affect confirmation speed."
+            String(localized: .transactionFeesFeeSizeNote)
         case .tron:
-            "This caps Energy and Bandwidth spending. It does not increase transaction priority."
+            String(localized: .transactionFeesFeeLimitNote)
         default:
             warning
         }

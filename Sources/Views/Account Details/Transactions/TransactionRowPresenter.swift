@@ -44,12 +44,12 @@ enum TransactionRowPresenters {
 /// Aptos effects are the account's own signed net amounts per asset.
 struct AptosTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
-        amountTitle: "Amount",
-        blockTitle: "Version",
-        feeTitle: "Gas (APT)",
-        fromTitle: "Sender",
-        hashTitle: "Hash",
-        methodTitle: "Function",
+        amountTitle: String(localized: .commonAmount),
+        blockTitle: String(localized: .commonVersion),
+        feeTitle: String(localized: .transactionRowGasApt),
+        fromTitle: String(localized: .transactionRowSender),
+        hashTitle: String(localized: .transactionRowHash),
+        methodTitle: String(localized: .commonFunction),
         showsDirection: false,
         toTitle: nil
     )
@@ -59,7 +59,8 @@ struct AptosTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .signedAmounts,
-            blockLabel: transaction.blockHeight.map { "Version \($0)" } ?? "Pending"
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowVersionNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
         )
     }
 }
@@ -67,12 +68,12 @@ struct AptosTransactionRowPresenter: TransactionRowPresenter {
 /// Bitcoin effects are net UTXO deltas; there's no single sender/recipient to tabulate.
 struct BitcoinTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
-        amountTitle: "Balance Change",
-        blockTitle: "Block",
-        feeTitle: "Fee (BTC)",
+        amountTitle: String(localized: .transactionRowBalanceChange),
+        blockTitle: String(localized: .transactionRowBlock),
+        feeTitle: String(localized: .transactionRowFeeBtc),
         fromTitle: nil,
-        hashTitle: "Transaction ID",
-        methodTitle: "Type",
+        hashTitle: String(localized: .transactionRowTransactionId),
+        methodTitle: String(localized: .commonType),
         showsDirection: false,
         toTitle: nil
     )
@@ -82,19 +83,20 @@ struct BitcoinTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .ownedAddresses,
-            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "In mempool"
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowBlockNumber(String($0))) }
+                ?? String(localized: .transactionRowInMempool)
         )
     }
 }
 
 struct CardanoTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
-        amountTitle: "Balance Change",
-        blockTitle: "Block",
-        feeTitle: "Fee (ADA)",
+        amountTitle: String(localized: .transactionRowBalanceChange),
+        blockTitle: String(localized: .transactionRowBlock),
+        feeTitle: String(localized: .transactionRowFeeAda),
         fromTitle: nil,
-        hashTitle: "Hash",
-        methodTitle: "Type",
+        hashTitle: String(localized: .transactionRowHash),
+        methodTitle: String(localized: .commonType),
         showsDirection: false,
         toTitle: nil
     )
@@ -104,7 +106,8 @@ struct CardanoTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .ownedAddresses,
-            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "Pending"
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowBlockNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
         )
     }
 }
@@ -114,14 +117,14 @@ struct EVMTransactionRowPresenter: TransactionRowPresenter {
 
     init(feeSymbol: String = "ETH") {
         schema = TransactionTableSchema(
-            amountTitle: "Amount",
-            blockTitle: "Block",
-            feeTitle: "Fee (\(feeSymbol))",
-            fromTitle: "From",
-            hashTitle: "Hash",
-            methodTitle: "Method",
+            amountTitle: String(localized: .commonAmount),
+            blockTitle: String(localized: .transactionRowBlock),
+            feeTitle: String(localized: .transactionRowFeeWithSymbol(feeSymbol)),
+            fromTitle: String(localized: .commonFrom),
+            hashTitle: String(localized: .transactionRowHash),
+            methodTitle: String(localized: .transactionRowMethod),
             showsDirection: true,
-            toTitle: "To"
+            toTitle: String(localized: .commonTo)
         )
     }
 
@@ -130,7 +133,8 @@ struct EVMTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .addresses,
-            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "Pending"
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowBlockNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
         )
     }
 }
@@ -138,14 +142,14 @@ struct EVMTransactionRowPresenter: TransactionRowPresenter {
 /// Solana effects are signed balance deltas; the target program stands in for a recipient.
 struct SolanaTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
-        amountTitle: "Value",
-        blockTitle: "Slot",
-        feeTitle: "Fee (SOL)",
-        fromTitle: "Signer",
-        hashTitle: "Signature",
-        methodTitle: "Action",
+        amountTitle: String(localized: .commonValue),
+        blockTitle: String(localized: .transactionRowSlot),
+        feeTitle: String(localized: .transactionRowFeeSol),
+        fromTitle: String(localized: .transactionRowSigner),
+        hashTitle: String(localized: .transactionRowSignature),
+        methodTitle: String(localized: .commonAction),
         showsDirection: false,
-        toTitle: "Program"
+        toTitle: String(localized: .transactionRowProgram)
     )
 
     func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
@@ -153,21 +157,22 @@ struct SolanaTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .signedAmounts,
-            blockLabel: transaction.blockHeight.map { "Slot \($0)" } ?? "Pending"
+            blockLabel: transaction.blockHeight.map { String(localized: .commonSlotNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
         )
     }
 }
 
 struct SuiTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
-        amountTitle: "Amount",
-        blockTitle: "Checkpoint",
-        feeTitle: "Gas (SUI)",
+        amountTitle: String(localized: .commonAmount),
+        blockTitle: String(localized: .transactionRowCheckpoint),
+        feeTitle: String(localized: .transactionRowGasSui),
         fromTitle: nil,
-        hashTitle: "Digest",
-        methodTitle: "Type",
+        hashTitle: String(localized: .transactionRowDigest),
+        methodTitle: String(localized: .commonType),
         showsDirection: false,
-        toTitle: "Activity With"
+        toTitle: String(localized: .transactionRowActivityWith)
     )
 
     func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
@@ -175,21 +180,22 @@ struct SuiTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .signedAmounts,
-            blockLabel: transaction.blockHeight.map { "Checkpoint \($0)" } ?? "Pending"
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowCheckpointNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
         )
     }
 }
 
 struct TronTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
-        amountTitle: "Amount",
-        blockTitle: "Block",
-        feeTitle: "Fee (TRX)",
-        fromTitle: "From",
-        hashTitle: "Hash",
-        methodTitle: "Type",
+        amountTitle: String(localized: .commonAmount),
+        blockTitle: String(localized: .transactionRowBlock),
+        feeTitle: String(localized: .transactionRowFeeTrx),
+        fromTitle: String(localized: .commonFrom),
+        hashTitle: String(localized: .transactionRowHash),
+        methodTitle: String(localized: .commonType),
         showsDirection: true,
-        toTitle: "To"
+        toTitle: String(localized: .commonTo)
     )
 
     func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
@@ -197,7 +203,8 @@ struct TronTransactionRowPresenter: TransactionRowPresenter {
             transaction: transaction,
             account: account,
             direction: .addresses,
-            blockLabel: transaction.blockHeight.map { "Block #\($0)" } ?? "Pending"
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowBlockNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
         )
     }
 }
@@ -329,7 +336,9 @@ private extension TransactionRowModel {
             return identifier.shortened()
         }
 
-        return kind == .received ? "From \(otherParty.shortened())" : "To \(otherParty.shortened())"
+        return kind == .received
+            ? String(localized: .transactionRowFromAddress(otherParty.shortened()))
+            : String(localized: .transactionRowToAddress(otherParty.shortened()))
     }
 
     static func kind(

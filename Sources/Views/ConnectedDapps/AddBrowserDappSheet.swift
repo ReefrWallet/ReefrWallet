@@ -11,7 +11,7 @@ import SwiftUI
 
 /// Adds a dapp URL to the sidebar's Connected dApps list.
 struct AddBrowserDappSheet: View {
-    @State private var errorMessage: LocalizedStringKey?
+    @State private var errorMessage: LocalizedStringResource?
     @State private var isChecking = false
     @State private var text = ""
 
@@ -21,8 +21,45 @@ struct AddBrowserDappSheet: View {
     private let store = DI.injectOrFail(ConnectedDappStore.self)
 
     var body: some View {
+        if isPhone {
+            phoneBody
+        } else {
+            macBody
+        }
+    }
+
+    private var phoneBody: some View {
+        Form {
+            Section {
+                TextField("", text: $text, prompt: Text("https://app.example.com"))
+                    #if os(iOS)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("add-dapp-url-field")
+                    .onSubmit(add)
+                    .disabled(isChecking)
+            } footer: {
+                if let errorMessage {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .phoneSheet(
+            .commonAddDapp,
+            onCancel: { dismiss() },
+            confirmTitle: .commonAdd,
+            confirmId: "add-dapp-add-button",
+            isConfirmEnabled: url != nil && !isChecking,
+            onConfirm: add
+        )
+    }
+
+    private var macBody: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add dApp")
+            Text(.commonAddDapp)
                 .style(.largeHeader)
 
             TextField("", text: $text, prompt: Text("https://app.example.com").foregroundStyle(.secondary))
@@ -46,12 +83,12 @@ struct AddBrowserDappSheet: View {
 
                 Spacer()
 
-                Button("Cancel") {
+                Button(.commonCancel) {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
 
-                Button("Add", action: add)
+                Button(.commonAdd, action: add)
                     .keyboardShortcut(.defaultAction)
                     .disabled(url == nil || isChecking)
                     .accessibilityIdentifier("add-dapp-add-button")
@@ -90,7 +127,7 @@ struct AddBrowserDappSheet: View {
             isChecking = false
 
             guard isServed else {
-                errorMessage = "Could not reach this address. Check the link and try again."
+                errorMessage = .addBrowserDappUnreachable
                 return
             }
 

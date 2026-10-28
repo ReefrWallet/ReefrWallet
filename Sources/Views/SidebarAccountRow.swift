@@ -14,6 +14,17 @@ struct SidebarAccountRow: View {
     let onCommitEditing: () -> Void
 
     var body: some View {
+        HStack(spacing: 4) {
+            label
+
+            Spacer()
+
+            Text(account.usdValue().formatted(.currency(code: "USD").precision(.fractionLength(0))))
+                .style(.small, foreground: isSelected() ? .white : .sidebarSecondaryLabel)
+        }
+    }
+
+    private var label: some View {
         Label {
             if isEditing() {
                 TextField(account.name, text: $editingName)
@@ -44,11 +55,10 @@ struct SidebarAccountRow: View {
                     .accessibilityIdentifier("sidebar-account-label-\(account.name)")
             }
         } icon: {
-            account.blockchain.blockchain.networkImage
+            account.blockchain.blockchain.logoImage
                 .resizable()
                 .scaledToFit()
                 .frame(width: 16, height: 16)
-                .style(foreground: isSelected() ? .white : .sidebarIcon)
         }
     }
 }

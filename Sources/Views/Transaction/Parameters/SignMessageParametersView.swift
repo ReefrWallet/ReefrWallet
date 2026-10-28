@@ -31,6 +31,6 @@ struct SignMessageParametersView: View {
     var body: some View {
         SignerSection(account: account, site: site)
 
-        ParameterBlock("Message", text: message)
+        ParameterBlock(String(localized: .commonMessage), text: message)
     }
 }

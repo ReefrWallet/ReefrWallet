@@ -46,7 +46,7 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
 
                 if let onEstimateFees {
                     Section {
-                        Button("Estimate Fees", action: onEstimateFees)
+                        Button(.transactionEstimateFees, action: onEstimateFees)
                             .frame(maxWidth: .infinity)
                             .disabled(!isEstimateFeesEnabled)
                     }
@@ -61,7 +61,7 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
                 }
 
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button(.commonCancel, action: onCancel)
                         .disabled(isProcessing)
                         .accessibilityIdentifier(accessibilityIds.cancel)
                 }
@@ -92,13 +92,13 @@ private extension TransactionSheet {
     var buttons: some View {
         HStack {
             if let onEstimateFees {
-                Button("Estimate Fees", action: onEstimateFees)
+                Button(.transactionEstimateFees, action: onEstimateFees)
                     .disabled(!isEstimateFeesEnabled)
             }
 
             Spacer()
 
-            Button("Cancel", action: onCancel)
+            Button(.commonCancel, action: onCancel)
                 .keyboardShortcut(.cancelAction)
                 .disabled(isProcessing)
                 .accessibilityIdentifier(accessibilityIds.cancel)

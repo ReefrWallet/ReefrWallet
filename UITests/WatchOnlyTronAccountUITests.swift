@@ -90,12 +90,6 @@ private extension WatchOnlyTronAccountUITests {
             "Expected the native TRX balance to appear outside the hidden section."
         )
 
-        let hiddenDisclosure = app.firstDescendant(withIdentifier: "balances-table-hidden-disclosure-row")
-        XCTAssertTrue(
-            hiddenDisclosure.waitForExistence(timeout: 10),
-            "Expected TRC-20 token balances to appear in the Hidden Balances section."
-        )
-
         app.expandHiddenBalances()
 
         let hiddenBalances = app.descendants(matching: .any)

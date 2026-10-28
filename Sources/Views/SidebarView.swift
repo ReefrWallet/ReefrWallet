@@ -20,9 +20,26 @@ enum PresentedSheet: Identifiable {
     case addWatchOnlyAccount
     case backUpKeyStore(KeyStore)
     case browser(URL)
+    case settings
 
+    /// Stable across re-renders; a fresh id per read makes `.sheet(item:)` re-present endlessly.
     var id: String {
-        UUID().uuidString
+        switch self {
+        case let .addAccount(keyStore):
+            "addAccount-\(keyStore.hashValue)"
+        case .addBrowserDapp:
+            "addBrowserDapp"
+        case .addKeyStore:
+            "addKeyStore"
+        case .addWatchOnlyAccount:
+            "addWatchOnlyAccount"
+        case let .backUpKeyStore(keyStore):
+            "backUpKeyStore-\(keyStore.hashValue)"
+        case let .browser(url):
+            "browser-\(url.absoluteString)"
+        case .settings:
+            "settings"
+        }
     }
 }
 
@@ -38,6 +55,8 @@ struct SidebarView {
     @State private var editingId: PersistentIdentifier?
     @State private var editingName: String = ""
 
+    @State private var hoveredKeyStoreId: PersistentIdentifier?
+    @State private var isListEditing = false
     @State private var isUpdating = false
 
     @FocusState private var isAccountsListFocused: Bool
@@ -66,24 +85,39 @@ struct SidebarView {
 
 extension SidebarView: View {
     var body: some View {
+        styledList
+            .alert(.sidebarDeleteAccountTitle, isPresented: $deleteAccountAlertPresented) {
+                deleteAccountAlertActions
+            }
+            .alert(.sidebarDeleteKeyStoreTitle, isPresented: $deleteKeyStoreAlertPresented) {
+                deleteKeyStoreAlertActions
+            }
+    }
+
+    @MainActor
+    private var styledList: some View {
         List(selection: sidebarSelection) {
             if !keyStores.isEmpty {
-                if !hardwareKeyStores.isEmpty {
-                    makeKeysSection("Hardware Keys", keyStores: hardwareKeyStores)
+                ForEach(orderedKeyStores) { keyStore in
+                    makeKeyStoreSection(keyStore)
                 }
 
-                if !localKeyStores.isEmpty {
-                    makeKeysSection("On This Computer", keyStores: localKeyStores)
-                }
-
-                if let accounts = watchOnlyKeyStore?.accounts, !accounts.isEmpty {
-                    makeWatchOnlyAccountsSection("Watch-only Accounts")
+                if isPhone, isListEditing, orderedKeyStores.last?.isWatchOnly != true {
+                    emptyWatchOnlySection
                 }
             } else {
                 VStack(alignment: .center) {
-                    Text("No keys")
+                    Text(.sidebarNoKeys)
                         .style(.medium, foreground: .secondary)
                         .padding(.vertical)
+
+                    #if os(iOS)
+                    Button(.sidebarNewKeyStore) {
+                        presentSheet?(.addKeyStore)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .sheetSource(PresentedSheet.addKeyStore.id)
+                    #endif
                 }
                 .contextMenu {
                     addMenu
@@ -92,12 +126,20 @@ extension SidebarView: View {
             }
 
             if !keyStores.isEmpty {
-                ConnectedDappsSidebarSection("Connected dApps")
+                ConnectedDappsSidebarSection(.sidebarConnectedDapps, isEditing: isListEditing)
             }
         }
+        .listStyle(.sidebar)
         #if os(macOS)
         .scrollContentBackground(.hidden)
         .background(Color.sidebarBackground)
+        #else
+        .navigationTitle(isPhone ? String(localized: .sidebarKeyStores) : "")
+        .navigationBarTitleDisplayMode(.large)
+        .animation(.default, value: isListEditing)
+        .refreshable {
+            await refreshAllAccounts()
+        }
         #endif
         .focused($isAccountsListFocused)
         .onChange(of: sidebarSelection.wrappedValue) {
@@ -107,57 +149,100 @@ extension SidebarView: View {
             // navigating this list.
             if sidebarSelection.wrappedValue != nil {
                 isAccountsListFocused = true
+                isListEditing = false
             }
         }
         .toolbar {
+            #if os(iOS)
+            if isListEditing {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        presentSheet?(.settings)
+                    } label: {
+                        Label(.commonSettings, systemImage: "gearshape")
+                    }
+                    .sheetSource(PresentedSheet.settings.id)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(.commonDone) {
+                        isListEditing = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .fontWeight(.semibold)
+                }
+
+                ToolbarItem(placement: .bottomBar) {
+                    Spacer()
+                }
+
+                ToolbarItem(placement: .bottomBar) {
+                    Button(.sidebarNewKeyStore) {
+                        presentSheet?(.addKeyStore)
+                    }
+                    .sheetSource(PresentedSheet.addKeyStore.id)
+                }
+            } else if isPhone, !keyStores.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(.commonEdit) {
+                        isListEditing = true
+                    }
+                }
+            }
+            #else
             addMenu
             updateMenu
+            #endif
         }
-        .alert("Confirm Delete Account", isPresented: $deleteAccountAlertPresented) {
-            Button("Delete") {
-                if let deletingAccount {
-                    sidebarSelection.wrappedValue = nil
+    }
 
-                    Task {
-                        do {
-                            try await accountService.deleteAccount(deletingAccount)
-                        } catch {
-                            printError("\(deletingAccount.name): \(error)")
-                        }
+    @ViewBuilder
+    private var deleteAccountAlertActions: some View {
+        Button(.sidebarDelete) {
+            if let deletingAccount {
+                sidebarSelection.wrappedValue = nil
+
+                Task {
+                    do {
+                        try await accountService.deleteAccount(deletingAccount)
+                    } catch {
+                        printError("\(deletingAccount.name): \(error)")
                     }
                 }
-
-                self.deletingAccount = nil
-                deleteAccountAlertPresented = false
             }
 
-            Button("Cancel") {
-                deletingAccount = nil
-                deleteAccountAlertPresented = false
-            }
+            self.deletingAccount = nil
+            deleteAccountAlertPresented = false
         }
-        .alert("Confirm Delete Key Store", isPresented: $deleteKeyStoreAlertPresented) {
-            Button("Delete") {
-                if let deletingKeyStore {
-                    sidebarSelection.wrappedValue = nil
 
-                    Task {
-                        do {
-                            try await keyStoreService.deleteKeyStore(deletingKeyStore)
-                        } catch {
-                            printError("\(deletingKeyStore.name): \(error)")
-                        }
+        Button(.commonCancel) {
+            deletingAccount = nil
+            deleteAccountAlertPresented = false
+        }
+    }
+
+    @ViewBuilder
+    private var deleteKeyStoreAlertActions: some View {
+        Button(.sidebarDelete) {
+            if let deletingKeyStore {
+                sidebarSelection.wrappedValue = nil
+
+                Task {
+                    do {
+                        try await keyStoreService.deleteKeyStore(deletingKeyStore)
+                    } catch {
+                        printError("\(deletingKeyStore.name): \(error)")
                     }
                 }
-
-                self.deletingKeyStore = nil
-                deleteKeyStoreAlertPresented = false
             }
 
-            Button("Cancel") {
-                deletingKeyStore = nil
-                deleteKeyStoreAlertPresented = false
-            }
+            self.deletingKeyStore = nil
+            deleteKeyStoreAlertPresented = false
+        }
+
+        Button(.commonCancel) {
+            deletingKeyStore = nil
+            deleteKeyStoreAlertPresented = false
         }
     }
 }
@@ -169,7 +254,7 @@ private extension SidebarView {
         Button {
             presentSheet?(.addKeyStore)
         } label: {
-            Label("Add Key Store", systemImage: "key")
+            Label(.sidebarAddKeyStore, systemImage: "key")
         }
     }
 
@@ -188,9 +273,20 @@ private extension SidebarView {
             Divider()
 
             addWatchOnlyAccountMenuItem
+
+            if isPhone {
+                Divider()
+
+                Button {
+                    presentSheet?(.settings)
+                } label: {
+                    Label(.commonSettings, systemImage: "gearshape")
+                }
+            }
         } label: {
-            Label("Add", systemImage: "plus")
+            Label(.commonAdd, systemImage: "plus")
         }
+        .sheetSource(PresentedSheet.addKeyStore.id)
         .accessibilityIdentifier("sidebar-add-menu")
     }
 
@@ -198,7 +294,7 @@ private extension SidebarView {
         Button {
             addWatchOnlyAccount()
         } label: {
-            Label("Add Watch-Only Account", systemImage: "eye")
+            Label(.sidebarAddWatchOnlyAccount, systemImage: "eye")
         }
         .accessibilityIdentifier("sidebar-add-watch-only-account-item")
     }
@@ -207,7 +303,7 @@ private extension SidebarView {
         Button {
             updateBalances()
         } label: {
-            Label("Update", systemImage: "arrow.2.circlepath.circle")
+            Label(.sidebarUpdate, systemImage: "arrow.2.circlepath.circle")
                 .symbolEffect(.rotate, value: isUpdating)
         }
         .disabled(allAccounts.isEmpty || isUpdating)
@@ -218,7 +314,7 @@ private extension SidebarView {
         Button {
             presentSheet?(.addAccount(keyStore))
         } label: {
-            Label("Add Blockchain Account on \(keyStore.name)", systemImage: "person.badge.plus")
+            Label(.sidebarAddAccountOnKeyStore(keyStore.name), systemImage: "person.badge.plus")
         }
     }
 
@@ -235,7 +331,7 @@ private extension SidebarView {
             editingName = account.name
             editingId = account.id
         } label: {
-            Label("Rename \"\(account.name)\"", systemImage: "pencil")
+            Label(.sidebarRenameItem(account.name), systemImage: "pencil")
         }
 
         Divider()
@@ -248,12 +344,29 @@ private extension SidebarView {
                 printError(error)
             }
         } label: {
-            Label("Delete \"\(account.name)\"", systemImage: "trash")
+            Label(.sidebarDeleteItem(account.name), systemImage: "trash")
                 .style(foreground: .negative)
         }
     }
 
+    @MainActor @ViewBuilder
     func makeAccountItem(_ account: AccountModel) -> some View {
+        if isPhone {
+            KeyStoreAccountRow(account: account, isEditing: isListEditing) {
+                if let account = try? Account(model: account) {
+                    deletingAccount = account
+                    deleteAccountAlertPresented = true
+                }
+            }
+            .tag(account.id)
+            .selectionDisabled(isListEditing)
+            .phoneRowNeverHighlighted()
+        } else {
+            makeMacAccountItem(account)
+        }
+    }
+
+    func makeMacAccountItem(_ account: AccountModel) -> some View {
         SidebarAccountRow(
             account: account,
             editingName: $editingName,
@@ -282,7 +395,6 @@ private extension SidebarView {
                 }
             }
         )
-        .padding(.leading)
         .contextMenu {
             makeAccountContextMenu(account)
         }
@@ -299,7 +411,7 @@ private extension SidebarView {
             deletingKeyStore = keyStore
             deleteKeyStoreAlertPresented = true
         } label: {
-            Label("Delete \"\(keyStore.name)\"", systemImage: "trash")
+            Label(.sidebarDeleteItem(keyStore.name), systemImage: "trash")
         }
 
         Divider()
@@ -307,7 +419,7 @@ private extension SidebarView {
         Button {
             presentSheet?(.backUpKeyStore(keyStore))
         } label: {
-            Label("Back Up \"\(keyStore.name)\"", systemImage: "externaldrive.badge.timemachine")
+            Label(.sidebarBackUpKeyStore(keyStore.name), systemImage: "externaldrive.badge.timemachine")
         }
         .disabled(!keyStore.isLocal)
 
@@ -316,65 +428,168 @@ private extension SidebarView {
             editingName = keyStore.name
             editingId = keyStore.id
         } label: {
-            Label("Rename \"\(keyStore.name)\"", systemImage: "pencil")
+            Label(.sidebarRenameItem(keyStore.name), systemImage: "pencil")
         }
     }
 
-    func makeKeyStoreItem(_ keyStore: KeyStoreModel) -> some View {
-        Section {
+    @MainActor @ViewBuilder
+    func makeKeyStoreSection(_ keyStore: KeyStoreModel) -> some View {
+        Section(isExpanded: expansionBinding(keyStore)) {
             ForEach(keyStore.accounts.sorted()) { account in
                 makeAccountItem(account)
             }
-        } header: {
-            HStack(spacing: 4) {
-                KeyStoreKindIcon(kind: keyStore.kind, model: keyStore.model)
-                    .style(foreground: .sidebarControl)
 
-                if editingId == keyStore.id {
-                    TextField(keyStore.name, text: $editingName)
-                        .textFieldStyle(.plain)
-                        .onSubmit {
-                            editingId = nil
-
-                            Task {
-                                do {
-                                    try await databaseService.renameKeyStore(id: keyStore.id, name: editingName)
-                                } catch {
-                                    printError(error)
-                                }
-                            }
-                        }
-                } else if sidebarSelection.wrappedValue == keyStore.id {
-                    Text(keyStore.name)
-                        .contextMenu {
-                            try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
-                        }
-                        .onTapGesture {
-                            editingName = keyStore.name
-                            editingId = keyStore.id
-                        }
-                } else {
-                    Text(keyStore.name)
-                        .contextMenu {
-                            try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
-                        }
-                }
-
-                Spacer()
-
-                SidebarAddButton(
-                    accessibilityLabel: "Add Account",
-                    accessibilityId: "sidebar-add-account-button-\(keyStore.name)",
-                    trailingPadding: -6
+            if isPhone, isListEditing {
+                EditModeButton(
+                    kind: .add,
+                    accessibilityLabel: .sidebarAddAccountRow,
+                    title: .sidebarAddAccountRow
                 ) {
+                    addAccount(to: keyStore)
+                }
+                .phoneRowNeverHighlighted()
+                .selectionDisabled()
+                .sheetSource(addAccountSourceId(keyStore))
+            }
+        } header: {
+            makeKeyStoreHeader(keyStore)
+        }
+        .id(keyStore.id)
+    }
+
+    /// Edit-mode stand-in for the watch-only section while it has no accounts.
+    @MainActor
+    var emptyWatchOnlySection: some View {
+        Section {
+            EditModeButton(
+                kind: .add,
+                accessibilityLabel: .sidebarAddAccountRow,
+                title: .sidebarAddAccountRow
+            ) {
+                addWatchOnlyAccount()
+            }
+            .phoneRowNeverHighlighted()
+            .selectionDisabled()
+            .sheetSource(watchOnlyKeyStore.map(addAccountSourceId) ?? PresentedSheet.addWatchOnlyAccount.id)
+        } header: {
+            Text(.sidebarWatchOnlyAccounts)
+                .style(.title, foreground: .phoneLabel)
+        }
+    }
+
+    @MainActor
+    func makeKeyStoreHeader(_ keyStore: KeyStoreModel) -> some View {
+        let isCollapsed = keyStore.isCollapsed
+
+        return HStack(spacing: isPhone ? 12 : 4) {
+            if isPhone, isListEditing, !keyStore.isWatchOnly {
+                EditModeButton(kind: .remove, accessibilityLabel: .commonRemove) {
                     if let keyStore = try? KeyStore(model: keyStore) {
-                        presentSheet?(.addAccount(keyStore))
+                        deletingKeyStore = keyStore
+                        deleteKeyStoreAlertPresented = true
                     }
                 }
             }
-            .style(foreground: .sidebarLabel)
+
+            keyStoreTitle(keyStore)
+
+            Spacer()
+
+            if isCollapsed {
+                Text(totalValue(keyStore).formatted(.currency(code: "USD")))
+                    .style(
+                        isPhone ? .large : .small,
+                        foreground: isPhone ? .phoneSecondaryLabel : .sidebarSecondaryLabel
+                    )
+            }
+
+            #if os(macOS)
+            SidebarAddButton(
+                accessibilityLabel: .commonAddAccount,
+                accessibilityId: "sidebar-add-account-button-\(keyStore.name)",
+                trailingPadding: -6
+            ) {
+                addAccount(to: keyStore)
+            }
+            .opacity(hoveredKeyStoreId == keyStore.id ? 1 : 0)
+            #endif
         }
-        .id(keyStore.id)
+        .style(foreground: isPhone ? .phoneLabel : .sidebarLabel)
+        .onHover { isHovering in
+            if isHovering {
+                hoveredKeyStoreId = keyStore.id
+            } else if hoveredKeyStoreId == keyStore.id {
+                hoveredKeyStoreId = nil
+            }
+        }
+    }
+
+    @ViewBuilder
+    func keyStoreTitle(_ keyStore: KeyStoreModel) -> some View {
+        let title = keyStore.isWatchOnly ? String(localized: .sidebarWatchOnlyAccounts) : keyStore.name
+
+        if editingId == keyStore.id {
+            TextField(keyStore.name, text: $editingName)
+                .textFieldStyle(.plain)
+                .onSubmit {
+                    editingId = nil
+
+                    Task {
+                        do {
+                            try await databaseService.renameKeyStore(id: keyStore.id, name: editingName)
+                        } catch {
+                            printError(error)
+                        }
+                    }
+                }
+        } else if isPhone {
+            Text(title)
+                .style(.title, foreground: .phoneLabel)
+        } else if sidebarSelection.wrappedValue == keyStore.id {
+            Text(title)
+                .contextMenu {
+                    try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
+                }
+                .onTapGesture {
+                    editingName = keyStore.name
+                    editingId = keyStore.id
+                }
+        } else {
+            Text(title)
+                .contextMenu {
+                    try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
+                }
+        }
+    }
+
+    func expansionBinding(_ keyStore: KeyStoreModel) -> Binding<Bool> {
+        let databaseService = databaseService
+        let id = keyStore.id
+
+        return Binding(
+            get: { !keyStore.isCollapsed },
+            set: { isExpanded in
+                Task {
+                    do {
+                        try await databaseService.setKeyStoreCollapsed(id: id, isCollapsed: !isExpanded)
+                    } catch {
+                        printError(error)
+                    }
+                }
+            }
+        )
+    }
+
+    func totalValue(_ keyStore: KeyStoreModel) -> Decimal {
+        keyStore.accounts.reduce(into: 0) { $0 += $1.usdValue() }
+    }
+
+    func addAccountSourceId(_ keyStore: KeyStoreModel) -> String {
+        guard let keyStore = try? KeyStore(model: keyStore) else {
+            return PresentedSheet.addKeyStore.id
+        }
+
+        return PresentedSheet.addAccount(keyStore).id
     }
 }
 
@@ -405,45 +620,35 @@ extension SidebarView {
         }
     }
 
-    func makeKeysSection(_ title: String, keyStores: [KeyStoreModel]) -> some View {
-        Section {
-            ForEach(keyStores) { keyStore in
-                makeKeyStoreItem(keyStore)
-            }
-        } header: {
-            Text(title)
-                .style(foreground: .sidebarSecondaryLabel)
+    var orderedKeyStores: [KeyStoreModel] {
+        var result = hardwareKeyStores + localKeyStores
+
+        if let watchOnlyKeyStore, !watchOnlyKeyStore.accounts.isEmpty {
+            result.append(watchOnlyKeyStore)
         }
+
+        return result
     }
 
-    @MainActor @ViewBuilder
-    func makeWatchOnlyAccountsSection(_ title: String) -> some View {
-        if let accounts = watchOnlyKeyStore?.accounts {
-            Section {
-                ForEach(accounts) { account in
-                    makeAccountItem(account)
-                }
-            } header: {
-                HStack {
-                    Text(title)
-                        .style(foreground: .sidebarSecondaryLabel)
-
-                    Spacer()
-
-                    SidebarAddButton(
-                        accessibilityLabel: "Add Watch-Only Account",
-                        accessibilityId: "sidebar-add-watch-only-account-button"
-                    ) {
-                        addWatchOnlyAccount()
-                    }
-                }
-            }
+    @MainActor
+    func addAccount(to keyStore: KeyStoreModel) {
+        if keyStore.isWatchOnly {
+            addWatchOnlyAccount()
+        } else if let keyStore = try? KeyStore(model: keyStore) {
+            presentSheet?(.addAccount(keyStore))
         }
     }
 
     func updateBalances() {
         isUpdating = true
 
+        Task {
+            await refreshAllAccounts()
+            isUpdating = false
+        }
+    }
+
+    func refreshAllAccounts() async {
         let accounts = allAccounts.compactMap { accountModel -> Account? in
             do {
                 return try Account(model: accountModel)
@@ -453,35 +658,6 @@ extension SidebarView {
             }
         }
 
-        Task {
-            let approvalService = DI.injectOrFail(ApprovalService.self)
-            let balancesService = DI.injectOrFail(BalancesService.self)
-            let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
-
-            for account in accounts {
-                do {
-                    printVerbose("Refresh: balances start \(account.name)")
-                    try await balancesService.updateBalances(account)
-                    printVerbose("Refresh: balances done \(account.name)")
-                } catch {
-                    printError("\(account.name): \(error)")
-                }
-
-                guard approvalService.supports(account) else {
-                    continue
-                }
-
-                do {
-                    try await approvalService.updateApprovals(account)
-                } catch {
-                    printError("\(account.name) approvals: \(error)")
-                }
-            }
-
-            // Prices refresh on their own schedule; just skip the current idle wait.
-            await tokenPriceScheduler.refreshNow()
-
-            isUpdating = false
-        }
+        await AccountRefresh.run(accounts)
     }
-}
+} // swiftlint:disable:this file_length

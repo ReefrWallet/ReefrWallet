@@ -25,30 +25,51 @@ struct BackupKeyStoreView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading) {
-            Text("Recovery Phrase for \"\(keyStore.name)\"")
-                .style(.medium, foreground: .primary)
-
-            WordTokenizerView(phrase: $seedPhrase, columns: 4, readOnly: true)
-
-            buttonsView
-        }
-        .padding()
-        .task {
-            do {
-                let mnemonic = try await keyStore.localMnemonic(reason: "Authenticate to show your recovery phrase")
-                seedPhrase = mnemonic.phrase
-            } catch {
-                printError(error)
-                dismiss()
+        content
+            .task {
+                do {
+                    let mnemonic = try await keyStore.localMnemonic(reason: "Authenticate to show your recovery phrase")
+                    seedPhrase = mnemonic.phrase
+                } catch {
+                    printError(error)
+                    dismiss()
+                }
             }
-        }
     }
 }
 
 // MARK: - Subviews
 
 private extension BackupKeyStoreView {
+    @ViewBuilder
+    var content: some View {
+        if isPhone {
+            Form {
+                Section {
+                    WordTokenizerView(phrase: $seedPhrase, columns: 3, readOnly: true)
+                } header: {
+                    Text(.backupKeyStoreRecoveryPhraseTitle(keyStore.name))
+                        .textCase(nil)
+                }
+            }
+            .phoneSheet(
+                .backupKeyStoreRecoveryPhrase,
+                cancelTitle: .commonDone,
+                onCancel: { dismiss() }
+            )
+        } else {
+            VStack(alignment: .leading) {
+                Text(.backupKeyStoreRecoveryPhraseTitle(keyStore.name))
+                    .style(.medium, foreground: .primary)
+
+                WordTokenizerView(phrase: $seedPhrase, columns: 4, readOnly: true)
+
+                buttonsView
+            }
+            .padding()
+        }
+    }
+
     var buttonsView: some View {
         HStack {
             Spacer()
@@ -56,7 +77,7 @@ private extension BackupKeyStoreView {
             Button {
                 dismiss()
             } label: {
-                Text("Done")
+                Text(.commonDone)
             }
         }
     }

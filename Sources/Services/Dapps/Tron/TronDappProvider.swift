@@ -230,7 +230,7 @@ private extension TronDappProvider {
         // previewed bytes exactly.
         if try await isHardwareBacked(account), !transaction.isTrezorReproducible {
             let error = DappError.invalidParams(
-                "Trezor can't sign this transaction exactly as built (unsupported fields)."
+                String(localized: .tronDappTrezorUnsupported)
             )
 
             throw await failure(error, context: context)

@@ -27,14 +27,16 @@ tron
 unichain
 "
 
-# <SYMBOL>[=network:<network-id>] -> "<symbol>Token16" (color, circular)
-# `network:` takes the network's icon when the token has none.
+# <SYMBOL>[=network:<network-id>[:fit]] -> "<symbol>Token16" (color, circular)
+# `network:` takes the network's icon when the token has none, or when the ticker's icon is another
+# project's (web3icons' APT and ARB are not Aptos / Arbitrum).
+# `:fit` shrinks a square logo onto a white circle so it fits entirely inside (BASE).
 export TOKENS="
 ADA
-APT
-ARB
+APT=network:aptos
+ARB=network:arbitrum-one
 AVAX
-BASE=network:base
+BASE=network:base:fit
 BNB
 BTC
 ETH

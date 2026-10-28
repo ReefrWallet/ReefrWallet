@@ -1,40 +1,15 @@
 import XCTest
 
 extension XCUIApplication {
-    /// Expands the balances table's Hidden Balances section.
+    /// Waits for the unknown-token (hidden) balance rows.
     ///
-    /// Clicking the section's row only selects it — `DisclosureTableRow` toggles
-    /// from the outline's disclosure triangle, so that is what gets clicked.
-    ///
-    /// A live backfill keeps rewriting balances underneath the table, so the
-    /// click can land on a row the next refresh replaces. Retry until the hidden
-    /// rows are actually on screen.
+    /// The balances list shows every token by default, so there is nothing to expand;
+    /// a live backfill keeps rewriting balances, so just wait for the rows.
     func expandHiddenBalances(timeout: TimeInterval = 10) {
-        let triangle = outlines
-            .matching(NSPredicate(format: "identifier == %@", "account-balances-content"))
-            .firstMatch
-            .descendants(matching: .disclosureTriangle)
-            .firstMatch
-
-        XCTAssertTrue(triangle.waitForExistence(timeout: 10), "Expected a Hidden Balances disclosure triangle.")
-
         let hiddenRows = descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "balance-row-hidden-"))
-        let deadline = Date.now.addingTimeInterval(timeout)
 
-        while Date.now < deadline {
-            if hiddenRows.firstMatch.exists {
-                return
-            }
-
-            if triangle.exists, !triangle.isExpanded {
-                triangle.click()
-            }
-
-            _ = hiddenRows.firstMatch.waitForExistence(timeout: 2)
-        }
-
-        XCTFail("Hidden Balances never expanded.")
+        XCTAssertTrue(hiddenRows.firstMatch.waitForExistence(timeout: timeout), "Expected hidden balance rows.")
     }
 
     /// Adds `url` as a sidebar dApp (or selects the existing one) and opens

@@ -32,9 +32,9 @@ final class DappApprover: DappApproving {
     /// The popup to show over the approved request's sheet.
     var progressPrompt: HostedPrompt? {
         if isCompleted {
-            .complete("Complete")
+            .complete(String(localized: .commonComplete))
         } else if isProcessing {
-            .progress("Signing")
+            .progress(String(localized: .commonSigning))
         } else {
             nil
         }

@@ -38,7 +38,7 @@ struct BrowserAccountSelector: View {
     static func label(for connected: [DappAccountChoice]) -> String {
         switch connected.count {
         case 0:
-            return "Not Connected"
+            return String(localized: .browserAccountSelectorNotConnected)
         case 1:
             return connected[0].label
         default:
@@ -46,7 +46,7 @@ struct BrowserAccountSelector: View {
                 .map { $0.account.blockchain.displayName.replacingOccurrences(of: " Mainnet", with: "") }
                 .joined(separator: ", ")
 
-            return "\(connected.count) accounts (\(chains))"
+            return String(localized: .browserAccountSelectorAccountsOnChains(connected.count, chains))
         }
     }
 }

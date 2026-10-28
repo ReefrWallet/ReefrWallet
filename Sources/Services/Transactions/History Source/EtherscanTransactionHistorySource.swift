@@ -343,9 +343,9 @@ private enum EtherscanAPIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .message(message), let .rateLimited(message):
-            "Etherscan: \(message)"
+            String(localized: .etherscanError(message))
         case .missingAPIKey:
-            "An Etherscan API key is required."
+            String(localized: .etherscanKeyRequired)
         }
     }
 }

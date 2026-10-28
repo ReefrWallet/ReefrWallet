@@ -16,8 +16,7 @@ enum HardwareServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .wrongDevice(vendor):
-            "The connected \(vendor.displayName) is not the one this key store was created with. "
-                + "Connect the correct device and try again."
+            String(localized: .hardwareWrongDevice(vendor.displayName))
         }
     }
 }

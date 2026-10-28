@@ -34,53 +34,74 @@ struct CoinGeckoPriceSource: PriceSource {
     }
 
     func resolvedPrice(_ token: Token, rpcURL _: URL) async throws -> CoinGeckoPrice? {
+        try await resolvedPrices([token])[0].get()
+    }
+
+    /// Prices `tokens` with one request per `maxBatchSize` native assets and per `maxBatchSize`
+    /// tokens of a platform, so the call count doesn't grow with the token count. Results align
+    /// with `tokens`; `nil` means CoinGecko doesn't support or list the token.
+    func resolvedPrices(_ tokens: [Token]) async -> [Result<CoinGeckoPrice?, any Swift.Error>] {
+        var results = [Result<CoinGeckoPrice?, any Swift.Error>](repeating: .success(nil), count: tokens.count)
+
         guard let apiKey, !apiKey.isEmpty else {
             printVerbose("CoinGecko skipped: no API key (defaults '\(Self.apiKeyDefaultsKey)' / env COINGECKO_API_KEY)")
-            return nil
+            return results
         }
 
-        guard let identifier = identifier(for: token) else {
-            printVerbose("CoinGecko skipped: no identifier for \(token.symbol) (non-mainnet or unmapped chain)")
-            return nil
+        // Token indices by CoinGecko id, and by platform then contract address (case-sensitive on some chains).
+        var natives: [String: [Int]] = [:]
+        var contracts: [String: [String: [Int]]] = [:]
+
+        for (index, token) in tokens.enumerated() {
+            switch identifier(for: token) {
+            case let .native(coinGeckoId):
+                natives[coinGeckoId, default: []].append(index)
+            case let .token(platform, address):
+                contracts[platform, default: [:]][address, default: []].append(index)
+            case nil:
+                printVerbose("CoinGecko skipped: no identifier for \(token.symbol) (non-mainnet or unmapped chain)")
+            }
         }
 
-        printVerbose("CoinGecko request: \(identifier)")
+        for ids in Self.batches(of: natives.keys.sorted()) {
+            printVerbose("CoinGecko request: \(ids.count) native assets")
 
-        let response: [String: [String: Decimal]]
-
-        switch identifier {
-        case let .native(coinGeckoId):
-            response = try await provider.value.request(.nativePrice(
-                apiKey: apiKey,
-                baseURL: baseURL,
-                coinGeckoId: coinGeckoId
-            ))
-
-            guard let usdPrice = response[coinGeckoId]?["usd"] else {
-                return nil
+            let outcome = await fetch {
+                try await provider.value.request(.nativePrice(apiKey: apiKey, baseURL: baseURL, coinGeckoIds: ids))
             }
 
-            return try resolvedPrice(usdPrice, coinGeckoId: coinGeckoId)
-        case let .token(platform, address):
-            response = try await provider.value.request(.tokenPrice(
-                address: address,
-                apiKey: apiKey,
-                baseURL: baseURL,
-                platform: platform
-            ))
-
-            guard let usdPrice = response.first(where: {
-                $0.key.caseInsensitiveCompare(address) == .orderedSame
-            })?.value["usd"] else {
-                return nil
+            for id in ids {
+                store(outcome, key: id, indices: natives[id] ?? [], coinGeckoId: id, in: &results)
             }
-
-            return try resolvedPrice(usdPrice, coinGeckoId: nil)
         }
+
+        for (platform, indices) in contracts.sorted(by: { $0.key < $1.key }) {
+            for addresses in Self.batches(of: indices.keys.sorted()) {
+                printVerbose("CoinGecko request: \(addresses.count) \(platform) tokens")
+
+                let outcome = await fetch {
+                    try await provider.value.request(.tokenPrice(
+                        addresses: addresses,
+                        apiKey: apiKey,
+                        baseURL: baseURL,
+                        platform: platform
+                    ))
+                }
+
+                for address in addresses {
+                    store(outcome, key: address, indices: indices[address] ?? [], coinGeckoId: nil, in: &results)
+                }
+            }
+        }
+
+        return results
     }
 }
 
 private extension CoinGeckoPriceSource {
+    /// Assets per request, keeping query strings well under URL length limits.
+    static let maxBatchSize = 50
+
     enum AssetIdentifier {
         case native(String)
         case token(platform: String, address: String)
@@ -96,6 +117,22 @@ private extension CoinGeckoPriceSource {
 
         return ProcessInfo.processInfo.environment["COINGECKO_API_KEY"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func batches(of keys: [String]) -> [[String]] {
+        stride(from: 0, to: keys.count, by: maxBatchSize).map {
+            Array(keys[$0..<min($0 + maxBatchSize, keys.count)])
+        }
+    }
+
+    func fetch(
+        _ request: () async throws -> [String: [String: Decimal]]
+    ) async -> Result<[String: [String: Decimal]], any Swift.Error> {
+        do {
+            return try await .success(request())
+        } catch {
+            return .failure(error)
+        }
     }
 
     func identifier(for token: Token) -> AssetIdentifier? {
@@ -169,6 +206,29 @@ private extension CoinGeckoPriceSource {
         }
     }
 
+    /// Writes the asset's price (or the request's error) to every token in `indices`.
+    func store(
+        _ outcome: Result<[String: [String: Decimal]], any Swift.Error>,
+        key: String,
+        indices: [Int],
+        coinGeckoId: String?,
+        in results: inout [Result<CoinGeckoPrice?, any Swift.Error>]
+    ) {
+        let result: Result<CoinGeckoPrice?, any Swift.Error> = outcome.flatMap { response in
+            guard let usdPrice = response.first(where: {
+                $0.key.caseInsensitiveCompare(key) == .orderedSame
+            })?.value["usd"] else {
+                return .success(nil)
+            }
+
+            return Result { try resolvedPrice(usdPrice, coinGeckoId: coinGeckoId) }.map { $0 }
+        }
+
+        for index in indices {
+            results[index] = result
+        }
+    }
+
     func resolvedPrice(_ usdPrice: Decimal, coinGeckoId: String?) throws -> CoinGeckoPrice {
         guard usdPrice > 0, !usdPrice.isNaN else {
             throw ReefrError.invalidData
@@ -192,8 +252,8 @@ private final class CoinGeckoProvider: @unchecked Sendable {
 }
 
 enum CoinGeckoAPI {
-    case nativePrice(apiKey: String, baseURL: URL, coinGeckoId: String)
-    case tokenPrice(address: String, apiKey: String, baseURL: URL, platform: String)
+    case nativePrice(apiKey: String, baseURL: URL, coinGeckoIds: [String])
+    case tokenPrice(addresses: [String], apiKey: String, baseURL: URL, platform: String)
 }
 
 extension CoinGeckoAPI: TargetType {
@@ -227,15 +287,19 @@ extension CoinGeckoAPI: TargetType {
 
     var task: Task {
         switch self {
-        case let .nativePrice(_, _, coinGeckoId):
+        case let .nativePrice(_, _, coinGeckoIds):
             .requestParameters(
-                parameters: ["ids": coinGeckoId, "precision": "full", "vs_currencies": "usd"],
+                parameters: ["ids": coinGeckoIds.joined(separator: ","), "precision": "full", "vs_currencies": "usd"],
                 encoding: URLEncoding.queryString
             )
 
-        case let .tokenPrice(address, _, _, _):
+        case let .tokenPrice(addresses, _, _, _):
             .requestParameters(
-                parameters: ["contract_addresses": address, "precision": "full", "vs_currencies": "usd"],
+                parameters: [
+                    "contract_addresses": addresses.joined(separator: ","),
+                    "precision": "full",
+                    "vs_currencies": "usd"
+                ],
                 encoding: URLEncoding.queryString
             )
         }

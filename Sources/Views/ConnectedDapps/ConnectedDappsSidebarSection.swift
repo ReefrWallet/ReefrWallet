@@ -15,10 +15,16 @@ private let walletConnectRawKind = ConnectedDappKind.walletConnect.rawValue
 /// The sidebar's "Connected dApps" section: browser dapps and the
 /// "WalletConnect" entry.
 struct ConnectedDappsSidebarSection: View {
-    let title: LocalizedStringKey
+    let title: LocalizedStringResource
+    var isEditing = false
+
+    @AppStorage("connectedDappsExpanded") private var isExpanded = true
+    @State private var isHeaderHovered = false
 
     @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
+
+    @Query private var accounts: [AccountModel]
 
     @Query(filter: #Predicate<ConnectedDappModel> { $0.kindRaw == browserRawKind }, sort: \ConnectedDappModel.name)
     private var browserDapps: [ConnectedDappModel]
@@ -29,41 +35,73 @@ struct ConnectedDappsSidebarSection: View {
     private let store = DI.injectOrFail(ConnectedDappStore.self)
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
-    init(_ title: LocalizedStringKey) {
+    init(_ title: LocalizedStringResource, isEditing: Bool = false) {
         self.title = title
+        self.isEditing = isEditing
+    }
+
+    /// iPhone rows never show the selection highlight, so never switch to white text.
+    private func isHighlighted(_ dapp: ConnectedDappModel) -> Bool {
+        !isPhone && sidebarSelection.wrappedValue == dapp.id
+    }
+
+    private func remove(_ dapp: ConnectedDappModel) {
+        if sidebarSelection.wrappedValue == dapp.id {
+            sidebarSelection.wrappedValue = nil
+        }
+
+        store.remove(dapp)
     }
 
     var body: some View {
-        Section {
+        Section(isExpanded: $isExpanded) {
             ForEach(browserDapps) { dapp in
-                HStack(spacing: 8) {
+                HStack(spacing: isPhone ? 12 : 8) {
+                    if isPhone, isEditing {
+                        EditModeButton(kind: .remove, accessibilityLabel: .commonRemove) {
+                            remove(dapp)
+                        }
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    }
+
                     DappIconView(url: dapp.iconURL)
 
                     Text(dapp.name)
-                        .style(foreground: sidebarSelection.wrappedValue == dapp.id ? .white : .sidebarLabel)
+                        .style(foreground: isHighlighted(dapp) ? .white : .sidebarLabel)
                         .lineLimit(1)
                 }
                 .tag(dapp.id)
+                .phoneRowNeverHighlighted()
                 .contextMenu {
-                    Button("Remove", role: .destructive) {
-                        if sidebarSelection.wrappedValue == dapp.id {
-                            sidebarSelection.wrappedValue = nil
-                        }
-
-                        store.remove(dapp)
+                    Button(.commonRemove, role: .destructive) {
+                        remove(dapp)
                     }
                 }
                 .accessibilityIdentifier("sidebar-connected-dapp-\(dapp.host)")
             }
 
-            if let hub = walletConnectHubs.first {
+            if isPhone, isEditing {
+                EditModeButton(
+                    kind: .add,
+                    accessibilityLabel: .sidebarAddDappRow,
+                    title: .sidebarAddDappRow
+                ) {
+                    presentSheet?(.addBrowserDapp)
+                }
+                .phoneRowNeverHighlighted()
+                .selectionDisabled()
+                .disabled(accounts.isEmpty)
+                .sheetSource(PresentedSheet.addBrowserDapp.id)
+            }
+
+            if let hub = walletConnectHubs.first, !(isPhone && isEditing) {
                 HStack(spacing: 8) {
                     Image("walletConnect16")
                         .style(foreground: .sidebarControl)
                         .frame(width: 20, height: 20)
 
-                    Text("WalletConnect")
-                        .style(foreground: sidebarSelection.wrappedValue == hub.id ? .white : .sidebarLabel)
+                    Text(.commonWalletconnect)
+                        .style(foreground: isHighlighted(hub) ? .white : .sidebarLabel)
 
                     Spacer()
 
@@ -71,24 +109,43 @@ struct ConnectedDappsSidebarSection: View {
                         Text("\(walletConnect.sessions.count)")
                             .style(
                                 .small,
-                                foreground: sidebarSelection.wrappedValue == hub.id ? .white : .sidebarSecondaryLabel
+                                foreground: isHighlighted(hub) ? .white : .sidebarSecondaryLabel
                             )
+                    }
+
+                    if isPhone {
+                        Image(systemName: "chevron.right")
+                            .style(.smallIcon, foreground: .sidebarSecondaryLabel)
                     }
                 }
                 .tag(hub.id)
+                .phoneRowNeverHighlighted()
+                .selectionDisabled(accounts.isEmpty)
+                .allowsHitTesting(!accounts.isEmpty)
+                .opacity(accounts.isEmpty ? 0.4 : 1)
                 .accessibilityIdentifier("sidebar-walletconnect")
             }
         } header: {
             HStack {
                 Text(title)
-                    .style(foreground: .sidebarSecondaryLabel)
+                    .style(isPhone ? .title : nil, foreground: isPhone ? .phoneLabel : .sidebarLabel)
 
                 Spacer()
 
-                SidebarAddButton(accessibilityLabel: "Add dApp", accessibilityId: "sidebar-add-dapp-button") {
-                    presentSheet?(.addBrowserDapp)
+                if !isPhone {
+                    SidebarAddButton(
+                        accessibilityLabel: .commonAddDapp,
+                        accessibilityId: "sidebar-add-dapp-button",
+                        trailingPadding: SidebarAddButton.headerTrailingPadding
+                    ) {
+                        presentSheet?(.addBrowserDapp)
+                    }
+                    .disabled(accounts.isEmpty)
+                    .opacity(isHeaderHovered ? 1 : 0)
+                    .sheetSource(PresentedSheet.addBrowserDapp.id)
                 }
             }
+            .onHover { isHeaderHovered = $0 }
         }
         .task {
             store.ensureWalletConnectHub()

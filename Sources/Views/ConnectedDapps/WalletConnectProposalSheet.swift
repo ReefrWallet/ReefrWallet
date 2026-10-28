@@ -16,12 +16,56 @@ struct WalletConnectProposalSheet: View {
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
     var body: some View {
+        if isPhone {
+            phoneBody
+        } else {
+            macBody
+        }
+    }
+
+    private var phoneBody: some View {
+        Form {
+            Section {
+                HStack(spacing: 12) {
+                    DappIconView(url: pending.proposal.iconURL, size: 40)
+
+                    VStack(alignment: .leading) {
+                        Text(.walletConnectProposalTitle(pending.proposal.name))
+                            .style(.headline, foreground: .primary)
+                            .accessibilityIdentifier("walletconnect-proposal-title")
+
+                        Text(pending.proposal.url)
+                            .style(.caption, foreground: .secondary)
+                    }
+                }
+
+                verificationBanner
+            }
+
+            ForEach(pending.choices) { choice in
+                Section {
+                    makeChoiceSection(choice)
+                }
+            }
+        }
+        .phoneSheet(
+            .commonConnect,
+            cancelTitle: .commonReject,
+            cancelId: "walletconnect-proposal-reject",
+            onCancel: { Task { await walletConnect.rejectProposal() } },
+            confirmTitle: .commonConnect,
+            confirmId: "walletconnect-proposal-approve",
+            onConfirm: { Task { await walletConnect.approveProposal(selection: pending) } }
+        )
+    }
+
+    private var macBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 DappIconView(url: pending.proposal.iconURL, size: 40)
 
                 VStack(alignment: .leading) {
-                    Text("Connect to \(pending.proposal.name)")
+                    Text(.walletConnectProposalTitle(pending.proposal.name))
                         .style(.largeHeader)
                         .accessibilityIdentifier("walletconnect-proposal-title")
 
@@ -45,13 +89,13 @@ struct WalletConnectProposalSheet: View {
             HStack {
                 Spacer()
 
-                Button("Reject") {
+                Button(.commonReject) {
                     Task { await walletConnect.rejectProposal() }
                 }
                 .keyboardShortcut(.cancelAction)
                 .accessibilityIdentifier("walletconnect-proposal-reject")
 
-                Button("Connect") {
+                Button(.commonConnect) {
                     Task { await walletConnect.approveProposal(selection: pending) }
                 }
                 .keyboardShortcut(.defaultAction)
@@ -68,16 +112,16 @@ private extension WalletConnectProposalSheet {
     var verificationBanner: some View {
         switch pending.proposal.verification {
         case .valid:
-            Label("Verified domain", systemImage: "checkmark.seal.fill")
+            Label(.walletConnectProposalDomainVerified, systemImage: "checkmark.seal.fill")
                 .style(.small, foreground: .green)
         case .invalid:
-            Label("Domain doesn't match the app's registration", systemImage: "exclamationmark.triangle.fill")
+            Label(.walletConnectProposalDomainMismatch, systemImage: "exclamationmark.triangle.fill")
                 .style(.small, foreground: .orange)
         case .unknown:
-            Label("Couldn't verify this domain", systemImage: "questionmark.circle")
+            Label(.walletConnectProposalDomainUnverified, systemImage: "questionmark.circle")
                 .style(.small, foreground: .secondary)
         case .scam:
-            Label("Flagged as malicious", systemImage: "xmark.octagon.fill")
+            Label(.walletConnectProposalDomainMalicious, systemImage: "xmark.octagon.fill")
                 .style(.small, foreground: .red)
         }
     }
@@ -85,16 +129,16 @@ private extension WalletConnectProposalSheet {
     func makeChoiceSection(_ choice: WalletConnectNamespaceChoice) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Default account")
+                Text(.walletConnectProposalDefaultAccount)
                     .style(.medium)
 
                 Spacer()
 
                 if choice.accounts.isEmpty {
-                    Text("No account")
+                    Text(.walletConnectProposalNoAccount)
                         .style(.small, foreground: .secondary)
                 } else {
-                    Picker("Account", selection: selection(for: choice)) {
+                    Picker(.commonAccount, selection: selection(for: choice)) {
                         ForEach(choice.accounts) { account in
                             Text(choice.label(for: account)).tag(Optional(account))
                         }
@@ -104,7 +148,7 @@ private extension WalletConnectProposalSheet {
                 }
             }
 
-            Text("Blockchains: \(chainNames(choice))")
+            Text(.walletConnectProposalBlockchains(chainNames(choice)))
                 .style(.small, foreground: .secondary)
         }
     }

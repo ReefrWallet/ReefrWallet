@@ -4,6 +4,7 @@
 - Prefer Xcode mcp tools over make/xcodebuild/xcrun/tuist.
 - Prefer the codebase memory MCP graph tools for code discovery before grep/file search: use `codebase-memory` skill.
 - Respect warnings from compiler, linter and documentation compiler, and fix them when building code.
+- To examine animations from a screen recording, extract frames with `Scripts/video_frames.swift <video.mp4> [every-n-frames] [out-dir]` and view the PNGs.
 - Be as succinct and concise as possible in decisions logs and documentation you produce, including source code comments. Don't overexplain.
 ## Memory & System Constraints
 - You are working in a codebase that uses Architectural Decision Records (ADRs).
@@ -26,8 +27,13 @@
 - Use `.asJSONString()`/`.encoded()`/`.decoded()` from Codable+Extensions.swift for JSON (de-)serialization.
 
 ## Design
-- Use Penpot MCP server at https://design.penpot.app/mcp/stream?userToken=eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.KLj0WBlQKiGZwyQ6M3U53Ujc2LFe57QoVKsr8qYSULdNCy7eTRpOTg.AyqJTCwVaCphNIoX.-HMuE_5pkl1FwgP9Cpr3aeTTihSJqU9kkxRCrO8th4If7O_imsbwA-RY4uEvxpBGhOqrYU8dnZ8kjmfQI-oBI0xst1aknudsVI5RsiHQhfZ0QN9_PBNVFwAxgT9gYcw9yY31EvKVRxc-z7XzimLdMkYe6j-6tjLF2_YxwltMdzXCSvCGErLWRoEyGJUykuEckimzK9T7Rsspu-HlyL5N8FQ.e4t7y0SxHhAUjLAF9rPfIg
+- Use the Penpot MCP server of the local Penpot instance (http://localhost:9001, MCP at http://localhost:4401/mcp), not design.penpot.app.
 - All template icons in Penpot are magenta to make non-colored images visible early.
+- Screens (`Screens / *` pages) are composed only of component instances from the `Components` page; no raw texts, icons or shapes. Missing control → add a component first.
+- Never scale icon instances. Need another size → add it as an icon component (e.g. `trezor40`) to the `Icons` board on `Foundations` and use that.
+- After editing designs, clean up every touched Penpot page: no overlapping top-level boards or components (re-pack the layout), and check for overlapping siblings inside screens.
+- Every component has Mac and iOS variants (`Platform` property).
+- Components use only colors, fonts, sizes and other values from the `Foundations` page, linked (library colors/typographies/tokens), not hardcoded.
 
 ## Commit messages
 

@@ -94,6 +94,8 @@ final class KeyStoreModel {
     var rawTransport: String?
     /// Hardware vendor, `nil` for software key store
     var rawVendor: String?
+    /// Sidebar section is collapsed.
+    var isCollapsed: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \AccountModel.keyStore)
     var accounts: [AccountModel]

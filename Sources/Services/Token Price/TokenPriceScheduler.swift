@@ -1,15 +1,15 @@
 import Foundation
 
-/// Keeps account-relevant token prices fresh. Fetches one token at a time, oldest price first, so
-/// rate-limited public sources see a steady trickle instead of bursts (ADR-047).
+/// Keeps account-relevant token prices fresh. Prices all due tokens, oldest price first, in batched
+/// requests so rate-limited public sources stay within quota (ADR-047).
 actor TokenPriceScheduler {
-    static let batchSize = 10
+    static let batchSize = 100
     /// Retry delay for a token whose last fetch failed, so unpriceable tokens don't drain quotas.
     static let failureRetryInterval: TimeInterval = 10 * 60
     static let idleDelay = Duration.seconds(15)
     static let maxRateLimitBackoff = Duration.seconds(10 * 60)
     static let minRateLimitBackoff = Duration.seconds(30)
-    static let refreshInterval: TimeInterval = 60
+    static let refreshInterval: TimeInterval = 5 * 60
     static let tokenSpacing = Duration.seconds(1)
 
     private let databaseService: DatabaseService
@@ -73,19 +73,41 @@ actor TokenPriceScheduler {
 
         printVerbose("Price update: \(requests.count) tokens due")
 
-        for (index, request) in requests.enumerated() {
-            guard !Task.isCancelled else {
-                return .zero
-            }
+        let results = await priceService.resolvedPrices(requests)
+        var isRateLimited = false
+        var updatedTokens: [Token] = []
 
-            if index > 0 {
-                try? await Task.sleep(for: Self.tokenSpacing)
-            }
+        for (request, result) in zip(requests, results) {
+            switch result {
+            case let .success(price):
+                var token = request.token
+                token.coinGeckoId = price.coinGeckoId ?? token.coinGeckoId
+                token.priceSourceId = price.sourceId
+                token.usdPrice = price.usdPrice
+                updatedTokens.append(token)
+                printVerbose("\(request.description): \(price.usdPrice) USD from \(price.sourceId)")
+            case let .failure(error):
+                guard !error.isRateLimited else {
+                    isRateLimited = true
+                    continue
+                }
 
-            if await updatePrice(request) == .rateLimited {
-                return nextRateLimitBackoff()
+                printVerbose("\(request.description): no price: \(error)")
+                await markFailed(request)
             }
         }
+
+        do {
+            try await databaseService.updateTokenPrices(updatedTokens)
+        } catch {
+            printError("Cannot save token prices: \(error)")
+        }
+
+        guard !isRateLimited else {
+            return nextRateLimitBackoff()
+        }
+
+        rateLimitBackoff = nil
 
         // A full batch suggests more tokens are due.
         return requests.count < Self.batchSize ? Self.idleDelay : Self.tokenSpacing
@@ -93,12 +115,6 @@ actor TokenPriceScheduler {
 }
 
 private extension TokenPriceScheduler {
-    enum Outcome {
-        case failed
-        case rateLimited
-        case updated
-    }
-
     func nextRateLimitBackoff() -> Duration {
         let backoff = rateLimitBackoff.map { min($0 * 2, Self.maxRateLimitBackoff) } ?? Self.minRateLimitBackoff
         rateLimitBackoff = backoff
@@ -124,35 +140,12 @@ private extension TokenPriceScheduler {
         }
     }
 
-    func updatePrice(_ request: TokenPriceRequest) async -> Outcome {
-        let token = request.token
-
+    /// Stamps failures too, so a token that always fails can't hold up the rest of the queue.
+    func markFailed(_ request: TokenPriceRequest) async {
         do {
-            let price = try await priceService.resolvedPrice(token, rpcURL: request.rpcURL)
-
-            var updatedToken = token
-            updatedToken.coinGeckoId = price.coinGeckoId ?? token.coinGeckoId
-            updatedToken.priceSourceId = price.sourceId
-            updatedToken.usdPrice = price.usdPrice
-            try await databaseService.updateTokenPrices([updatedToken])
-
-            rateLimitBackoff = nil
-            printVerbose("\(request.description): \(price.usdPrice) USD from \(price.sourceId)")
-            return .updated
+            try await databaseService.markTokenPriceFetchFailed(request.token, at: .now)
         } catch {
-            // Stamp failures too, so a token that always fails can't hold up the rest of the queue.
-            do {
-                try await databaseService.markTokenPriceFetchFailed(token, at: .now)
-            } catch {
-                printError("Cannot mark \(request.description) price fetch failed: \(error)")
-            }
-
-            guard !error.isRateLimited else {
-                return .rateLimited
-            }
-
-            printVerbose("\(request.description): no price: \(error)")
-            return .failed
+            printError("Cannot mark \(request.description) price fetch failed: \(error)")
         }
     }
 }

@@ -22,12 +22,19 @@ struct SettingsView: View {
 
     @AppStorage(PreferredBrowser.bundleIdKey) private var preferredBrowserBundleId: String = ""
 
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
+        form
+            .phoneSheet(.commonSettings, cancelTitle: .commonDone, onCancel: { dismiss() })
+    }
+
+    private var form: some View {
         Form {
             #if os(macOS)
-            Section(header: Text("dApps")) {
-                Picker("Open dApps In", selection: $preferredBrowserBundleId) {
-                    Text("System Default Browser").tag("")
+            Section(header: Text(.settingsDapps)) {
+                Picker(.settingsOpenDappsIn, selection: $preferredBrowserBundleId) {
+                    Text(.settingsSystemDefaultBrowser).tag("")
 
                     ForEach(PreferredBrowser.installedApps) { app in
                         Text(app.name).tag(app.bundleId)
@@ -37,52 +44,73 @@ struct SettingsView: View {
             }
             #endif
 
-            Section(header: Text("Transaction History")) {
-                TextField("Aptos Labs API Key", text: $aptosAPIKey)
+            Section(header: Text(.settingsTransactionHistory)) {
+                optionalField(.settingsAptosLabsApiKey, text: $aptosAPIKey)
 
-                Text("Used for Aptos node and indexer requests. Works without one at lower rate limits.")
+                Text(.settingsAptosKeyFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                TextField("Etherscan API Key", text: $etherscanAPIKey)
+                optionalField(.settingsEtherscanApiKey, text: $etherscanAPIKey)
 
-                Text("Used for EVM history backfill. Falls back to Blockscout when empty.")
+                Text(.settingsEtherscanKeyFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                TextField("TronGrid API Key", text: $tronGridAPIKey)
+                optionalField(.settingsTrongridApiKey, text: $tronGridAPIKey)
 
-                Text("Used for TronGrid account data, history, and transaction requests.")
+                Text(.settingsTronGridKeyFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                TextField("Blockfrost Mainnet Project ID", text: $blockfrostMainnetProjectId)
-                TextField("Blockfrost Preprod Project ID", text: $blockfrostPreprodProjectId)
+                optionalField(.settingsBlockfrostMainnetProjectId, text: $blockfrostMainnetProjectId)
+                optionalField(.settingsBlockfrostPreprodProjectId, text: $blockfrostPreprodProjectId)
 
-                Text("Used for Cardano account data, native assets, and transaction requests.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section(header: Text("Market Data")) {
-                TextField("CoinGecko Demo API Key", text: $coinGeckoAPIKey)
-
-                Text("Used as the token-price fallback when an on-chain source has no quote.")
+                Text(.settingsCardanoKeyFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Section(header: Text("Proxy Settings")) {
-                Toggle("Use Proxy", isOn: $useProxy)
+            Section(header: Text(.settingsMarketData)) {
+                optionalField(.settingsCoingeckoDemoApiKey, text: $coinGeckoAPIKey)
 
-                TextField("Proxy Hostname", text: $proxyHost)
+                Text(.settingsCoinGeckoKeyFooter)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(header: Text(.settingsProxySettings)) {
+                Toggle(.settingsUseProxy, isOn: $useProxy)
+
+                TextField(String(localized: .settingsProxyHostname), text: $proxyHost)
                     .disabled(!useProxy)
 
-                TextField("Proxy Port", value: $proxyPort, format: .number.grouping(.never))
+                TextField(.settingsProxyPort, value: $proxyPort, format: .number.grouping(.never))
                     .disabled(!useProxy)
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+private extension SettingsView {
+    /// iPhone: label left, "Optional" value right; macOS keeps the plain field.
+    @ViewBuilder
+    func optionalField(_ title: LocalizedStringResource, text: Binding<String>) -> some View {
+        if isPhone {
+            LabeledContent {
+                TextField("", text: text, prompt: Text(.settingsOptional))
+                    .multilineTextAlignment(.trailing)
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+            } label: {
+                Text(title)
+            }
+        } else {
+            TextField(String(localized: title), text: text)
+        }
     }
 }
 

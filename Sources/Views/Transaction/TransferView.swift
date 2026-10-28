@@ -44,13 +44,13 @@ extension TransferView {
         var prompt: HostedPrompt {
             switch self {
             case .complete:
-                .complete("Complete")
+                .complete(String(localized: .commonComplete))
             case .preparing:
-                .progress("Preparing transaction")
+                .progress(String(localized: .transferPreparingTransaction))
             case .sending:
-                .progress("Sending transaction")
+                .progress(String(localized: .transferSendingTransaction))
             case .signing:
-                .progress("Signing transaction")
+                .progress(String(localized: .transferSigningTransaction))
             }
         }
     }
@@ -61,8 +61,8 @@ extension TransferView {
 extension TransferView: View {
     var body: some View {
         TransactionSheet(
-            title: "Send",
-            confirmTitle: "Next",
+            title: String(localized: .commonSend),
+            confirmTitle: String(localized: .commonNext),
             isConfirmEnabled: isNextButtonEnabled,
             isEstimateFeesEnabled: parameters != nil,
             isProcessing: progress != nil,
@@ -86,15 +86,15 @@ extension TransferView: View {
             )
         }
         .hardwareKeyPromptHost(progress: progress?.prompt)
-        .alert("Transaction Failed", isPresented: $isErrorAlertPresented) {
-            Button("OK") {
+        .alert(.transferTransactionFailed, isPresented: $isErrorAlertPresented) {
+            Button(.commonOk) {
                 isErrorAlertPresented = false
             }
         } message: {
             if let error {
                 Text(error)
             } else {
-                Text("Unknown error")
+                Text(.transferUnknownError)
             }
         }
         .onChange(of: parameters) { _, newValue in

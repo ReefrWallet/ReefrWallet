@@ -21,15 +21,15 @@ enum ReefrError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .alreadyExists: "The item already exists."
-        case .authenticationFailed: "Authentication failed or was cancelled."
-        case .clientNotAvailable: "No network client is available for this blockchain."
-        case .internalError: "An internal error occurred."
-        case .invalidAddress: "The address is invalid."
-        case .invalidData: "The data is invalid."
-        case .notFound: "The requested item was not found."
-        case .notImplemented: "This feature is not implemented yet."
-        case .notSupported: "This operation is not supported."
+        case .alreadyExists: String(localized: .reefrErrorAlreadyExists)
+        case .authenticationFailed: String(localized: .reefrErrorAuthenticationFailed)
+        case .clientNotAvailable: String(localized: .reefrErrorClientNotAvailable)
+        case .internalError: String(localized: .reefrErrorInternalError)
+        case .invalidAddress: String(localized: .reefrErrorInvalidAddress)
+        case .invalidData: String(localized: .reefrErrorInvalidData)
+        case .notFound: String(localized: .reefrErrorNotFound)
+        case .notImplemented: String(localized: .reefrErrorNotImplemented)
+        case .notSupported: String(localized: .reefrErrorNotSupported)
         }
     }
 }

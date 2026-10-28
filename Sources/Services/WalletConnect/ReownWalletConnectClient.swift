@@ -146,6 +146,7 @@ private extension ReownWalletConnectClient {
         }
     }
 
+    // swiftlint:disable:next function_body_length
     func subscribe() {
         Sign.instance.sessionProposalPublisher
             .receive(on: DispatchQueue.main)

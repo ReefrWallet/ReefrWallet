@@ -21,7 +21,7 @@ struct QRScannerView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIViewController {
         guard DataScannerViewController.isSupported, DataScannerViewController.isAvailable else {
-            return UIHostingController(rootView: Text("Camera scanning isn't available on this device."))
+            return UIHostingController(rootView: Text(.qrScannerCameraUnavailable))
         }
 
         let scanner = DataScannerViewController(

@@ -115,13 +115,52 @@ struct TokenPriceServiceTests {
 
         #expect(try await source.usdPrice(token, rpcURL: testRPCURL) == 1)
         let target = CoinGeckoAPI.tokenPrice(
-            address: address,
+            addresses: [address],
             apiKey: "demo-key",
             baseURL: testAPIURL,
             platform: "ethereum"
         )
         #expect(target.path == "simple/token_price/ethereum")
         #expect(target.headers?["x-cg-demo-api-key"] == "demo-key")
+    }
+
+    @Test func coinGeckoBatchesAssetsIntoOneRequestPerPlatform() async throws {
+        let requestCount = RequestCounter()
+
+        let source = CoinGeckoPriceSource(
+            apiKey: "demo-key",
+            baseURL: testAPIURL,
+            provider: coinGeckoProvider { requestCount.increment() }
+        )
+
+        func erc20(_ address: String) -> Token {
+            Token(
+                address: address,
+                blockchain: .evm(.ethereum(.mainnet)),
+                coinGeckoId: nil,
+                decimalsCount: 18,
+                imageURL: nil,
+                isHidden: false,
+                isIncludedInBalance: true,
+                isNativeToken: false,
+                name: address,
+                symbol: address,
+                usdPrice: nil
+            )
+        }
+
+        let tokens = [
+            Token(address: nil, blockchain: .evm(.ethereum(.mainnet)), tokenInfo: Blockchain.evm(.ethereum(.mainnet)).nativeToken),
+            Token(address: nil, blockchain: .sui(.mainnet), tokenInfo: Blockchain.sui(.mainnet).nativeToken),
+            erc20("0xA"),
+            erc20("0xB"),
+            erc20("0xC")
+        ]
+
+        let results = await source.resolvedPrices(tokens)
+
+        #expect(try results.map { try $0.get()?.usdPrice } == Array(repeating: 1, count: tokens.count))
+        #expect(requestCount.value == 2)
     }
 
     @Test func coinGeckoQuotesTokensOnEverySupportedMainnet() async throws {
@@ -211,20 +250,27 @@ private let testToken = Token(
 private let testRPCURL = Blockchain.sui(.testnet).rpcURL
 private let testAPIURL = URL(string: "https://api.example/api/v3")!
 
-private func coinGeckoProvider(response: Data? = nil) -> MoyaProvider<CoinGeckoAPI> {
+private func coinGeckoProvider(
+    response: Data? = nil,
+    onRequest: @escaping @Sendable () -> Void = {}
+) -> MoyaProvider<CoinGeckoAPI> {
     MoyaProvider(
         endpointClosure: { target in
-            let key: String
+            onRequest()
+
+            let keys: [String]
             switch target {
-            case let .nativePrice(_, _, coinGeckoId):
-                key = coinGeckoId
-            case let .tokenPrice(address, _, _, _):
-                key = address
+            case let .nativePrice(_, _, coinGeckoIds):
+                keys = coinGeckoIds
+            case let .tokenPrice(addresses, _, _, _):
+                keys = addresses
             }
+
+            let body = "{" + keys.map { "\"\($0)\":{\"usd\":1}" }.joined(separator: ",") + "}"
 
             return Endpoint(
                 url: target.baseURL.appending(path: target.path).absoluteString,
-                sampleResponseClosure: { .networkResponse(200, response ?? Data("{\"\(key)\":{\"usd\":1}}".utf8)) },
+                sampleResponseClosure: { .networkResponse(200, response ?? Data(body.utf8)) },
                 method: target.method,
                 task: target.task,
                 httpHeaderFields: target.headers
@@ -232,4 +278,17 @@ private func coinGeckoProvider(response: Data? = nil) -> MoyaProvider<CoinGeckoA
         },
         stubClosure: MoyaProvider.immediatelyStub
     )
+}
+
+private final class RequestCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        lock.withLock { count }
+    }
+
+    func increment() {
+        lock.withLock { count += 1 }
+    }
 }

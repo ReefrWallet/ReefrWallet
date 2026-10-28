@@ -21,19 +21,23 @@ struct SuiTransactionParametersView: View {
 
     var body: some View {
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
-        ParameterSection("Transaction") {
+        ParameterSection(String(localized: .commonTransaction)) {
             FromRow(account: account)
-            ParameterRow("Commands", value: "\(preview.summary.commandCount)")
+            ParameterRow(String(localized: .suiTransactionParametersCommands), value: "\(preview.summary.commandCount)")
 
             if !moveCallDescriptions.isEmpty {
-                ParameterRow("Move calls", value: moveCallDescriptions.joined(separator: "\n"), lineLimit: nil)
+                ParameterRow(
+                    String(localized: .suiTransactionParametersMoveCalls),
+                    value: moveCallDescriptions.joined(separator: "\n"),
+                    lineLimit: nil
+                )
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 6)
+        ParameterBlock(String(localized: .commonRawBytes), text: preview.rawBytes.hexEncoded, maxLines: 6)
     }
 
     /// Each decoded Move call as `package::module::function`, with the

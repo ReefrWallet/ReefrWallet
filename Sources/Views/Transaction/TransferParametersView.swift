@@ -68,7 +68,7 @@ struct TransferParametersView {
 
 extension TransferParametersView: View {
     var body: some View {
-        ParameterSection("Transfer") {
+        ParameterSection(String(localized: .transferParametersTransfer)) {
             FromRow(account: account)
             tokenRow
             amountRow
@@ -97,7 +97,7 @@ extension TransferParametersView: View {
 
 private extension TransferParametersView {
     var amountRow: some View {
-        ParameterRow("Amount") {
+        ParameterRow(String(localized: .commonAmount)) {
             HStack {
                 TextField("", text: $decimalAmountText)
                     .accessibilityIdentifier("transfer-amount-field")
@@ -108,7 +108,7 @@ private extension TransferParametersView {
                     Image("max16")
                 }
                 .buttonStyle(.borderless)
-                .help("Maximum Amount")
+                .help(.transferParametersMaximumAmount)
             }
         }
     }
@@ -116,14 +116,14 @@ private extension TransferParametersView {
     @ViewBuilder
     var cardanoRecipientLovelaceRow: some View {
         if isCardanoNativeAsset {
-            ParameterRow("Recipient ADA (lovelace)") {
+            ParameterRow(String(localized: .transferParametersRecipientLovelace)) {
                 TextField("", text: $cardanoRecipientLovelaceText)
             }
         }
     }
 
     var receiverRow: some View {
-        ParameterRow("Receiver") {
+        ParameterRow(String(localized: .transferParametersReceiver)) {
             HStack {
                 TextField("", text: $receiverText, prompt: Text(receiverPrompt))
                     .accessibilityIdentifier("transfer-receiver-field")
@@ -134,13 +134,13 @@ private extension TransferParametersView {
                     Image("addressBook16")
                 }
                 .buttonStyle(.borderless)
-                .help("Fill from Address Book")
+                .help(.transferParametersFillFromAddressBook)
             }
         }
     }
 
     var tokenRow: some View {
-        ParameterRow("Token") {
+        ParameterRow(String(localized: .commonToken)) {
             VStack(alignment: .leading, spacing: 4) {
                 Picker(selection: $selectedBalanceId) {
                     ForEach(accountBalances, id: \.self) { balance in

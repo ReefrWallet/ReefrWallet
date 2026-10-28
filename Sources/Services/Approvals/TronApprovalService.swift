@@ -290,7 +290,7 @@ private enum TronApprovalError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .api(message):
-            "TronGrid: \(message)"
+            String(localized: .tronGridError(message))
         }
     }
 }

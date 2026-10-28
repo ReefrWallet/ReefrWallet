@@ -18,17 +18,25 @@ struct EthereumTransactionParametersView: View {
 
     var body: some View {
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
-        ParameterSection("Transaction") {
+        ParameterSection(String(localized: .commonTransaction)) {
             FromRow(account: account)
-            ParameterRow("To", value: call.to ?? "Contract creation")
-            ParameterRow("Value", value: call.value.description + " wei")
+            ParameterRow(
+                String(localized: .commonTo),
+                value: call.to ?? String(localized: .ethereumTransactionParametersContractCreation)
+            )
+
+            ParameterRow(String(localized: .commonValue), value: call.value.description + " wei")
         }
 
         if !call.data.isEmpty {
-            ParameterBlock("Data", text: call.data.hexEncoded, maxLines: 4)
+            ParameterBlock(
+                String(localized: .ethereumTransactionParametersData),
+                text: call.data.hexEncoded,
+                maxLines: 4
+            )
         }
     }
 }

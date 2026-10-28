@@ -94,14 +94,14 @@ extension TransactionRowModel {
             }
         }
 
-        let nfts = nftKeys.isEmpty ? nil : String(localized: "\(nftKeys.count) NFTs")
-        let tokens = tokenKeys.isEmpty ? nil : String(localized: "\(tokenKeys.count) Tokens")
+        let nfts = nftKeys.isEmpty ? nil : String(localized: .transactionRowNftCount(nftKeys.count))
+        let tokens = tokenKeys.isEmpty ? nil : String(localized: .transactionRowTokenCount(tokenKeys.count))
 
         guard let nfts, let tokens else {
             return nfts ?? tokens ?? "—"
         }
 
-        return String(localized: "\(nfts), \(tokens)", comment: "Asset counts: NFTs, then tokens")
+        return String(localized: .transactionRowAssetCounts(nfts, tokens))
     }
 
     var direction: TransactionDirection {
@@ -128,19 +128,19 @@ extension TransactionRowModel {
     var title: String {
         switch kind {
         case .approval:
-            "Approval"
+            String(localized: .transactionRowApproval)
         case .contractCall:
-            method ?? "Contract Call"
+            method ?? String(localized: .transactionRowContractCall)
         case .multiAsset:
-            "\(effects.count) Assets"
+            String(localized: .transactionRowAssetCount(effects.count))
         case .received:
-            "Received"
+            String(localized: .transactionRowReceived)
         case .selfTransfer:
-            "Self Transfer"
+            String(localized: .transactionRowSelfTransfer)
         case .sent:
-            "Sent"
+            String(localized: .transactionRowSent)
         case .unknown:
-            method ?? "Transaction"
+            method ?? String(localized: .commonTransaction)
         }
     }
 }

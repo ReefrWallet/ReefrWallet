@@ -46,19 +46,7 @@ struct AddKeyStoreView: View {
     private let keyStoreService = DI.injectOrFail(KeyStoreService.self)
 
     var body: some View {
-        VStack(alignment: .leading) {
-            switch viewState {
-            case .newKey:
-                generatedKeyView
-            case .chooseAction:
-                chooseKeyTypeView
-            case .restore:
-                editableKeyView
-            }
-
-            buttonsView
-        }
-        .padding()
+        layout
         .onChange(of: selectedOption) { _, newValue in
             switch newValue {
             case Options.connectTrezor:
@@ -71,8 +59,8 @@ struct AddKeyStoreView: View {
                 break
             }
         }
-        .alert("Error", isPresented: $isAlertPresented) {
-            Button("OK") {
+        .alert(.commonError, isPresented: $isAlertPresented) {
+            Button(.commonOk) {
                 isAlertPresented = false
 
                 if case .alreadyExists = error as? ReefrError {
@@ -90,6 +78,93 @@ struct AddKeyStoreView: View {
 // MARK: - Subviews
 
 private extension AddKeyStoreView {
+    @ViewBuilder
+    var layout: some View {
+        if isPhone {
+            phoneLayout
+        } else {
+            VStack(alignment: .leading) {
+                switch viewState {
+                case .newKey:
+                    generatedKeyView
+                case .chooseAction:
+                    chooseKeyTypeView
+                case .restore:
+                    editableKeyView
+                }
+
+                buttonsView
+            }
+            .padding()
+        }
+    }
+
+    /// iPhone: tappable option cards, then the phrase in an inset card.
+    var phoneLayout: some View {
+        Form {
+            switch viewState {
+            case .chooseAction:
+                Section {
+                    phoneOption(
+                        Options.generateNewKey,
+                        title: .addKeyStoreNewBip39Mnemonic,
+                        detail: .addKeyStoreLocalKeyDescriptionPhone
+                    )
+
+                    phoneOption(
+                        Options.restoreFromBackup,
+                        title: .addKeyStoreRestoreFromBackup,
+                        detail: .addKeyStoreRestoreDescriptionPhone
+                    )
+                }
+
+            case .newKey:
+                Section {
+                    generatedKeyView
+                }
+
+            case .restore:
+                Section {
+                    editableKeyView
+                }
+            }
+        }
+        .phoneSheet(
+            .sidebarAddKeyStore,
+            cancelTitle: backButtonLabel,
+            isCancelDisabled: isBackButtonDisabled,
+            onCancel: onBackButtonPressed,
+            confirmTitle: nextButtonLabel,
+            isConfirmEnabled: !isNextButtonDisabled,
+            onConfirm: onNextButtonPressed
+        )
+    }
+
+    func phoneOption(_ option: UUID, title: LocalizedStringResource, detail: LocalizedStringResource) -> some View {
+        Button {
+            selectedOption = option
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .style(.large, foreground: .primary)
+
+                    Text(detail)
+                        .style(.caption, foreground: .secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.tint)
+                    .opacity(selectedOption == option ? 1 : 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     var buttonsView: some View {
         HStack {
             Spacer()
@@ -118,25 +193,25 @@ private extension AddKeyStoreView {
         VStack {
             Picker("", selection: $selectedOption) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("New Hardware Key")
+                    Text(.addKeyStoreNewHardwareKey)
                         .style(.medium, foreground: .primary)
-                    Text("Connect Trezor hardware key and\nuse it for address derivation and signing")
+                    Text(.addKeyStoreHardwareKeyDescription)
                         .style(.small, foreground: .secondary)
                 }
                 .tag(Options.connectTrezor)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("New BIP-39 Mnemonic")
+                    Text(.addKeyStoreNewBip39Mnemonic)
                         .style(.medium, foreground: .primary)
-                    Text("Generate 12, 18 or 24 word seed phrase wallet\nstored locally on this computer")
+                    Text(.addKeyStoreLocalKeyDescription)
                         .style(.small, foreground: .secondary)
                 }
                 .tag(Options.generateNewKey)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Restore From Backup")
+                    Text(.addKeyStoreRestoreFromBackup)
                         .style(.medium, foreground: .primary)
-                    Text("Restore local seed phrase wallet\nfrom a 12, 18 or 24 word backup")
+                    Text(.addKeyStoreRestoreDescription)
                         .style(.small, foreground: .secondary)
                 }
                 .tag(Options.restoreFromBackup)
@@ -150,7 +225,7 @@ private extension AddKeyStoreView {
     var editableKeyView: some View {
         WordTokenizerView(
             phrase: $seedPhrase,
-            columns: 4
+            columns: isPhone ? 3 : 4
         )
             .onChange(of: seedPhrase, initial: true) { _, newValue in
                 validateSeedPhrase(newValue)
@@ -158,7 +233,7 @@ private extension AddKeyStoreView {
     }
 
     var generatedKeyView: some View {
-        WordTokenizerView(phrase: $seedPhrase, columns: 4, readOnly: true)
+        WordTokenizerView(phrase: $seedPhrase, columns: isPhone ? 3 : 4, readOnly: true)
             .onChange(of: seedPhrase, initial: true) { _, newValue in
                 validateSeedPhrase(newValue)
             }
@@ -168,32 +243,32 @@ private extension AddKeyStoreView {
 // MARK: - Logic
 
 extension AddKeyStoreView {
-    var backButtonLabel: String {
+    var backButtonLabel: LocalizedStringResource {
         switch viewState {
         case .chooseAction:
-            "Cancel"
+            .commonCancel
         case .newKey, .restore:
-            "Back"
+            .commonBack
         }
     }
 
-    var nextButtonLabel: String {
+    var nextButtonLabel: LocalizedStringResource {
         switch viewState {
         case .newKey:
-            "Done"
+            .commonDone
         case .chooseAction, .restore:
-            "Next"
+            .commonNext
         }
     }
 
     func alertMessage(_ error: Swift.Error?) -> String {
         guard let error else {
-            return "Unknown Error."
+            return String(localized: .commonUnknownError)
         }
 
         switch error {
         case ReefrError.alreadyExists:
-            return "Key store already exists."
+            return String(localized: .addKeyStoreKeyStoreExists)
         default:
             return error.localizedDescription
         }

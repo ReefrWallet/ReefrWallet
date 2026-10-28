@@ -38,51 +38,103 @@ struct AccountApprovalsView: View {
     var body: some View {
         let approvals = approvalModels.map(TokenApproval.init(model:))
 
-        VStack {
-            Text("\(approvals.count) Approvals")
-                .style(.mediumHeader, foreground: .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+        #if os(iOS)
+        alerting(AccountCountLabel(text: String(localized: .approvalsApprovalCount(approvals.count))))
 
-            content(approvals)
-
-            HStack {
-                Toggle("Select All", isOn: allSelected(approvals))
-                    .disabled(approvals.isEmpty)
-
-                Spacer()
-
-                Button("Revoke Selected (\(selection.count))") {
-                    Task {
-                        await revokeSelected(approvals)
-                    }
-                }
-                .disabled(selection.isEmpty || isRevoking)
-                .accessibilityIdentifier("approvals-revoke-selected-button")
+        if !service.supports(account) {
+            AccountEmptyRow(title: .approvalsNeedsEtherscanKey)
+        } else if approvals.isEmpty {
+            AccountEmptyRow(title: .approvalsNoApprovals)
+                .accessibilityIdentifier("account-no-approvals")
+        } else {
+            ForEach(approvals) { approval in
+                row(approval)
             }
-            .padding([.bottom, .horizontal])
+
+            actions(approvals)
+                .listRowSeparator(.hidden)
         }
-        .alert(
-            "Approvals",
-            isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil }),
-            presenting: errorMessage
-        ) { _ in
-            Button("OK") {}
-        } message: { message in
-            Text(message)
-        }
+        #else
+        alerting(
+            VStack {
+                Text(.approvalsApprovalCount(approvals.count))
+                    .style(.mediumHeader, foreground: .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+
+                content(approvals)
+
+                actions(approvals)
+                    .padding([.bottom, .horizontal])
+            }
+        )
+        #endif
     }
 }
 
 // MARK: - Subviews
 
 private extension AccountApprovalsView {
+    func alerting(_ view: some View) -> some View {
+        view.alert(
+            .accountDetailsApprovals,
+            isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil }),
+            presenting: errorMessage
+        ) { _ in
+            Button(.commonOk) {}
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    func actions(_ approvals: [TokenApproval]) -> some View {
+        HStack {
+            Toggle(.approvalsSelectAll, isOn: allSelected(approvals))
+                .disabled(approvals.isEmpty)
+
+            Spacer()
+
+            Button(.approvalsRevokeSelected(selection.count)) {
+                Task {
+                    await revokeSelected(approvals)
+                }
+            }
+            .disabled(selection.isEmpty || isRevoking)
+            .accessibilityIdentifier("approvals-revoke-selected-button")
+        }
+    }
+
+    func row(_ approval: TokenApproval) -> some View {
+        HStack(spacing: 12) {
+            Toggle("", isOn: selectionBinding(approval.id))
+                .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(approval.token.symbol)
+                    .style(.headline, foreground: .primary)
+
+                Text(approval.spender.shortened(prefix: 8, suffix: 6))
+                    .style(.mono, foreground: .secondary)
+            }
+
+            Spacer()
+
+            Text(
+                approval.isUnlimited ? String(localized: .approvalsUnlimited) : Self.amountText(
+                    approval.allowance,
+                    approval.token
+                )
+            )
+                .style(.large, foreground: approval.isUnlimited ? .red : .primary)
+        }
+    }
+
     @ViewBuilder
     func content(_ approvals: [TokenApproval]) -> some View {
         if !service.supports(account) {
-            EmptyStateView("Approvals need an Etherscan API key and a supported chain")
+            EmptyStateView(.approvalsNeedsEtherscanKey)
         } else if approvals.isEmpty {
-            EmptyStateView("No Approvals")
+            EmptyStateView(.approvalsNoApprovals)
                 .accessibilityIdentifier("account-no-approvals")
         } else {
             table(approvals)
@@ -97,7 +149,7 @@ private extension AccountApprovalsView {
             }
             .width(28)
 
-            TableColumn("Asset") { approval in
+            TableColumn(.approvalsAsset) { approval in
                 HStack {
                     Text(approval.token.symbol)
                         .style(.medium, foreground: .primary)
@@ -111,26 +163,31 @@ private extension AccountApprovalsView {
             }
             .width(min: 90, ideal: 150)
 
-            TableColumn("Type") { _ in
-                Text("Token")
+            TableColumn(.commonType) { _ in
+                Text(.commonToken)
                     .style(.medium, foreground: .primary)
             }
             .width(min: 60, ideal: 80)
 
-            TableColumn("Approved Amount") { approval in
-                Text(approval.isUnlimited ? "Unlimited" : Self.amountText(approval.allowance, approval.token))
+            TableColumn(.approvalsApprovedAmount) { approval in
+                Text(
+                    approval.isUnlimited ? String(localized: .approvalsUnlimited) : Self.amountText(
+                        approval.allowance,
+                        approval.token
+                    )
+                )
                     .style(.medium, foreground: approval.isUnlimited ? .red : .primary)
             }
             .width(min: 100, ideal: 140)
 
-            TableColumn("Approved Spender") { approval in
+            TableColumn(.approvalsApprovedSpender) { approval in
                 Text(approval.spender.shortened(prefix: 8, suffix: 6))
                     .style(.mono, foreground: .secondary)
                     .help(approval.spender)
             }
             .width(min: 120, ideal: 180)
 
-            TableColumn("My Approval Time") { approval in
+            TableColumn(.approvalsMyApprovalTime) { approval in
                 Text(approval.approvedAt.map(Self.timeText) ?? "—")
                     .style(.medium, foreground: .secondary)
                     .help(approval.approvedAt?.formatted(date: .complete, time: .standard) ?? "")
@@ -192,7 +249,10 @@ private extension AccountApprovalsView {
                 _ = try await service.revoke(approval, account: account)
                 selection.remove(approval.id)
             } catch {
-                errorMessage = "Revoking \(approval.token.symbol) failed: \(error.localizedDescription)"
+                errorMessage = String(
+                    localized: .approvalsRevokeFailed(approval.token.symbol, error.localizedDescription)
+                )
+
                 return
             }
         }

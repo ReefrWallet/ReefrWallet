@@ -112,13 +112,6 @@ private extension WatchOnlyCardanoAccountUITests {
             "Expected the native ADA balance to appear outside the hidden section."
         )
 
-        // Native assets carry no USD price, so they land in Hidden Balances.
-        let hiddenDisclosure = app.firstDescendant(withIdentifier: "balances-table-hidden-disclosure-row")
-        XCTAssertTrue(
-            hiddenDisclosure.waitForExistence(timeout: 10),
-            "Expected native-asset balances to appear in the Hidden Balances section."
-        )
-
         app.expandHiddenBalances()
 
         let hiddenBalances = app.descendants(matching: .any)

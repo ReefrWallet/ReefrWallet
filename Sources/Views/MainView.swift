@@ -31,6 +31,8 @@ struct MainView: View {
     @Query private var connectedDapps: [ConnectedDappModel]
     @Query private var keyStores: [KeyStoreModel]
 
+    @Namespace private var sheetNamespace
+
     @State private var presentedSheet: PresentedSheet?
     @State private var sidebarSelection: PersistentIdentifier?
 
@@ -53,16 +55,18 @@ struct MainView: View {
                 switch dapp.kind {
                 case .browser:
                     BrowserDappDetailsView(dapp: dapp)
+                        .environment(\.presentSheet, PresentSheetAction(presentedSheet: $presentedSheet))
                 case .walletConnect:
                     WalletConnectSessionsView()
                 }
             } else {
-                EmptyStateView("No Selection")
+                EmptyStateView(.mainNoSelection)
                     .task(id: sidebarSelection) {
                         clearInvalidSidebarSelection()
                     }
             }
         }
+        .environment(\.sheetNamespace, sheetNamespace)
         .sheet(item: $presentedSheet) { sheet in
             Group {
                 switch sheet {
@@ -87,10 +91,21 @@ struct MainView: View {
                     BackupKeyStoreView(keyStore: keyStore)
 
                 case let .browser(url):
+#if os(iOS)
+                    NavigationStack {
+                        BrowserView(initialURL: url)
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
+#else
                     BrowserView(initialURL: url)
+#endif
+
+                case .settings:
+                    SettingsView()
                 }
             }
             .hardwareKeyPromptHost()
+            .sheetZoom(from: sheet.id, namespace: sheetNamespace)
         }
         .sheet(item: pendingProposalBinding) { pending in
             WalletConnectProposalSheet(pending: pending)
@@ -108,11 +123,11 @@ struct MainView: View {
         }
         .hardwareKeyPromptHost()
         .alert(
-            "Request Failed",
+            .commonRequestFailed,
             isPresented: isFailureAlertPresented,
             presenting: walletConnect.approver.failureMessage
         ) { _ in
-            Button("OK") {}
+            Button(.commonOk) {}
         } message: { message in
             Text(message)
         }

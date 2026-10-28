@@ -84,7 +84,9 @@ extension TransactionRowModel {
     }
     .listStyle(.plain)
 }
+#endif
 
+#if os(macOS)
 #Preview("Table") {
     TransactionsTable(
         rows: TransactionRowModel.previews,

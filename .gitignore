@@ -83,3 +83,4 @@ WalletKit.prev/
 
 ### Sui SDK bundle tooling ###
 Scripts/*/node_modules/
+.env

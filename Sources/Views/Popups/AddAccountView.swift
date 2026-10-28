@@ -36,6 +36,10 @@ struct AddAccountView {
     @State private var customEndpointURL: String = ""
     @State private var useCustomEndpoint: Bool = false
 
+    @FocusState private var focusedField: Field?
+    /// The edited field's value when it gained focus, restored if the new value is invalid.
+    @State private var fieldSnapshot = ""
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
@@ -68,124 +72,9 @@ struct AddAccountView {
 
 extension AddAccountView: View {
     var body: some View {
-        VStack {
-            Text("Add Blockchain Account")
-                .style(.largeHeader, foreground: .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom)
-
-            Form {
-                Section {
-                    blockchainPicker
-
-                    if !selectedBlockchain.isCustomEVM {
-                        Picker("Network", selection: $selectedNetwork) {
-                            ForEach(networks, id: \.self) { blockchain in
-                                Text("\(blockchain.networkName)").tag(blockchain)
-                            }
-                        }
-                        .accessibilityIdentifier("add-account-network-picker")
-                    }
-
-                    if selectedBlockchain.isCustomEVM {
-                        TextField("ChainId", text: $customChainId)
-                            .disabled(!selectedBlockchain.isCustomEVM)
-                    } else if selectedBlockchain.hasKeySchemeChoice, !keyStore.isWatchOnly {
-                        Picker("Key Scheme", selection: $selectedKeyScheme) {
-                            ForEach(Curve.allCases, id: \.self) { scheme in
-                                Text(scheme.description).tag(scheme)
-                            }
-                        }
-                    } else if case .bitcoin = selectedBlockchain, !keyStore.isWatchOnly {
-                        Picker("Script Type", selection: $selectedBitcoinScriptType) {
-                            Text("Native SegWit (BIP-84)").tag(BitcoinScriptType.p2wpkh)
-                            Text("Taproot (BIP-86)").tag(BitcoinScriptType.p2tr)
-                        }
-                    }
-
-                    if case .bitcoin = selectedBlockchain {
-                        // Set only here, at account creation — like the RPC
-                        // endpoint override below, there is no later
-                        // edit-account flow for this yet.
-                        Picker("Backend", selection: $selectedBitcoinBackend) {
-                            ForEach(BitcoinBackendKind.allCases, id: \.self) { backend in
-                                Text(backend.displayName).tag(backend)
-                            }
-                        }
-                        .accessibilityIdentifier("add-account-bitcoin-backend-picker")
-                    }
-                }
-
-                if supportsCustomDerivationPath {
-                    Section {
-                        let displayedDerivationPath: Binding<String> = .init(get: {
-                            useCustomDerivationPath && !customDerivationPath.isEmpty
-                                ? customDerivationPath
-                                : nextDerivationPath?.string ?? ""
-                        }, set: { newValue in
-                            if useCustomDerivationPath {
-                                customDerivationPath = newValue
-                            }
-                        })
-
-                        TextField("Derivation Path", text: displayedDerivationPath)
-                            .disabled(!useCustomDerivationPath)
-                            .padding(.top)
-                            .accessibilityIdentifier("add-account-derivation-path-field")
-
-                        Toggle("Custom Derivation Path", isOn: $useCustomDerivationPath)
-                            .accessibilityIdentifier("add-account-derivation-path-toggle")
-                    }
-                }
-
-                Section {
-                    let displayedRpcUrl: Binding<String> = .init(get: {
-                        if useCustomEndpoint, !customEndpointURL.isEmpty {
-                            customEndpointURL
-                        } else if case let .bitcoin(network) = selectedNetwork {
-                            network.defaultEndpoint(for: selectedBitcoinBackend).absoluteString
-                        } else {
-                            selectedNetwork?.rpcURL.absoluteString ?? ""
-                        }
-                    }, set: { newValue in
-                        if useCustomEndpoint {
-                            customEndpointURL = newValue
-                        }
-                    })
-
-                    let customRPCEnabled: Binding<Bool> = .init(
-                        get: { selectedBlockchain.isCustomEVM || useCustomEndpoint },
-                        set: { useCustomEndpoint = $0 }
-                    )
-
-                    TextField("RPC URL", text: displayedRpcUrl)
-                        .disabled(!customRPCEnabled.wrappedValue)
-                        .padding(.top)
-
-                    Toggle(isOn: customRPCEnabled) {
-                        Text("Custom RPC Endpoint")
-                    }
-                    .disabled(selectedBlockchain.isCustomEVM)
-                }
-
-                if keyStore.isWatchOnly {
-                    Section {
-                        TextField(watchOnlyFieldTitle, text: $address)
-                            .disabled(selectedNetwork == nil)
-                            .padding(.vertical)
-                            .accessibilityIdentifier("add-account-watch-address-field")
-                    }
-                }
-            }
-            .padding(.bottom)
-
-            Spacer()
-
-            buttonsView
-        }
-        .padding()
-        .alert("Error", isPresented: $isAlertPresented) {
-            Button("OK") {
+        layout
+        .alert(.commonError, isPresented: $isAlertPresented) {
+            Button(.commonOk) {
                 isAlertPresented = false
             }
         } message: {
@@ -204,6 +93,35 @@ extension AddAccountView: View {
         .onChange(of: selectedBlockchain, initial: true) { _, newValue in
             didSelectBlockchain(newValue)
         }
+        .onChange(of: useCustomDerivationPath) { _, isOn in
+            if isOn, customDerivationPath.isEmpty {
+                customDerivationPath = nextDerivationPath?.string ?? ""
+            }
+        }
+        .onChange(of: useCustomEndpoint) { _, isOn in
+            if isOn, customEndpointURL.isEmpty {
+                customEndpointURL = defaultRpcUrl
+            }
+        }
+        .onChange(of: focusedField) { oldValue, newValue in
+            // Validate the field being left before snapshotting the one being entered.
+            if let oldValue {
+                validate(oldValue)
+            }
+
+            if let newValue {
+                fieldSnapshot = value(of: newValue)
+            }
+        }
+
+        // Interacting with any other control ends editing.
+        .onChange(of: useCustomDerivationPath) { focusedField = nil }
+        .onChange(of: useCustomEndpoint) { focusedField = nil }
+        .onChange(of: selectedBlockchain) { focusedField = nil }
+        .onChange(of: selectedNetwork) { focusedField = nil }
+        .onChange(of: selectedKeyScheme) { focusedField = nil }
+        .onChange(of: selectedBitcoinScriptType) { focusedField = nil }
+        .onChange(of: selectedBitcoinBackend) { focusedField = nil }
         .onChange(of: selectedNetwork) {
             if case let .evm(network) = selectedNetwork {
                 customChainId = "\(network.chainId)"
@@ -218,6 +136,315 @@ extension AddAccountView: View {
 
 private extension AddAccountView {
     @ViewBuilder
+    var layout: some View {
+        if isPhone {
+            phoneForm
+                .phoneSheet(
+                    .commonAddAccount,
+                    onCancel: { dismiss() },
+                    confirmTitle: .commonAdd,
+                    confirmId: "add-account-submit-button",
+                    isConfirmEnabled: !isAddButtonDisabled,
+                    onConfirm: submit
+                )
+        } else {
+            VStack {
+                Text(.addAccountAddBlockchainAccount)
+                    .style(.largeHeader, foreground: .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom)
+
+                accountForm
+                    .padding(.bottom)
+
+                Spacer()
+
+                buttonsView
+            }
+            .padding()
+        }
+    }
+
+    var accountForm: some View {
+        Form {
+            Section {
+                blockchainPicker
+
+                if !selectedBlockchain.isCustomEVM {
+                    Picker(.addAccountNetwork, selection: $selectedNetwork) {
+                        ForEach(networks, id: \.self) { blockchain in
+                            Text("\(blockchain.networkName)").tag(blockchain)
+                        }
+                    }
+                    .accessibilityIdentifier("add-account-network-picker")
+                }
+
+                if selectedBlockchain.isCustomEVM {
+                    TextField(String(localized: .addAccountChainId), text: $customChainId)
+                        .disabled(!selectedBlockchain.isCustomEVM)
+                } else if selectedBlockchain.hasKeySchemeChoice, !keyStore.isWatchOnly {
+                    Picker(.addAccountKeyScheme, selection: $selectedKeyScheme) {
+                        ForEach(Curve.allCases, id: \.self) { scheme in
+                            Text(scheme.description).tag(scheme)
+                        }
+                    }
+                } else if case .bitcoin = selectedBlockchain, !keyStore.isWatchOnly {
+                    Picker(.addAccountScriptType, selection: $selectedBitcoinScriptType) {
+                        Text(.addAccountNativeSegwit).tag(BitcoinScriptType.p2wpkh)
+                        Text(.addAccountTaproot).tag(BitcoinScriptType.p2tr)
+                    }
+                }
+
+                if case .bitcoin = selectedBlockchain {
+                    // Set only here, at account creation — like the RPC
+                    // endpoint override below, there is no later
+                    // edit-account flow for this yet.
+                    Picker(.addAccountBackend, selection: $selectedBitcoinBackend) {
+                        ForEach(BitcoinBackendKind.allCases, id: \.self) { backend in
+                            Text(backend.displayName).tag(backend)
+                        }
+                    }
+                    .accessibilityIdentifier("add-account-bitcoin-backend-picker")
+                }
+            }
+
+            if supportsCustomDerivationPath {
+                Section {
+                    TextField(String(localized: .addAccountDerivationPath), text: displayedDerivationPath)
+                        .focused($focusedField, equals: .derivationPath)
+                        .disabled(!useCustomDerivationPath)
+                        .padding(.top)
+                        .accessibilityIdentifier("add-account-derivation-path-field")
+
+                    Toggle(.addAccountCustomDerivationPath, isOn: $useCustomDerivationPath)
+                        .accessibilityIdentifier("add-account-derivation-path-toggle")
+                }
+            }
+
+            Section {
+                TextField(String(localized: .addAccountRpcUrl), text: displayedRpcUrl)
+                    .focused($focusedField, equals: .rpcUrl)
+                    .disabled(!customRPCEnabled.wrappedValue)
+                    .padding(.top)
+
+                Toggle(isOn: customRPCEnabled) {
+                    Text(.addAccountCustomRpcEndpoint)
+                }
+                .disabled(selectedBlockchain.isCustomEVM)
+            }
+
+            if keyStore.isWatchOnly {
+                Section {
+                    TextField(String(localized: watchOnlyFieldTitle), text: $address)
+                        .disabled(selectedNetwork == nil)
+                        .padding(.vertical)
+                        .accessibilityIdentifier("add-account-watch-address-field")
+                }
+            }
+        }
+    }
+
+    /// iPhone: label-left / value-right rows; each toggle sits above the field it unlocks.
+    var phoneForm: some View {
+        Form {
+            Section {
+                blockchainPicker
+
+                if !selectedBlockchain.isCustomEVM {
+                    Picker(.addAccountNetwork, selection: $selectedNetwork) {
+                        ForEach(networks, id: \.self) { blockchain in
+                            Text("\(blockchain.networkName)").tag(blockchain)
+                        }
+                    }
+                    .accessibilityIdentifier("add-account-network-picker")
+                }
+
+                if selectedBlockchain.isCustomEVM {
+                    phoneField(.addAccountChainId, text: $customChainId)
+                } else if selectedBlockchain.hasKeySchemeChoice, !keyStore.isWatchOnly {
+                    Picker(.addAccountKeyScheme, selection: $selectedKeyScheme) {
+                        ForEach(Curve.allCases, id: \.self) { scheme in
+                            Text(scheme.description).tag(scheme)
+                        }
+                    }
+                } else if case .bitcoin = selectedBlockchain, !keyStore.isWatchOnly {
+                    Picker(.addAccountScriptType, selection: $selectedBitcoinScriptType) {
+                        Text(.addAccountNativeSegwit).tag(BitcoinScriptType.p2wpkh)
+                        Text(.addAccountTaproot).tag(BitcoinScriptType.p2tr)
+                    }
+                }
+
+                if case .bitcoin = selectedBlockchain {
+                    Picker(.addAccountBackend, selection: $selectedBitcoinBackend) {
+                        ForEach(BitcoinBackendKind.allCases, id: \.self) { backend in
+                            Text(backend.displayName).tag(backend)
+                        }
+                    }
+                    .accessibilityIdentifier("add-account-bitcoin-backend-picker")
+                }
+            }
+
+            if supportsCustomDerivationPath {
+                Section {
+                    Toggle(.addAccountCustomDerivationPath, isOn: $useCustomDerivationPath)
+                        .accessibilityIdentifier("add-account-derivation-path-toggle")
+
+                    abbreviatedRow(
+                        .addAccountDerivationPath,
+                        text: displayedDerivationPath,
+                        field: .derivationPath,
+                        isEnabled: useCustomDerivationPath
+                    )
+                    .accessibilityIdentifier("add-account-derivation-path-field")
+                }
+            }
+
+            Section {
+                Toggle(.addAccountCustomRpcEndpoint, isOn: customRPCEnabled)
+                    .disabled(selectedBlockchain.isCustomEVM)
+
+                abbreviatedRow(
+                    .addAccountRpcUrl,
+                    text: displayedRpcUrl,
+                    field: .rpcUrl,
+                    isEnabled: customRPCEnabled.wrappedValue
+                )
+            }
+
+            if keyStore.isWatchOnly {
+                Section {
+                    abbreviatedRow(
+                        watchOnlyFieldTitle,
+                        text: $address,
+                        field: .watchAddress,
+                        isEnabled: selectedNetwork != nil
+                    )
+                    .accessibilityIdentifier("add-account-watch-address-field")
+                }
+            }
+        }
+        .pickerStyle(.menu)
+        .scrollDismissesKeyboard(.immediately)
+        .onTouchOutsideTextInput {
+            focusedField = nil
+        }
+    }
+
+    /// Single-line row: the value is middle-abbreviated until editing starts.
+    func abbreviatedRow(
+        _ title: LocalizedStringResource,
+        text: Binding<String>,
+        field: Field,
+        isEnabled: Bool
+    ) -> some View {
+        let isEditing = focusedField == field
+
+        return HStack(spacing: 16) {
+            Text(title)
+                .foregroundStyle(isEnabled ? .primary : .secondary)
+
+            ZStack(alignment: .trailing) {
+                TextField("", text: text)
+                    .focused($focusedField, equals: field)
+                    .disabled(!isEnabled)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.trailing)
+                    // `.opacity(0)` would make the UIKit field ignore touches.
+                    .foregroundStyle(isEditing ? Color.primary : Color.clear)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .autocorrectionDisabled()
+
+                if !isEditing {
+                    Text(text.wrappedValue)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(isEnabled ? .primary : .secondary)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+    }
+
+    func phoneField(_ title: LocalizedStringResource, text: Binding<String>, field: Field? = nil) -> some View {
+        LabeledContent {
+            TextField("", text: text)
+                .focused($focusedField, equals: field)
+                .lineLimit(1)
+                .multilineTextAlignment(.trailing)
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                #endif
+                .autocorrectionDisabled()
+        } label: {
+            Text(title)
+        }
+    }
+
+    var customRPCEnabled: Binding<Bool> {
+        Binding(
+            get: { selectedBlockchain.isCustomEVM || useCustomEndpoint },
+            set: { useCustomEndpoint = $0 }
+        )
+    }
+
+    var displayedDerivationPath: Binding<String> {
+        Binding(
+            get: {
+                useCustomDerivationPath && !customDerivationPath.isEmpty
+                    ? customDerivationPath
+                    : nextDerivationPath?.string ?? ""
+            },
+            set: { newValue in
+                if useCustomDerivationPath {
+                    customDerivationPath = newValue
+                }
+            }
+        )
+    }
+
+    var defaultRpcUrl: String {
+        if case let .bitcoin(network) = selectedNetwork {
+            network.defaultEndpoint(for: selectedBitcoinBackend).absoluteString
+        } else {
+            selectedNetwork?.rpcURL.absoluteString ?? ""
+        }
+    }
+
+    var displayedRpcUrl: Binding<String> {
+        Binding(
+            get: {
+                useCustomEndpoint && !customEndpointURL.isEmpty ? customEndpointURL : defaultRpcUrl
+            },
+            set: { newValue in
+                if useCustomEndpoint {
+                    customEndpointURL = newValue
+                }
+            }
+        )
+    }
+
+    func submit() {
+        Task {
+            do {
+                if case .evm(.custom) = selectedBlockchain {
+                    guard let chainId = UInt64(customChainId) else {
+                        throw ReefrError.invalidData
+                    }
+
+                    try await addAccount(.evm(.custom(chainId)), signatureScheme: selectedKeyScheme)
+                } else {
+                    try await addAccount(selectedNetwork!, signatureScheme: selectedKeyScheme)
+                }
+            } catch {
+                self.error = error
+                isAlertPresented = true
+            }
+        }
+    }
+
+    @ViewBuilder
     var blockchainPicker: some View {
         #if os(macOS)
         // A menu-style `Picker` on macOS ignores `.disabled` on its items,
@@ -230,7 +457,7 @@ private extension AddAccountView {
             )
         }
         #else
-        Picker("Blockchain", selection: $selectedBlockchain) {
+        Picker(.addAccountBlockchain, selection: $selectedBlockchain) {
             ForEach(standardBlockchains, id: \.self) { blockchain in
                 Text(blockchain.name).tag(blockchain)
                     .disabled(!blockchain.isSupported(by: keyStore))
@@ -256,28 +483,13 @@ private extension AddAccountView {
             Button {
                 dismiss()
             } label: {
-                Text("Cancel")
+                Text(.commonCancel)
             }
 
             Button {
-                Task {
-                    do {
-                        if case .evm(.custom) = selectedBlockchain {
-                            guard let chainId = UInt64(customChainId) else {
-                                throw ReefrError.invalidData
-                            }
-
-                            try await addAccount(.evm(.custom(chainId)), signatureScheme: selectedKeyScheme)
-                        } else {
-                            try await addAccount(selectedNetwork!, signatureScheme: selectedKeyScheme)
-                        }
-                    } catch {
-                        self.error = error
-                        isAlertPresented = true
-                    }
-                }
+                submit()
             } label: {
-                Text("Add Account")
+                Text(.commonAddAccount)
             }
             .disabled(isAddButtonDisabled)
             .accessibilityIdentifier("add-account-submit-button")
@@ -359,12 +571,12 @@ private extension AddAccountView {
         address.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var watchOnlyFieldTitle: String {
+    var watchOnlyFieldTitle: LocalizedStringResource {
         if case .cardano = selectedBlockchain {
-            return "Cardano Account XPub"
+            return .addAccountCardanoAccountXpub
         }
 
-        return "Watch Address"
+        return .addAccountWatchAddress
     }
 
     @MainActor
@@ -399,21 +611,62 @@ private extension AddAccountView {
         }
 
         let trimmedEndpoint = customEndpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedEndpoint.isEmpty, let url = URL(string: trimmedEndpoint) else {
+        guard !trimmedEndpoint.isEmpty,
+              let url = URL(string: trimmedEndpoint),
+              url.scheme?.isEmpty == false,
+              url.host()?.isEmpty == false
+        else {
             throw ReefrError.invalidData
         }
 
         return url
     }
 
+    func value(of field: Field) -> String {
+        switch field {
+        case .derivationPath: customDerivationPath
+        case .rpcUrl: customEndpointURL
+        case .watchAddress: address
+        }
+    }
+
+    /// Alerts and restores the pre-edit value if `field` holds invalid input.
+    func validate(_ field: Field) {
+        switch field {
+        case .derivationPath:
+            guard useCustomDerivationPath, !trimmedDerivationPath.isEmpty, !isDerivationPathValid else {
+                return
+            }
+
+            customDerivationPath = fieldSnapshot
+            present(FieldError(message: String(localized: .addAccountInvalidDerivationPath)))
+
+        case .rpcUrl:
+            guard useCustomEndpoint, !customEndpointURL.isEmpty, (try? customEndpointURLOverride()) == nil else {
+                return
+            }
+
+            customEndpointURL = fieldSnapshot
+            present(FieldError(message: String(localized: .addAccountInvalidRpcUrl)))
+
+        case .watchAddress:
+            break
+        }
+    }
+
+    func present(_ error: Swift.Error) {
+        self.error = error
+        isAlertPresented = true
+    }
+
     func alertMessage(_ error: Swift.Error?) -> String {
         guard let error else {
-            return "Unknown Error."
+            return String(localized: .commonUnknownError)
         }
 
         switch error {
         case ReefrError.alreadyExists:
-            return "AccountModel already exists."
+            return String(localized: .addAccountAccountExists)
         default:
             return error.localizedDescription
         }
@@ -437,6 +690,20 @@ private extension AddAccountView {
             }
         }
     }
+}
+
+private extension AddAccountView {
+    enum Field: Hashable {
+        case derivationPath
+        case rpcUrl
+        case watchAddress
+    }
+}
+
+private struct FieldError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? { message }
 }
 
 private struct PathKey: Hashable {
@@ -614,8 +881,8 @@ private struct BlockchainPopUpButton: NSViewRepresentable {
 private extension BitcoinBackendKind {
     var displayName: String {
         switch self {
-        case .electrum: "Electrum"
-        case .esplora: "Esplora"
+        case .electrum: String(localized: .addAccountElectrum)
+        case .esplora: String(localized: .addAccountEsplora)
         }
     }
 }

@@ -92,7 +92,7 @@ struct HardwareKeyPromptHUD: View {
                 .accessibilityIdentifier("hardware-key-prompt-message")
 
             if prompt.isCancellable {
-                Button("Cancel", action: onCancel)
+                Button(.commonCancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
             }
         }
@@ -187,7 +187,7 @@ extension View {
 // MARK: - Preview
 
 #Preview("Complete") {
-    HardwareKeyPromptHUD(prompt: .complete("Complete")) {}
+    HardwareKeyPromptHUD(prompt: .complete(String(localized: .commonComplete))) {}
         .padding()
 }
 
@@ -202,7 +202,7 @@ extension View {
 }
 
 #Preview("Progress") {
-    HardwareKeyPromptHUD(prompt: .progress("Signing")) {}
+    HardwareKeyPromptHUD(prompt: .progress(String(localized: .commonSigning))) {}
         .padding()
 }
 

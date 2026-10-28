@@ -51,6 +51,7 @@ extension ServiceContainer {
         return self
     }
 
+    // swiftlint:disable:next function_body_length
     func registerCore() -> Self {
         register(AccountService.self) {
             AccountService()

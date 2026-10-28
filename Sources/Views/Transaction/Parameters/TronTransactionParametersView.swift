@@ -19,10 +19,10 @@ struct TronTransactionParametersView: View {
 
     var body: some View {
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
-        ParameterSection("Transaction") {
+        ParameterSection(String(localized: .commonTransaction)) {
             FromRow(account: account)
 
             ForEach(rows, id: \.label) { row in
@@ -36,7 +36,7 @@ struct TronTransactionParametersView: View {
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.transaction.rawBytes.hexEncoded, maxLines: 6)
+        ParameterBlock(String(localized: .commonRawBytes), text: preview.transaction.rawBytes.hexEncoded, maxLines: 6)
     }
 }
 
@@ -56,53 +56,66 @@ extension TronTransactionParametersView {
         switch transaction.contract {
         case let .transfer(_, to, amount):
             rows = [
-                Row(label: "Action", value: "Send TRX"),
-                Row(label: "To", value: to.string),
-                Row(label: "Amount", value: Self.trx(amount))
+                Row(label: String(localized: .commonAction), value: "Send TRX"),
+                Row(label: String(localized: .commonTo), value: to.string),
+                Row(label: String(localized: .commonAmount), value: Self.trx(amount))
             ]
         case let .triggerSmartContract(_, contract, callValue, data):
-            rows = [Row(label: "Contract", value: contract.string)]
+            rows = [Row(label: String(localized: .tronTransactionParametersContract), value: contract.string)]
             rows += Self.callRows(data, token: preview.token)
 
             if callValue > 0 {
-                rows.append(Row(label: "TRX sent", value: Self.trx(callValue)))
+                rows.append(
+                    Row(label: String(localized: .tronTransactionParametersTrxSent), value: Self.trx(callValue))
+                )
             }
 
         case let .freezeBalanceV2(_, amount, resource):
             rows = [
-                Row(label: "Action", value: "Stake TRX"),
-                Row(label: "Amount", value: Self.trx(amount)),
-                Row(label: "Resource", value: Self.resourceName(resource))
+                Row(label: String(localized: .commonAction), value: "Stake TRX"),
+                Row(label: String(localized: .commonAmount), value: Self.trx(amount)),
+                Row(label: String(localized: .tronTransactionParametersResource), value: Self.resourceName(resource))
             ]
         case let .unfreezeBalanceV2(_, amount, resource):
             rows = [
-                Row(label: "Action", value: "Unstake TRX"),
-                Row(label: "Amount", value: Self.trx(amount)),
-                Row(label: "Resource", value: Self.resourceName(resource))
+                Row(label: String(localized: .commonAction), value: "Unstake TRX"),
+                Row(label: String(localized: .commonAmount), value: Self.trx(amount)),
+                Row(label: String(localized: .tronTransactionParametersResource), value: Self.resourceName(resource))
             ]
         case .withdrawExpireUnfreeze:
-            rows = [Row(label: "Action", value: "Withdraw unstaked TRX")]
+            rows = [Row(label: String(localized: .commonAction), value: "Withdraw unstaked TRX")]
         }
 
         if let memo = transaction.memo, !memo.isEmpty {
-            rows.append(Row(label: "Memo", value: String(data: memo, encoding: .utf8) ?? memo.hexEncoded))
+            rows.append(
+                Row(
+                    label: String(localized: .commonMemo),
+                    value: String(data: memo, encoding: .utf8) ?? memo.hexEncoded
+                )
+            )
         }
 
         let expiration = Date(timeIntervalSince1970: TimeInterval(transaction.expiration) / 1000)
-        rows.append(Row(label: "Expires", value: expiration.formatted(date: .abbreviated, time: .standard)))
+        rows.append(
+            Row(
+                label: String(localized: .commonExpires),
+                value: expiration.formatted(date: .abbreviated, time: .standard)
+            )
+        )
+
         return rows
     }
 
     static func trx(_ sun: UInt64) -> String {
         let value = Decimal(sun) / Decimal(1_000_000)
-        return "\(value.formatted(.number.precision(.fractionLength(0...6)))) TRX"
+        return value.formatted(symbol: "TRX")
     }
 
     static func resourceName(_ resource: TronRawTransaction.Resource) -> String {
         switch resource {
-        case .bandwidth: "Bandwidth"
-        case .energy: "Energy"
-        case .tronPower: "Tron Power"
+        case .bandwidth: String(localized: .tronTransactionParametersBandwidth)
+        case .energy: String(localized: .tronTransactionParametersEnergy)
+        case .tronPower: String(localized: .tronTransactionParametersTronPower)
         }
     }
 
@@ -114,19 +127,35 @@ extension TronTransactionParametersView {
 
         switch (selector, words.count) {
         case ("0xa9059cbb", 2):
-            return [Row(label: "Action", value: "Token transfer")]
-                + [Row(label: "To", value: address(words[0])), Row(label: "Amount", value: amount(words[1], token))]
+            return [Row(label: String(localized: .commonAction), value: "Token transfer")]
+                + [
+                    Row(label: String(localized: .commonTo), value: address(words[0])),
+                    Row(label: String(localized: .commonAmount), value: amount(words[1], token))
+                ]
         case ("0x095ea7b3", 2):
-            return [Row(label: "Action", value: "Token approval")]
-                + [Row(label: "Spender", value: address(words[0]))]
-                + [Row(label: "Allowance", value: amount(words[1], token))]
+            return [Row(label: String(localized: .commonAction), value: "Token approval")]
+                + [Row(label: String(localized: .tronTransactionParametersSpender), value: address(words[0]))]
+                + [Row(label: String(localized: .tronTransactionParametersAllowance), value: amount(words[1], token))]
         case ("0x23b872dd", 3):
-            return [Row(label: "Action", value: "Token transfer from")]
-                + [Row(label: "From", value: address(words[0])), Row(label: "To", value: address(words[1]))]
-                + [Row(label: "Amount", value: amount(words[2], token))]
+            return [Row(label: String(localized: .commonAction), value: "Token transfer from")]
+                + [
+                    Row(label: String(localized: .commonFrom), value: address(words[0])),
+                    Row(label: String(localized: .commonTo), value: address(words[1]))
+                ]
+                + [Row(label: String(localized: .commonAmount), value: amount(words[2], token))]
         default:
-            return [Row(label: "Function", value: data.isEmpty ? "None" : selector)]
-                + (data.count > 4 ? [Row(isCallData: true, label: "Call data", value: data.hexEncoded)] : [])
+            let function = Row(
+                label: String(localized: .commonFunction),
+                value: data.isEmpty ? String(localized: .commonNone) : selector
+            )
+
+            let callData = Row(
+                isCallData: true,
+                label: String(localized: .tronTransactionParametersCallData),
+                value: data.hexEncoded
+            )
+
+            return data.count > 4 ? [function, callData] : [function]
         }
     }
 
@@ -161,11 +190,11 @@ extension TronTransactionParametersView {
         let symbol = token.map { " \($0.symbol)" } ?? ""
 
         if value == BigUInt(2).power(256) - 1 {
-            return "Unlimited\(symbol)"
+            return String(localized: .tronTransactionParametersUnlimited(symbol))
         }
 
         guard let token else {
-            return "\(value) (base units)"
+            return String(localized: .tronTransactionParametersBaseUnits(String(value)))
         }
 
         return "\(tokenAmount(value, decimals: Int(token.decimals)))\(symbol)"

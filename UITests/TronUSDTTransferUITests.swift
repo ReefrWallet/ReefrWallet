@@ -92,18 +92,8 @@ final class TronUSDTTransferUITests: XCTestCase {
         var usdtRow = findUSDTRow()
         let rowDeadline = Date.now.addingTimeInterval(90)
 
-        // Unpriced tokens are hidden behind a disclosure row.
-        let disclosure = app.firstDescendant(withIdentifier: "balances-table-hidden-disclosure-row")
-        var didExpand = false
-
         while usdtRow == nil, Date.now < rowDeadline {
             try await Task.sleep(for: .seconds(2))
-
-            if !didExpand, disclosure.exists {
-                disclosure.click()
-                disclosure.typeKey(.rightArrow, modifierFlags: [])
-                didExpand = true
-            }
 
             usdtRow = findUSDTRow()
         }
@@ -114,7 +104,7 @@ final class TronUSDTTransferUITests: XCTestCase {
                 .matching(NSPredicate(format: "identifier BEGINSWITH %@ OR identifier BEGINSWITH %@", "balance-", "balances-"))
                 .allElementsBoundByIndex
                 .map { "\($0.identifier)=\($0.text)" }
-            XCTFail("Expected a visible USDT balance row. Rows: \(rows). Disclosure exists: \(disclosure.exists). Sender \(senderAddress) USDT on-chain: \(senderBalance); recipient: \(balanceBefore)")
+            XCTFail("Expected a visible USDT balance row. Rows: \(rows). Sender \(senderAddress) USDT on-chain: \(senderBalance); recipient: \(balanceBefore)")
             return
         }
 

@@ -19,11 +19,78 @@ struct ConnectAppSheet: View {
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
     var body: some View {
+        if isPhone {
+            phoneBody
+        } else {
+            macBody
+        }
+    }
+
+    private var isConnectDisabled: Bool {
+        uri.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking
+    }
+
+    private var phoneBody: some View {
+        Form {
+            Section {
+                HStack {
+                    Text(.connectAppLink)
+
+                    TextField("", text: $uri, prompt: Text("wc:…"))
+                        .multilineTextAlignment(.trailing)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .autocorrectionDisabled()
+                        .accessibilityIdentifier("connect-app-uri-field")
+                        .onSubmit(connect)
+
+                    Button(.connectAppPaste, action: paste)
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("connect-app-paste-button")
+                }
+            } header: {
+                Text(.connectAppInstructions)
+                    .textCase(nil)
+            }
+
+            #if os(iOS)
+            Section {
+                Button {
+                    isScanning = true
+                } label: {
+                    Label(.connectAppScanQrCode, systemImage: "qrcode.viewfinder")
+                        .frame(maxWidth: .infinity)
+                }
+                .accessibilityIdentifier("connect-app-scan-button")
+            }
+            #endif
+        }
+        .phoneSheet(
+            .commonConnectApp,
+            onCancel: { dismiss() },
+            confirmTitle: .commonConnect,
+            confirmId: "connect-app-connect-button",
+            isConfirmEnabled: !isConnectDisabled,
+            onConfirm: connect
+        )
+        #if os(iOS)
+        .sheet(isPresented: $isScanning) {
+            QRScannerView { code in
+                isScanning = false
+                uri = code
+                connect()
+            }
+        }
+        #endif
+    }
+
+    private var macBody: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Connect App")
+            Text(.commonConnectApp)
                 .style(.largeHeader)
 
-            Text("Paste the WalletConnect link from the app, or scan its QR code.")
+            Text(.connectAppInstructions)
                 .style(.small, foreground: .secondary)
 
             HStack {
@@ -32,7 +99,7 @@ struct ConnectAppSheet: View {
                     .accessibilityIdentifier("connect-app-uri-field")
                     .onSubmit(connect)
 
-                Button("Paste", action: paste)
+                Button(.connectAppPaste, action: paste)
                     .accessibilityIdentifier("connect-app-paste-button")
             }
 
@@ -40,7 +107,7 @@ struct ConnectAppSheet: View {
             Button {
                 isScanning = true
             } label: {
-                Label("Scan QR Code", systemImage: "qrcode.viewfinder")
+                Label(.connectAppScanQrCode, systemImage: "qrcode.viewfinder")
             }
             .accessibilityIdentifier("connect-app-scan-button")
 #endif
@@ -50,12 +117,12 @@ struct ConnectAppSheet: View {
             HStack {
                 Spacer()
 
-                Button("Cancel") {
+                Button(.commonCancel) {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
 
-                Button("Connect", action: connect)
+                Button(.commonConnect, action: connect)
                     .keyboardShortcut(.defaultAction)
                     .disabled(uri.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking)
                     .accessibilityIdentifier("connect-app-connect-button")

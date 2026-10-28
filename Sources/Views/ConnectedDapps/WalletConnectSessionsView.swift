@@ -20,10 +20,10 @@ struct WalletConnectSessionsView: View {
                 VStack(spacing: 0) {
                     Spacer()
 
-                    EmptyStateView("No Connected Apps")
+                    EmptyStateView(.walletConnectSessionsNoConnectedApps)
                         .frame(maxHeight: 220)
 
-                    Button("Connect App") {
+                    Button(.commonConnectApp) {
                         isConnecting = true
                     }
                     .buttonStyle(.borderedProminent)
@@ -40,13 +40,13 @@ struct WalletConnectSessionsView: View {
                 .accessibilityIdentifier("walletconnect-sessions-list")
             }
         }
-        .navigationTitle("WalletConnect")
+        .navigationTitle(.commonWalletconnect)
         .toolbar {
             ToolbarItem {
                 Button {
                     isConnecting = true
                 } label: {
-                    Label("Connect App", systemImage: "plus")
+                    Label(.commonConnectApp, systemImage: "plus")
                 }
                 .accessibilityIdentifier("walletconnect-connect-button")
             }
@@ -54,8 +54,8 @@ struct WalletConnectSessionsView: View {
         .sheet(isPresented: $isConnecting) {
             ConnectAppSheet()
         }
-        .alert("WalletConnect", isPresented: failureBinding, presenting: walletConnect.failureMessage) { _ in
-            Button("OK") {}
+        .alert(.commonWalletconnect, isPresented: failureBinding, presenting: walletConnect.failureMessage) { _ in
+            Button(.commonOk) {}
         } message: { message in
             Text(message)
         }
@@ -87,22 +87,22 @@ private extension WalletConnectSessionsView {
 
             Spacer()
 
-            Text("Expires \(session.expiry.formatted(date: .abbreviated, time: .omitted))")
+            Text(.walletConnectSessionsExpiresOn(session.expiry.formatted(date: .abbreviated, time: .omitted)))
                 .style(.caption, foreground: .secondary)
 
             if let url = URL(string: session.url) {
                 Button {
                     PreferredBrowser.open(url)
                 } label: {
-                    Label("Open in Browser", systemImage: "safari")
+                    Label(.commonOpenInBrowser, systemImage: "safari")
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.borderless)
-                .help("Open in Browser")
+                .help(.commonOpenInBrowser)
                 .accessibilityIdentifier("walletconnect-open-in-browser-button")
             }
 
-            Button("Disconnect", role: .destructive) {
+            Button(.walletConnectSessionsDisconnect, role: .destructive) {
                 Task { await walletConnect.disconnect(topic: session.topic) }
             }
             .accessibilityIdentifier("walletconnect-disconnect-button")

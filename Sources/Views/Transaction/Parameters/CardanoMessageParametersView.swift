@@ -20,32 +20,35 @@ struct CardanoMessageParametersView: View {
     var body: some View {
 #if os(macOS)
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
         ParameterSection {
-            FromRow(account: account, title: "Account")
+            FromRow(account: account, title: String(localized: .commonAccount))
             signsWithRow
         }
 #else
         ParameterSection {
-            ParameterRow("Site", value: site)
-            FromRow(account: account, title: "Account")
+            ParameterRow(String(localized: .commonSite), value: site)
+            FromRow(account: account, title: String(localized: .commonAccount))
             signsWithRow
         }
 #endif
 
-        ParameterBlock("Message", text: String(data: message, encoding: .utf8) ?? message.hexEncoded)
+        ParameterBlock(
+            String(localized: .commonMessage),
+            text: String(data: message, encoding: .utf8) ?? message.hexEncoded
+        )
     }
 
     private var signsWithRow: some View {
-        ParameterRow("Signs with", value: Self.keyName(keyRole))
+        ParameterRow(String(localized: .commonSignsWith), value: Self.keyName(keyRole))
     }
 
     static func keyName(_ role: CardanoKeyRole) -> String {
         switch role {
-        case .payment: "Payment key"
-        case .stake: "Stake key"
+        case .payment: String(localized: .cardanoMessageParametersPaymentKey)
+        case .stake: String(localized: .cardanoMessageParametersStakeKey)
         }
     }
 }

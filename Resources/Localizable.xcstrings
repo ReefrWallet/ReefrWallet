@@ -1,13 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "?" : {
-
-    },
     "%@" : {
-
-    },
-    "%@ (addresses not resolved)" : {
 
     },
     "%@ %@" : {
@@ -20,14 +14,3162 @@
         }
       }
     },
-    "%@ accounts" : {
+    "?" : {
 
     },
-    "%@ Approvals" : {
+    "Reefr Wallet" : {
 
     },
-    "%@, %@" : {
-      "comment" : "Asset counts: NFTs, then tokens",
+    "accountDetails.addressed" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addressed"
+          }
+        }
+      }
+    },
+    "accountDetails.approvals" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approvals"
+          }
+        }
+      }
+    },
+    "accountDetails.balanceCount" : {
+      "comment" : "AccountBalancesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Balances"
+          }
+        }
+      }
+    },
+    "accountDetails.balances" : {
+      "comment" : "AccountTabChips",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balances"
+          }
+        }
+      }
+    },
+    "accountDetails.copyAddress" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Address"
+          }
+        }
+      }
+    },
+    "accountDetails.enableFilter" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Transaction Filter"
+          }
+        }
+      }
+    },
+    "accountDetails.filteredBy" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtered by"
+          }
+        }
+      }
+    },
+    "accountDetails.filters" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filters"
+          }
+        }
+      }
+    },
+    "accountDetails.fromMyAccounts" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From My Accounts"
+          }
+        }
+      }
+    },
+    "accountDetails.hideUnknownTokens" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Unknown Tokens"
+          }
+        }
+      }
+    },
+    "accountDetails.hideZeroBalances" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Zero Balances"
+          }
+        }
+      }
+    },
+    "accountDetails.pillFromMe" : {
+      "comment" : "Filter pill",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From Me"
+          }
+        }
+      }
+    },
+    "accountDetails.pillKnownTokens" : {
+      "comment" : "Filter pill",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Known Tokens"
+          }
+        }
+      }
+    },
+    "accountDetails.pillNonZeroBalances" : {
+      "comment" : "Filter pill",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non-zero Balances"
+          }
+        }
+      }
+    },
+    "accountDetails.pillToMe" : {
+      "comment" : "Filter pill",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To Me"
+          }
+        }
+      }
+    },
+    "accountDetails.search" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
+    },
+    "accountDetails.toMyAccounts" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To My Accounts"
+          }
+        }
+      }
+    },
+    "accountDetails.tokenBalances" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token Balances"
+          }
+        }
+      }
+    },
+    "accountDetails.tokens" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tokens"
+          }
+        }
+      }
+    },
+    "accountDetails.transactions" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transactions"
+          }
+        }
+      }
+    },
+    "accountDetails.unitPrice" : {
+      "comment" : "BalanceRow",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 %1$@ = %2$@"
+          }
+        }
+      }
+    },
+    "addAccount.accountExists" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AccountModel already exists."
+          }
+        }
+      }
+    },
+    "addAccount.addBlockchainAccount" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Blockchain Account"
+          }
+        }
+      }
+    },
+    "addAccount.backend" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backend"
+          }
+        }
+      }
+    },
+    "addAccount.blockchain" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blockchain"
+          }
+        }
+      }
+    },
+    "addAccount.cardanoAccountXpub" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardano Account XPub"
+          }
+        }
+      }
+    },
+    "addAccount.chainId" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ChainId"
+          }
+        }
+      }
+    },
+    "addAccount.customDerivationPath" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Derivation Path"
+          }
+        }
+      }
+    },
+    "addAccount.customRpcEndpoint" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom RPC Endpoint"
+          }
+        }
+      }
+    },
+    "addAccount.derivationPath" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Derivation Path"
+          }
+        }
+      }
+    },
+    "addAccount.electrum" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electrum"
+          }
+        }
+      }
+    },
+    "addAccount.esplora" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esplora"
+          }
+        }
+      }
+    },
+    "addAccount.invalidDerivationPath" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The derivation path is invalid."
+          }
+        }
+      }
+    },
+    "addAccount.invalidRpcUrl" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The RPC URL is invalid."
+          }
+        }
+      }
+    },
+    "addAccount.keyScheme" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key Scheme"
+          }
+        }
+      }
+    },
+    "addAccount.nativeSegwit" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Native SegWit (BIP-84)"
+          }
+        }
+      }
+    },
+    "addAccount.network" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        }
+      }
+    },
+    "addAccount.rpcUrl" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPC URL"
+          }
+        }
+      }
+    },
+    "addAccount.scriptType" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Script Type"
+          }
+        }
+      }
+    },
+    "addAccount.taproot" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taproot (BIP-86)"
+          }
+        }
+      }
+    },
+    "addAccount.watchAddress" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch Address"
+          }
+        }
+      }
+    },
+    "addBrowserDapp.unreachable" : {
+      "comment" : "AddBrowserDappSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not reach this address. Check the link and try again."
+          }
+        }
+      }
+    },
+    "addKeyStore.hardwareKeyDescription" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect Trezor hardware key and\nuse it for address derivation and signing"
+          }
+        }
+      }
+    },
+    "addKeyStore.keyStoreExists" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key store already exists."
+          }
+        }
+      }
+    },
+    "addKeyStore.localKeyDescription" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate 12, 18 or 24 word seed phrase wallet\nstored locally on this computer"
+          }
+        }
+      }
+    },
+    "addKeyStore.localKeyDescriptionPhone" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate 12, 18 or 24 word seed phrase wallet stored locally on this iPhone"
+          }
+        }
+      }
+    },
+    "addKeyStore.newBip39Mnemonic" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New BIP-39 Mnemonic"
+          }
+        }
+      }
+    },
+    "addKeyStore.newHardwareKey" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Hardware Key"
+          }
+        }
+      }
+    },
+    "addKeyStore.restoreDescription" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore local seed phrase wallet\nfrom a 12, 18 or 24 word backup"
+          }
+        }
+      }
+    },
+    "addKeyStore.restoreDescriptionPhone" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore local seed phrase wallet from a 12, 18 or 24 word backup"
+          }
+        }
+      }
+    },
+    "addKeyStore.restoreFromBackup" : {
+      "comment" : "AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore From Backup"
+          }
+        }
+      }
+    },
+    "addressBook.addNew" : {
+      "comment" : "AddressBookView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add New"
+          }
+        }
+      }
+    },
+    "addressBook.address" : {
+      "comment" : "AddressBookView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        }
+      }
+    },
+    "addressBook.close" : {
+      "comment" : "AddressBookView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "addressBook.select" : {
+      "comment" : "AddressBookView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select"
+          }
+        }
+      }
+    },
+    "approvals.approvalCount" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Approvals"
+          }
+        }
+      }
+    },
+    "approvals.approvedAmount" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approved Amount"
+          }
+        }
+      }
+    },
+    "approvals.approvedSpender" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approved Spender"
+          }
+        }
+      }
+    },
+    "approvals.asset" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asset"
+          }
+        }
+      }
+    },
+    "approvals.myApprovalTime" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Approval Time"
+          }
+        }
+      }
+    },
+    "approvals.needsEtherscanKey" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approvals need an Etherscan API key and a supported chain"
+          }
+        }
+      }
+    },
+    "approvals.noApprovals" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Approvals"
+          }
+        }
+      }
+    },
+    "approvals.revokeFailed" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoking %1$@ failed: %2$@"
+          }
+        }
+      }
+    },
+    "approvals.revokeSelected" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke Selected (%lld)"
+          }
+        }
+      }
+    },
+    "approvals.selectAll" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        }
+      }
+    },
+    "approvals.unlimited" : {
+      "comment" : "AccountApprovalsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited"
+          }
+        }
+      }
+    },
+    "aptosTransactionParameters.arguments" : {
+      "comment" : "AptosTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arguments"
+          }
+        }
+      }
+    },
+    "aptosTransactionParameters.sequenceNumber" : {
+      "comment" : "AptosTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sequence number"
+          }
+        }
+      }
+    },
+    "aptosTransactionParameters.typeArguments" : {
+      "comment" : "AptosTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type arguments"
+          }
+        }
+      }
+    },
+    "backupKeyStore.recoveryPhrase" : {
+      "comment" : "BackupKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery Phrase"
+          }
+        }
+      }
+    },
+    "backupKeyStore.recoveryPhraseTitle" : {
+      "comment" : "BackupKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery Phrase for \"%@\""
+          }
+        }
+      }
+    },
+    "balances.balance" : {
+      "comment" : "AccountBalancesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance"
+          }
+        }
+      }
+    },
+    "balances.contractAddress" : {
+      "comment" : "AccountBalancesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contract address: %@"
+          }
+        }
+      }
+    },
+    "balances.price" : {
+      "comment" : "AccountBalancesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price"
+          }
+        }
+      }
+    },
+    "browser.closeBrowser" : {
+      "comment" : "BrowserView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Browser"
+          }
+        }
+      }
+    },
+    "browser.forward" : {
+      "comment" : "BrowserView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forward"
+          }
+        }
+      }
+    },
+    "browser.reload" : {
+      "comment" : "BrowserView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload"
+          }
+        }
+      }
+    },
+    "browserAccountSelector.accountsOnChains" : {
+      "comment" : "BrowserAccountSelector",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld accounts (%2$@)"
+          }
+        }
+      }
+    },
+    "browserAccountSelector.notConnected" : {
+      "comment" : "BrowserAccountSelector",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Connected"
+          }
+        }
+      }
+    },
+    "browserDappDetails.access" : {
+      "comment" : "BrowserDappDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access"
+          }
+        }
+      }
+    },
+    "browserDappDetails.notConnectedHint" : {
+      "comment" : "BrowserDappDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected. Open it in the browser to connect."
+          }
+        }
+      }
+    },
+    "cardanoMessageParameters.paymentKey" : {
+      "comment" : "CardanoMessageParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payment key"
+          }
+        }
+      }
+    },
+    "cardanoMessageParameters.stakeKey" : {
+      "comment" : "CardanoMessageParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake key"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.certificates" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificates"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.collateral" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collateral"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.inputs" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inputs"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.mint" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mint"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.notChecked" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not checked"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.otherSigners" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other signers"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.outputs" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outputs"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.validUntil" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid until"
+          }
+        }
+      }
+    },
+    "cardanoTransactionParameters.withdrawals" : {
+      "comment" : "CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawals"
+          }
+        }
+      }
+    },
+    "common.account" : {
+      "comment" : "CardanoMessageParametersView, DappRequestSheet, KeyStoreDetailsView, ParameterViews, WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        }
+      }
+    },
+    "common.action" : {
+      "comment" : "TransactionRowPresenter, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action"
+          }
+        }
+      }
+    },
+    "common.add" : {
+      "comment" : "AddAccountView, AddBrowserDappSheet, SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "common.addAccount" : {
+      "comment" : "AddAccountView, SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Account"
+          }
+        }
+      }
+    },
+    "common.addDapp" : {
+      "comment" : "AddBrowserDappSheet, ConnectedDappsSidebarSection",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add dApp"
+          }
+        }
+      }
+    },
+    "common.amount" : {
+      "comment" : "TransactionRowPresenter, TransferParametersView, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amount"
+          }
+        }
+      }
+    },
+    "common.amountWithSymbol" : {
+      "comment" : "Decimal+Extensions: amount followed by currency symbol",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "common.approve" : {
+      "comment" : "DappAccountChoiceView, DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve"
+          }
+        }
+      }
+    },
+    "common.back" : {
+      "comment" : "AddKeyStoreView, BrowserView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
+    "common.cancel" : {
+      "comment" : "AddAccountView, AddBrowserDappSheet, AddKeyStoreView, AddressBookView, ConnectAppSheet, HardwareKeyPromptHUD, SidebarView, TransactionSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "common.complete" : {
+      "comment" : "DappApprover, HardwareKeyPromptHUD, TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete"
+          }
+        }
+      }
+    },
+    "common.connect" : {
+      "comment" : "ConnectAppSheet, WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "common.connectApp" : {
+      "comment" : "ConnectAppSheet, WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect App"
+          }
+        }
+      }
+    },
+    "common.connectRequest" : {
+      "comment" : "DappAccountChoiceView, DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect Request"
+          }
+        }
+      }
+    },
+    "common.done" : {
+      "comment" : "AddKeyStoreView, BackupKeyStoreView, SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "common.edit" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit"
+          }
+        }
+      }
+    },
+    "common.error" : {
+      "comment" : "AddAccountView, AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        }
+      }
+    },
+    "common.expires" : {
+      "comment" : "AptosTransactionParametersView, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expires"
+          }
+        }
+      }
+    },
+    "common.from" : {
+      "comment" : "TransactionRowPresenter, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From"
+          }
+        }
+      }
+    },
+    "common.function" : {
+      "comment" : "AptosTransactionParametersView, TransactionRowPresenter, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Function"
+          }
+        }
+      }
+    },
+    "common.hiddenBalances" : {
+      "comment" : "AccountBalancesView, BalancesTableEntry",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden Balances"
+          }
+        }
+      }
+    },
+    "common.memo" : {
+      "comment" : "AddressBookView, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memo"
+          }
+        }
+      }
+    },
+    "common.message" : {
+      "comment" : "CardanoMessageParametersView, EthereumTypedDataParametersView, SignMessageParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "common.more" : {
+      "comment" : "AccountDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More"
+          }
+        }
+      }
+    },
+    "common.next" : {
+      "comment" : "AddKeyStoreView, TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        }
+      }
+    },
+    "common.none" : {
+      "comment" : "SolanaTransactionParametersView, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "common.notConnected" : {
+      "comment" : "BrowserDappDetailsView, DappAccountChoiceView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "common.ok" : {
+      "comment" : "AccountApprovalsView, AddAccountView, AddKeyStoreView, BrowserView, MainView, TransferView, WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "common.openInBrowser" : {
+      "comment" : "BrowserDappDetailsView, WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in Browser"
+          }
+        }
+      }
+    },
+    "common.rawBytes" : {
+      "comment" : "AptosTransactionParametersView, CardanoTransactionParametersView, SolanaTransactionParametersView, SuiTransactionParametersView, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw bytes"
+          }
+        }
+      }
+    },
+    "common.reject" : {
+      "comment" : "DappAccountChoiceView, DappRequestSheet, WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reject"
+          }
+        }
+      }
+    },
+    "common.remove" : {
+      "comment" : "BrowserDappDetailsView, ConnectedDappsSidebarSection",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
+    },
+    "common.requestFailed" : {
+      "comment" : "MainView, BrowserView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request Failed"
+          }
+        }
+      }
+    },
+    "common.requiredSigners" : {
+      "comment" : "CardanoTransactionParametersView, SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Required signers"
+          }
+        }
+      }
+    },
+    "common.send" : {
+      "comment" : "AccountDetailsView, TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "common.settings" : {
+      "comment" : "SettingsView, SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "common.signing" : {
+      "comment" : "DappApprover, HardwareKeyPromptHUD",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing"
+          }
+        }
+      }
+    },
+    "common.signsWith" : {
+      "comment" : "CardanoMessageParametersView, CardanoTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signs with"
+          }
+        }
+      }
+    },
+    "common.site" : {
+      "comment" : "AptosTransactionParametersView, CardanoMessageParametersView, CardanoTransactionParametersView, DappAccountChoiceView, DappRequestSheet, EthereumTransactionParametersView, ParameterViews, SolanaTransactionParametersView, SuiTransactionParametersView, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Site"
+          }
+        }
+      }
+    },
+    "common.slotNumber" : {
+      "comment" : "CardanoTransactionParametersView, TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slot %@"
+          }
+        }
+      }
+    },
+    "common.to" : {
+      "comment" : "EthereumTransactionParametersView, TransactionRowPresenter, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To"
+          }
+        }
+      }
+    },
+    "common.token" : {
+      "comment" : "AccountApprovalsView, AccountBalancesView, SolanaTransactionParametersView, TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token"
+          }
+        }
+      }
+    },
+    "common.totalValueLabel" : {
+      "comment" : "AccountBalancesView, KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Value:"
+          }
+        }
+      }
+    },
+    "common.transaction" : {
+      "comment" : "AptosTransactionParametersView, CardanoTransactionParametersView, EthereumTransactionParametersView, SolanaTransactionParametersView, SuiTransactionParametersView, TransactionRowModel, TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction"
+          }
+        }
+      }
+    },
+    "common.type" : {
+      "comment" : "AccountApprovalsView, TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type"
+          }
+        }
+      }
+    },
+    "common.unknownError" : {
+      "comment" : "AddAccountView, AddKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Error."
+          }
+        }
+      }
+    },
+    "common.usdValue" : {
+      "comment" : "AccountBalancesView, KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USD Value"
+          }
+        }
+      }
+    },
+    "common.value" : {
+      "comment" : "EthereumTransactionParametersView, TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value"
+          }
+        }
+      }
+    },
+    "common.version" : {
+      "comment" : "SolanaTransactionParametersView, TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "common.walletconnect" : {
+      "comment" : "ConnectedDappsSidebarSection, WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WalletConnect"
+          }
+        }
+      }
+    },
+    "common.zeroBalances" : {
+      "comment" : "AccountBalancesView, EmptyStateView, KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zero Balances"
+          }
+        }
+      }
+    },
+    "connectApp.instructions" : {
+      "comment" : "ConnectAppSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste the WalletConnect link from the app, or scan its QR code."
+          }
+        }
+      }
+    },
+    "connectApp.link" : {
+      "comment" : "ConnectAppSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        }
+      }
+    },
+    "connectApp.paste" : {
+      "comment" : "ConnectAppSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste"
+          }
+        }
+      }
+    },
+    "connectApp.scanQrCode" : {
+      "comment" : "ConnectAppSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan QR Code"
+          }
+        }
+      }
+    },
+    "dappAccountChoice.accounts" : {
+      "comment" : "DappAccountChoiceView section header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts"
+          }
+        }
+      }
+    },
+    "dappAccountChoice.connectNote" : {
+      "comment" : "DappAccountChoiceView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This site is requesting to connect. It will remember your choice."
+          }
+        }
+      }
+    },
+    "dappRequest.confirm" : {
+      "comment" : "DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm"
+          }
+        }
+      }
+    },
+    "dappRequest.connectFooter" : {
+      "comment" : "DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This site is requesting to connect to this account."
+          }
+        }
+      }
+    },
+    "dappRequest.dappFeeWarning" : {
+      "comment" : "DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas limit or fees were set by the site."
+          }
+        }
+      }
+    },
+    "dappRequest.signMessage" : {
+      "comment" : "DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Message"
+          }
+        }
+      }
+    },
+    "dappRequest.signTransaction" : {
+      "comment" : "DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Transaction"
+          }
+        }
+      }
+    },
+    "dappRequest.signTypedData" : {
+      "comment" : "DappRequestSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Typed Data"
+          }
+        }
+      }
+    },
+    "ethereumTransactionParameters.contractCreation" : {
+      "comment" : "EthereumTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contract creation"
+          }
+        }
+      }
+    },
+    "ethereumTransactionParameters.data" : {
+      "comment" : "EthereumTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data"
+          }
+        }
+      }
+    },
+    "ethereumTypedDataParameters.domain" : {
+      "comment" : "EthereumTypedDataParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain"
+          }
+        }
+      }
+    },
+    "ethereumTypedDataParameters.primaryType" : {
+      "comment" : "EthereumTypedDataParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primary type"
+          }
+        }
+      }
+    },
+    "ethereumTypedDataParameters.types" : {
+      "comment" : "EthereumTypedDataParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Types"
+          }
+        }
+      }
+    },
+    "etherscan.error" : {
+      "comment" : "EtherscanTransactionHistorySource, ApprovalService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etherscan: %@"
+          }
+        }
+      }
+    },
+    "etherscan.keyRequired" : {
+      "comment" : "EtherscanTransactionHistorySource",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An Etherscan API key is required."
+          }
+        }
+      }
+    },
+    "hardware.wrongDevice" : {
+      "comment" : "HardwareService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connected %@ is not the one this key store was created with. Connect the correct device and try again."
+          }
+        }
+      }
+    },
+    "hardwareKeyPrompt.confirmOnDevice" : {
+      "comment" : "HardwareKeyPromptCenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue on %@"
+          }
+        }
+      }
+    },
+    "hardwareKeyPrompt.connectDevice" : {
+      "comment" : "HardwareKeyPromptCenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect %@ to continue"
+          }
+        }
+      }
+    },
+    "hardwareKeyPrompt.readingDevice" : {
+      "comment" : "HardwareKeyPromptCenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading from %@, please wait"
+          }
+        }
+      }
+    },
+    "https://app.example.com" : {
+
+    },
+    "keyStoreDetails.accountCount" : {
+      "comment" : "KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ accounts"
+          }
+        }
+      }
+    },
+    "keyStoreDetails.noAccounts" : {
+      "comment" : "KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No accounts"
+          }
+        }
+      }
+    },
+    "keyStoreDetails.oneAccount" : {
+      "comment" : "KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 account"
+          }
+        }
+      }
+    },
+    "keyStoreDetails.totalValue" : {
+      "comment" : "KeyStoreDetailsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Value %@"
+          }
+        }
+      }
+    },
+    "main.noSelection" : {
+      "comment" : "MainView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Selection"
+          }
+        }
+      }
+    },
+    "qrScanner.cameraUnavailable" : {
+      "comment" : "QRScannerView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera scanning isn't available on this device."
+          }
+        }
+      }
+    },
+    "reefrError.alreadyExists" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The item already exists."
+          }
+        }
+      }
+    },
+    "reefrError.authenticationFailed" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication failed or was cancelled."
+          }
+        }
+      }
+    },
+    "reefrError.clientNotAvailable" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No network client is available for this blockchain."
+          }
+        }
+      }
+    },
+    "reefrError.internalError" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An internal error occurred."
+          }
+        }
+      }
+    },
+    "reefrError.invalidAddress" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address is invalid."
+          }
+        }
+      }
+    },
+    "reefrError.invalidData" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The data is invalid."
+          }
+        }
+      }
+    },
+    "reefrError.notFound" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The requested item was not found."
+          }
+        }
+      }
+    },
+    "reefrError.notImplemented" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This feature is not implemented yet."
+          }
+        }
+      }
+    },
+    "reefrError.notSupported" : {
+      "comment" : "ReefrError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This operation is not supported."
+          }
+        }
+      }
+    },
+    "settings.aptosKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for Aptos node and indexer requests. Works without one at lower rate limits."
+          }
+        }
+      }
+    },
+    "settings.aptosLabsApiKey" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aptos Labs API Key"
+          }
+        }
+      }
+    },
+    "settings.blockfrostMainnetProjectId" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blockfrost Mainnet Project ID"
+          }
+        }
+      }
+    },
+    "settings.blockfrostPreprodProjectId" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blockfrost Preprod Project ID"
+          }
+        }
+      }
+    },
+    "settings.cardanoKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for Cardano account data, native assets, and transaction requests."
+          }
+        }
+      }
+    },
+    "settings.coinGeckoKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used as the token-price fallback when an on-chain source has no quote."
+          }
+        }
+      }
+    },
+    "settings.coingeckoDemoApiKey" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CoinGecko Demo API Key"
+          }
+        }
+      }
+    },
+    "settings.dapps" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dApps"
+          }
+        }
+      }
+    },
+    "settings.etherscanApiKey" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etherscan API Key"
+          }
+        }
+      }
+    },
+    "settings.etherscanKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for EVM history backfill. Falls back to Blockscout when empty."
+          }
+        }
+      }
+    },
+    "settings.marketData" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market Data"
+          }
+        }
+      }
+    },
+    "settings.openDappsIn" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open dApps In"
+          }
+        }
+      }
+    },
+    "settings.optional" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional"
+          }
+        }
+      }
+    },
+    "settings.proxyHostname" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proxy Hostname"
+          }
+        }
+      }
+    },
+    "settings.proxyPort" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proxy Port"
+          }
+        }
+      }
+    },
+    "settings.proxySettings" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proxy Settings"
+          }
+        }
+      }
+    },
+    "settings.systemDefaultBrowser" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System Default Browser"
+          }
+        }
+      }
+    },
+    "settings.transactionHistory" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction History"
+          }
+        }
+      }
+    },
+    "settings.tronGridKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for TronGrid account data, history, and transaction requests."
+          }
+        }
+      }
+    },
+    "settings.trongridApiKey" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TronGrid API Key"
+          }
+        }
+      }
+    },
+    "settings.useProxy" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Proxy"
+          }
+        }
+      }
+    },
+    "sidebar.accounts" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts"
+          }
+        }
+      }
+    },
+    "sidebar.addAccountOnKeyStore" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Blockchain Account on %@"
+          }
+        }
+      }
+    },
+    "sidebar.addAccountRow" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Account…"
+          }
+        }
+      }
+    },
+    "sidebar.addDappRow" : {
+      "comment" : "ConnectedDappsSidebarSection",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add dApp…"
+          }
+        }
+      }
+    },
+    "sidebar.addKey" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Key"
+          }
+        }
+      }
+    },
+    "sidebar.addKeyStore" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Key Store"
+          }
+        }
+      }
+    },
+    "sidebar.addWatchOnlyAccount" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Watch-Only Account"
+          }
+        }
+      }
+    },
+    "sidebar.backUpKeyStore" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back Up \"%@\""
+          }
+        }
+      }
+    },
+    "sidebar.connectedDapps" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected dApps"
+          }
+        }
+      }
+    },
+    "sidebar.delete" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "sidebar.deleteAccountTitle" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Delete Account"
+          }
+        }
+      }
+    },
+    "sidebar.deleteItem" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete \"%@\""
+          }
+        }
+      }
+    },
+    "sidebar.deleteKeyStoreTitle" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Delete Key Store"
+          }
+        }
+      }
+    },
+    "sidebar.hardwareKeys" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hardware Keys"
+          }
+        }
+      }
+    },
+    "sidebar.keyStores" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key Stores"
+          }
+        }
+      }
+    },
+    "sidebar.localKeysComputer" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On This Computer"
+          }
+        }
+      }
+    },
+    "sidebar.localKeysIpad" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On This iPad"
+          }
+        }
+      }
+    },
+    "sidebar.localKeysIphone" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On This iPhone"
+          }
+        }
+      }
+    },
+    "sidebar.newKeyStore" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Key Store"
+          }
+        }
+      }
+    },
+    "sidebar.noKeys" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No keys"
+          }
+        }
+      }
+    },
+    "sidebar.renameItem" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename \"%@\""
+          }
+        }
+      }
+    },
+    "sidebar.update" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update"
+          }
+        }
+      }
+    },
+    "sidebar.watchOnlyAccounts" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch-only Accounts"
+          }
+        }
+      }
+    },
+    "sidebar.watchOnlyWallets" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch-Only Wallets"
+          }
+        }
+      }
+    },
+    "sidebarPhoneRows.hardwareKey" : {
+      "comment" : "SidebarPhoneRows",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hardware key"
+          }
+        }
+      }
+    },
+    "sidebarPhoneRows.recoveryPhrase" : {
+      "comment" : "SidebarPhoneRows",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery phrase"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.addressesNotResolved" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (addresses not resolved)"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.associatedTokenAccount" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Associated Token Account"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.computeBudget" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compute Budget"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.feePayer" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee payer"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.instructions" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instructions"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.legacy" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legacy"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.lookupTables" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lookup tables"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.programs" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programs"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.system" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.token2022" : {
+      "comment" : "SolanaTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token-2022"
+          }
+        }
+      }
+    },
+    "suiTransactionParameters.commands" : {
+      "comment" : "SuiTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commands"
+          }
+        }
+      }
+    },
+    "suiTransactionParameters.moveCalls" : {
+      "comment" : "SuiTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move calls"
+          }
+        }
+      }
+    },
+    "transaction.estimateFees" : {
+      "comment" : "TransactionSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimate Fees"
+          }
+        }
+      }
+    },
+    "transactionFees.baseFee" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base fee"
+          }
+        }
+      }
+    },
+    "transactionFees.computeUnitLimit" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compute unit limit"
+          }
+        }
+      }
+    },
+    "transactionFees.estimatedBurn" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated burn"
+          }
+        }
+      }
+    },
+    "transactionFees.feeLimitNote" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This caps Energy and Bandwidth spending. It does not increase transaction priority."
+          }
+        }
+      }
+    },
+    "transactionFees.feeRate" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee rate (sat/vB)"
+          }
+        }
+      }
+    },
+    "transactionFees.feeSizeNote" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fee depends only on transaction size. It does not affect confirmation speed."
+          }
+        }
+      }
+    },
+    "transactionFees.gasBudget" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas budget"
+          }
+        }
+      }
+    },
+    "transactionFees.gasPrice" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas price (MIST)"
+          }
+        }
+      }
+    },
+    "transactionFees.gasUnitPrice" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas unit price (octas)"
+          }
+        }
+      }
+    },
+    "transactionFees.gwei" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ gwei"
+          }
+        }
+      }
+    },
+    "transactionFees.maxFee" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max fee per gas (gwei)"
+          }
+        }
+      }
+    },
+    "transactionFees.maxGas" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max gas"
+          }
+        }
+      }
+    },
+    "transactionFees.maxPriorityFee" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max priority fee per gas (gwei)"
+          }
+        }
+      }
+    },
+    "transactionFees.maxTransactionCost" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max transaction cost (USD)"
+          }
+        }
+      }
+    },
+    "transactionFees.networkFee" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network fee"
+          }
+        }
+      }
+    },
+    "transactionFees.priorityFee" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Priority fee (µLamports/CU)"
+          }
+        }
+      }
+    },
+    "transactionFees.transactionCost" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction cost (USD)"
+          }
+        }
+      }
+    },
+    "transactionFees.trc20FeeLimit" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRC-20 fee limit (SUN)"
+          }
+        }
+      }
+    },
+    "transactionRow.activityWith" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activity With"
+          }
+        }
+      }
+    },
+    "transactionRow.approval" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval"
+          }
+        }
+      }
+    },
+    "transactionRow.assetCount" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Assets"
+          }
+        }
+      }
+    },
+    "transactionRow.assetCounts" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -37,7 +3179,237 @@
         }
       }
     },
-    "%lld NFTs" : {
+    "transactionRow.balanceChange" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balance Change"
+          }
+        }
+      }
+    },
+    "transactionRow.block" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Block"
+          }
+        }
+      }
+    },
+    "transactionRow.blockNumber" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Block #%@"
+          }
+        }
+      }
+    },
+    "transactionRow.checkpoint" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checkpoint"
+          }
+        }
+      }
+    },
+    "transactionRow.checkpointNumber" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checkpoint %@"
+          }
+        }
+      }
+    },
+    "transactionRow.contractCall" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contract Call"
+          }
+        }
+      }
+    },
+    "transactionRow.digest" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digest"
+          }
+        }
+      }
+    },
+    "transactionRow.failed" : {
+      "comment" : "TransactionRowComponents",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed"
+          }
+        }
+      }
+    },
+    "transactionRow.feeAda" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee (ADA)"
+          }
+        }
+      }
+    },
+    "transactionRow.feeBtc" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee (BTC)"
+          }
+        }
+      }
+    },
+    "transactionRow.feeSol" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee (SOL)"
+          }
+        }
+      }
+    },
+    "transactionRow.feeTrx" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee (TRX)"
+          }
+        }
+      }
+    },
+    "transactionRow.feeWithSymbol" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fee (%@)"
+          }
+        }
+      }
+    },
+    "transactionRow.fromAddress" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From %@"
+          }
+        }
+      }
+    },
+    "transactionRow.gasApt" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas (APT)"
+          }
+        }
+      }
+    },
+    "transactionRow.gasSui" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas (SUI)"
+          }
+        }
+      }
+    },
+    "transactionRow.hash" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hash"
+          }
+        }
+      }
+    },
+    "transactionRow.inMempool" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In mempool"
+          }
+        }
+      }
+    },
+    "transactionRow.method" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Method"
+          }
+        }
+      }
+    },
+    "transactionRow.nftCount" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -59,7 +3431,129 @@
         }
       }
     },
-    "%lld Tokens" : {
+    "transactionRow.pending" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending"
+          }
+        }
+      }
+    },
+    "transactionRow.program" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Program"
+          }
+        }
+      }
+    },
+    "transactionRow.received" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Received"
+          }
+        }
+      }
+    },
+    "transactionRow.selfTransfer" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Self Transfer"
+          }
+        }
+      }
+    },
+    "transactionRow.sender" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sender"
+          }
+        }
+      }
+    },
+    "transactionRow.sent" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent"
+          }
+        }
+      }
+    },
+    "transactionRow.signature" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signature"
+          }
+        }
+      }
+    },
+    "transactionRow.signer" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signer"
+          }
+        }
+      }
+    },
+    "transactionRow.slot" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slot"
+          }
+        }
+      }
+    },
+    "transactionRow.toAddress" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To %@"
+          }
+        }
+      }
+    },
+    "transactionRow.tokenCount" : {
+      "comment" : "TransactionRowModel",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -81,257 +3575,560 @@
         }
       }
     },
-    "1 account" : {
-
-    },
-    "Add Account" : {
-
-    },
-    "Add Blockchain Account" : {
-
-    },
-    "Add dApp" : {
-
-    },
-    "Amount" : {
-
-    },
-    "Base fee" : {
-
-    },
-    "Blockchains: %@" : {
-
-    },
-    "Camera scanning isn't available on this device." : {
-
-    },
-    "Cancel" : {
-
-    },
-    "Commands" : {
-
-    },
-    "Compute unit limit" : {
-
-    },
-    "Connect" : {
-
-    },
-    "Connect App" : {
-
-    },
-    "Connect Request" : {
-
-    },
-    "Connect to %@" : {
-
-    },
-    "Connect Trezor hardware key and\nuse it for address derivation and signing" : {
-
-    },
-    "Contract address: %@" : {
-
-    },
-    "Custom RPC Endpoint" : {
-
-    },
-    "dApps" : {
-
-    },
-    "Data" : {
-
-    },
-    "Default account" : {
-
-    },
-    "Domain" : {
-
-    },
-    "Done" : {
-
-    },
-    "Expires %@" : {
-
-    },
-    "Fee payer" : {
-
-    },
-    "Fee rate (sat/vB)" : {
-
-    },
-    "From" : {
-
-    },
-    "Gas budget" : {
-
-    },
-    "Gas limit or fees were set by the site." : {
-
-    },
-    "Gas price (MIST)" : {
-
-    },
-    "Gas unit price (octas)" : {
-
-    },
-    "Generate 12, 18 or 24 word seed phrase wallet\nstored locally on this computer" : {
-
-    },
-    "https://app.example.com" : {
-
-    },
-    "Instructions" : {
-
-    },
-    "Lookup tables" : {
-
-    },
-    "Market Data" : {
-
-    },
-    "Max gas" : {
-
-    },
-    "Max transaction cost (USD)" : {
-
-    },
-    "Message" : {
-
-    },
-    "Move calls" : {
-
-    },
-    "Native SegWit (BIP-84)" : {
-
-    },
-    "New BIP-39 Mnemonic" : {
-
-    },
-    "New Hardware Key" : {
-
-    },
-    "No account" : {
-
-    },
-    "No accounts" : {
-
-    },
-    "No keys" : {
-
-    },
-    "Not connected" : {
-
-    },
-    "Not connected. Open it in the browser to connect." : {
-
-    },
-    "Paste the WalletConnect link from the app, or scan its QR code." : {
-
-    },
-    "Primary type" : {
-
-    },
-    "Priority fee (µLamports/CU)" : {
-
-    },
-    "Programs" : {
-
-    },
-    "Proxy Settings" : {
-
-    },
-    "Raw bytes" : {
-
-    },
-    "Receiver" : {
-
-    },
-    "Recipient ADA (lovelace)" : {
-
-    },
-    "Recovery Phrase for \"%@\"" : {
-
-    },
-    "Required signers" : {
-
-    },
-    "Restore From Backup" : {
-
-    },
-    "Restore local seed phrase wallet\nfrom a 12, 18 or 24 word backup" : {
-
-    },
-    "Send" : {
-
-    },
-    "Sender" : {
-
-    },
-    "System Default Browser" : {
-
-    },
-    "Taproot (BIP-86)" : {
-
-    },
-    "This caps Energy and Bandwidth spending. It does not increase transaction priority." : {
-
-    },
-    "This site is requesting to connect to this account." : {
-
-    },
-    "This site is requesting to connect. It will remember your choice." : {
-
-    },
-    "To" : {
-
-    },
-    "Token" : {
-
-    },
-    "Total Value:" : {
-
-    },
-    "Transaction cost (USD)" : {
-
-    },
-    "Transaction History" : {
-
-    },
-    "TRC-20 fee limit (SUN)" : {
-
-    },
-    "Types" : {
-
-    },
-    "Unknown error" : {
-
-    },
-    "Used as the token-price fallback when an on-chain source has no quote." : {
-
-    },
-    "Used for Aptos node and indexer requests. Works without one at lower rate limits." : {
-
-    },
-    "Used for Cardano account data, native assets, and transaction requests." : {
-
-    },
-    "Used for EVM history backfill. Falls back to Blockscout when empty." : {
-
-    },
-    "Used for TronGrid account data, history, and transaction requests." : {
-
-    },
-    "Value" : {
-
-    },
-    "Version" : {
-
-    },
-    "WalletConnect" : {
-
+    "transactionRow.transactionId" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction ID"
+          }
+        }
+      }
+    },
+    "transactionRow.versionNumber" : {
+      "comment" : "TransactionRowPresenter",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        }
+      }
+    },
+    "transactions.latestTransactions" : {
+      "comment" : "AccountTransactionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest %lld Transactions"
+          }
+        }
+      }
+    },
+    "transactions.noTransactions" : {
+      "comment" : "AccountTransactionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Transactions"
+          }
+        }
+      }
+    },
+    "transactions.transactionCount" : {
+      "comment" : "AccountTransactionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Transactions"
+          }
+        }
+      }
+    },
+    "transactionsTable.counterparty" : {
+      "comment" : "TransactionsTable",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counterparty"
+          }
+        }
+      }
+    },
+    "transactionsTable.date" : {
+      "comment" : "TransactionsTable",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        }
+      }
+    },
+    "transfer.preparingTransaction" : {
+      "comment" : "TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing transaction"
+          }
+        }
+      }
+    },
+    "transfer.sendingTransaction" : {
+      "comment" : "TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending transaction"
+          }
+        }
+      }
+    },
+    "transfer.signingTransaction" : {
+      "comment" : "TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing transaction"
+          }
+        }
+      }
+    },
+    "transfer.transactionFailed" : {
+      "comment" : "TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction Failed"
+          }
+        }
+      }
+    },
+    "transfer.unknownError" : {
+      "comment" : "TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown error"
+          }
+        }
+      }
+    },
+    "transferParameters.fillFromAddressBook" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill from Address Book"
+          }
+        }
+      }
+    },
+    "transferParameters.maximumAmount" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum Amount"
+          }
+        }
+      }
+    },
+    "transferParameters.receiver" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receiver"
+          }
+        }
+      }
+    },
+    "transferParameters.recipientLovelace" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recipient ADA (lovelace)"
+          }
+        }
+      }
+    },
+    "transferParameters.transfer" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transfer"
+          }
+        }
+      }
+    },
+    "tronDapp.trezorUnsupported" : {
+      "comment" : "TronDappProvider",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trezor can't sign this transaction exactly as built (unsupported fields)."
+          }
+        }
+      }
+    },
+    "tronGrid.error" : {
+      "comment" : "TronApprovalService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TronGrid: %@"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.allowance" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allowance"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.bandwidth" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bandwidth"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.baseUnits" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (base units)"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.callData" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call data"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.contract" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contract"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.energy" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.resource" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resource"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.spender" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spender"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.tronPower" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tron Power"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.trxSent" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRX sent"
+          }
+        }
+      }
+    },
+    "tronTransactionParameters.unlimited" : {
+      "comment" : "TronTransactionParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited%@"
+          }
+        }
+      }
+    },
+    "walletConnect.connectFailed" : {
+      "comment" : "WalletConnectService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't connect: %@"
+          }
+        }
+      }
+    },
+    "walletConnect.disconnectFailed" : {
+      "comment" : "WalletConnectService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't disconnect: %@"
+          }
+        }
+      }
+    },
+    "walletConnect.proposalBlocked" : {
+      "comment" : "WalletConnectService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ was blocked: it's flagged as malicious."
+          }
+        }
+      }
+    },
+    "walletConnect.proposalUnsupported" : {
+      "comment" : "WalletConnectService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ needs networks or accounts this wallet doesn't have."
+          }
+        }
+      }
+    },
+    "walletConnect.replyFailed" : {
+      "comment" : "WalletConnectService",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't reply to the dapp: %@"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.blockchains" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blockchains: %@"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.defaultAccount" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default account"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.domainMalicious" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flagged as malicious"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.domainMismatch" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain doesn't match the app's registration"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.domainUnverified" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't verify this domain"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.domainVerified" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verified domain"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.noAccount" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No account"
+          }
+        }
+      }
+    },
+    "walletConnectProposal.title" : {
+      "comment" : "WalletConnectProposalSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to %@"
+          }
+        }
+      }
+    },
+    "walletConnectSessions.disconnect" : {
+      "comment" : "WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect"
+          }
+        }
+      }
+    },
+    "walletConnectSessions.expiresOn" : {
+      "comment" : "WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expires %@"
+          }
+        }
+      }
+    },
+    "walletConnectSessions.noConnectedApps" : {
+      "comment" : "WalletConnectSessionsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Connected Apps"
+          }
+        }
+      }
     },
     "wc:…" : {
-
+      "comment" : "ConnectAppSheet"
     }
   },
   "version" : "1.0"

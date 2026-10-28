@@ -111,7 +111,7 @@ final class WalletConnectService {
         do {
             try await client.pair(uri: Self.pairingURI(from: uri))
         } catch {
-            failureMessage = "Couldn't connect: \(error.localizedDescription)"
+            failureMessage = String(localized: .walletConnectConnectFailed(error.localizedDescription))
         }
     }
 
@@ -119,7 +119,7 @@ final class WalletConnectService {
         do {
             try await client.disconnect(topic: topic)
         } catch {
-            failureMessage = "Couldn't disconnect: \(error.localizedDescription)"
+            failureMessage = String(localized: .walletConnectDisconnectFailed(error.localizedDescription))
         }
 
         dappSessions[topic] = nil
@@ -160,7 +160,7 @@ final class WalletConnectService {
         do {
             try await client.approve(proposalId: selection.proposal.id, namespaces: namespaces)
         } catch {
-            failureMessage = "Couldn't connect: \(error.localizedDescription)"
+            failureMessage = String(localized: .walletConnectConnectFailed(error.localizedDescription))
         }
 
         presentNextProposal()
@@ -232,7 +232,7 @@ final class WalletConnectService {
     private func present(_ proposal: WalletConnectProposal) async {
         if proposal.verification == .scam {
             try? await client.reject(proposalId: proposal.id)
-            failureMessage = "\(proposal.name) was blocked: it's flagged as malicious."
+            failureMessage = String(localized: .walletConnectProposalBlocked(proposal.name))
             presentNextProposal()
             return
         }
@@ -281,7 +281,7 @@ final class WalletConnectService {
 
         guard unsatisfied.isEmpty else {
             try? await client.reject(proposalId: proposal.id)
-            failureMessage = "\(proposal.name) needs networks or accounts this wallet doesn't have."
+            failureMessage = String(localized: .walletConnectProposalUnsupported(proposal.name))
             presentNextProposal()
             return
         }
@@ -335,7 +335,7 @@ final class WalletConnectService {
             try await client.respond(topic: request.topic, requestId: request.id, result: result)
         } catch {
             Logger.verbose("WC handle respond threw: \(error)")
-            failureMessage = "Couldn't reply to the dapp: \(error.localizedDescription)"
+            failureMessage = String(localized: .walletConnectReplyFailed(error.localizedDescription))
         }
     }
 

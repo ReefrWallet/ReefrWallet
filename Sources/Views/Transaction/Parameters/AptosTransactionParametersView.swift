@@ -18,27 +18,39 @@ struct AptosTransactionParametersView: View {
 
     var body: some View {
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
-        ParameterSection("Transaction") {
+        ParameterSection(String(localized: .commonTransaction)) {
             FromRow(account: account)
-            ParameterRow("Function", value: preview.transaction.payload.identifier, lineLimit: 3)
+            ParameterRow(
+                String(localized: .commonFunction),
+                value: preview.transaction.payload.identifier,
+                lineLimit: 3
+            )
 
             if !preview.transaction.payload.typeArguments.isEmpty {
                 ParameterRow(
-                    "Type arguments",
+                    String(localized: .aptosTransactionParametersTypeArguments),
                     value: preview.transaction.payload.typeArguments.map(\.description).joined(separator: "\n"),
                     lineLimit: nil
                 )
             }
 
-            ParameterRow("Arguments", value: "\(preview.transaction.payload.arguments.count)")
-            ParameterRow("Sequence number", value: "\(preview.transaction.sequenceNumber)")
-            ParameterRow("Expires", value: expiration)
+            ParameterRow(
+                String(localized: .aptosTransactionParametersArguments),
+                value: "\(preview.transaction.payload.arguments.count)"
+            )
+
+            ParameterRow(
+                String(localized: .aptosTransactionParametersSequenceNumber),
+                value: "\(preview.transaction.sequenceNumber)"
+            )
+
+            ParameterRow(String(localized: .commonExpires), value: expiration)
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 6)
+        ParameterBlock(String(localized: .commonRawBytes), text: preview.rawBytes.hexEncoded, maxLines: 6)
     }
 
     private var expiration: String {

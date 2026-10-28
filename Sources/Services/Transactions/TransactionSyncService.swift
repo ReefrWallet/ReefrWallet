@@ -424,21 +424,6 @@ private extension TransactionSyncService {
         return try await client.transactionHistory(account.address, request: request)
     }
 
-    /// An indexer reports no head for an account without history, which would
-    /// stall forward sync forever. The node's tip is the right head then: an
-    /// empty range above the tip returns it without fetching any block.
-    func nodeHead(account: Account, client: any BlockchainClientProtocol) async throws -> UInt64? {
-        try await client.transactionHistory(
-            account.address,
-            request: BlockchainTransactionHistoryRequest(
-                cursor: nil,
-                direction: .ascending,
-                lowerBound: .max,
-                upperBound: nil
-            )
-        ).head
-    }
-
     func commit(
         _ page: BlockchainTransactionPage,
         account: Account,
@@ -667,6 +652,21 @@ private struct TokenTransfer {
 // MARK: - Balance refresh selection
 
 extension TransactionSyncService {
+    /// An indexer reports no head for an account without history, which would
+    /// stall forward sync forever. The node's tip is the right head then: an
+    /// empty range above the tip returns it without fetching any block.
+    func nodeHead(account: Account, client: any BlockchainClientProtocol) async throws -> UInt64? {
+        try await client.transactionHistory(
+            account.address,
+            request: BlockchainTransactionHistoryRequest(
+                cursor: nil,
+                direction: .ascending,
+                lowerBound: .max,
+                upperBound: nil
+            )
+        ).head
+    }
+
     /// The assets whose balances `transactions` may have changed (`nil` is
     /// the native asset).
     ///

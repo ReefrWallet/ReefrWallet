@@ -35,11 +35,11 @@ struct HardwareKeyPrompt: Equatable, Identifiable {
     var message: String {
         switch kind {
         case .confirm:
-            "Continue on \(vendorName)"
+            String(localized: .hardwareKeyPromptConfirmOnDevice(vendorName))
         case .connect:
-            "Connect \(vendorName) to continue"
+            String(localized: .hardwareKeyPromptConnectDevice(vendorName))
         case .wait:
-            "Reading from \(vendorName), please wait"
+            String(localized: .hardwareKeyPromptReadingDevice(vendorName))
         }
     }
 

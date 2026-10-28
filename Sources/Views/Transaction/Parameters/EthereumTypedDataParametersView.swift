@@ -18,20 +18,23 @@ struct EthereumTypedDataParametersView: View {
     var body: some View {
         SignerSection(account: account, site: site)
 
-        ParameterSection("Domain") {
+        ParameterSection(String(localized: .ethereumTypedDataParametersDomain)) {
             ForEach(domainRows, id: \.label) { row in
                 ParameterRow(row.label, value: row.value)
             }
 
             // Not in Penpot: the primary type selects which struct is signed.
-            ParameterRow("Primary type", value: summary.primaryType)
+            ParameterRow(String(localized: .ethereumTypedDataParametersPrimaryType), value: summary.primaryType)
         }
 
-        ParameterBlock("Message", text: Self.prettyPrinted(summary.messageJSON))
+        ParameterBlock(String(localized: .commonMessage), text: Self.prettyPrinted(summary.messageJSON))
 
         // Not in Penpot: type definitions are part of the signed payload, as
         // they determine how each domain/message field is encoded.
-        ParameterBlock("Types", text: Self.prettyPrinted(summary.typesJSON))
+        ParameterBlock(
+            String(localized: .ethereumTypedDataParametersTypes),
+            text: Self.prettyPrinted(summary.typesJSON)
+        )
     }
 }
 
@@ -46,7 +49,7 @@ extension EthereumTypedDataParametersView {
     /// The standard EIP-712 domain fields present in `domainJSON`, in spec order.
     var domainRows: [Row] {
         guard let domain = (try? summary.domainJSON.decoded() as JSONValue)?.objectValue else {
-            return [Row(label: "Domain", value: summary.domainJSON)]
+            return [Row(label: String(localized: .ethereumTypedDataParametersDomain), value: summary.domainJSON)]
         }
 
         let fields = [

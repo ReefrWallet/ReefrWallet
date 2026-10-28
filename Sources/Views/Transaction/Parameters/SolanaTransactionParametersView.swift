@@ -27,38 +27,50 @@ struct SolanaTransactionParametersView: View {
 
     var body: some View {
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
-        ParameterSection("Transaction") {
+        ParameterSection(String(localized: .commonTransaction)) {
             FromRow(account: account)
-            ParameterRow("Fee payer", value: preview.feePayer.string)
-            ParameterRow("Version", value: versionText)
-            ParameterRow("Required signers", value: "\(preview.transaction.header.numRequiredSignatures)")
-            ParameterRow("Instructions", value: "\(preview.transaction.instructions.count)")
-            ParameterRow("Programs", value: programsText, lineLimit: nil)
+            ParameterRow(String(localized: .solanaTransactionParametersFeePayer), value: preview.feePayer.string)
+            ParameterRow(String(localized: .commonVersion), value: versionText)
+            ParameterRow(
+                String(localized: .commonRequiredSigners),
+                value: "\(preview.transaction.header.numRequiredSignatures)"
+            )
+
+            ParameterRow(
+                String(localized: .solanaTransactionParametersInstructions),
+                value: "\(preview.transaction.instructions.count)"
+            )
+
+            ParameterRow(String(localized: .solanaTransactionParametersPrograms), value: programsText, lineLimit: nil)
 
             if preview.transaction.addressTableLookupCount > 0 {
                 ParameterRow(
-                    "Lookup tables",
-                    value: "\(preview.transaction.addressTableLookupCount) (addresses not resolved)"
+                    String(localized: .solanaTransactionParametersLookupTables),
+                    value: String(
+                        localized: .solanaTransactionParametersAddressesNotResolved(
+                            String(preview.transaction.addressTableLookupCount)
+                        )
+                    )
                 )
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 6)
+        ParameterBlock(String(localized: .commonRawBytes), text: preview.rawBytes.hexEncoded, maxLines: 6)
     }
 
     private var versionText: String {
         switch preview.transaction.version {
-        case .legacy: "Legacy"
+        case .legacy: String(localized: .solanaTransactionParametersLegacy)
         case .v0: "v0"
         }
     }
 
     private var programsText: String {
         guard !preview.programIds.isEmpty else {
-            return "None"
+            return String(localized: .commonNone)
         }
 
         return preview.programIds.map(Self.programName).joined(separator: ", ")
@@ -66,11 +78,11 @@ struct SolanaTransactionParametersView: View {
 
     private static func programName(_ address: SolanaAddress) -> String {
         switch address {
-        case SolanaProgram.system: "System"
-        case SolanaProgram.token: "Token"
-        case SolanaProgram.token2022: "Token-2022"
-        case SolanaProgram.associatedToken: "Associated Token Account"
-        case SolanaProgram.computeBudget: "Compute Budget"
+        case SolanaProgram.system: String(localized: .solanaTransactionParametersSystem)
+        case SolanaProgram.token: String(localized: .commonToken)
+        case SolanaProgram.token2022: String(localized: .solanaTransactionParametersToken2022)
+        case SolanaProgram.associatedToken: String(localized: .solanaTransactionParametersAssociatedTokenAccount)
+        case SolanaProgram.computeBudget: String(localized: .solanaTransactionParametersComputeBudget)
         default: address.string
         }
     }

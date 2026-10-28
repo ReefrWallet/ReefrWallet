@@ -142,6 +142,8 @@ struct BrowserView {
 
 #if os(macOS)
     @Environment(\.dismissWindow) private var dismissWindow
+#else
+    @Environment(\.dismiss) private var dismiss
 #endif
 
     @State private var addressText: String
@@ -208,11 +210,11 @@ extension BrowserView: View {
             }
             .hardwareKeyPromptHost()
             .alert(
-                "Request Failed",
+                .commonRequestFailed,
                 isPresented: isFailureAlertPresented,
                 presenting: controller.approver.failureMessage
             ) { _ in
-                Button("OK") {}
+                Button(.commonOk) {}
             } message: { message in
                 Text(message)
             }
@@ -224,29 +226,35 @@ extension BrowserView: View {
 private extension BrowserView {
     @ToolbarContentBuilder
     var navigationButtons: some ToolbarContent {
-        ToolbarItem {
+#if os(macOS)
+        let placement = ToolbarItemPlacement.automatic
+#else
+        let placement = ToolbarItemPlacement.bottomBar
+#endif
+
+        ToolbarItem(placement: placement) {
             Button {
                 controller.webViewController.goBack()
             } label: {
-                Label("Back", systemImage: "chevron.left")
+                Label(.commonBack, systemImage: "chevron.left")
             }
             .disabled(!controller.webViewController.canGoBack)
         }
 
-        ToolbarItem {
+        ToolbarItem(placement: placement) {
             Button {
                 controller.webViewController.goForward()
             } label: {
-                Label("Forward", systemImage: "chevron.right")
+                Label(.browserForward, systemImage: "chevron.right")
             }
             .disabled(!controller.webViewController.canGoForward)
         }
 
-        ToolbarItem {
+        ToolbarItem(placement: placement) {
             Button {
                 Task { await controller.reload(groups: groups, namespace: namespace) }
             } label: {
-                Label("Reload", systemImage: "arrow.clockwise")
+                Label(.browserReload, systemImage: "arrow.clockwise")
             }
         }
     }
@@ -274,7 +282,16 @@ private extension BrowserView {
             Button {
                 dismissWindow(id: "browser", value: BrowserWindowTarget(url: initialURL, namespace: namespace))
             } label: {
-                Label("Close Browser", systemImage: "xmark")
+                Label(.browserCloseBrowser, systemImage: "xmark")
+            }
+            .accessibilityIdentifier("browser-close-button")
+        }
+#else
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                dismiss()
+            } label: {
+                Label(.browserCloseBrowser, systemImage: "xmark")
             }
             .accessibilityIdentifier("browser-close-button")
         }

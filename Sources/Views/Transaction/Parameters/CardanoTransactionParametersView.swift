@@ -21,10 +21,10 @@ struct CardanoTransactionParametersView: View {
 
     var body: some View {
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
-        ParameterSection("Transaction") {
+        ParameterSection(String(localized: .commonTransaction)) {
             FromRow(account: account)
 
             ForEach(Self.rows(for: preview), id: \.label) { row in
@@ -32,7 +32,7 @@ struct CardanoTransactionParametersView: View {
             }
         }
 
-        ParameterBlock("Raw bytes", text: preview.rawBytes.hexEncoded, maxLines: 3)
+        ParameterBlock(String(localized: .commonRawBytes), text: preview.rawBytes.hexEncoded, maxLines: 3)
     }
 }
 
@@ -47,45 +47,52 @@ extension CardanoTransactionParametersView {
     /// The rows after From, in Penpot's order; rows with nothing to show are left out.
     static func rows(for preview: CardanoTransactionPreview) -> [Row] {
         let transaction = preview.transaction
-        var rows = [Row(label: "Signs with", value: keyNames(preview.signingPaths))]
+        let row = { (label: LocalizedStringResource, value: String) in
+            Row(label: String(localized: label), value: value)
+        }
+
+        var rows = [row(.commonSignsWith, keyNames(preview.signingPaths))]
 
         if preview.missingSignerCount > 0 {
-            rows.append(Row(label: "Other signers", value: "\(preview.missingSignerCount) · sign after you"))
+            rows.append(row(.cardanoTransactionParametersOtherSigners, "\(preview.missingSignerCount) · sign after you"))
         } else if preview.validWitnessCount > 0 {
-            rows.append(Row(label: "Other signers", value: "\(preview.validWitnessCount) already signed"))
+            rows.append(row(.cardanoTransactionParametersOtherSigners, "\(preview.validWitnessCount) already signed"))
         }
 
         if preview.unresolvedCount > 0 {
             // Not in Penpot: requirements the wallet couldn't look up are not signers.
-            rows.append(Row(label: "Not checked", value: "\(preview.unresolvedCount) requirement(s)"))
+            rows.append(row(.cardanoTransactionParametersNotChecked, "\(preview.unresolvedCount) requirement(s)"))
         }
 
         if let ttl = transaction.ttl {
-            rows.append(Row(label: "Valid until", value: "Slot \(ttl)"))
+            rows.append(row(.cardanoTransactionParametersValidUntil, String(localized: .commonSlotNumber(String(ttl)))))
         }
 
-        rows.append(Row(label: "Inputs", value: "\(transaction.inputs.count)"))
-        rows.append(Row(label: "Outputs", value: transaction.outputs.map(describe).joined(separator: "\n")))
+        rows.append(row(.cardanoTransactionParametersInputs, "\(transaction.inputs.count)"))
+        let outputs = transaction.outputs.map(describe).joined(separator: "\n")
+        rows.append(row(.cardanoTransactionParametersOutputs, outputs))
 
         if !transaction.mint.isEmpty {
-            rows.append(Row(label: "Mint", value: transaction.mint.map(describeMint).joined(separator: "\n")))
+            let mint = transaction.mint.map(describeMint).joined(separator: "\n")
+            rows.append(row(.cardanoTransactionParametersMint, mint))
         }
 
         if !transaction.certificates.isEmpty {
-            rows.append(Row(label: "Certificates", value: transaction.certificates.map(\.kind).joined(separator: ", ")))
+            let kinds = transaction.certificates.map(\.kind).joined(separator: ", ")
+            rows.append(row(.cardanoTransactionParametersCertificates, kinds))
         }
 
         if !transaction.withdrawals.isEmpty {
             let total = transaction.withdrawals.reduce(into: Decimal(0)) { $0 += lovelace($1.lovelace) }
-            rows.append(Row(label: "Withdrawals", value: ada(total)))
+            rows.append(row(.cardanoTransactionParametersWithdrawals, ada(total)))
         }
 
         if !transaction.collateral.isEmpty {
-            rows.append(Row(label: "Collateral", value: "\(transaction.collateral.count)"))
+            rows.append(row(.cardanoTransactionParametersCollateral, "\(transaction.collateral.count)"))
         }
 
         if !transaction.requiredSigners.isEmpty {
-            rows.append(Row(label: "Required signers", value: "\(transaction.requiredSigners.count) key hashes"))
+            rows.append(row(.commonRequiredSigners, "\(transaction.requiredSigners.count) key hashes"))
         }
 
         return rows
@@ -124,7 +131,7 @@ extension CardanoTransactionParametersView {
     }
 
     private static func ada(_ lovelace: Decimal) -> String {
-        "\((lovelace / 1_000_000).formatted(.number.precision(.fractionLength(0...6)))) ADA"
+        (lovelace / 1_000_000).formatted(symbol: "ADA")
     }
 
     private static func shortened(_ text: String) -> String {

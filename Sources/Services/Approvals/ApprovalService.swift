@@ -494,7 +494,7 @@ private enum ApprovalServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .api(message):
-            "Etherscan: \(message)"
+            String(localized: .etherscanError(message))
         }
     }
 }

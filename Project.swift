@@ -45,7 +45,13 @@ private let walletInfoPlist: [String: Plist.Value] = Project.commonInfoPlist.mer
     ]),
     "NSCameraUsageDescription": "Reefr Wallet uses the camera to scan WalletConnect QR codes.",
     "UIApplicationSceneManifest": .dictionary(["UIApplicationSupportsMultipleScenes": true]),
-    "UILaunchScreen": .dictionary([:])
+    "UILaunchStoryboardName": "LaunchScreen",
+    "UISupportedInterfaceOrientations~ipad": .array([
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight"
+    ])
 ]) { $1 }
 
 private let wallet: Target = .target(
@@ -55,7 +61,10 @@ private let wallet: Target = .target(
     bundleId: "xyz.reefr.wallet",
     deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
     infoPlist: .dictionary(walletInfoPlist),
-    resources: ["Resources/**/*"],
+    resources: [
+        .glob(pattern: "Resources/**/*", excluding: ["Resources/LaunchScreen.storyboard"]),
+        .glob(pattern: "Resources/LaunchScreen.storyboard", inclusionCondition: .when([.ios]))
+    ],
     buildableFolders: ["Sources"],
     entitlements: .dictionary([
         "com.apple.security.application-groups": .array([.string("group.xyz.reefr.wallet")])

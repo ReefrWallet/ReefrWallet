@@ -52,18 +52,45 @@ struct DappRequestSheet: View {
 // MARK: - Subviews
 
 private extension DappRequestSheet {
+    @ViewBuilder
     var connectSheet: some View {
+        if isPhone {
+            Form {
+                ParameterSection {
+                    siteRow
+                    FromRow(account: account, title: String(localized: .commonAccount))
+                }
+
+                Section {} footer: {
+                    Text(.dappRequestConnectFooter)
+                }
+            }
+            .phoneSheet(
+                .commonConnectRequest,
+                cancelTitle: .commonReject,
+                cancelId: "dapp-reject-button",
+                onCancel: { onResolve(.rejected, false) },
+                confirmTitle: .commonApprove,
+                confirmId: "dapp-approve-button",
+                onConfirm: { onResolve(.approved, false) }
+            )
+        } else {
+            macConnectSheet
+        }
+    }
+
+    var macConnectSheet: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Connect Request")
+            Text(.commonConnectRequest)
                 .style(.largeHeader)
                 .accessibilityIdentifier("dapp-request-title")
 
             ParameterSection {
                 siteRow
-                FromRow(account: account, title: "Account")
+                FromRow(account: account, title: String(localized: .commonAccount))
             }
 
-            Text("This site is requesting to connect to this account.")
+            Text(.dappRequestConnectFooter)
                 .style(.small, foreground: .secondary)
                 .padding(.top, 4)
 
@@ -78,13 +105,13 @@ private extension DappRequestSheet {
     var connectButtons: some View {
         HStack {
             Spacer()
-            Button("Reject") {
+            Button(.commonReject) {
                 onResolve(.rejected, false)
             }
             .keyboardShortcut(.cancelAction)
             .accessibilityIdentifier("dapp-reject-button")
 
-            Button("Approve") {
+            Button(.commonApprove) {
                 onResolve(.approved, false)
             }
             .buttonStyle(.borderedProminent)
@@ -96,7 +123,11 @@ private extension DappRequestSheet {
     func messageSheet(account: Account, preview: DappMessagePreview) -> some View {
         let isTypedData = if case .ethereumTypedData = preview { true } else { false }
 
-        signSheet(title: isTypedData ? "Sign Typed Data" : "Sign Message") {
+        let title = isTypedData
+            ? String(localized: .dappRequestSignTypedData)
+            : String(localized: .dappRequestSignMessage)
+
+        signSheet(title: title) {
             switch preview {
             case let .aptosMessage(fullMessage):
                 SignMessageParametersView(account: account, message: fullMessage, site: site)
@@ -127,7 +158,7 @@ private extension DappRequestSheet {
     ) -> some View {
         TransactionSheet(
             title: title,
-            confirmTitle: "Confirm",
+            confirmTitle: String(localized: .dappRequestConfirm),
             isConfirmEnabled: isConfirmEnabled,
             isProcessing: isProcessing,
             onEstimateFees: onEstimateFees,
@@ -147,7 +178,7 @@ private extension DappRequestSheet {
     func transactionSheet(account: Account, preview: DappTransactionPreview) -> some View {
         if case let .ethereum(call, _) = preview {
             signSheet(
-                title: "Sign Transaction",
+                title: String(localized: .dappRequestSignTransaction),
                 isConfirmEnabled: editedFees != nil,
                 onEstimateFees: onEstimateEthereumFees
             ) {
@@ -158,13 +189,13 @@ private extension DappRequestSheet {
                     estimatedFees: reestimatedFees ?? preview.fees,
                     // Not in Penpot: the user should know the site picked these values.
                     warning: call.hasDappFeeOverrides && reestimatedFees == nil
-                        ? "Gas limit or fees were set by the site."
+                        ? String(localized: .dappRequestDappFeeWarning)
                         : nil,
                     fees: $editedFees
                 )
             }
         } else {
-            signSheet(title: "Sign Transaction") {
+            signSheet(title: String(localized: .dappRequestSignTransaction)) {
                 switch preview {
                 case let .aptos(preview):
                     AptosTransactionParametersView(account: account, preview: preview, site: site)
@@ -191,7 +222,7 @@ private extension DappRequestSheet {
     }
 
     var siteRow: some View {
-        ParameterRow("Site", value: site)
+        ParameterRow(String(localized: .commonSite), value: site)
     }
 }
 

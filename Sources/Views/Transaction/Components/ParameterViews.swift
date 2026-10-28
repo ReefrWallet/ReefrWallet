@@ -9,9 +9,47 @@
 import SwiftUI
 import WalletKit
 
+// MARK: - AddressValue
+
+/// Penpot `Address`: middle-truncated address over "Key store · Account".
+struct AddressValue: View {
+    let accountName: String
+    let address: String
+    var keyStoreName: String?
+
+    var body: some View {
+#if os(macOS)
+        VStack(alignment: .leading, spacing: 3) {
+            Text(address)
+                .style(.medium, foreground: .primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(address)
+
+            Text(subtitle)
+                .style(.small, foreground: .secondary)
+        }
+#else
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(address)
+                .style(.callout, foreground: .secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Text(subtitle)
+                .style(.small, foreground: .secondary)
+        }
+#endif
+    }
+
+    private var subtitle: String {
+        [keyStoreName, accountName].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
 // MARK: - FromRow
 
-/// The signing account: middle-truncated address over "Key store · Account".
+/// The signing account, as an ``AddressValue``.
 struct FromRow: View {
     let account: Account
     var title = "From"
@@ -19,11 +57,14 @@ struct FromRow: View {
     @State private var keyStoreName: String?
 
     var body: some View {
-        ParameterRow(title, value: displayAddress, subtitle: subtitle)
-            .task(id: account.keyStoreId) {
-                let databaseService = DI.injectOrFail(DatabaseService.self)
-                keyStoreName = (try? await databaseService.fetchKeyStore(id: account.keyStoreId))?.name
-            }
+        ParameterRow(title) {
+            AddressValue(accountName: account.name, address: displayAddress, keyStoreName: keyStoreName)
+                .textSelection(.enabled)
+        }
+        .task(id: account.keyStoreId) {
+            let databaseService = DI.injectOrFail(DatabaseService.self)
+            keyStoreName = (try? await databaseService.fetchKeyStore(id: account.keyStoreId))?.name
+        }
     }
 
     /// Cardano accounts are stored as account descriptors; show the receive address.
@@ -33,10 +74,6 @@ struct FromRow: View {
         }
 
         return (try? CardanoAccountDescriptor(string: account.address).receiveAddress.string) ?? account.address
-    }
-
-    private var subtitle: String {
-        [keyStoreName, account.name].compactMap { $0 }.joined(separator: " · ")
     }
 }
 
@@ -111,11 +148,10 @@ struct ScrollingMonoText: View {
 
 // MARK: - ParameterLayout
 
-/// The macOS label/value column geometry shared by rows and indented notes.
+/// The macOS label/value column geometry of rows.
 enum ParameterLayout {
     static let columnSpacing: CGFloat = 12
     static let labelWidth: CGFloat = 188
-    static let valueInset = labelWidth + columnSpacing
 }
 
 // MARK: - ParameterRow
@@ -167,21 +203,17 @@ struct ParameterSection<Content: View>: View {
     private let content: Content
     private let footer: String?
     private let footerColor: Color
-    /// Aligns the footer with the value column on macOS, under the section's fields.
-    private let isFooterIndented: Bool
     private let title: String?
 
     init(
         _ title: String? = nil,
         footer: String? = nil,
         footerColor: Color = .secondary,
-        isFooterIndented: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.content = content()
         self.footer = footer
         self.footerColor = footerColor
-        self.isFooterIndented = isFooterIndented
         self.title = title
     }
 
@@ -199,7 +231,6 @@ struct ParameterSection<Content: View>: View {
                 Text(footer)
                     .style(.small, foreground: footerColor)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, isFooterIndented ? ParameterLayout.valueInset : 0)
             }
         }
 #else
@@ -270,16 +301,16 @@ struct SignerSection: View {
     var body: some View {
 #if os(macOS)
         ParameterSection {
-            ParameterRow("Site", value: site)
+            ParameterRow(String(localized: .commonSite), value: site)
         }
 
         ParameterSection {
-            FromRow(account: account, title: "Account")
+            FromRow(account: account, title: String(localized: .commonAccount))
         }
 #else
         ParameterSection {
-            ParameterRow("Site", value: site)
-            FromRow(account: account, title: "Account")
+            ParameterRow(String(localized: .commonSite), value: site)
+            FromRow(account: account, title: String(localized: .commonAccount))
         }
 #endif
     }
