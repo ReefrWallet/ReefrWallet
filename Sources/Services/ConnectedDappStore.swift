@@ -205,6 +205,7 @@ final class ConnectedDappStore: DappPermissionPersisting {
             grants: grants,
             namespaces: Array(pendingNamespaces.removeValue(forKey: origin) ?? [])
         )
+
         created.selectedAccountAddress = pendingSelections.removeValue(forKey: origin)
         context.insert(created)
 

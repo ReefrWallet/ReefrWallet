@@ -425,7 +425,7 @@ private extension EthereumDappProvider {
         let request = try EthereumTransactionRequest(txJSON)
         let account = try await authorizedAccount(matching: request.from, context: context)
 
-        Logger.verbose("Eth sendTransaction: to \(request.toString) value \(request.value) from \(account.address)")
+        Logger.verbose("Eth sendTransaction: to \(request.toString ?? "nil") value \(request.value) from \(account.address)")
 
         let estimate: (gasLimit: BigUInt, rates: EthereumFeeRates)
         do {

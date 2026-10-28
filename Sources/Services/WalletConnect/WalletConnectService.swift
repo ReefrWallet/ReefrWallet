@@ -360,6 +360,7 @@ final class WalletConnectService {
                 "WC request unauthorized: no session/account for topic \(request.topic.prefix(8)) chain \(request.chainId); "
                     + "sessions: \(sessions.count)"
             )
+
             return .failure(WalletConnectRequestRouter.rpcError(.unauthorized))
         }
 

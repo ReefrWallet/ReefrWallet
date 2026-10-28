@@ -261,8 +261,9 @@ final class DappBridge: NSObject {
         }
 
         let approving = approving
+        let offers = selections
         let chosen = await session.withExclusiveApproval {
-            await approving.chooseAccounts(origin: origin, selections: selections)
+            await approving.chooseAccounts(origin: origin, selections: offers)
         }
 
         guard let chosen else {
@@ -275,9 +276,11 @@ final class DappBridge: NSObject {
         }
 
         for (namespace, account) in chosen {
-            if await session.grantConnection(namespace, origin: origin, account: account) {
-                result.accounts[namespace] = account
+            guard await session.grantConnection(namespace, origin: origin, account: account) else {
+                continue
             }
+
+            result.accounts[namespace] = account
         }
 
         await selectActiveAccount(from: result.accounts, order: namespaces)
