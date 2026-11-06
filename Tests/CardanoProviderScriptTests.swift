@@ -115,25 +115,38 @@ struct CardanoProviderScriptTests {
         try enabled(harness)
         harness.handleRequest = { _, _, _ in .success(.null) }
 
-        let cases: [(String, String, JSONValue)] = [
-            ("getBalance()", "getBalance", .array([])),
-            ("getChangeAddress()", "getChangeAddress", .array([])),
-            ("getNetworkId()", "getNetworkId", .array([])),
-            ("getRewardAddresses()", "getRewardAddresses", .array([])),
-            ("getUnusedAddresses()", "getUnusedAddresses", .array([])),
-            ("getUsedAddresses()", "getUsedAddresses", .array([.null])),
-            ("getUsedAddresses({ page: 1, limit: 5 })", "getUsedAddresses",
+        struct Call {
+            let call: String
+            let method: String
+            let params: JSONValue
+
+            init(_ call: String, _ method: String, _ params: JSONValue) {
+                self.call = call
+                self.method = method
+                self.params = params
+            }
+        }
+
+        let cases: [Call] = [
+            Call("getBalance()", "getBalance", .array([])),
+            Call("getChangeAddress()", "getChangeAddress", .array([])),
+            Call("getNetworkId()", "getNetworkId", .array([])),
+            Call("getRewardAddresses()", "getRewardAddresses", .array([])),
+            Call("getUnusedAddresses()", "getUnusedAddresses", .array([])),
+            Call("getUsedAddresses()", "getUsedAddresses", .array([.null])),
+            Call("getUsedAddresses({ page: 1, limit: 5 })", "getUsedAddresses",
              .array([.object(["page": .number(1), "limit": .number(5)])])),
-            ("getUtxos()", "getUtxos", .array([.null, .null])),
-            ("getUtxos('00', { page: 0, limit: 2 })", "getUtxos",
+            Call("getUtxos()", "getUtxos", .array([.null, .null])),
+            Call("getUtxos('00', { page: 0, limit: 2 })", "getUtxos",
              .array([.string("00"), .object(["page": .number(0), "limit": .number(2)])])),
-            ("signTx('84')", "signTx", .array([.string("84"), .bool(false)])),
-            ("signTx('84', true)", "signTx", .array([.string("84"), .bool(true)])),
-            ("signData('addr', 'beef')", "signData", .array([.string("addr"), .string("beef")])),
-            ("submitTx('84')", "submitTx", .array([.string("84")])),
+            Call("signTx('84')", "signTx", .array([.string("84"), .bool(false)])),
+            Call("signTx('84', true)", "signTx", .array([.string("84"), .bool(true)])),
+            Call("signData('addr', 'beef')", "signData", .array([.string("addr"), .string("beef")])),
+            Call("submitTx('84')", "submitTx", .array([.string("84")]))
         ]
 
-        for (call, method, params) in cases {
+        for entry in cases {
+            let (call, method, params) = (entry.call, entry.method, entry.params)
             _ = try harness.invoke("window.__api.\(call)")
             let request = harness.recordedRequests.last
             #expect(request?.namespace == "cardano")
@@ -155,7 +168,7 @@ struct CardanoProviderScriptTests {
     func apiErrorForEnableReadsAndOthers() throws {
         let methods = [
             "enable", "getBalance", "getChangeAddress", "getNetworkId", "getRewardAddresses",
-            "getUnusedAddresses", "getUsedAddresses", "getUtxos", "isEnabled",
+            "getUnusedAddresses", "getUsedAddresses", "getUtxos", "isEnabled"
         ]
         for method in methods {
             for code in [-4, -3, -2, -1] {
@@ -217,7 +230,9 @@ struct CardanoProviderScriptTests {
         harness.handleRequest = { _, _, _ in .success(.null) }
         try enabled(harness)
         try harness.run("""
-        window.__reefr.request = function () { return Promise.reject('boom'); };
+        window.__reefr.request = function () {
+          return Promise.reject('boom');
+        };
         window.__outs = {};
         ['getBalance', 'signTx', 'signData', 'submitTx'].forEach(function (m) {
             window.__api[m]('x', 'y').catch(function (e) { window.__outs[m] = e; });

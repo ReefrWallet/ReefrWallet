@@ -55,6 +55,10 @@ extension StyledView {
         case smallIcon
         /// 22pt bold, iPhone list section titles.
         case title
+        /// 17pt regular, iPhone list rows.
+        case body
+        /// 20pt semibold, iPhone grouped section titles.
+        case sectionHeader
     }
 }
 
@@ -124,6 +128,10 @@ private extension View {
             font(.system(size: 10, weight: .semibold))
         case .title:
             font(.system(size: 22, weight: .bold))
+        case .body:
+            font(.system(size: 17, weight: .regular))
+        case .sectionHeader:
+            font(.system(size: 20, weight: .semibold))
         case .none:
             self
         }

@@ -11,6 +11,7 @@ import SwiftUI
 enum AccountTab: String, CaseIterable, Identifiable {
     case approvals
     case balances
+    case staking
     case transactions
 
     var id: String { rawValue }
@@ -19,6 +20,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
         switch self {
         case .approvals: "checkmark.shield"
         case .balances: "chart.pie"
+        case .staking: "lock"
         case .transactions: "arrow.left.arrow.right"
         }
     }
@@ -27,6 +29,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
         switch self {
         case .approvals: .accountDetailsApprovals
         case .balances: .accountDetailsBalances
+        case .staking: .accountDetailsStaking
         case .transactions: .accountDetailsTransactions
         }
     }

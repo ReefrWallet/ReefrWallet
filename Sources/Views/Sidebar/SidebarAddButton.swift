@@ -4,6 +4,7 @@ import SwiftUI
 struct SidebarAddButton: View {
     let accessibilityLabel: LocalizedStringResource
     let accessibilityId: String
+    var systemImage = "plus.circle"
     /// Key store headers render as rows that sit ~14pt further from the trailing edge than section headers.
     var trailingPadding: CGFloat = 8
     let action: () -> Void
@@ -15,9 +16,8 @@ struct SidebarAddButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "plus")
-                // Fixed size: key store headers use the larger row font.
-                .style(.smallIcon, foreground: .sidebarControl)
+            Image(systemName: systemImage)
+                .style(.caption, foreground: .sidebarControl)
                 .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
         }

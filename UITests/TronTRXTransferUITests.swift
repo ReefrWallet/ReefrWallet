@@ -67,7 +67,9 @@ final class TronTRXTransferUITests: XCTestCase {
         XCTAssertTrue(firstAccount.waitForExistence(timeout: 20))
         firstAccount.click()
 
-        let tab = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Token Balances")).firstMatch
+        let tab = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Token Balances"))
+            .firstMatch
         XCTAssertTrue(tab.waitForExistence(timeout: 10))
         tab.click()
 

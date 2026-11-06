@@ -84,6 +84,15 @@ extension TronTransactionParametersView {
             ]
         case .withdrawExpireUnfreeze:
             rows = [Row(label: String(localized: .commonAction), value: "Withdraw unstaked TRX")]
+        case .cancelAllUnfreezeV2:
+            rows = [Row(label: String(localized: .commonAction), value: "Cancel unstaking")]
+        case .withdrawBalance:
+            rows = [Row(label: String(localized: .commonAction), value: "Claim voting rewards")]
+        case let .voteWitness(_, votes):
+            rows = [Row(label: String(localized: .commonAction), value: "Vote")]
+            rows += votes.map { vote in
+                Row(label: vote.address.string, value: String(localized: .tronStakingVoteCount(Int(vote.count))))
+            }
         }
 
         if let memo = transaction.memo, !memo.isEmpty {

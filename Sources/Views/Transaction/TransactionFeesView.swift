@@ -20,7 +20,7 @@ struct TransactionFeesView {
     let estimatedFees: Fees?
     /// `false` shows every value as text; `fees` then mirrors `estimatedFees`.
     var isEditable = true
-    /// `false` for TRX transfers, which don't call a contract and so have no fee limit.
+    /// `false` for TRX transfers and staking, which don't call a contract and so have no fee limit.
     var isTronFeeLimitEnabled = true
     /// Not in Penpot: a caution note under the section, e.g. dapp-set fees.
     var warning: String?
@@ -128,17 +128,50 @@ private extension TransactionFeesView {
         ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
+    /// Every Tron transaction (transfers, dapp requests, staking) shows what it uses and whether
+    /// the account's staked and free bandwidth and energy cover it, then the TRX burned for the rest.
     @ViewBuilder
     var tronFeesForm: some View {
-        field(String(localized: .transactionFeesTrc20FeeLimit), text: $tronFeeLimit, isEnabled: isTronFeeLimitEnabled)
-
-        // Not in Penpot: a dapp transaction's estimated burn, after the account's staked resources.
-        if let burnedSun = estimatedFees?.nativeFeeReserve.flatMap({ UInt64($0) }) {
-            ParameterRow(
-                String(localized: .transactionFeesEstimatedBurn),
-                value: TronTransactionParametersView.trx(burnedSun)
-            )
+        if isTronFeeLimitEnabled, isEditable || !tronFeeLimit.isEmpty {
+            field(String(localized: .transactionFeesTrc20FeeLimit), text: $tronFeeLimit)
         }
+
+        if let fee = estimatedFees?.tronFee {
+            ParameterRow(
+                String(localized: .tronTransactionParametersBandwidth),
+                value: fee.bandwidth.formatted(.number),
+                subtitle: tronCoverage(
+                    isCovered: fee.isBandwidthCovered,
+                    burnSun: fee.bandwidthBurnSun,
+                    available: fee.availableBandwidth
+                )
+            )
+
+            if fee.energy > 0 {
+                ParameterRow(
+                    String(localized: .tronTransactionParametersEnergy),
+                    value: fee.energy.formatted(.number),
+                    subtitle: tronCoverage(
+                        isCovered: fee.isEnergyCovered,
+                        burnSun: fee.energyBurnSun,
+                        available: fee.availableEnergy
+                    )
+                )
+            }
+        } else {
+            ParameterRow(String(localized: .transactionFeesNetworkFee), value: "")
+        }
+
+        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+    }
+
+    /// "Covered by your resources (810 available)", or what burning the shortfall costs.
+    func tronCoverage(isCovered: Bool, burnSun: UInt64, available: UInt64) -> String {
+        let available = available.formatted(.number)
+
+        return isCovered
+            ? String(localized: .tronFeesCovered(available))
+            : String(localized: .tronFeesBurned(TronTransactionParametersView.trx(burnSun), available))
     }
 
     /// An editable field, or its value as text when `isEditable` is `false`.
@@ -189,16 +222,29 @@ private extension TransactionFeesView {
         case .cardano:
             String(localized: .transactionFeesFeeSizeNote)
         case .tron:
-            String(localized: .transactionFeesFeeLimitNote)
+            tronFooter
         default:
             warning
         }
     }
 
+    /// Why the transaction couldn't be built, else how the fee limit and the account's resources work.
+    var tronFooter: String {
+        if let warning {
+            return warning
+        }
+
+        let note = String(localized: .tronFeesNote)
+
+        return isTronFeeLimitEnabled ? "\(String(localized: .transactionFeesFeeLimitNote)) \(note)" : note
+    }
+
     var footerColor: Color {
         switch blockchain {
-        case .cardano, .tron:
+        case .cardano:
             .secondary
+        case .tron:
+            warning == nil ? .secondary : .caution
         default:
             .caution
         }

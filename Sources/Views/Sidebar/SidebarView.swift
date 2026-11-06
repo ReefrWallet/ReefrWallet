@@ -55,7 +55,8 @@ struct SidebarView {
     @State private var editingId: PersistentIdentifier?
     @State private var editingName: String = ""
 
-    @State private var hoveredKeyStoreId: PersistentIdentifier?
+    @State private var expansionOverrides: [PersistentIdentifier: Bool] = [:]
+    @State private var hoverLocation: CGPoint?
     @State private var isListEditing = false
     @State private var isUpdating = false
 
@@ -111,13 +112,13 @@ extension SidebarView: View {
                         .style(.medium, foreground: .secondary)
                         .padding(.vertical)
 
-                    #if os(iOS)
+#if os(iOS)
                     Button(.sidebarNewKeyStore) {
                         presentSheet?(.addKeyStore)
                     }
                     .buttonStyle(.borderedProminent)
                     .sheetSource(PresentedSheet.addKeyStore.id)
-                    #endif
+#endif
                 }
                 .contextMenu {
                     addMenu
@@ -130,17 +131,26 @@ extension SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        #if os(macOS)
+#if os(macOS)
+        .onContinuousHover(coordinateSpace: .global) { phase in
+            switch phase {
+            case let .active(location):
+                hoverLocation = location
+            case .ended:
+                hoverLocation = nil
+            }
+        }
+        .environment(\.sidebarHoverLocation, hoverLocation)
         .scrollContentBackground(.hidden)
         .background(Color.sidebarBackground)
-        #else
+#else
         .navigationTitle(isPhone ? String(localized: .sidebarKeyStores) : "")
         .navigationBarTitleDisplayMode(.large)
         .animation(.default, value: isListEditing)
         .refreshable {
             await refreshAllAccounts()
         }
-        #endif
+#endif
         .focused($isAccountsListFocused)
         .onChange(of: sidebarSelection.wrappedValue) {
             // Switching accounts/key stores in the sidebar should steal
@@ -153,7 +163,7 @@ extension SidebarView: View {
             }
         }
         .toolbar {
-            #if os(iOS)
+#if os(iOS)
             if isListEditing {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -182,17 +192,17 @@ extension SidebarView: View {
                     }
                     .sheetSource(PresentedSheet.addKeyStore.id)
                 }
-            } else if isPhone, !keyStores.isEmpty {
+            } else if !keyStores.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(.commonEdit) {
                         isListEditing = true
                     }
                 }
             }
-            #else
+#else
             addMenu
             updateMenu
-            #endif
+#endif
         }
     }
 
@@ -434,7 +444,17 @@ private extension SidebarView {
 
     @MainActor @ViewBuilder
     func makeKeyStoreSection(_ keyStore: KeyStoreModel) -> some View {
-        Section(isExpanded: expansionBinding(keyStore)) {
+        SidebarSection(isExpanded: expansionBinding(keyStore)) {
+#if os(macOS)
+            SidebarAddButton(
+                accessibilityLabel: .commonAddAccount,
+                accessibilityId: "sidebar-add-account-button-\(keyStore.name)",
+                trailingPadding: 0
+            ) {
+                addAccount(to: keyStore)
+            }
+#endif
+        } content: {
             ForEach(keyStore.accounts.sorted()) { account in
                 makeAccountItem(account)
             }
@@ -451,8 +471,16 @@ private extension SidebarView {
                 .selectionDisabled()
                 .sheetSource(addAccountSourceId(keyStore))
             }
-        } header: {
-            makeKeyStoreHeader(keyStore)
+        } title: {
+            makeKeyStoreTitle(keyStore)
+        } trailing: {
+            if !keyStore.isWatchOnly, !(expansionOverrides[keyStore.id] ?? !keyStore.isCollapsed) {
+                Text(totalValue(keyStore).formatted(.currency(code: "USD")))
+                    .style(
+                        isPhone ? .large : .small,
+                        foreground: isPhone ? .phoneSecondaryLabel : .sidebarSecondaryLabel
+                    )
+            }
         }
         .id(keyStore.id)
     }
@@ -478,10 +506,8 @@ private extension SidebarView {
     }
 
     @MainActor
-    func makeKeyStoreHeader(_ keyStore: KeyStoreModel) -> some View {
-        let isCollapsed = keyStore.isCollapsed
-
-        return HStack(spacing: isPhone ? 12 : 4) {
+    func makeKeyStoreTitle(_ keyStore: KeyStoreModel) -> some View {
+        HStack(spacing: isPhone ? 12 : 4) {
             if isPhone, isListEditing, !keyStore.isWatchOnly {
                 EditModeButton(kind: .remove, accessibilityLabel: .commonRemove) {
                     if let keyStore = try? KeyStore(model: keyStore) {
@@ -492,36 +518,8 @@ private extension SidebarView {
             }
 
             keyStoreTitle(keyStore)
-
-            Spacer()
-
-            if isCollapsed {
-                Text(totalValue(keyStore).formatted(.currency(code: "USD")))
-                    .style(
-                        isPhone ? .large : .small,
-                        foreground: isPhone ? .phoneSecondaryLabel : .sidebarSecondaryLabel
-                    )
-            }
-
-            #if os(macOS)
-            SidebarAddButton(
-                accessibilityLabel: .commonAddAccount,
-                accessibilityId: "sidebar-add-account-button-\(keyStore.name)",
-                trailingPadding: -6
-            ) {
-                addAccount(to: keyStore)
-            }
-            .opacity(hoveredKeyStoreId == keyStore.id ? 1 : 0)
-            #endif
         }
         .style(foreground: isPhone ? .phoneLabel : .sidebarLabel)
-        .onHover { isHovering in
-            if isHovering {
-                hoveredKeyStoreId = keyStore.id
-            } else if hoveredKeyStoreId == keyStore.id {
-                hoveredKeyStoreId = nil
-            }
-        }
     }
 
     @ViewBuilder
@@ -545,6 +543,8 @@ private extension SidebarView {
         } else if isPhone {
             Text(title)
                 .style(.title, foreground: .phoneLabel)
+                .lineLimit(1)
+                .truncationMode(.tail)
         } else if sidebarSelection.wrappedValue == keyStore.id {
             Text(title)
                 .contextMenu {
@@ -565,10 +565,16 @@ private extension SidebarView {
     func expansionBinding(_ keyStore: KeyStoreModel) -> Binding<Bool> {
         let databaseService = databaseService
         let id = keyStore.id
+        let overrides = $expansionOverrides
 
         return Binding(
-            get: { !keyStore.isCollapsed },
+            get: { overrides.wrappedValue[id] ?? !keyStore.isCollapsed },
             set: { isExpanded in
+                // Apply synchronously so the toggle animates; the database write lands later.
+                withAnimation {
+                    overrides.wrappedValue[id] = isExpanded
+                }
+
                 Task {
                     do {
                         try await databaseService.setKeyStoreCollapsed(id: id, isCollapsed: !isExpanded)

@@ -73,7 +73,10 @@ final class BrowserAccountSelectorUITests: XCTestCase {
 
         let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
-        XCTAssertFalse(selector.isHittable, "The capsule must not be interactive; accounts change from the dapp's settings.")
+        XCTAssertFalse(
+            selector.isHittable,
+            "The capsule must not be interactive; accounts change from the dapp's settings."
+        )
 
         XCTAssertFalse(browserWindow.firstDescendant(withIdentifier: "browser-ethereum-account-picker").exists)
         XCTAssertFalse(browserWindow.firstDescendant(withIdentifier: "browser-solana-account-picker").exists)

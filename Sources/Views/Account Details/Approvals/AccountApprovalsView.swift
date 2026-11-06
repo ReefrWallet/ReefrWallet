@@ -12,6 +12,8 @@ import WalletKit
 
 struct AccountApprovalsView: View {
     let account: Account
+    /// Revoking signs, so watch-only accounts see the approvals without the means to select them.
+    let canSign: Bool
 
     @State private var errorMessage: String?
     @State private var isRevoking = false
@@ -22,12 +24,13 @@ struct AccountApprovalsView: View {
 
     private let service = DI.injectOrFail(ApprovalService.self)
 
-    init(_ account: Account) {
+    init(_ account: Account, canSign: Bool) {
         guard let accountId = account.id else {
             preconditionFailure()
         }
 
         self.account = account
+        self.canSign = canSign
 
         let approvalSort = [SortDescriptor(\ApprovalModel.approvedAt, order: .reverse)]
 
@@ -51,8 +54,10 @@ struct AccountApprovalsView: View {
                 row(approval)
             }
 
-            actions(approvals)
-                .listRowSeparator(.hidden)
+            if canSign {
+                actions(approvals)
+                    .listRowSeparator(.hidden)
+            }
         }
         #else
         alerting(
@@ -64,8 +69,10 @@ struct AccountApprovalsView: View {
 
                 content(approvals)
 
-                actions(approvals)
-                    .padding([.bottom, .horizontal])
+                if canSign {
+                    actions(approvals)
+                        .padding([.bottom, .horizontal])
+                }
             }
         )
         #endif
@@ -106,8 +113,10 @@ private extension AccountApprovalsView {
 
     func row(_ approval: TokenApproval) -> some View {
         HStack(spacing: 12) {
-            Toggle("", isOn: selectionBinding(approval.id))
-                .labelsHidden()
+            if canSign {
+                Toggle("", isOn: selectionBinding(approval.id))
+                    .labelsHidden()
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(approval.token.symbol)
@@ -143,11 +152,13 @@ private extension AccountApprovalsView {
 
     func table(_ approvals: [TokenApproval]) -> some View {
         Table(approvals) {
-            TableColumn("") { approval in
-                Toggle("", isOn: selectionBinding(approval.id))
-                    .labelsHidden()
+            if canSign {
+                TableColumn("") { approval in
+                    Toggle("", isOn: selectionBinding(approval.id))
+                        .labelsHidden()
+                }
+                .width(28)
             }
-            .width(28)
 
             TableColumn(.approvalsAsset) { approval in
                 HStack {

@@ -22,9 +22,17 @@ extension TronDappProvider {
         }
 
         async let token = Self.withTimeout { try await Self.token(called: transaction, client: client) }
+        let feeStartedAt = Date()
         async let fee = Self.withTimeout { try await client.estimateFee(for: transaction) }
 
-        return await TronTransactionPreview(transaction: transaction, token: token ?? nil, fee: fee)
+        let estimate = await fee
+
+        if let resources = estimate?.resources {
+            await DI.inject(TronStakingPositionLoader.self)?
+                .record(resources: resources, startedAt: feeStartedAt, account: account)
+        }
+
+        return await TronTransactionPreview(transaction: transaction, token: token ?? nil, fee: estimate)
     }
 
     /// The token a TRC-20 `transfer`/`approve`/`transferFrom` call targets.

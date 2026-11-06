@@ -64,7 +64,10 @@ private actor ChooserApproving: DappApproving {
 
     func approve(_ request: DappApprovalRequest) async -> DappApprovalResult { .approved }
 
-    func chooseAccounts(origin: String, selections: [DappAccountSelection]) async -> [DappNamespace: ReefrWallet.Account]? {
+    func chooseAccounts(
+        origin: String,
+        selections: [DappAccountSelection]
+    ) async -> [DappNamespace: ReefrWallet.Account]? {
         prompts.append(selections)
         guard !declines else {
             return nil
@@ -203,7 +206,12 @@ struct DappAccountSelectionTests {
         let provider = ConnectProvider()
 
         let outcome = await enable(
-            bridge(session: session, approving: ChooserApproving(choice: nil), accounts: fixture.choices(), provider: provider)
+            bridge(
+                session: session,
+                approving: ChooserApproving(choice: nil),
+                accounts: fixture.choices(),
+                provider: provider
+            )
         )
 
         #expect(outcome == .providerError(.object(["error": .string("userRejected")])))
@@ -218,6 +226,7 @@ struct DappAccountSelectionTests {
             origin: origin,
             permissions: [.init(origin: origin, namespace: .cardano, accountAddress: fixture.other.address)]
         )
+
         let session = DappSession(origin: origin, persistence: persistence)
         await session.restorePermissions()
         await session.setActiveAccount(fixture.evm)
@@ -262,7 +271,8 @@ struct DappAccountSelectionTests {
         let session = DappSession(origin: origin, persistence: persistence)
         await session.setActiveAccount(fixture.cardano)
 
-        _ = await enable(bridge(session: session, approving: ChooserApproving(choice: nil), accounts: fixture.choices()))
+        let host = bridge(session: session, approving: ChooserApproving(choice: nil), accounts: fixture.choices())
+        _ = await enable(host)
 
         #expect(await persistence.noted == [.cardano])
     }
@@ -295,7 +305,13 @@ struct DappAccountSelectionTests {
         )
 
         async let first = enable(bridge)
-        async let second = bridge.dispatch(namespaceRaw: "solana", method: "connect", params: .array([]), origin: origin)
+        async let second = bridge.dispatch(
+            namespaceRaw: "solana",
+            method: "connect",
+            params: .array([]),
+            origin: origin
+        )
+
         let (cardano, sol) = await (first, second)
 
         #expect(cardano == .success(.bool(true)))
@@ -320,7 +336,13 @@ struct DappAccountSelectionTests {
         )
 
         async let first = enable(bridge)
-        async let second = bridge.dispatch(namespaceRaw: "solana", method: "connect", params: .array([]), origin: origin)
+        async let second = bridge.dispatch(
+            namespaceRaw: "solana",
+            method: "connect",
+            params: .array([]),
+            origin: origin
+        )
+
         let (cardano, sol) = await (first, second)
 
         #expect(cardano == .success(.bool(true)))
@@ -350,6 +372,7 @@ struct DappAccountSelectionTests {
                 .init(origin: origin, namespace: .solana, accountAddress: fixture.evm.address)
             ]
         )
+
         let session = DappSession(origin: origin, persistence: persistence)
         await session.restorePermissions()
         await session.setActiveAccount(fixture.cardano)
@@ -361,7 +384,13 @@ struct DappAccountSelectionTests {
             accounts: fixture.choices(),
             byNamespace: [.solana: [DappAccountChoice(account: fixture.evm, keyStoreName: "Key")]]
         )
-        let outcome = await bridge.dispatch(namespaceRaw: "solana", method: "connect", params: .array([]), origin: origin)
+
+        let outcome = await bridge.dispatch(
+            namespaceRaw: "solana",
+            method: "connect",
+            params: .array([]),
+            origin: origin
+        )
 
         #expect(outcome == .success(.bool(true)))
         #expect(await session.selectedAccount(.solana) == fixture.evm)
@@ -513,7 +542,12 @@ struct BrowserWindowTargetTests {
 
 @MainActor
 struct BrowserAccountCapsuleTests {
-    private func choice(_ name: String, _ blockchain: Blockchain, address: String, key: String = "Trezor 5") async throws -> DappAccountChoice {
+    private func choice(
+        _ name: String,
+        _ blockchain: Blockchain,
+        address: String,
+        key: String = "Trezor 5"
+    ) async throws -> DappAccountChoice {
         let databaseService = try makeDatabaseService()
         let keyStoreId = try await databaseService.insertKeyStore(
             KeyStore(deviceId: nil, kind: .watchOnly, name: key, transport: nil, vendor: nil)
@@ -528,11 +562,16 @@ struct BrowserAccountCapsuleTests {
     }
 
     @Test func theCapsuleSaysNotConnectedUntilConnectedThenNamesTheAccountOrSummarisesSeveral() async throws {
-        let evm = try await choice("Arbitrum #3", .evm(.arbitrum(.mainnet)), address: "0x000000000000000000000000000000000000aa")
+        let evm = try await choice(
+            "Arbitrum #3",
+            .evm(.arbitrum(.mainnet)),
+            address: "0x000000000000000000000000000000000000aa"
+        )
+
         let solana = try await choice("Solana #1", .solana(.mainnet), address: "SolanaTestAddress1")
 
         #expect(BrowserAccountSelector.label(for: []) == "Not Connected")
         #expect(BrowserAccountSelector.label(for: [evm]) == "Trezor 5 · Arbitrum #3 (0x00000000…0000aa)")
         #expect(BrowserAccountSelector.label(for: [evm, solana]) == "2 accounts (Arbitrum, Solana)")
     }
-}
+} // swiftlint:disable:this file_length

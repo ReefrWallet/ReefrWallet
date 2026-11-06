@@ -3,6 +3,7 @@ import Testing
 import WalletKit
 @testable import ReefrWallet
 
+@MainActor
 struct CardanoTransactionParametersRowsTests {
     private func preview(
         missing: Int = 0,

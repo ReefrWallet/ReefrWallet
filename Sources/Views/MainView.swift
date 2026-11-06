@@ -48,6 +48,8 @@ struct MainView: View {
                let account = try? Account(model: accountModel),
                let keyStore = try? KeyStore(model: accountModel.keyStore) {
                 AccountDetailsView(account, keyStore: keyStore)
+                    // Per-account state (the staking model, search) must not carry over.
+                    .id(accountModel.id)
             } else if let keyStoreModel = keyStores.first(where: { $0.id == sidebarSelection }),
                       let keyStore = try? KeyStore(model: keyStoreModel) {
                 KeyStoreDetailsView(keyStore)

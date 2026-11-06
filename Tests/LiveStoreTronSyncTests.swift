@@ -103,6 +103,7 @@ struct LiveStoreTronSyncTests {
             KeyStoreModel.self,
             TokenModel.self,
             SavedAddressModel.self,
+            StakingModel.self,
             WalletTransactionModel.self,
             WalletTransactionEffectModel.self,
             WalletTransactionSyncStateModel.self,

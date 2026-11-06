@@ -21,6 +21,7 @@ struct AccountDetailsView {
     @State private var isFiltersPresented = false
     @State private var isTransactionSheetPresented = false
     @State private var searchText = ""
+    @State private var staking: TronStakingModel
     @State private var summaryWidth: CGFloat = 0
 
     @State private var isSearchOpen = false
@@ -37,6 +38,7 @@ struct AccountDetailsView {
     @Environment(\.sheetNamespace) private var sheetNamespace
 
     @Query var accountBalances: [BalanceModel]
+    @Query var stakingRows: [StakingModel]
     @Query var allAccounts: [AccountModel]
 
     init(_ account: Account, keyStore: KeyStore) {
@@ -52,6 +54,8 @@ struct AccountDetailsView {
         self.keyStore = keyStore
 
         _accountBalances = Query(filter: predicate)
+        _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.id == accountId })
+        _staking = State(initialValue: TronStakingModel(account: account, keyStore: keyStore))
     }
 }
 
@@ -74,11 +78,24 @@ extension AccountDetailsView: View {
         .task(id: balanceRefreshId) {
             cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
         }
+
+        // Resource patches change the row in place too; `revision` tells every applied write.
+        .task(id: stakingRows.first?.revision) {
+            staking.apply(stakingRows.first.flatMap(Staking.init(model:)))
+        }
+        .task(id: tab == .staking) {
+            if tab == .staking {
+                await staking.refresh()
+            }
+        }
         .sheet(isPresented: $isTransactionSheetPresented) {
             if let selected {
                 TransferView(balance: selected)
                     .sheetZoom(from: Self.sendSourceId, namespace: sheetNamespace)
             }
+        }
+        .sheet(item: $staking.sheet) { kind in
+            TronStakingSheet(kind: kind, model: staking)
         }
         #if os(iOS)
         .sheet(isPresented: $isFiltersPresented) {
@@ -95,22 +112,33 @@ extension AccountDetailsView: View {
             header(cachedBalances)
                 .padding()
 
-            TabView {
+            TabView(selection: tabSelection) {
                 AccountBalancesView(balances: cachedBalances, selection: $selection)
                     .tabItem {
                         Label(.accountDetailsTokenBalances, systemImage: "chart.bar")
                     }
+                    .tag(AccountTab.balances)
 
                 AccountTransactionsView(account)
                     .tabItem {
                         Label(.accountDetailsTransactions, systemImage: "list.bullet")
                     }
+                    .tag(AccountTab.transactions)
 
                 if account.blockchain.supportsApprovals {
-                    AccountApprovalsView(account)
+                    AccountApprovalsView(account, canSign: canSign)
                         .tabItem {
                             Label(.accountDetailsApprovals, systemImage: "checkmark.shield")
                         }
+                        .tag(AccountTab.approvals)
+                }
+
+                if account.blockchain.supportsStaking {
+                    AccountStakingView(model: staking)
+                        .tabItem {
+                            Label(.accountDetailsStaking, systemImage: AccountTab.staking.systemImage)
+                        }
+                        .tag(AccountTab.staking)
                 }
             }
         }
@@ -119,7 +147,9 @@ extension AccountDetailsView: View {
             .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                bottomBar
+                if tab != .staking {
+                    bottomBar
+                }
             }
         #endif
     }
@@ -149,6 +179,7 @@ extension AccountDetailsView: View {
     #endif
 
     private func refresh() async {
+        // Refreshes the staking position too.
         await AccountRefresh.run([account])
     }
 
@@ -156,9 +187,11 @@ extension AccountDetailsView: View {
     private var content: some View {
         switch tab {
         case .approvals:
-            AccountApprovalsView(account)
+            AccountApprovalsView(account, canSign: canSign)
         case .balances:
             AccountBalancesView(balances: visibleBalances, selection: $selection)
+        case .staking:
+            AccountStakingView(model: staking)
         case .transactions:
             AccountTransactionsView(
                 account,
@@ -169,18 +202,27 @@ extension AccountDetailsView: View {
         }
     }
 
+    @MainActor
     @ToolbarContentBuilder
     private func toolbarContent(_ selected: Balance?) -> some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                isSearchFocused = false
-                isTransactionSheetPresented = true
-            } label: {
-                Label(.commonSend, systemImage: "paperplane")
+        ToolbarItemGroup(placement: .primaryAction) {
+            // Watch-only accounts can't sign, so they get no transaction buttons at all.
+            switch tab {
+            case .staking where canSign:
+                TronStakingToolbarActions(model: staking)
+            case .balances where canSign:
+                Button {
+                    isSearchFocused = false
+                    isTransactionSheetPresented = true
+                } label: {
+                    Label(.commonSend, systemImage: "paperplane")
+                }
+                .disabled(!canSend(selected))
+                .sheetSource(Self.sendSourceId)
+                .accessibilityIdentifier("account-send-button")
+            case .approvals, .balances, .staking, .transactions:
+                EmptyView()
             }
-            .disabled(!canSend(selected))
-            .sheetSource(Self.sendSourceId)
-            .accessibilityIdentifier("account-send-button")
         }
     }
 
@@ -413,7 +455,17 @@ private extension AccountDetailsView {
     }
 
     var tabs: [AccountTab] {
-        account.blockchain.supportsApprovals ? [.balances, .transactions, .approvals] : [.balances, .transactions]
+        var tabs: [AccountTab] = [.balances, .transactions]
+
+        if account.blockchain.supportsApprovals {
+            tabs.append(.approvals)
+        }
+
+        if account.blockchain.supportsStaking {
+            tabs.append(.staking)
+        }
+
+        return tabs
     }
 
     var tab: AccountTab {
@@ -461,6 +513,10 @@ private extension AccountDetailsView {
         return true
     }
 
+    var canSign: Bool {
+        keyStore.kind != .watchOnly
+    }
+
     func canSend(_ balance: Balance?) -> Bool {
         guard supportsTransfers, let amount = balance?.decimalAmount else {
             return false
@@ -488,5 +544,4 @@ private extension AccountDetailsView {
         UIPasteboard.general.string = string
         #endif
     }
-}
-
+} // swiftlint:disable:this file_length

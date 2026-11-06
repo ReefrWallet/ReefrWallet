@@ -38,6 +38,7 @@ extension ServiceContainer {
                         KeyStoreModel.self,
                         TokenModel.self,
                         SavedAddressModel.self,
+                        StakingModel.self,
                         WalletTransactionModel.self,
                         WalletTransactionEffectModel.self,
                         WalletTransactionSyncStateModel.self,
@@ -103,6 +104,10 @@ extension ServiceContainer {
             KeyStoreService()
         }
 
+        register(StakingStateService.self) {
+            StakingStateService()
+        }
+
         register(TokenPriceScheduler.self) {
             TokenPriceScheduler()
         }
@@ -113,6 +118,14 @@ extension ServiceContainer {
 
         register(TransactionService.self) {
             TransactionService()
+        }
+
+        register(TronStakingPositionLoader.self) {
+            TronStakingPositionLoader()
+        }
+
+        register(TronStakingService.self) {
+            TronStakingService()
         }
 
         register(TransactionSyncService.self) {

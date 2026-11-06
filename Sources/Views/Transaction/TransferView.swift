@@ -22,7 +22,7 @@ struct TransferView {
     @State private var isErrorAlertPresented = false
     @State private var parameters: TransferParameters?
     /// The send in flight, shown in the prompt popup; `nil` when idle.
-    @State private var progress: Progress?
+    @State private var progress: TransactionProgress?
     @State private var token: Token
 
     @Environment(\.dismiss) private var dismiss
@@ -31,28 +31,6 @@ struct TransferView {
         account = balance.account
         initialBalance = balance
         _token = .init(initialValue: balance.token)
-    }
-}
-
-extension TransferView {
-    enum Progress {
-        case complete
-        case preparing
-        case sending
-        case signing
-
-        var prompt: HostedPrompt {
-            switch self {
-            case .complete:
-                .complete(String(localized: .commonComplete))
-            case .preparing:
-                .progress(String(localized: .transferPreparingTransaction))
-            case .sending:
-                .progress(String(localized: .transferSendingTransaction))
-            case .signing:
-                .progress(String(localized: .transferSigningTransaction))
-            }
-        }
     }
 }
 
@@ -128,14 +106,12 @@ private extension TransferView {
 
         Task { @MainActor in
             do {
-                progress = .preparing
-                try await sendTransaction(parameters: parameters, fees: fees)
-                progress = .complete
-                try? await Task.sleep(for: .seconds(1))
-                progress = nil
+                try await $progress.track {
+                    try await sendTransaction(parameters: parameters, fees: fees)
+                }
+
                 dismiss()
             } catch {
-                progress = nil
                 self.error = error.localizedDescription
                 isErrorAlertPresented = true
             }

@@ -212,6 +212,18 @@
         }
       }
     },
+    "accountDetails.staking" : {
+      "comment" : "AccountTab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staking"
+          }
+        }
+      }
+    },
     "accountDetails.toMyAccounts" : {
       "comment" : "AccountFiltersView",
       "extractionState" : "manual",
@@ -2939,18 +2951,6 @@
         }
       }
     },
-    "transactionFees.estimatedBurn" : {
-      "comment" : "TransactionFeesView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estimated burn"
-          }
-        }
-      }
-    },
     "transactionFees.feeLimitNote" : {
       "comment" : "TransactionFeesView",
       "extractionState" : "manual",
@@ -3791,6 +3791,42 @@
         }
       }
     },
+    "tronFees.burned" : {
+      "comment" : "TransactionFeesView: TRX burned for the bandwidth or energy the account lacks",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Burns %1$@ (%2$@ available)"
+          }
+        }
+      }
+    },
+    "tronFees.covered" : {
+      "comment" : "TransactionFeesView: a Tron transaction paid by staked and free bandwidth or energy",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Covered by your resources (%@ available)"
+          }
+        }
+      }
+    },
+    "tronFees.note" : {
+      "comment" : "TransactionFeesView: Tron fee footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staked TRX provides bandwidth and energy that pay these fees first. What it doesn’t cover is burned as TRX."
+          }
+        }
+      }
+    },
     "tronGrid.error" : {
       "comment" : "TronApprovalService",
       "extractionState" : "manual",
@@ -3799,6 +3835,748 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TronGrid: %@"
+          }
+        }
+      }
+    },
+    "tronStaking.apr" : {
+      "comment" : "Annual percentage rate of a representative",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ APR"
+          }
+        }
+      }
+    },
+    "tronStaking.cancelAll" : {
+      "comment" : "Staking action",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel All"
+          }
+        }
+      }
+    },
+    "tronStaking.cancelUnstaking" : {
+      "comment" : "Staking sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel Unstaking"
+          }
+        }
+      }
+    },
+    "tronStaking.claim" : {
+      "comment" : "Staking action",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim"
+          }
+        }
+      }
+    },
+    "tronStaking.claimRewards" : {
+      "comment" : "Staking sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim Rewards"
+          }
+        }
+      }
+    },
+    "tronStaking.error.duplicateRepresentative" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each representative can be selected only once."
+          }
+        }
+      }
+    },
+    "tronStaking.error.insufficientBalance" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough TRX in your balance."
+          }
+        }
+      }
+    },
+    "tronStaking.error.insufficientStake" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have less TRX staked for this resource."
+          }
+        }
+      }
+    },
+    "tronStaking.error.insufficientVotePower" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can’t assign more votes than you have staked TRX."
+          }
+        }
+      }
+    },
+    "tronStaking.error.invalidAmount" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an amount greater than zero."
+          }
+        }
+      }
+    },
+    "tronStaking.error.minimumStake" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The minimum stake is 1 TRX."
+          }
+        }
+      }
+    },
+    "tronStaking.error.noRewards" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no rewards to claim yet."
+          }
+        }
+      }
+    },
+    "tronStaking.error.noUnstaking" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is being unstaked."
+          }
+        }
+      }
+    },
+    "tronStaking.error.noVotes" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select at least one representative."
+          }
+        }
+      }
+    },
+    "tronStaking.error.noWithdrawable" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There is no unstaked TRX ready to withdraw."
+          }
+        }
+      }
+    },
+    "tronStaking.error.notSupportedOnHardware" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your hardware wallet can’t sign this transaction."
+          }
+        }
+      }
+    },
+    "tronStaking.error.tooManyRepresentatives" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can vote for up to %lld representatives at a time."
+          }
+        }
+      }
+    },
+    "tronStaking.error.tooManyUnstakes" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can have at most %lld unstakes pending. Wait for one to finish or cancel them."
+          }
+        }
+      }
+    },
+    "tronStaking.error.transactionFailed" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transaction failed on the network: %@"
+          }
+        }
+      }
+    },
+    "tronStaking.error.unsupportedResource" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only Bandwidth and Energy can be staked."
+          }
+        }
+      }
+    },
+    "tronStaking.groupCancel" : {
+      "comment" : "Cancel Unstaking sheet section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending TRX"
+          }
+        }
+      }
+    },
+    "tronStaking.groupStake" : {
+      "comment" : "Stake sheet section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake TRX"
+          }
+        }
+      }
+    },
+    "tronStaking.groupUnstake" : {
+      "comment" : "Unstake sheet section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstake TRX"
+          }
+        }
+      }
+    },
+    "tronStaking.groupWithdraw" : {
+      "comment" : "Withdraw sheet section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstaked TRX"
+          }
+        }
+      }
+    },
+    "tronStaking.loadFailed" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load staking data: %@"
+          }
+        }
+      }
+    },
+    "tronStaking.noRepresentatives" : {
+      "comment" : "Representative picker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No representatives found"
+          }
+        }
+      }
+    },
+    "tronStaking.notStakedNote" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake TRX to get Bandwidth or Energy, then vote for representatives to earn rewards. Unstaking takes 14 days."
+          }
+        }
+      }
+    },
+    "tronStaking.noteCancel" : {
+      "comment" : "Cancel Unstaking sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending TRX returns to your stake. TRX past the 14-day wait goes to your balance. Vote again to use the restored votes."
+          }
+        }
+      }
+    },
+    "tronStaking.noteClaim" : {
+      "comment" : "Claim sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards can be claimed once every 24 hours."
+          }
+        }
+      }
+    },
+    "tronStaking.noteSelect" : {
+      "comment" : "Select Representatives footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can vote for up to %lld representatives."
+          }
+        }
+      }
+    },
+    "tronStaking.noteStake" : {
+      "comment" : "Stake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each staked TRX gives 1 vote. Vote for representatives next to earn rewards. Unstaking takes 14 days."
+          }
+        }
+      }
+    },
+    "tronStaking.noteUnstake" : {
+      "comment" : "Unstake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can withdraw this TRX in 14 days. If your remaining stake is below your votes, votes are reduced proportionally."
+          }
+        }
+      }
+    },
+    "tronStaking.noteVote" : {
+      "comment" : "Vote sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submitting replaces your current votes. You can vote for up to %lld representatives."
+          }
+        }
+      }
+    },
+    "tronStaking.noteWithdraw" : {
+      "comment" : "Withdraw sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moves all TRX past the 14-day wait to your balance."
+          }
+        }
+      }
+    },
+    "tronStaking.retry" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "tronStaking.rewardsUsd" : {
+      "comment" : "AccountStakingView: USD value",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "≈ %@"
+          }
+        }
+      }
+    },
+    "tronStaking.rowAvailable" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available"
+          }
+        }
+      }
+    },
+    "tronStaking.rowRemaining" : {
+      "comment" : "Vote sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remaining"
+          }
+        }
+      }
+    },
+    "tronStaking.rowResourceReduction" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resource reduction"
+          }
+        }
+      }
+    },
+    "tronStaking.rowValue" : {
+      "comment" : "Staking sheet row: USD value",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value"
+          }
+        }
+      }
+    },
+    "tronStaking.sectionReadyToWithdraw" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready to Withdraw"
+          }
+        }
+      }
+    },
+    "tronStaking.sectionResources" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resources"
+          }
+        }
+      }
+    },
+    "tronStaking.sectionUnstaking" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstaking"
+          }
+        }
+      }
+    },
+    "tronStaking.sectionVotes" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votes"
+          }
+        }
+      }
+    },
+    "tronStaking.selectRepresentatives" : {
+      "comment" : "Staking sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Representatives"
+          }
+        }
+      }
+    },
+    "tronStaking.selectRepresentativesButton" : {
+      "comment" : "Staking button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Representatives…"
+          }
+        }
+      }
+    },
+    "tronStaking.stake" : {
+      "comment" : "Staking action and sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake"
+          }
+        }
+      }
+    },
+    "tronStaking.summaryRewards" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards"
+          }
+        }
+      }
+    },
+    "tronStaking.summaryRewardsLabel" : {
+      "comment" : "AccountStakingView: first words of the rewards line under the summary",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards:"
+          }
+        }
+      }
+    },
+    "tronStaking.summaryStaked" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staked"
+          }
+        }
+      }
+    },
+    "tronStaking.summaryStakedLabel" : {
+      "comment" : "AccountStakingView: heading of the summary, like Total Value:",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staked:"
+          }
+        }
+      }
+    },
+    "tronStaking.unstake" : {
+      "comment" : "Staking action and sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstake"
+          }
+        }
+      }
+    },
+    "tronStaking.vote" : {
+      "comment" : "Staking action and sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vote"
+          }
+        }
+      }
+    },
+    "tronStaking.voteCount" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld vote"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld votes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tronStaking.votesNotAssigned" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld vote not assigned"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld votes not assigned"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tronStaking.votesRemaining" : {
+      "comment" : "Vote sheet: votes still to assign",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@votes@"
+          },
+          "substitutions" : {
+            "votes" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg vote"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg votes"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tronStaking.watchOnly" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch-only accounts can’t stake."
+          }
+        }
+      }
+    },
+    "tronStaking.withdraw" : {
+      "comment" : "Staking action and sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdraw"
           }
         }
       }

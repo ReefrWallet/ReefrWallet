@@ -53,7 +53,7 @@ final class FeeEstimationService: @unchecked Sendable {
             return try await estimateSuiFees(token: token, amount: amount, recipient: recipient, account: account)
 
         case .tron:
-            return Fees(tronFeeLimit: token.isNativeToken ? nil : "100000000")
+            return await estimateTronFees(token: token, amount: amount, recipient: recipient, account: account)
         }
     }
 
@@ -118,6 +118,41 @@ final class FeeEstimationService: @unchecked Sendable {
 // MARK: - Private helpers
 
 private extension FeeEstimationService {
+    /// What a Tron transfer costs after the account's bandwidth and energy, from the transaction
+    /// the node builds for it. Without an estimate (node unreachable) only the fee limit is returned.
+    func estimateTronFees(token: Token, amount: BigUInt, recipient: String, account: Account) async -> Fees {
+        let feeLimit = token.isNativeToken ? nil : "100000000"
+
+        guard
+            let client = try? clientProvider.tronClient(for: account),
+            let sender = try? TronAddress(string: account.address),
+            let receiver = try? TronAddress(string: recipient),
+            let unsigned = try? await TronTransactionBuilder(client: client).buildTransfer(
+                sender: sender,
+                recipient: receiver,
+                amount: amount,
+                token: token.isNativeToken ? nil : token.address,
+                options: []
+            ),
+            let transaction = try? TronRawTransaction(envelope: unsigned)
+        else {
+            return Fees(tronFeeLimit: feeLimit)
+        }
+
+        let startedAt = Date()
+
+        guard let fee = try? await client.estimateFee(for: transaction) else {
+            return Fees(tronFeeLimit: feeLimit)
+        }
+
+        if let resources = fee.resources {
+            await DI.inject(TronStakingPositionLoader.self)?
+                .record(resources: resources, startedAt: startedAt, account: account)
+        }
+
+        return Fees(nativeFeeReserve: String(fee.burnedSun), tronFee: fee, tronFeeLimit: feeLimit)
+    }
+
     /// Builds (and so simulates) the transfer, then reads back the gas the
     /// builder chose. The reserve is `max_gas × price`: the balance the node
     /// requires up front, so a max-amount send still passes validation.

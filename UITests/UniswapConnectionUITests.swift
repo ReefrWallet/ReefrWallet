@@ -15,7 +15,8 @@ final class UniswapConnectionUITests: XCTestCase {
         continueAfterFailure = false
 
         do {
-            let (_, response) = try await URLSession.shared.data(from: URL(string: Self.url)!) // swiftlint:disable:this force_unwrapping
+            // swiftlint:disable:next force_unwrapping
+            let (_, response) = try await URLSession.shared.data(from: URL(string: Self.url)!)
             try XCTSkipUnless((response as? HTTPURLResponse)?.statusCode == 200, "Uniswap is unreachable.")
         } catch is XCTSkip {
             throw XCTSkip("Uniswap is unreachable.")
@@ -62,7 +63,6 @@ final class UniswapConnectionUITests: XCTestCase {
         reefr?.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
 
         let ethereum = element("dapp-account-picker-ethereum")
-        let solana = element("dapp-account-picker-solana")
         XCTAssertTrue(ethereum.waitForExistence(timeout: 20), "Expected an Ethereum drop-down. \(webSummary())")
         element("dapp-approve-button").click()
 
@@ -71,12 +71,17 @@ final class UniswapConnectionUITests: XCTestCase {
             element("dapp-approve-button").waitForExistence(timeout: 20),
             "Expected Uniswap's follow-up Solana Connect Request. \(webSummary())"
         )
+
         element("dapp-approve-button").click()
 
         // Both chains are configured on the dapp, each with an account.
         let ethereumRow = element("dapp-account-picker-ethereum")
         let solanaRow = element("dapp-account-picker-solana")
-        XCTAssertTrue(ethereumRow.waitForExistence(timeout: 15), "Expected an Ethereum selector in the dapp's settings.")
+        XCTAssertTrue(
+            ethereumRow.waitForExistence(timeout: 15),
+            "Expected an Ethereum selector in the dapp's settings."
+        )
+
         XCTAssertTrue(solanaRow.exists, "Expected a Solana selector in the dapp's settings.")
         XCTAssertNotEqual(ethereumRow.value as? String, "Not connected")
         XCTAssertNotEqual(solanaRow.value as? String, "Not connected")
@@ -124,7 +129,9 @@ private extension UniswapConnectionUITests {
             let address = element("browser-address-field").frame
             let viewport = app.windows.allElementsBoundByIndex.map(\.frame).first { $0.contains(address) } ?? web.frame
             let candidates = web.descendants(matching: .any).matching(predicate).allElementsBoundByIndex
-            if let match = candidates.first(where: { $0.exists && viewport.contains($0.frame) && $0.elementType != .image }) {
+            let found = candidates.first { $0.exists && viewport.contains($0.frame) && $0.elementType != .image }
+
+            if let match = found {
                 return match
             }
 

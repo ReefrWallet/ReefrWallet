@@ -16,6 +16,7 @@ clean:
 distclean: clean
 	$(MAKE) -C WalletKit distclean
 	@rm -rf Derived *.xcodeproj *.xcworkspace
+	@rm -rf WalletKit/Derived WalletKit/*.xcodeproj WalletKit/*.xcworkspace
 
 test: ReefrWallet.xcworkspace
 	@echo "==> Running Swift tests"

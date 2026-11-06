@@ -18,6 +18,7 @@ actor BalancesService {
 
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private let databaseService: DatabaseService
+    private let injectedStakingRefresher: (any StakingRefreshing)?
 
     /// The debounce wait. Cancelled and restarted by every enqueue, but only
     /// while it is still sleeping — see ``startFlush()``.
@@ -30,11 +31,37 @@ actor BalancesService {
     private var queuedAccountRefreshes: [PersistentIdentifier: Account] = [:]
     private var queuedTokenUpdates: [BalanceUpdateKey: Account] = [:]
 
-    init(databaseService: DatabaseService? = nil) {
+    init(databaseService: DatabaseService? = nil, stakingRefresher: (any StakingRefreshing)? = nil) {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
+        injectedStakingRefresher = stakingRefresher
     }
 
-    func updateBalances(_ account: Account) async throws {
+    private var stakingRefresher: any StakingRefreshing {
+        injectedStakingRefresher ?? DI.injectOrFail(StakingStateService.self)
+    }
+
+    /// Re-reads `account`'s balances and, for staking chains, its staking position.
+    /// The two are independent: the position is read even if a balance request fails,
+    /// and a failed position read is only logged, so the balance error is the one thrown.
+    func updateBalances(_ account: Account, includeStaking: Bool = true) async throws {
+        var failure: (any Error)?
+
+        do {
+            try await updateAllBalances(account)
+        } catch {
+            failure = error
+        }
+
+        if includeStaking {
+            await refreshStaking(account)
+        }
+
+        if let failure {
+            throw failure
+        }
+    }
+
+    private func updateAllBalances(_ account: Account) async throws {
         let client = try clientProvider.makeClient(
             blockchain: account.blockchain,
             rpcURL: account.rpcURLOverride,
@@ -65,6 +92,19 @@ actor BalancesService {
                 account: account,
                 tokenAddresses: tokenAddresses
             )
+        }
+    }
+
+    /// Re-reads `account`'s staking position, if its chain has one. Failures are logged.
+    private func refreshStaking(_ account: Account) async {
+        guard account.blockchain.supportsStaking else {
+            return
+        }
+
+        do {
+            try await stakingRefresher.refresh(account)
+        } catch {
+            printError("\(account.name) staking: \(error)")
         }
     }
 
@@ -167,7 +207,7 @@ private extension BalancesService {
 
         for (accountId, account) in accountRefreshes {
             do {
-                try await updateBalances(account)
+                try await updateBalances(account, includeStaking: false)
             } catch {
                 printError("\(account.name): \(error)")
                 failedRefreshes[accountId] = account
@@ -185,6 +225,16 @@ private extension BalancesService {
                 printError("\(account.name): \(error)")
                 keys.forEach { failedTokenUpdates[$0] = account }
             }
+        }
+
+        // One staking read per account, whether or not its balance requests succeeded.
+        var stakingAccounts = accountRefreshes
+        for (key, account) in tokenUpdates {
+            stakingAccounts[key.accountId] = account
+        }
+
+        for account in stakingAccounts.values {
+            await refreshStaking(account)
         }
 
         guard !failedRefreshes.isEmpty || !failedTokenUpdates.isEmpty else {
@@ -494,4 +544,4 @@ private extension BalancesService {
 
         return order.compactMap { preferred[$0] }
     }
-}
+} // swiftlint:disable:this file_length

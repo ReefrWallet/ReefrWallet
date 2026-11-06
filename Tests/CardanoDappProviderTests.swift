@@ -119,6 +119,7 @@ struct CardanoDappProviderFixture {
             token: nil,
             options: []
         )
+
         let unsigned = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: envelope)
 
         return Data([0x84]) + unsigned.transactionBody + Data([0xA0, 0xF5, 0xF6])
@@ -206,7 +207,8 @@ struct CardanoDappProviderTests {
         #expect(try await call(fixture, "getExtensions") == .array([]))
 
         let change = try await call(fixture, "getChangeAddress")
-        let expected = try cardanoAddressBytes(fixture.descriptor.receiveAddress.string).map { String(format: "%02x", $0) }
+        let expected = try cardanoAddressBytes(fixture.descriptor.receiveAddress.string)
+            .map { String(format: "%02x", $0) }
             .joined()
         #expect(change == .string(expected))
 
@@ -242,6 +244,7 @@ struct CardanoDappProviderTests {
         let bad = await cardanoError {
             try await call(fixture, "getUsedAddresses", [.object(["page": .number(-1), "limit": .number(1)])])
         }
+
         guard case .invalidRequest = bad else {
             Issue.record("expected invalidRequest, got \(String(describing: bad))")
             return
@@ -269,7 +272,12 @@ struct CardanoDappProviderTests {
         let transaction = try await fixture.unsignedTransaction()
         let approving = CardanoRecordingApproving(result: .approved)
 
-        let result = try await call(fixture, "signTx", [.string(transaction.cardanoHex), .bool(false)], approving: approving)
+        let result = try await call(
+            fixture,
+            "signTx",
+            [.string(transaction.cardanoHex), .bool(false)],
+            approving: approving
+        )
 
         let witnesses = try #require(result.stringValue)
         #expect(witnesses.hasPrefix("a100")) // {0: [vkey witnesses]} only
@@ -357,7 +365,9 @@ struct CardanoDappProviderTests {
 
         #expect(result["signature"]?.stringValue?.hasPrefix("84") == true)
         #expect(result["key"]?.stringValue?.hasPrefix("a4") == true)
-        guard case let .signMessage(_, _, _, .cardanoCIP8(_, keyRole, payload)) = try #require(await approving.requests.first) else {
+        let request = try #require(await approving.requests.first)
+
+        guard case let .signMessage(_, _, _, .cardanoCIP8(_, keyRole, payload)) = request else {
             Issue.record("expected a CIP-8 approval")
             return
         }
@@ -373,7 +383,9 @@ struct CardanoDappProviderTests {
 
         _ = try await call(fixture, "signData", [.string(reward), .string("00")], approving: approving)
 
-        guard case let .signMessage(_, _, _, .cardanoCIP8(_, keyRole, _)) = try #require(await approving.requests.first) else {
+        let request = try #require(await approving.requests.first)
+
+        guard case let .signMessage(_, _, _, .cardanoCIP8(_, keyRole, _)) = request else {
             Issue.record("expected a CIP-8 approval")
             return
         }
@@ -467,7 +479,10 @@ struct DappApprovalIntegrityTests {
         let transaction = try await fixture.unsignedTransaction()
         let other = try await fixture.makeOtherAccount()
         let session = fixture.session
-        let approving = CardanoRecordingApproving(result: .approved, whileOpen: { await session.setActiveAccount(other) })
+        let approving = CardanoRecordingApproving(
+            result: .approved,
+            whileOpen: { await session.setActiveAccount(other) }
+        )
 
         let error = await cardanoError {
             try await fixture.provider.handle(
@@ -504,7 +519,10 @@ struct DappApprovalIntegrityTests {
         let fixture = try await CardanoDappProviderFixture.make()
         try await fixture.enable()
         let session = fixture.session
-        let approving = CardanoRecordingApproving(result: .approved, whileOpen: { await session.revokePermission(.cardano) })
+        let approving = CardanoRecordingApproving(
+            result: .approved,
+            whileOpen: { await session.revokePermission(.cardano) }
+        )
 
         let error = await cardanoError {
             try await fixture.provider.handle(
@@ -533,4 +551,4 @@ struct DappApprovalIntegrityTests {
             try await session.authorize(.cardano, origin: fixture.origin, account: fixture.account)
         }
     }
-}
+} // swiftlint:disable:this file_length

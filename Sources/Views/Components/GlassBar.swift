@@ -8,7 +8,9 @@
 
 #if os(iOS)
 
-private struct GlassBar<Content: View>: View {
+import SwiftUI
+
+struct GlassBar<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -22,15 +24,27 @@ private struct GlassBar<Content: View>: View {
     }
 }
 
-private extension View {
+extension View {
+    /// Nonisolated, as a modifier, so animation callbacks that SwiftUI runs outside the main actor
+    /// can use it; the glass itself is applied in the modifier's main-actor `body`.
+    nonisolated func glassCapsule(id: String, in namespace: Namespace.ID) -> some View {
+        modifier(GlassCapsule(id: id, namespace: namespace))
+    }
+}
+
+private struct GlassCapsule: ViewModifier {
+    let id: String
+    let namespace: Namespace.ID
+
     @ViewBuilder
-    func glassCapsule(id: String, in namespace: Namespace.ID) -> some View {
+    func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            glassEffect(.regular.interactive(), in: .capsule)
+            content
+                .glassEffect(.regular.interactive(), in: .capsule)
                 .glassEffectID(id, in: namespace)
                 .glassEffectTransition(.matchedGeometry)
         } else {
-            background(.regularMaterial, in: .capsule)
+            content.background(.regularMaterial, in: .capsule)
         }
     }
 }

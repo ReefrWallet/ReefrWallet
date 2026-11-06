@@ -6,6 +6,8 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import WalletKit
+
 struct Fees: Equatable {
     /// Aptos octas per gas unit.
     let aptosGasUnitPrice: String?
@@ -32,6 +34,9 @@ struct Fees: Equatable {
     let suiGasBudget: String?
     let suiGasPrice: String?
 
+    /// What a Tron transaction costs, and how much of it the account's staked and free
+    /// resources cover.
+    let tronFee: TronFeeEstimate?
     /// Maximum SUN a TRC-20 call may spend. This does not affect validator priority.
     let tronFeeLimit: String?
 
@@ -53,6 +58,7 @@ struct Fees: Equatable {
         solanaPriorityFee: String? = nil,
         suiGasBudget: String? = nil,
         suiGasPrice: String? = nil,
+        tronFee: TronFeeEstimate? = nil,
         tronFeeLimit: String? = nil
     ) {
         self.aptosGasUnitPrice = aptosGasUnitPrice
@@ -68,6 +74,7 @@ struct Fees: Equatable {
         self.solanaPriorityFee = solanaPriorityFee
         self.suiGasBudget = suiGasBudget
         self.suiGasPrice = suiGasPrice
+        self.tronFee = tronFee
         self.tronFeeLimit = tronFeeLimit
     }
 }

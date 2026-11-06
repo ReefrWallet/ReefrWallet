@@ -18,8 +18,9 @@ struct ConnectedDappsSidebarSection: View {
     let title: LocalizedStringResource
     var isEditing = false
 
-    @AppStorage("connectedDappsExpanded") private var isExpanded = true
-    @State private var isHeaderHovered = false
+    /// Mirrors the stored value; `@AppStorage` updates arrive outside the toggle's animation.
+    @State private var isExpanded: Bool
+    @AppStorage("connectedDappsExpanded") private var storedExpanded = true
 
     @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
@@ -38,6 +39,8 @@ struct ConnectedDappsSidebarSection: View {
     init(_ title: LocalizedStringResource, isEditing: Bool = false) {
         self.title = title
         self.isEditing = isEditing
+        let isExpanded = UserDefaults.standard.object(forKey: "connectedDappsExpanded") as? Bool ?? true
+        _isExpanded = State(initialValue: isExpanded)
     }
 
     /// iPhone rows never show the selection highlight, so never switch to white text.
@@ -54,7 +57,18 @@ struct ConnectedDappsSidebarSection: View {
     }
 
     var body: some View {
-        Section(isExpanded: $isExpanded) {
+        SidebarSection(isExpanded: $isExpanded) {
+            SidebarAddButton(
+                accessibilityLabel: .commonAddDapp,
+                accessibilityId: "sidebar-add-dapp-button",
+                systemImage: "link.badge.plus",
+                trailingPadding: 0
+            ) {
+                presentSheet?(.addBrowserDapp)
+            }
+            .disabled(accounts.isEmpty)
+            .sheetSource(PresentedSheet.addBrowserDapp.id)
+        } content: {
             ForEach(browserDapps) { dapp in
                 HStack(spacing: isPhone ? 12 : 8) {
                     if isPhone, isEditing {
@@ -95,7 +109,7 @@ struct ConnectedDappsSidebarSection: View {
             }
 
             if let hub = walletConnectHubs.first, !(isPhone && isEditing) {
-                HStack(spacing: 8) {
+                HStack(spacing: isPhone ? 12 : 8) {
                     Image("walletConnect16")
                         .style(foreground: .sidebarControl)
                         .frame(width: 20, height: 20)
@@ -108,14 +122,16 @@ struct ConnectedDappsSidebarSection: View {
                     if !walletConnect.sessions.isEmpty {
                         Text("\(walletConnect.sessions.count)")
                             .style(
-                                .small,
-                                foreground: isHighlighted(hub) ? .white : .sidebarSecondaryLabel
+                                isPhone ? .large : .small,
+                                foreground: isPhone
+                                    ? .phoneSecondaryLabel
+                                    : isHighlighted(hub) ? .white : .sidebarSecondaryLabel
                             )
                     }
 
                     if isPhone {
                         Image(systemName: "chevron.right")
-                            .style(.smallIcon, foreground: .sidebarSecondaryLabel)
+                            .style(.smallIcon, foreground: .phoneSecondaryLabel)
                     }
                 }
                 .tag(hub.id)
@@ -125,27 +141,14 @@ struct ConnectedDappsSidebarSection: View {
                 .opacity(accounts.isEmpty ? 0.4 : 1)
                 .accessibilityIdentifier("sidebar-walletconnect")
             }
-        } header: {
-            HStack {
-                Text(title)
-                    .style(isPhone ? .title : nil, foreground: isPhone ? .phoneLabel : .sidebarLabel)
-
-                Spacer()
-
-                if !isPhone {
-                    SidebarAddButton(
-                        accessibilityLabel: .commonAddDapp,
-                        accessibilityId: "sidebar-add-dapp-button",
-                        trailingPadding: SidebarAddButton.headerTrailingPadding
-                    ) {
-                        presentSheet?(.addBrowserDapp)
-                    }
-                    .disabled(accounts.isEmpty)
-                    .opacity(isHeaderHovered ? 1 : 0)
-                    .sheetSource(PresentedSheet.addBrowserDapp.id)
-                }
-            }
-            .onHover { isHeaderHovered = $0 }
+        } title: {
+            Text(title)
+                .style(isPhone ? .title : nil, foreground: isPhone ? .phoneLabel : .sidebarLabel)
+        } trailing: {
+            EmptyView()
+        }
+        .onChange(of: isExpanded) {
+            storedExpanded = isExpanded
         }
         .task {
             store.ensureWalletConnectHub()

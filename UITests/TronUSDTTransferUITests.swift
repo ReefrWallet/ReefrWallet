@@ -32,6 +32,7 @@ final class TronUSDTTransferUITests: XCTestCase {
 
             return try TronAddress(publicKey: publicKey).string
         }
+
         senderAddress = addresses[0]
         recipientAddress = addresses[1]
 
@@ -72,7 +73,9 @@ final class TronUSDTTransferUITests: XCTestCase {
         XCTAssertTrue(firstAccount.waitForExistence(timeout: 20))
         firstAccount.click()
 
-        let tab = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Token Balances")).firstMatch
+        let tab = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Token Balances"))
+            .firstMatch
         XCTAssertTrue(tab.waitForExistence(timeout: 10))
         tab.click()
 
@@ -101,7 +104,11 @@ final class TronUSDTTransferUITests: XCTestCase {
         guard let usdtRow else {
             let senderBalance = (try? await usdtBalance(of: senderAddress)) ?? 0
             let rows = app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@ OR identifier BEGINSWITH %@", "balance-", "balances-"))
+                .matching(NSPredicate(
+                    format: "identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
+                    "balance-",
+                    "balances-"
+                ))
                 .allElementsBoundByIndex
                 .map { "\($0.identifier)=\($0.text)" }
             XCTFail("Expected a visible USDT balance row. Rows: \(rows). Sender \(senderAddress) USDT on-chain: \(senderBalance); recipient: \(balanceBefore)")

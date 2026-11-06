@@ -36,7 +36,11 @@ final class DappConnectionUITests: XCTestCase {
     func testNothingIsAskedUntilTheDappsConnectButtonIsPressed() {
         openFixture()
 
-        XCTAssertTrue(waitForWebText("silent-done", timeout: 10), "Expected the page's silent Solana connect to finish.")
+        XCTAssertTrue(
+            waitForWebText("silent-done", timeout: 10),
+            "Expected the page's silent Solana connect to finish."
+        )
+
         XCTAssertTrue(waitForWebText("silent-refused", timeout: 2), "A silent connect must fail instead of prompting.")
         XCTAssertFalse(
             element("dapp-request-title").waitForExistence(timeout: 3),
@@ -60,12 +64,19 @@ final class DappConnectionUITests: XCTestCase {
         element("dapp-approve-button").click()
 
         XCTAssertTrue(waitForWebText("0x", timeout: 10), "Expected the page to receive an Ethereum account.")
-        XCTAssertTrue(waitForWebText("sol-refused", timeout: 10), "Expected the unconnected Solana request to be refused.")
+        XCTAssertTrue(
+            waitForWebText("sol-refused", timeout: 10),
+            "Expected the unconnected Solana request to be refused."
+        )
 
         // The dapp's entry offers a selector for each chain, whether or not it is connected.
         let ethereumRow = element("dapp-account-picker-ethereum")
         let solanaRow = element("dapp-account-picker-solana")
-        XCTAssertTrue(ethereumRow.waitForExistence(timeout: 10), "Expected an Ethereum selector in the dapp's settings.")
+        XCTAssertTrue(
+            ethereumRow.waitForExistence(timeout: 10),
+            "Expected an Ethereum selector in the dapp's settings."
+        )
+
         XCTAssertTrue(solanaRow.exists, "Expected a Solana selector in the dapp's settings.")
         XCTAssertEqual(solanaRow.value as? String, "Not connected")
         XCTAssertNotEqual(ethereumRow.value as? String, "Not connected")
@@ -176,7 +187,9 @@ private let multiChainFixtureHTML = """
     window.addEventListener('wallet-standard:register-wallet', (event) => event.detail(api));
     window.dispatchEvent(new CustomEvent('wallet-standard:app-ready', { detail: api }));
 
-    const solanaWallet = () => wallets.find((wallet) => wallet.features['standard:connect'] && wallet.chains.some((c) => c.startsWith('solana:')));
+    const solanaWallet = () => wallets.find(
+      (wallet) => wallet.features['standard:connect'] && wallet.chains.some((c) => c.startsWith('solana:'))
+    );
 
     async function waitForSolana() {
       for (let attempt = 0; attempt < 40 && !solanaWallet(); attempt++) {

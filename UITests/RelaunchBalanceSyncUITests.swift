@@ -526,4 +526,4 @@ private extension XCUIApplication {
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch
     }
-}
+} // swiftlint:disable:this file_length

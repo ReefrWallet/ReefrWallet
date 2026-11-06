@@ -168,6 +168,7 @@ struct SolanaDappProviderTests {
         let error = await #expect(throws: DappError.self) {
             try await fixture.provider.handle(method: "signMessage", params: params, context: context)
         }
+
         guard case .unauthorized = error else {
             Issue.record("expected unauthorized, got \(String(describing: error))")
             return

@@ -49,6 +49,7 @@ extension DappTransactionPreview {
         case let .tron(preview):
             return Fees(
                 nativeFeeReserve: preview.fee.map { String($0.burnedSun) },
+                tronFee: preview.fee,
                 tronFeeLimit: preview.transaction.feeLimit.map(String.init)
             )
         }

@@ -150,7 +150,11 @@ struct TokenPriceServiceTests {
         }
 
         let tokens = [
-            Token(address: nil, blockchain: .evm(.ethereum(.mainnet)), tokenInfo: Blockchain.evm(.ethereum(.mainnet)).nativeToken),
+            Token(
+                address: nil,
+                blockchain: .evm(.ethereum(.mainnet)),
+                tokenInfo: Blockchain.evm(.ethereum(.mainnet)).nativeToken
+            ),
             Token(address: nil, blockchain: .sui(.mainnet), tokenInfo: Blockchain.sui(.mainnet).nativeToken),
             erc20("0xA"),
             erc20("0xB"),

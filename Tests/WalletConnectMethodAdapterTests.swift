@@ -22,11 +22,23 @@ struct WalletConnectMethodAdapterTests {
         )
 
         let keyStoreId = KeyStoreModel(
-            .watchOnly, deviceId: nil, name: "t", mnemonicEntropy: nil, mnemonicWordlist: nil, transport: nil, vendor: nil
+            .watchOnly,
+            deviceId: nil,
+            name: "t",
+            mnemonicEntropy: nil,
+            mnemonicWordlist: nil,
+            transport: nil,
+            vendor: nil
         ).persistentModelID
 
         _ = container
-        return ReefrWallet.Account(address: address, blockchain: blockchain, derivationPath: nil, keyStoreId: keyStoreId, name: "a")
+        return ReefrWallet.Account(
+            address: address,
+            blockchain: blockchain,
+            derivationPath: nil,
+            keyStoreId: keyStoreId,
+            name: "a"
+        )
     }
 
     @Test

@@ -70,6 +70,9 @@ final class AccountModel {
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
 
+    @Relationship(deleteRule: .cascade, inverse: \StakingModel.account)
+    var staking: StakingModel?
+
     @Relationship(deleteRule: .cascade, inverse: \WalletTransactionModel.account)
     var transactions: [WalletTransactionModel]
 
@@ -98,6 +101,7 @@ final class AccountModel {
 
         self.address = address
         self.balances = []
+        self.staking = nil
         self.transactions = []
         self.transactionSyncState = nil
         self.blockchain = blockchain
