@@ -176,7 +176,7 @@ private extension TronStakingView {
 private extension TronStakingView {
     /// `Rewards: 0.75 TRX (0.24 US$ • 3.31% APR)`, with whichever of the parts is known.
     func rewardsLine(_ state: TronStakingState) -> String {
-        let usd = model.usd(sun: state.rewards).map { $0.formatted(.currency(code: "USD")) }
+        let usd = model.usd(sun: state.rewards).map { "\($0.formattedAbbreviated()) US$" }
         let rate = model.rewardsRate.map {
             String(localized: .tronStakingApr(($0 / 100).formatted(.percent.precision(.fractionLength(0...2)))))
         }

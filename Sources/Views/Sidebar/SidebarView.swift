@@ -475,7 +475,7 @@ private extension SidebarView {
             makeKeyStoreTitle(keyStore)
         } trailing: {
             if !keyStore.isWatchOnly, !(expansionOverrides[keyStore.id] ?? !keyStore.isCollapsed) {
-                Text(totalValue(keyStore).formatted(.currency(code: "USD")))
+                Text("\(totalValue(keyStore).formattedAbbreviated()) US$")
                     .style(
                         isPhone ? .large : .small,
                         foreground: isPhone ? .phoneSecondaryLabel : .sidebarSecondaryLabel

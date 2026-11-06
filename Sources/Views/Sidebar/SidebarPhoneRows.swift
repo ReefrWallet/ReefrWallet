@@ -60,7 +60,7 @@ struct KeyStoreAccountRow: View {
             Spacer()
 
             if !isEditing {
-                Text(account.usdValue().formatted(.currency(code: "USD")))
+                Text("\(account.usdValue().formattedAbbreviated()) US$")
                     .style(.large, foreground: .phoneSecondaryLabel)
 
                 Image(systemName: "chevron.right")

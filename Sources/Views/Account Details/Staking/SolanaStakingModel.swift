@@ -268,7 +268,7 @@ final class SolanaStakingModel {
 
         func withDetails(_ line: String, lamports: UInt64?) -> String {
             let usd = lamports.flatMap { lamports in
-                solPrice.map { (SolanaStakingFormat.decimalSol(lamports) * $0).formatted(.currency(code: "USD")) }
+                solPrice.map { "\((SolanaStakingFormat.decimalSol(lamports) * $0).formattedAbbreviated()) US$" }
             }
 
             let parts = [usd, apy].compactMap { $0 }.joined(separator: " \(String.dot) ")
@@ -316,7 +316,7 @@ final class SolanaStakingModel {
     func usdText(lamports: UInt64) -> String? {
         solPrice.map {
             let usd = SolanaStakingFormat.decimalSol(lamports) * $0
-            return String(localized: .tronStakingRewardsUsd(usd.formatted(.currency(code: "USD"))))
+            return String(localized: .tronStakingRewardsUsd("\(usd.formattedAbbreviated()) US$"))
         }
     }
 

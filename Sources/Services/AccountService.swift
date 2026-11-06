@@ -106,6 +106,7 @@ final class AccountService {
     ///   - bitcoinBackend: The Bitcoin indexing backend.
     ///   - watchOnlyAddress: The address to watch; required for watch-only
     ///     key stores, ignored otherwise.
+    ///   - accountName: A name to use instead of the numbered default.
     ///   - derivationPath: The account path; must match the blockchain's
     ///     shape, see ``DerivationPath/validate(for:curve:scriptType:)``.
     ///     Defaults to the next account's path. Unused for watch-only.
@@ -128,6 +129,7 @@ final class AccountService {
         bitcoinScriptType: BitcoinScriptType? = nil,
         bitcoinBackend: BitcoinBackendKind? = nil,
         watchOnlyAddress: String? = nil,
+        accountName nameOverride: String? = nil,
         derivationPath: DerivationPath? = nil
     ) async throws -> Account {
         let effectiveSignatureScheme = try makeSignatureScheme(blockchain: blockchain, requested: signatureScheme)
@@ -241,7 +243,9 @@ final class AccountService {
         // A path that isn't a default one is named after itself; watch-only
         // accounts have no path and are numbered by count.
         let accountName: String
-        if let path {
+        if let nameOverride {
+            accountName = nameOverride
+        } else if let path {
             let index = defaultAccountIndex(
                 of: path,
                 for: blockchain,

@@ -186,8 +186,14 @@ extension AccountDetailsView: View {
         switch tab {
         case .approvals:
             AccountApprovalsView(account, canSign: canSign, searchText: searchText)
+
         case .balances:
-            AccountBalancesView(balances: visibleBalances, selection: $selection)
+            AccountBalancesView(
+                balances: visibleBalances,
+                stakedUSDValue: stakingRows.first?.stakedUSDValue ?? 0,
+                selection: $selection
+            )
+
         case .staking:
             if let staking {
                 AccountStakingView(model: staking)

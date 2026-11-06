@@ -188,13 +188,13 @@ extension AccountModel: Comparable {
 }
 
 extension AccountModel {
-    /// Sums every balance belonging to the account, faulting in each
+    /// Sums every balance belonging to the account, plus its staked amount, faulting in each
     /// balance's `TokenModel` relationship along the way. A method, not a
     /// property, so call sites don't treat it as a cheap accessor — calling
     /// it once per balance in the account (instead of once per account)
     /// turns an O(N) sum into an O(N²) fault storm.
     func usdValue() -> Decimal {
-        balances.reduce(into: 0) { partialResult, balance in
+        balances.reduce(into: staking?.stakedUSDValue ?? 0) { partialResult, balance in
             partialResult += balance.usdValue
         }
     }

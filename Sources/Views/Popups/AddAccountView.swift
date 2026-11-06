@@ -239,6 +239,8 @@ private extension AddAccountView {
                         .disabled(selectedNetwork == nil)
                         .padding(.vertical)
                         .accessibilityIdentifier("add-account-watch-address-field")
+                } footer: {
+                    watchAddressNote
                 }
             }
         }
@@ -320,6 +322,8 @@ private extension AddAccountView {
                         isEnabled: selectedNetwork != nil
                     )
                     .accessibilityIdentifier("add-account-watch-address-field")
+                } footer: {
+                    watchAddressNote
                 }
             }
         }
@@ -327,6 +331,14 @@ private extension AddAccountView {
         .scrollDismissesKeyboard(.immediately)
         .onTouchOutsideTextInput {
             focusedField = nil
+        }
+    }
+
+    /// Tells EVM users the field also takes an ENS name.
+    @ViewBuilder
+    var watchAddressNote: some View {
+        if case .evm = selectedBlockchain {
+            Text(.addAccountWatchAddressNote)
         }
     }
 
@@ -513,7 +525,7 @@ private extension AddAccountView {
             return true
         }
 
-        if keyStore.isWatchOnly, !accountService.isValidAddress(trimmedAddress, for: selectedNetwork) {
+        if keyStore.isWatchOnly, !isWatchAddressAcceptable(for: selectedNetwork) {
             return true
         }
 
@@ -523,6 +535,19 @@ private extension AddAccountView {
 
         if derivationPathOverride != nil, !isDerivationPathValid {
             return true
+        }
+
+        return false
+    }
+
+    /// An address valid for `network`, or on EVM an ENS name, resolved when the account is added.
+    func isWatchAddressAcceptable(for network: Blockchain) -> Bool {
+        if accountService.isValidAddress(trimmedAddress, for: network) {
+            return true
+        }
+
+        if case .evm = network {
+            return ENSResolver.isName(trimmedAddress)
         }
 
         return false
@@ -579,9 +604,25 @@ private extension AddAccountView {
         return .addAccountWatchAddress
     }
 
+    func resolveENSName(_ name: String) async throws -> String {
+        do {
+            return try await ENSResolver(clientProvider: DI.injectOrFail(BlockchainClientProvider.self))
+                .resolve(name)
+                .string
+        } catch ReefrError.notFound {
+            throw FieldError(message: String(localized: .addAccountEnsNotFound))
+        }
+    }
+
     @MainActor
     func addAccount(_ blockchain: Blockchain, signatureScheme: Curve?) async throws {
-        let watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
+        var watchOnlyAddress = keyStore.isWatchOnly ? trimmedAddress : nil
+        var ensName: String?
+        if case .evm = blockchain, let name = watchOnlyAddress, ENSResolver.isName(name) {
+            watchOnlyAddress = try await resolveENSName(name)
+            ensName = name.lowercased()
+        }
+
         let isBitcoin = if case .bitcoin = blockchain { true } else { false }
 
         let account = try await accountService.makeAccount(
@@ -592,6 +633,7 @@ private extension AddAccountView {
             bitcoinScriptType: isBitcoin ? selectedBitcoinScriptType : nil,
             bitcoinBackend: isBitcoin ? selectedBitcoinBackend : nil,
             watchOnlyAddress: watchOnlyAddress,
+            accountName: ensName,
             derivationPath: derivationPathOverride == nil ? nextDerivationPath : try parsedCustomDerivationPath()
         )
 

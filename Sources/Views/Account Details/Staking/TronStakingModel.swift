@@ -172,7 +172,7 @@ final class TronStakingModel {
 
     /// `≈ $0.22`, when the TRX price is known.
     func usdText(sun: UInt64) -> String? {
-        usd(sun: sun).map { String(localized: .tronStakingRewardsUsd($0.formatted(.currency(code: "USD")))) }
+        usd(sun: sun).map { String(localized: .tronStakingRewardsUsd("\($0.formattedAbbreviated()) US$")) }
     }
 
     /// USD value of `sun`, when the TRX price is known.

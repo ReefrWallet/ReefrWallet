@@ -19,7 +19,7 @@ struct SidebarAccountRow: View {
 
             Spacer()
 
-            Text(account.usdValue().formatted(.currency(code: "USD").precision(.fractionLength(0))))
+            Text("\(account.usdValue().formattedAbbreviated(fractionLength: 0)) US$")
                 .style(.small, foreground: isSelected() ? .white : .sidebarSecondaryLabel)
         }
     }

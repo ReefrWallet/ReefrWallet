@@ -11,12 +11,13 @@ import SwiftUI
 /// Mail-style list of token balances: name and amount, then unit price and USD value.
 struct AccountBalancesView: View {
     let balances: [Balance]
+    var stakedUSDValue: Decimal = 0
 
     @Binding var selection: String?
 
     var body: some View {
         #if os(macOS)
-        AccountBalancesTable(balances: balances, selection: $selection)
+        AccountBalancesTable(balances: balances, stakedUSDValue: stakedUSDValue, selection: $selection)
         #else
         // `balances` is cached by AccountDetailsView so this view does not re-fault SwiftData
         // relationships or redo BigUInt/Decimal math on selection changes.
@@ -78,7 +79,7 @@ private struct BalanceRow: View {
 
                         Spacer()
 
-                        Text(entry.usdValue.formatted(.currency(code: "USD")))
+                        Text("\(entry.usdValue.formattedAbbreviated()) US$")
                             .lineLimit(1)
                     }
                     .style(.callout, foreground: entry.isIncludedInBalance ? .secondary : .secondary.opacity(0.6))

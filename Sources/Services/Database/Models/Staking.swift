@@ -469,6 +469,12 @@ extension Staking {
 }
 
 extension StakingModel {
+    /// USD value of the staked amount at the token's last quote.
+    var stakedUSDValue: Decimal {
+        let amount = Decimal(sign: .plus, exponent: -Int(token.decimalsCount), significand: Decimal(BigUInt(serializedStaked)))
+        return amount * (token.usdPrice ?? 0)
+    }
+
     func update(from staking: Staking) throws {
         apr = staking.apr
         revision = staking.revision

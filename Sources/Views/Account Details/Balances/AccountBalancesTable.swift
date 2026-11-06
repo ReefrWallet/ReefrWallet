@@ -12,6 +12,7 @@ import SwiftUI
 /// macOS token balances table with the hidden-balances disclosure and details bar.
 struct AccountBalancesTable: View {
     let balances: [Balance]
+    var stakedUSDValue: Decimal = 0
 
     @Binding var selection: String?
 
@@ -37,7 +38,7 @@ struct AccountBalancesTable: View {
                         .style(.mediumHeader, foreground: .primary)
                         .accessibilityIdentifier("account-total-value-label")
 
-                    Text(usdValue(balances).formatted(.currency(code: "USD")))
+                    Text("\((usdValue(balances) + stakedUSDValue).formattedAbbreviated()) US$")
                         .style(.mediumHeader, foreground: .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -163,7 +164,7 @@ private extension AccountBalancesTable {
 
             Text(verbatim: .dot)
 
-            Text(balance.usdValue?.formatted(.currency(code: "USD")) ?? "")
+            Text(balance.usdValue.map { "\($0.formattedAbbreviated()) US$" } ?? "")
 
             if balance.token.isNativeToken != true, let address = balance.token.address {
                 Text(verbatim: .dot)

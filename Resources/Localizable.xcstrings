@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "?" : {
+
+    },
     "%@" : {
 
     },
@@ -14,10 +17,7 @@
         }
       }
     },
-    "?" : {
-
-    },
-    "Reefr Wallet" : {
+    "%@ US$" : {
 
     },
     "accountDetails.addressed" : {
@@ -224,18 +224,6 @@
         }
       }
     },
-    "accountDetails.toMyAccounts" : {
-      "comment" : "AccountFiltersView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "To My Accounts"
-          }
-        }
-      }
-    },
     "accountDetails.tokenBalances" : {
       "comment" : "AccountDetailsView",
       "extractionState" : "manual",
@@ -256,6 +244,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tokens"
+          }
+        }
+      }
+    },
+    "accountDetails.toMyAccounts" : {
+      "comment" : "AccountFiltersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To My Accounts"
           }
         }
       }
@@ -404,6 +404,18 @@
         }
       }
     },
+    "addAccount.ensNotFound" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No address found for this ENS name."
+          }
+        }
+      }
+    },
     "addAccount.esplora" : {
       "comment" : "AddAccountView",
       "extractionState" : "manual",
@@ -520,6 +532,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Watch Address"
+          }
+        }
+      }
+    },
+    "addAccount.watchAddressNote" : {
+      "comment" : "AddAccountView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an address or an ENS name, such as vitalik.eth."
           }
         }
       }
@@ -2099,6 +2123,9 @@
         }
       }
     },
+    "Reefr Wallet" : {
+
+    },
     "reefrError.alreadyExists" : {
       "comment" : "ReefrError",
       "extractionState" : "manual",
@@ -2267,18 +2294,6 @@
         }
       }
     },
-    "settings.coinGeckoKeyFooter" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used as the token-price fallback when an on-chain source has no quote."
-          }
-        }
-      }
-    },
     "settings.coingeckoDemoApiKey" : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
@@ -2287,6 +2302,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "CoinGecko Demo API Key"
+          }
+        }
+      }
+    },
+    "settings.coinGeckoKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used as the token-price fallback when an on-chain source has no quote."
           }
         }
       }
@@ -2423,18 +2450,6 @@
         }
       }
     },
-    "settings.tronGridKeyFooter" : {
-      "comment" : "SettingsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used for TronGrid account data, history, and transaction requests."
-          }
-        }
-      }
-    },
     "settings.trongridApiKey" : {
       "comment" : "SettingsView",
       "extractionState" : "manual",
@@ -2443,6 +2458,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TronGrid API Key"
+          }
+        }
+      }
+    },
+    "settings.tronGridKeyFooter" : {
+      "comment" : "SettingsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for TronGrid account data, history, and transaction requests."
           }
         }
       }
@@ -3107,42 +3134,6 @@
         }
       }
     },
-    "solanaStaking.noValidator" : {
-      "comment" : "Stake account with no delegation",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No validator"
-          }
-        }
-      }
-    },
-    "solanaStaking.noValidators" : {
-      "comment" : "Validator picker, nothing found",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No validators found."
-          }
-        }
-      }
-    },
-    "solanaStaking.notStakedNote" : {
-      "comment" : "Staking tab, nothing staked",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stake SOL to earn rewards. Rewards compound into your stake each epoch, and you keep control of it."
-          }
-        }
-      }
-    },
     "solanaStaking.note.cooldown" : {
       "comment" : "Unstake sheet footnote",
       "extractionState" : "manual",
@@ -3319,6 +3310,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not yet confirmed. Staking paused."
+          }
+        }
+      }
+    },
+    "solanaStaking.notStakedNote" : {
+      "comment" : "Staking tab, nothing staked",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake SOL to earn rewards. Rewards compound into your stake each epoch, and you keep control of it."
+          }
+        }
+      }
+    },
+    "solanaStaking.noValidator" : {
+      "comment" : "Stake account with no delegation",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No validator"
+          }
+        }
+      }
+    },
+    "solanaStaking.noValidators" : {
+      "comment" : "Validator picker, nothing found",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No validators found."
           }
         }
       }
@@ -5027,6 +5054,18 @@
         }
       }
     },
+    "tronStaking.error.notSupportedOnHardware" : {
+      "comment" : "TronStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your hardware wallet can’t sign this transaction."
+          }
+        }
+      }
+    },
     "tronStaking.error.noUnstaking" : {
       "comment" : "TronStakingError",
       "extractionState" : "manual",
@@ -5059,18 +5098,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "There is no unstaked TRX ready to withdraw."
-          }
-        }
-      }
-    },
-    "tronStaking.error.notSupportedOnHardware" : {
-      "comment" : "TronStakingError",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your hardware wallet can’t sign this transaction."
           }
         }
       }
@@ -5195,18 +5222,6 @@
         }
       }
     },
-    "tronStaking.notStakedNote" : {
-      "comment" : "AccountStakingView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stake TRX to get Bandwidth or Energy, then vote for representatives to earn rewards. Unstaking takes 14 days."
-          }
-        }
-      }
-    },
     "tronStaking.noteCancel" : {
       "comment" : "Cancel Unstaking sheet footnote",
       "extractionState" : "manual",
@@ -5287,6 +5302,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Moves all TRX past the 14-day wait to your balance."
+          }
+        }
+      }
+    },
+    "tronStaking.notStakedNote" : {
+      "comment" : "AccountStakingView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake TRX to get Bandwidth or Energy, then vote for representatives to earn rewards. Unstaking takes 14 days."
           }
         }
       }

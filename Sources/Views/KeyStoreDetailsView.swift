@@ -55,7 +55,7 @@ private extension KeyStoreDetailsView {
 
                         Spacer()
 
-                        Text(row.usdValue.formatted(.currency(code: "USD")))
+                        Text("\(row.usdValue.formattedAbbreviated()) US$")
                             .style(isPhone ? .large : .medium, foreground: .secondary)
                     }
                 }
@@ -69,7 +69,7 @@ private extension KeyStoreDetailsView {
     }
 
     var formattedTotalValue: String {
-        accountsUSDValue.formatted(.currency(code: "USD"))
+        "\(accountsUSDValue.formattedAbbreviated()) US$"
     }
 
     var accountsUSDValue: Decimal {

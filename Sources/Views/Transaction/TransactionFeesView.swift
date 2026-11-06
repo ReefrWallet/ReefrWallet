@@ -312,7 +312,7 @@ private extension TransactionFeesView {
         )
 
         let cost = decimalFee * nativeTokenPriceUSD
-        return cost.formatted(.currency(code: "USD"))
+        return "\(cost.formattedAbbreviated()) US$"
     }
 
     var validatedFees: Fees? {
