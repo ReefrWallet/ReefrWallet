@@ -99,7 +99,7 @@ enum TronStakingError: LocalizedError, Equatable {
 /// validates and builds stake, unstake, vote, claim, withdraw and cancel
 /// transactions on the node, then signs and broadcasts them through
 /// ``TransactionService`` (so hardware prompts and history sync behave as for
-/// a transfer). State is read live and not stored.
+/// a transfer).
 final class TronStakingService: @unchecked Sendable {
     /// Trezor's per-transaction vote limit, applied to every key.
     static let maxRepresentatives = 9
@@ -364,19 +364,6 @@ extension Sequence where Element == UInt64 {
         reduce(0) { total, value in
             let (sum, overflow) = total.addingReportingOverflow(value)
             return overflow ? .max : sum
-        }
-    }
-}
-
-// MARK: - Blockchain
-
-extension Blockchain {
-    /// Chains with Stake 2.0: Tron.
-    var supportsStaking: Bool {
-        if case .tron = self {
-            true
-        } else {
-            false
         }
     }
 }

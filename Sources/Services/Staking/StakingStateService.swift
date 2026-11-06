@@ -52,7 +52,10 @@ actor StakingStateService: StakingRefreshing {
 
     /// - Parameter loaders: One per chain family; defaults to the ones of the DI container.
     init(loaders: [any StakingPositionLoading]? = nil) {
-        self.loaders = loaders ?? [DI.injectOrFail(TronStakingPositionLoader.self)]
+        self.loaders = loaders ?? [
+            DI.injectOrFail(SolanaStakingPositionLoader.self),
+            DI.injectOrFail(TronStakingPositionLoader.self)
+        ]
     }
 
     /// Re-reads `account`'s position and stores it. Callers arriving while a read is in

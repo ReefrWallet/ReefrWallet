@@ -14,6 +14,7 @@ struct AccountApprovalsView: View {
     let account: Account
     /// Revoking signs, so watch-only accounts see the approvals without the means to select them.
     let canSign: Bool
+    let searchText: String
 
     @State private var errorMessage: String?
     @State private var isRevoking = false
@@ -24,13 +25,14 @@ struct AccountApprovalsView: View {
 
     private let service = DI.injectOrFail(ApprovalService.self)
 
-    init(_ account: Account, canSign: Bool) {
+    init(_ account: Account, canSign: Bool, searchText: String = "") {
         guard let accountId = account.id else {
             preconditionFailure()
         }
 
         self.account = account
         self.canSign = canSign
+        self.searchText = searchText
 
         let approvalSort = [SortDescriptor(\ApprovalModel.approvedAt, order: .reverse)]
 
@@ -39,14 +41,14 @@ struct AccountApprovalsView: View {
     }
 
     var body: some View {
-        let approvals = approvalModels.map(TokenApproval.init(model:))
+        let approvals = approvalModels.map(TokenApproval.init(model:)).filter { $0.matches(searchText) }
 
         #if os(iOS)
         alerting(AccountCountLabel(text: String(localized: .approvalsApprovalCount(approvals.count))))
 
         if !service.supports(account) {
             AccountEmptyRow(title: .approvalsNeedsEtherscanKey)
-        } else if approvals.isEmpty {
+        } else if approvalModels.isEmpty {
             AccountEmptyRow(title: .approvalsNoApprovals)
                 .accessibilityIdentifier("account-no-approvals")
         } else {
@@ -94,19 +96,22 @@ private extension AccountApprovalsView {
         }
     }
 
+    /// Search can hide a selected approval, so only the listed ones are counted or revoked.
     func actions(_ approvals: [TokenApproval]) -> some View {
-        HStack {
+        let selectedCount = approvals.count { selection.contains($0.id) }
+
+        return HStack {
             Toggle(.approvalsSelectAll, isOn: allSelected(approvals))
                 .disabled(approvals.isEmpty)
 
             Spacer()
 
-            Button(.approvalsRevokeSelected(selection.count)) {
+            Button(.approvalsRevokeSelected(selectedCount)) {
                 Task {
                     await revokeSelected(approvals)
                 }
             }
-            .disabled(selection.isEmpty || isRevoking)
+            .disabled(selectedCount == 0 || isRevoking)
             .accessibilityIdentifier("approvals-revoke-selected-button")
         }
     }
@@ -222,8 +227,14 @@ private extension AccountApprovalsView {
 
     func allSelected(_ approvals: [TokenApproval]) -> Binding<Bool> {
         Binding(
-            get: { !approvals.isEmpty && selection.count == approvals.count },
-            set: { selection = $0 ? Set(approvals.map(\.id)) : [] }
+            get: { !approvals.isEmpty && approvals.allSatisfy { selection.contains($0.id) } },
+            set: { isOn in
+                if isOn {
+                    selection.formUnion(approvals.map(\.id))
+                } else {
+                    selection.subtract(approvals.map(\.id))
+                }
+            }
         )
     }
 

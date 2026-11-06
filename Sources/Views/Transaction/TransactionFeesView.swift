@@ -22,6 +22,8 @@ struct TransactionFeesView {
     var isEditable = true
     /// `false` for TRX transfers and staking, which don't call a contract and so have no fee limit.
     var isTronFeeLimitEnabled = true
+    /// The Penpot `Fees` `Solana Staking` variant: the total instead of its compute budget.
+    var isSolanaStaking = false
     /// Not in Penpot: a caution note under the section, e.g. dapp-set fees.
     var warning: String?
 
@@ -116,8 +118,13 @@ private extension TransactionFeesView {
 
     @ViewBuilder
     var solanaFeesForm: some View {
-        field(String(localized: .transactionFeesPriorityFee), text: $solanaPriorityFee)
-        field(String(localized: .transactionFeesComputeUnitLimit), text: $solanaComputeUnitLimit)
+        if isSolanaStaking {
+            ParameterRow(String(localized: .transactionFeesNetworkFee), value: solanaNetworkFee)
+        } else {
+            field(String(localized: .transactionFeesPriorityFee), text: $solanaPriorityFee)
+            field(String(localized: .transactionFeesComputeUnitLimit), text: $solanaComputeUnitLimit)
+        }
+
         ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
@@ -217,10 +224,21 @@ private extension TransactionFeesView {
         return ada.formatted(symbol: "ADA")
     }
 
+    /// The fee of the transaction as built, in SOL, priority fee included.
+    var solanaNetworkFee: String {
+        guard let lamports = estimatedFees?.nativeFeeReserve.flatMap({ UInt64($0) }) else {
+            return ""
+        }
+
+        return SolanaStakingFormat.sol(lamports)
+    }
+
     var footer: String? {
         switch blockchain {
         case .cardano:
             String(localized: .transactionFeesFeeSizeNote)
+        case .solana where isSolanaStaking:
+            warning ?? String(localized: .solanaStakingNoteFees)
         case .tron:
             tronFooter
         default:
@@ -243,7 +261,7 @@ private extension TransactionFeesView {
         switch blockchain {
         case .cardano:
             .secondary
-        case .tron:
+        case .solana where isSolanaStaking, .tron:
             warning == nil ? .secondary : .caution
         default:
             .caution

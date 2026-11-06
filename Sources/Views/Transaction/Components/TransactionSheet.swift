@@ -17,6 +17,11 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
     var isEstimateFeesEnabled = true
     /// Disables Cancel/Confirm while the confirmed operation runs.
     var isProcessing = false
+    /// Replaces "Cancel", as an outcome's Close does; `isCancelHidden` removes the button.
+    var cancelTitle: String?
+    var isCancelHidden = false
+    /// Replaces "Estimate Fees", as an outcome's explorer link does.
+    var estimateTitle: String?
     /// `nil` hides the Estimate Fees button.
     var onEstimateFees: (() -> Void)?
     let onCancel: () -> Void
@@ -46,7 +51,7 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
 
                 if let onEstimateFees {
                     Section {
-                        Button(.transactionEstimateFees, action: onEstimateFees)
+                        Button(estimateText, action: onEstimateFees)
                             .frame(maxWidth: .infinity)
                             .disabled(!isEstimateFeesEnabled)
                     }
@@ -60,10 +65,12 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
                         .accessibilityIdentifier(accessibilityIds.title)
                 }
 
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(.commonCancel, action: onCancel)
-                        .disabled(isProcessing)
-                        .accessibilityIdentifier(accessibilityIds.cancel)
+                if !isCancelHidden {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(cancelText, action: onCancel)
+                            .disabled(isProcessing)
+                            .accessibilityIdentifier(accessibilityIds.cancel)
+                    }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -83,6 +90,14 @@ extension TransactionSheet {
         var confirm = "transaction-confirm-button"
         var title = "transaction-sheet-title"
     }
+
+    private var cancelText: String {
+        cancelTitle ?? String(localized: .commonCancel)
+    }
+
+    private var estimateText: String {
+        estimateTitle ?? String(localized: .transactionEstimateFees)
+    }
 }
 
 // MARK: - Subviews
@@ -92,16 +107,18 @@ private extension TransactionSheet {
     var buttons: some View {
         HStack {
             if let onEstimateFees {
-                Button(.transactionEstimateFees, action: onEstimateFees)
+                Button(estimateText, action: onEstimateFees)
                     .disabled(!isEstimateFeesEnabled)
             }
 
             Spacer()
 
-            Button(.commonCancel, action: onCancel)
-                .keyboardShortcut(.cancelAction)
-                .disabled(isProcessing)
-                .accessibilityIdentifier(accessibilityIds.cancel)
+            if !isCancelHidden {
+                Button(cancelText, action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isProcessing)
+                    .accessibilityIdentifier(accessibilityIds.cancel)
+            }
 
             // Prominent, not `.defaultAction`: Return in a field must not send.
             Button(confirmTitle, action: onConfirm)

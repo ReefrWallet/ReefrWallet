@@ -185,7 +185,14 @@ extension Token {
     ///
     /// Example: `"1.5"` with `decimalsCount = 6` → `BigUInt(1_500_000)`.
     func smallestUnitAmount(from text: String) throws -> BigUInt {
-        guard let decimal = Decimal(string: text), decimal > 0 else {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // `Decimal(string:)` stops at the first bad character, so `1,5` alone would read as 1.
+        guard
+            text.wholeMatch(of: /[0-9]*\.?[0-9]*/) != nil,
+            let decimal = Decimal(string: text),
+            decimal > 0
+        else {
             throw ReefrError.invalidData
         }
 

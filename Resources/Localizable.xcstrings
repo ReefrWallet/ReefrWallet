@@ -2771,6 +2771,1038 @@
         }
       }
     },
+    "solanaStaking.actionStake" : {
+      "comment" : "Unresolved transaction: what it does",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.actionUnstake" : {
+      "comment" : "Unresolved transaction: what it does",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstake %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.actionUnstakeAccounts" : {
+      "comment" : "Unresolved transaction: what it does",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Unstake %lld account"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Unstake %lld accounts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "solanaStaking.actionWithdraw" : {
+      "comment" : "Unresolved transaction: what it does",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdraw %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.apy" : {
+      "comment" : "Estimated annual yield",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ APY"
+          }
+        }
+      }
+    },
+    "solanaStaking.checkAgain" : {
+      "comment" : "Re-check a transaction whose outcome is open",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Again"
+          }
+        }
+      }
+    },
+    "solanaStaking.close" : {
+      "comment" : "Outcome sheet button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "solanaStaking.commission" : {
+      "comment" : "Validator commission",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% commission"
+          }
+        }
+      }
+    },
+    "solanaStaking.epochEndingSoon" : {
+      "comment" : "Next epoch time has passed, until the next read",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Epoch ending soon"
+          }
+        }
+      }
+    },
+    "solanaStaking.epochNumber" : {
+      "comment" : "When a lockup ends, by epoch",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "epoch %lld"
+          }
+        }
+      }
+    },
+    "solanaStaking.error.amountTooLarge" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That's more than this stake account holds."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.belowMinimum" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The minimum is %@."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.cannotUnstake" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This wallet can't unstake the selected account."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.cannotWithdraw" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This wallet can't withdraw from the selected account yet."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.epochRewardsActive" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network is paying out this epoch's rewards, so stake can't change right now. Try again in a few minutes."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.insufficientBalance" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough SOL for this amount and the account's rent."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.nothingSelected" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a stake account."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.remainderBelowMinimum" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This would leave less than the %@ minimum in the account. Unstake the full amount instead."
+          }
+        }
+      }
+    },
+    "solanaStaking.error.simulationFailed" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network would reject this transaction: %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.error.tooManySelected" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many accounts for one transaction."
+          }
+        }
+      }
+    },
+    "solanaStaking.explorerShort" : {
+      "comment" : "Unresolved transaction link, iPhone",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorer"
+          }
+        }
+      }
+    },
+    "solanaStaking.fullAccountOnly" : {
+      "comment" : "Unstake sheet: amount when partial is blocked",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full account only"
+          }
+        }
+      }
+    },
+    "solanaStaking.group.stake" : {
+      "comment" : "Sheet section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake SOL"
+          }
+        }
+      }
+    },
+    "solanaStaking.group.transaction" : {
+      "comment" : "Outcome sheet section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction"
+          }
+        }
+      }
+    },
+    "solanaStaking.group.unstake" : {
+      "comment" : "Sheet section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstake SOL"
+          }
+        }
+      }
+    },
+    "solanaStaking.group.withdraw" : {
+      "comment" : "Sheet section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdraw SOL"
+          }
+        }
+      }
+    },
+    "solanaStaking.nextEpoch" : {
+      "comment" : "Time to the next epoch boundary, approximate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next epoch in about %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.noValidator" : {
+      "comment" : "Stake account with no delegation",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No validator"
+          }
+        }
+      }
+    },
+    "solanaStaking.noValidators" : {
+      "comment" : "Validator picker, nothing found",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No validators found."
+          }
+        }
+      }
+    },
+    "solanaStaking.notStakedNote" : {
+      "comment" : "Staking tab, nothing staked",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake SOL to earn rewards. Rewards compound into your stake each epoch, and you keep control of it."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.cooldown" : {
+      "comment" : "Unstake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cooldown can span several epochs."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.fees" : {
+      "comment" : "Fees footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes the priority fee. Rent is separate and refunded when you withdraw."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.fullOnly" : {
+      "comment" : "Unstake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another wallet can withdraw this account, so a partial unstake would hand it your rent. Unstake the full amount."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.partial" : {
+      "comment" : "Unstake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Splits %@ into a new stake account funded with refundable rent, then unstakes it. The rest keeps earning. Cooldown can span several epochs."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.partialLocked" : {
+      "comment" : "Unstake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Splits %1$@ into a new stake account, then unstakes it. Withdrawal is locked until %2$@, so the new account and its rent stay locked too."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.paused" : {
+      "comment" : "SolanaStakingError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A previous transaction's outcome is still open. Staking is paused until it resolves."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.selectionLimit" : {
+      "comment" : "Sheet footnote: selection hit the transaction size limit",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$lld selected. Repeat for the rest after this confirms."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.stake" : {
+      "comment" : "Stake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum %@. Earning starts once the stake activates, which can span several epochs."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.unstake" : {
+      "comment" : "Unstake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cooldown can span several epochs, then you can withdraw."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.validators" : {
+      "comment" : "Validator picker footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ranked by Stakewiz score. APY is an estimate and changes each epoch."
+          }
+        }
+      }
+    },
+    "solanaStaking.note.withdraw" : {
+      "comment" : "Withdraw sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moves cooled-down stake and its rent to your balance."
+          }
+        }
+      }
+    },
+    "solanaStaking.notice.degraded" : {
+      "comment" : "Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some stake accounts may be missing."
+          }
+        }
+      }
+    },
+    "solanaStaking.notice.outcomeUnknown" : {
+      "comment" : "Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outcome unknown. Staking paused."
+          }
+        }
+      }
+    },
+    "solanaStaking.notice.refreshFailed" : {
+      "comment" : "Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't refresh. Showing last known data."
+          }
+        }
+      }
+    },
+    "solanaStaking.notice.submitted" : {
+      "comment" : "Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not yet confirmed. Staking paused."
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.expired" : {
+      "comment" : "Outcome status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expired"
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.expiredNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expired, nothing changed. No fee was charged."
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.failed" : {
+      "comment" : "Outcome status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed"
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.failedNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staking changes reverted; transaction fee charged."
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.signAgain" : {
+      "comment" : "Outcome status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expired before sending"
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.signAgainNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It expired while waiting for your signature, so nothing was sent. Sign again to continue."
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.submitted" : {
+      "comment" : "Outcome status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submitted"
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.submittedNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not yet confirmed. Staking stays paused until it resolves, and your position refreshes automatically."
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.unknown" : {
+      "comment" : "Outcome status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        }
+      }
+    },
+    "solanaStaking.outcome.unknownNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outcome unknown. Checking can take a few minutes, and staking stays paused until it resolves."
+          }
+        }
+      }
+    },
+    "solanaStaking.reason.locked" : {
+      "comment" : "Disabled stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locked until %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.reason.stakerElsewhere" : {
+      "comment" : "Disabled stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another wallet can unstake this"
+          }
+        }
+      }
+    },
+    "solanaStaking.reason.withdrawerElsewhere" : {
+      "comment" : "Disabled stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another wallet can withdraw this"
+          }
+        }
+      }
+    },
+    "solanaStaking.rewards.epoch" : {
+      "comment" : "Summary rewards, older epoch",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Epoch %1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "solanaStaking.rewards.epochAtLeast" : {
+      "comment" : "Summary rewards, older epoch, incomplete",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Epoch %1$lld: at least %2$@"
+          }
+        }
+      }
+    },
+    "solanaStaking.rewards.lastEpoch" : {
+      "comment" : "Summary rewards",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last epoch: %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.rewards.lastEpochAtLeast" : {
+      "comment" : "Summary rewards, incomplete",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last epoch: at least %@"
+          }
+        }
+      }
+    },
+    "solanaStaking.rewards.unavailable" : {
+      "comment" : "Summary rewards",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards unavailable"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.action" : {
+      "comment" : "Outcome sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.inAccount" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In this account"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.newAccountRent" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New account rent"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.remaining" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remaining"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.rent" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refundable rent"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.signature" : {
+      "comment" : "Outcome sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signature"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.status" : {
+      "comment" : "Outcome sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.unstaking" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstaking"
+          }
+        }
+      }
+    },
+    "solanaStaking.row.validator" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Validator"
+          }
+        }
+      }
+    },
+    "solanaStaking.section.stakeAccounts" : {
+      "comment" : "Staking tab section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake Accounts"
+          }
+        }
+      }
+    },
+    "solanaStaking.section.unresolved" : {
+      "comment" : "Staking tab section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unresolved Transaction"
+          }
+        }
+      }
+    },
+    "solanaStaking.selectValidator" : {
+      "comment" : "Validator picker title and placeholder",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Validator"
+          }
+        }
+      }
+    },
+    "solanaStaking.signAgain" : {
+      "comment" : "Outcome sheet button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Again"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.activating" : {
+      "comment" : "Stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activating"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.active" : {
+      "comment" : "Stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.cannotUnstake" : {
+      "comment" : "Stake account row: another wallet is the staker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't unstake"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.cannotWithdraw" : {
+      "comment" : "Stake account row: another wallet is the withdrawer",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't withdraw"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.deactivating" : {
+      "comment" : "Stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deactivating"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.inactive" : {
+      "comment" : "Stake account row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inactive"
+          }
+        }
+      }
+    },
+    "solanaStaking.status.locked" : {
+      "comment" : "Stake account row: lockup blocks withdrawal",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locked"
+          }
+        }
+      }
+    },
+    "solanaStaking.tryAgain" : {
+      "comment" : "Outcome sheet button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "solanaStaking.viewInExplorer" : {
+      "comment" : "Link to a transaction",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View in Explorer"
+          }
+        }
+      }
+    },
     "solanaTransactionParameters.addressesNotResolved" : {
       "comment" : "SolanaTransactionParametersView",
       "extractionState" : "manual",
@@ -2863,6 +3895,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Programs"
+          }
+        }
+      }
+    },
+    "solanaTransactionParameters.stake" : {
+      "comment" : "Program name",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake"
           }
         }
       }

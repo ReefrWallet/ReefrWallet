@@ -104,6 +104,14 @@ extension ServiceContainer {
             KeyStoreService()
         }
 
+        register(SolanaStakingPositionLoader.self) {
+            SolanaStakingPositionLoader()
+        }
+
+        register(SolanaStakingService.self) {
+            SolanaStakingService()
+        }
+
         register(StakingStateService.self) {
             StakingStateService()
         }

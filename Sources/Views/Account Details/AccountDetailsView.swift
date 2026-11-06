@@ -21,7 +21,7 @@ struct AccountDetailsView {
     @State private var isFiltersPresented = false
     @State private var isTransactionSheetPresented = false
     @State private var searchText = ""
-    @State private var staking: TronStakingModel
+    @State private var staking: AccountStakingModel?
     @State private var summaryWidth: CGFloat = 0
 
     @State private var isSearchOpen = false
@@ -55,7 +55,7 @@ struct AccountDetailsView {
 
         _accountBalances = Query(filter: predicate)
         _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.id == accountId })
-        _staking = State(initialValue: TronStakingModel(account: account, keyStore: keyStore))
+        _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
     }
 }
 
@@ -81,11 +81,11 @@ extension AccountDetailsView: View {
 
         // Resource patches change the row in place too; `revision` tells every applied write.
         .task(id: stakingRows.first?.revision) {
-            staking.apply(stakingRows.first.flatMap(Staking.init(model:)))
+            staking?.apply(stakingRows.first.flatMap(Staking.init(model:)))
         }
         .task(id: tab == .staking) {
             if tab == .staking {
-                await staking.refresh()
+                await staking?.refresh()
             }
         }
         .sheet(isPresented: $isTransactionSheetPresented) {
@@ -94,9 +94,7 @@ extension AccountDetailsView: View {
                     .sheetZoom(from: Self.sendSourceId, namespace: sheetNamespace)
             }
         }
-        .sheet(item: $staking.sheet) { kind in
-            TronStakingSheet(kind: kind, model: staking)
-        }
+        .modifier(AccountStakingSheets(model: staking))
         #if os(iOS)
         .sheet(isPresented: $isFiltersPresented) {
             AccountFiltersView(tab: tab, filter: filter)
@@ -133,7 +131,7 @@ extension AccountDetailsView: View {
                         .tag(AccountTab.approvals)
                 }
 
-                if account.blockchain.supportsStaking {
+                if let staking {
                     AccountStakingView(model: staking)
                         .tabItem {
                             Label(.accountDetailsStaking, systemImage: AccountTab.staking.systemImage)
@@ -187,11 +185,14 @@ extension AccountDetailsView: View {
     private var content: some View {
         switch tab {
         case .approvals:
-            AccountApprovalsView(account, canSign: canSign)
+            AccountApprovalsView(account, canSign: canSign, searchText: searchText)
         case .balances:
             AccountBalancesView(balances: visibleBalances, selection: $selection)
         case .staking:
-            AccountStakingView(model: staking)
+            if let staking {
+                AccountStakingView(model: staking)
+            }
+
         case .transactions:
             AccountTransactionsView(
                 account,
@@ -209,7 +210,10 @@ extension AccountDetailsView: View {
             // Watch-only accounts can't sign, so they get no transaction buttons at all.
             switch tab {
             case .staking where canSign:
-                TronStakingToolbarActions(model: staking)
+                if let staking {
+                    AccountStakingToolbarActions(model: staking)
+                }
+
             case .balances where canSign:
                 Button {
                     isSearchFocused = false

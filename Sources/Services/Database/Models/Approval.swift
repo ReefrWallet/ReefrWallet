@@ -27,6 +27,16 @@ struct TokenApproval: Equatable, Hashable, Identifiable, Sendable {
     var isUnlimited: Bool {
         allowance >= Self.unlimitedThreshold
     }
+
+    /// Whether a search for `query` finds this approval, by token or spender.
+    func matches(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespaces)
+
+        return query.isEmpty
+            || token.symbol.localizedCaseInsensitiveContains(query)
+            || token.name.localizedCaseInsensitiveContains(query)
+            || spender.localizedCaseInsensitiveContains(query)
+    }
 }
 
 // MARK: - ApprovalUpdate

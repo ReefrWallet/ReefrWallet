@@ -27,39 +27,53 @@ extension DatabaseService {
         representatives: [String: TronStakingDetails.Representative],
         startedAt: Date
     ) throws -> Bool {
-        let account = try fetchAccountModel(id: accountId)
-
-        guard let model = account.staking, let current = Staking(model: model) else {
-            let token = account.blockchain.nativeToken
-            let staking = Staking.tron(
+        try saveStaking(accountId: accountId) { tokenId in
+            Staking.tron(
                 accountId: accountId,
-                tokenId: token.persistentModelID,
+                tokenId: tokenId,
                 state: state,
                 representatives: representatives,
                 startedAt: startedAt
             )
-
-            if let model = account.staking {
-                try model.update(from: staking)
-            } else {
-                let model = try StakingModel(account: account, token: token, staking: staking)
-                account.staking = model
-                modelContext.insert(model)
-            }
-
-            try modelContext.save()
-            return true
+        } update: { current in
+            current.applying(state: state, representatives: representatives, startedAt: startedAt)
         }
+    }
 
-        let observation = current.applying(state: state, representatives: representatives, startedAt: startedAt)
+    /// Stores a Solana read that started at `startedAt`, like the Tron overload. Returns whether
+    /// anything was applied.
+    @discardableResult
+    func saveStakingState(
+        accountId: PersistentIdentifier,
+        observation: SolanaStakingObservation,
+        startedAt: Date
+    ) throws -> Bool {
+        try saveStaking(accountId: accountId) { tokenId in
+            Staking.solana(accountId: accountId, tokenId: tokenId, observation: observation, startedAt: startedAt)
+        } update: { current in
+            current.applying(observation: observation, startedAt: startedAt)
+        }
+    }
 
-        guard let updated = observation else {
-            return false
+    /// Replaces the account's pending Solana submissions.
+    ///
+    /// - Throws: ``ReefrError/notFound`` if the account has no position to hold them. A caller
+    ///   about to broadcast must not go on: the record has to exist first.
+    func saveSolanaPendingSubmissions(
+        accountId: PersistentIdentifier,
+        submissions: [SolanaPendingSubmission]
+    ) throws {
+        let account = try fetchAccountModel(id: accountId)
+
+        guard
+            let model = account.staking,
+            let updated = Staking(model: model)?.applying(pendingSubmissions: submissions)
+        else {
+            throw ReefrError.notFound
         }
 
         try model.update(from: updated)
         try modelContext.save()
-        return true
     }
 
     /// Stores bandwidth and energy from a read that started at `startedAt`. Returns whether they
@@ -94,5 +108,39 @@ private extension DatabaseService {
         }
 
         return account
+    }
+
+    /// Creates the account's row (or overwrites one that can't be read), or applies `update`
+    /// to the stored position; `update` returning `nil` means nothing in it is newer.
+    func saveStaking(
+        accountId: PersistentIdentifier,
+        create: (PersistentIdentifier) -> Staking,
+        update: (Staking) -> Staking?
+    ) throws -> Bool {
+        let account = try fetchAccountModel(id: accountId)
+
+        guard let model = account.staking, let current = Staking(model: model) else {
+            let token = account.blockchain.nativeToken
+            let staking = create(token.persistentModelID)
+
+            if let model = account.staking {
+                try model.update(from: staking)
+            } else {
+                let model = try StakingModel(account: account, token: token, staking: staking)
+                account.staking = model
+                modelContext.insert(model)
+            }
+
+            try modelContext.save()
+            return true
+        }
+
+        guard let updated = update(current) else {
+            return false
+        }
+
+        try model.update(from: updated)
+        try modelContext.save()
+        return true
     }
 }

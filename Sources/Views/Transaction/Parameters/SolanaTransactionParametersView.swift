@@ -83,6 +83,7 @@ struct SolanaTransactionParametersView: View {
         case SolanaProgram.token2022: String(localized: .solanaTransactionParametersToken2022)
         case SolanaProgram.associatedToken: String(localized: .solanaTransactionParametersAssociatedTokenAccount)
         case SolanaProgram.computeBudget: String(localized: .solanaTransactionParametersComputeBudget)
+        case SolanaProgram.stake: String(localized: .solanaTransactionParametersStake)
         default: address.string
         }
     }

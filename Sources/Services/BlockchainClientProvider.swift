@@ -220,12 +220,17 @@ struct BlockchainClientProvider: Sendable {
     ///
     /// - Throws: ``Error/invalidData`` if `account` isn't on Solana.
     func solanaClient(for account: Account) throws -> SolanaRPCClient {
-        guard case .solana = account.blockchain else {
+        guard case let .solana(network) = account.blockchain else {
             throw ReefrError.invalidData
         }
 
-        let endpoint = account.rpcURLOverride ?? account.blockchain.rpcURL
-        return SolanaRPCClient(endpoint: endpoint)
+        // A custom node opts out of third-party indexers; the validator index only covers mainnet.
+        return SolanaRPCClient(
+            endpoint: account.rpcURLOverride ?? account.blockchain.rpcURL,
+            validatorIndexEndpoint: account.rpcURLOverride == nil && network == .mainnet
+                ? SolanaRPCClient.defaultValidatorIndex
+                : nil
+        )
     }
 
     /// A ``TronClient`` for `account`'s network, honoring its RPC override
