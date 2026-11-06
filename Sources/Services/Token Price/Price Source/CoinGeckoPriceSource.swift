@@ -195,7 +195,7 @@ private extension CoinGeckoPriceSource {
             case .monad: "monad"
             case .optimism: "optimistic-ethereum"
             case .polygon: "polygon-pos"
-            case .robinhood: "robinhood-chain"
+            case .robinhood: "robinhood"
             case .unichain: "unichain"
             case .custom: nil
             }

@@ -8,6 +8,9 @@ import WalletKit
 /// Electrum connection and address discovery, Sui's gRPC connection) per
 /// endpoint.
 struct BlockchainClientProvider: Sendable {
+    /// Session used by Ethereum clients; tests replace it to stub the network.
+    var urlSession: URLSession = .shared
+
     /// Creates a client for `blockchain`.
     ///
     /// - Parameter backend: Which indexing backend a Bitcoin account uses
@@ -188,7 +191,7 @@ struct BlockchainClientProvider: Sendable {
             throw ReefrError.invalidData
         }
 
-        return EthereumRPCClient(endpoint: rpcURL ?? blockchain.rpcURL, chainId: chain.chainId)
+        return EthereumRPCClient(endpoint: rpcURL ?? blockchain.rpcURL, chainId: chain.chainId, session: urlSession)
     }
 
     /// Resolves the concrete ``SuiGRPCClient`` for `account`'s Sui

@@ -4,25 +4,25 @@ import WalletKit
 /// Fetches and persists token USD prices through an ordered source registry.
 final class TokenPriceService: @unchecked Sendable {
     private let databaseService: DatabaseService?
-    private let sources: [any PriceSource]
+    private let routes: PriceRoutes
 
+    /// - Parameters:
+    ///   - sources: Universal sources tried for every token, in order; no per-chain routing.
+    ///   - routes: Per-chain and universal sources; takes precedence over `sources`.
     init(
         databaseService: DatabaseService? = nil,
-        sources: [any PriceSource]? = nil
+        sources: [any PriceSource]? = nil,
+        routes: PriceRoutes? = nil
     ) {
-        if let sources {
+        if let routes {
             self.databaseService = databaseService
-            self.sources = sources
+            self.routes = routes
+        } else if let sources {
+            self.databaseService = databaseService
+            self.routes = PriceRoutes(chains: [:], universal: sources)
         } else {
             self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
-
-            let clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
-            self.sources = [
-                ChainlinkPriceSource(clientProvider: clientProvider),
-                UniswapV3PriceSource(clientProvider: clientProvider),
-                CetusPriceSource(clientProvider: clientProvider),
-                CoinGeckoPriceSource()
-            ]
+            self.routes = .live(clientProvider: DI.injectOrFail(BlockchainClientProvider.self))
         }
     }
 
@@ -43,7 +43,7 @@ final class TokenPriceService: @unchecked Sendable {
         return price.usdPrice
     }
 
-    /// Tries sources in registry order, except that `token`'s last successful source goes first.
+    /// Tries the token's chain sources, then the universal ones, except that its last successful source goes first.
     func resolvedPrice(_ token: Token, rpcURL: URL) async throws -> ResolvedTokenPrice {
         try await resolvedPrices([TokenPriceRequest(rpcURL: rpcURL, token: token)])[0].get()
     }
@@ -67,7 +67,7 @@ final class TokenPriceService: @unchecked Sendable {
             }
         }
 
-        let coinGecko = sources.lazy.compactMap { $0 as? CoinGeckoPriceSource }.first
+        let coinGecko = routes.universal.lazy.compactMap { $0 as? CoinGeckoPriceSource }.first
         let pending = deferred.keys.sorted().filter { results[$0] == nil }
 
         if let coinGecko, !pending.isEmpty {
@@ -107,7 +107,8 @@ final class TokenPriceService: @unchecked Sendable {
 
 private extension TokenPriceService {
     func orderedSources(for token: Token) -> [any PriceSource] {
-        sources.filter { $0.id == token.priceSourceId } + sources.filter { $0.id != token.priceSourceId }
+        let sources = routes.sources(for: token.blockchain)
+        return sources.filter { $0.id == token.priceSourceId } + sources.filter { $0.id != token.priceSourceId }
     }
 
     /// The first non-`nil` price among `candidates`, remembering the latest error.

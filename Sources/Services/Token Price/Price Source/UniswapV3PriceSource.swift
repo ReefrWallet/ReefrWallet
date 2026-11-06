@@ -1,14 +1,10 @@
 import WalletKit
 
 struct UniswapV3PriceSource: PriceSource {
-    // swiftlint:disable force_try
-    private static let factory = try! EthereumAddress(string: "0x1f98431c8ad98523631ae4a59f267346ea31f984")
-    private static let usdc = try! EthereumAddress(string: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
-    // swiftlint:enable force_try
-
     private static let feeTiers: [UInt32] = [100, 500, 3_000, 10_000]
 
     let clientProvider: BlockchainClientProvider
+    let deployment: Deployment
 
     var id: String {
         "uniswapV3"
@@ -32,10 +28,10 @@ struct UniswapV3PriceSource: PriceSource {
     ) async throws -> EthereumAddress {
         let data = EthereumABI.encodeCall(
             selector: EthereumABI.selector("getPool(address,address,uint24)"),
-            parameters: [.address(token), .address(Self.usdc), .uint256(BigUInt(fee))]
+            parameters: [.address(token), .address(deployment.usdQuote), .uint256(BigUInt(fee))]
         )
 
-        guard let word = EthereumABI.words(try await client.call(to: Self.factory, data: data)).first else {
+        guard let word = EthereumABI.words(try await client.call(to: deployment.factory, data: data)).first else {
             throw BlockchainClientError.decodingFailed(reason: "empty getPool(address,address,uint24) response")
         }
 
@@ -185,4 +181,72 @@ struct UniswapV3PriceSource: PriceSource {
         let bytes = value.serialize()
         return Data(repeating: 0, count: 32 - bytes.count) + bytes
     }
+}
+
+extension UniswapV3PriceSource {
+    /// A chain's V3 factory and the USD stablecoin its tokens are quoted against (treated as $1).
+    struct Deployment: Sendable {
+        let factory: EthereumAddress
+        let usdQuote: EthereumAddress
+
+        /// For compile-time constant addresses; traps on an invalid one.
+        init(factory: String, usdQuote: String) {
+            // swiftlint:disable force_try
+            self.factory = try! EthereumAddress(string: factory)
+            self.usdQuote = try! EthereumAddress(string: usdQuote)
+            // swiftlint:enable force_try
+        }
+    }
+}
+
+extension UniswapV3PriceSource.Deployment {
+    static let arbitrum = Self(
+        factory: "0x1f98431c8ad98523631ae4a59f267346ea31f984",
+        usdQuote: "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
+    )
+
+    static let avalanche = Self(
+        factory: "0x740b1c1de25031c31ff4fc9a62f554a55cdc1bad",
+        usdQuote: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e"
+    )
+
+    static let base = Self(
+        factory: "0x33128a8fc17869897dce68ed026d694621f6fdfd",
+        usdQuote: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+    )
+
+    static let bsc = Self(
+        factory: "0xdb1d10011ad0ff90774d0c6bb92e5c5c8b4461f7",
+        usdQuote: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+    )
+
+    static let ethereum = Self(
+        factory: "0x1f98431c8ad98523631ae4a59f267346ea31f984",
+        usdQuote: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    )
+
+    static let monad = Self(
+        factory: "0x204faca1764b154221e35c0d20abb3c525710498",
+        usdQuote: "0x754704bc059f8c67012fed69bc8a327a5aafb603"
+    )
+
+    static let optimism = Self(
+        factory: "0x1f98431c8ad98523631ae4a59f267346ea31f984",
+        usdQuote: "0x0b2c639c533813f4aa9d7837caf62653d097ff85"
+    )
+
+    static let polygon = Self(
+        factory: "0x1f98431c8ad98523631ae4a59f267346ea31f984",
+        usdQuote: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359"
+    )
+
+    static let robinhood = Self(
+        factory: "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+        usdQuote: "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+    )
+
+    static let unichain = Self(
+        factory: "0x1f98400000000000000000000000000000000003",
+        usdQuote: "0x078d782b760474a361dda0af3839290b0ef57ad6"
+    )
 }
