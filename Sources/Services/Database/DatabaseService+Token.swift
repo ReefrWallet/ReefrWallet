@@ -14,6 +14,7 @@ extension DatabaseService {
     /// native token intact. This respectively deletes all balances from all accounts.
     func deleteAllTokens() throws {
         try modelContext.delete(model: BalanceModel.self)
+        try modelContext.delete(model: TokenSourceStatusModel.self)
         try modelContext.delete(model: TokenModel.self, where: #Predicate { !$0.isNativeToken })
         try modelContext.save()
     }
@@ -89,9 +90,10 @@ extension DatabaseService {
         return Dictionary(models.map { ($0.address, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// Fetches the token matching `token.address` on `blockchain`, updating it in place, or
-    /// creates one. The lookup and write happen within a single non-suspending actor call, so
-    /// this is safe to call from concurrent sync tracks that raced to discover the same token:
+    /// Fetches the token matching `token.address` on `blockchain`, updating its descriptive fields
+    /// in place, or creates one. Price, CoinGecko id, image and whitelisting of an existing row are
+    /// left alone, since a stale snapshot would overwrite newer values. The lookup and write happen
+    /// within a single non-suspending actor call, so this is safe to call from concurrent sync tracks that raced to discover the same token:
     /// whichever call lands second finds and updates the row the first one created instead of
     /// inserting a duplicate.
     @discardableResult
@@ -122,17 +124,18 @@ extension DatabaseService {
                     predicate: #Predicate<BlockchainModel> { $0.serialized == serializedBlockchain }
                 ))
                 .first
+            // Price, identity and image start from the snapshot, then belong to their own writers.
+            tokenModel.imageURL = token.imageURL
+            tokenModel.isWhitelisted = token.isWhitelisted ? true : nil
+            tokenModel.usdPrice = token.usdPrice
             modelContext.insert(tokenModel)
         }
 
         tokenModel.decimalsCount = token.decimalsCount
-        tokenModel.coinGeckoId = token.coinGeckoId
-        tokenModel.imageURL = token.imageURL
         tokenModel.isIncludedInBalance = token.isIncludedInBalance
         tokenModel.isNativeToken = token.isNativeToken
         tokenModel.name = token.name
         tokenModel.symbol = token.symbol
-        tokenModel.usdPrice = token.usdPrice
 
         return tokenModel
     }
@@ -173,6 +176,10 @@ extension DatabaseService {
             .filter { token in
                 guard let serialized = token.blockchain?.serialized,
                       accountBlockchains.contains(serialized) else {
+                    return false
+                }
+
+                guard token.isNativeToken || token.isWhitelisted == true else {
                     return false
                 }
 
@@ -228,7 +235,7 @@ struct TokenPriceRequest: Sendable {
     let token: Token
 }
 
-private extension DatabaseService {
+extension DatabaseService {
     func tokenModel(for token: Token) throws -> TokenModel {
         guard let blockchain = token.blockchain else {
             throw ReefrError.invalidData
@@ -251,7 +258,7 @@ private extension DatabaseService {
     @discardableResult
     func updateTokenPrice(_ token: Token, shouldSaveContext: Bool) throws -> PersistentIdentifier {
         let tokenModel = try tokenModel(for: token)
-        tokenModel.coinGeckoId = token.coinGeckoId
+        tokenModel.coinGeckoId = token.coinGeckoId ?? tokenModel.coinGeckoId
         tokenModel.hasPriceFetchError = false
         tokenModel.priceSourceId = token.priceSourceId
         tokenModel.priceUpdatedAt = .now

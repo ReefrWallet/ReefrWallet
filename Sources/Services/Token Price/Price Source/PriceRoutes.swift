@@ -11,7 +11,7 @@ struct PriceRoutes: Sendable {
     }
 
     /// A custom EVM chain with a known id uses that chain's route.
-    private static func routeKey(_ blockchain: Blockchain) -> Blockchain {
+    static func routeKey(_ blockchain: Blockchain) -> Blockchain {
         guard case let .evm(.custom(chainId)) = blockchain else {
             return blockchain
         }
@@ -43,7 +43,7 @@ extension PriceRoutes {
                 evm(.avalanche(.mainnet), feeds: .avalanche, uniswap: .avalanche),
                 evm(.base(.mainnet), feeds: .base, uniswap: .base),
                 evm(.bsc(.mainnet), feeds: .bsc, uniswap: .bsc),
-                evm(.ethereum(.mainnet), feeds: .ens, uniswap: .ethereum),
+                evm(.ethereum(.mainnet), feeds: .ethereum, uniswap: .ethereum),
                 // HyperEVM's V3 factory exists but no liquid USD pair was found; Mantle has no V3.
                 evm(.hyperEVM(.mainnet), feeds: .hyperEVM, uniswap: nil),
                 evm(.mantle(.mainnet), feeds: .mantle, uniswap: nil),

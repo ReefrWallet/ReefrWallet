@@ -99,8 +99,8 @@ extension DatabaseService {
 
             let serializedBlockchain = try balance.account.blockchain.asJSONString()
             let tokenKey = TokenIndexKey(serializedBlockchain: serializedBlockchain, address: balance.token.address)
-            // Always applies `balance.token`'s fields to the row (matching a single
-            // `upsertTokenModel` call) — only the fetch that finds the row is batched above.
+            // Applies the same updates as a single `upsertTokenModel` call — only the fetch that
+            // finds the row is batched above.
             let tokenModel = try upsertTokenModel(
                 balance.token,
                 serializedBlockchain: serializedBlockchain,
@@ -155,8 +155,7 @@ extension DatabaseService {
         for update in updates {
             let token: Token
 
-            if var existing = tokens.first(where: { $0.address == update.token.address }) {
-                existing.usdPrice = update.token.usdPrice ?? existing.usdPrice
+            if let existing = tokens.first(where: { $0.address == update.token.address }) {
                 token = existing
             } else {
                 // Not inserted here — `saveBalances` below creates the row as part of its

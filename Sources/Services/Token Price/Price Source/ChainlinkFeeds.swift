@@ -64,6 +64,22 @@ extension ChainlinkPriceSource.FeedLookup {
         Entry("0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd", "0xca236e327f629f9fc2c30a4e95775ebf0b89fac8", 600)
     ])
 
+    /// Feeds resolved from `<symbol>-usd.data.eth` and checked by `description()`; WBTC uses the BTC feed.
+    /// Heartbeats are the 24 h ceiling of Chainlink's Ethereum crypto/USD feeds, since the exact ones weren't checked.
+    static let ethereum = table([
+        Entry("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419", 86_400),
+        Entry("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0x8fffffd4afb6115b954bd326cbe7b4ba576818f6", 86_400),
+        Entry("0xdac17f958d2ee523a2206206994597c13d831ec7", "0x3e7d1eab13ad0104d2750b8863b489d65364e32d", 86_400),
+        Entry("0x6b175474e89094c44da98b954eedeac495271d0f", "0xaed0c38402a5d19df6e4c03f4e2dced6e29c1ee9", 86_400),
+        Entry("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", "0xf4030086522a5beea4988f8ca5b36dbc97bee88c", 86_400),
+        Entry("0x514910771af9ca656af840dff83e8264ecf986ca", "0x2c1d072e956affc0d435cb7ac38ef18d24d9127c", 86_400),
+        Entry("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984", "0x553303d460ee0afb37edff9be42922d8ff63220e", 86_400),
+        Entry("0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9", "0x547a514d5e3769680ce22b2361c10ea13619e8a9", 86_400),
+        Entry("0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2", "0xec1d1b3b0443256cc3860e24a46f108e699484aa", 86_400),
+        Entry("0xd533a949740bb3306d119cc777fa900ba034cd52", "0xcd627aa160a6fa45eb793d19ef54f5062f20f33f", 86_400),
+        Entry("0xc00e94cb662c3520282e6f5717214004a7f26888", "0xdbd020caef83efd542f4de03e3cf0c28a4428bd5", 86_400)
+    ])
+
     static let hyperEVM = table([
         Entry("0x5555555555555555555555555555555555555555", "0xa5a72ef19f82a579431186402425593a559ed352", 86_400),
         Entry("0xb88339cb7199b77e23db6e890353e22632ba630f", "0xa0adc43ce7afe3ee7d7eac3c994e178d0620223b", 86_400),

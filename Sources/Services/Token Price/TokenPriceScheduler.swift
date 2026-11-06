@@ -73,7 +73,7 @@ actor TokenPriceScheduler {
 
         printVerbose("Price update: \(requests.count) tokens due")
 
-        let results = await priceService.resolvedPrices(requests)
+        let results = await priceService.resolvedPrices(requests, now: now)
         var isRateLimited = false
         var updatedTokens: [Token] = []
 

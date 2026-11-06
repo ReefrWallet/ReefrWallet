@@ -330,6 +330,8 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
         )
 
         try await service.saveBalances([updatedBalance])
+        // Prices belong to the price writer; a balance save only updates descriptive fields.
+        try await service.updateTokenPrices([updatedToken])
 
         let fetched = try #require(try await service.fetchBalances(accountId: accountId).first)
         #expect(fetched.id == balanceId)

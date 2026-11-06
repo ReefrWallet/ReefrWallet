@@ -8,17 +8,19 @@ struct CoinGeckoPriceSource: PriceSource {
     static let apiKeyDefaultsKey = "CoinGeckoAPIKey"
     static let defaultBaseURL = URL(string: "https://api.coingecko.com/api/v3")!
 
-    private let apiKey: String?
     private let baseURL: URL
+    private let explicitAPIKey: String?
     private let provider: CoinGeckoProvider
 
+    /// - Parameter apiKey: Overrides the key from Settings or the environment, which is otherwise
+    ///   read on every request so a key entered later applies without a relaunch.
     init(
-        apiKey: String? = CoinGeckoPriceSource.configuredAPIKey(),
+        apiKey: String? = nil,
         baseURL: URL = CoinGeckoPriceSource.defaultBaseURL,
         provider: MoyaProvider<CoinGeckoAPI>? = nil
     ) {
-        self.apiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.baseURL = baseURL
+        explicitAPIKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         self.provider = CoinGeckoProvider(provider ?? MoyaProvider(session: Session(
             interceptor: CoinGeckoRateLimitInterceptor.shared
@@ -27,6 +29,10 @@ struct CoinGeckoPriceSource: PriceSource {
 
     var id: String {
         "coinGecko"
+    }
+
+    private var apiKey: String? {
+        explicitAPIKey ?? Self.configuredAPIKey()
     }
 
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal? {
@@ -39,7 +45,8 @@ struct CoinGeckoPriceSource: PriceSource {
 
     /// Prices `tokens` with one request per `maxBatchSize` native assets and per `maxBatchSize`
     /// tokens of a platform, so the call count doesn't grow with the token count. Results align
-    /// with `tokens`; `nil` means CoinGecko doesn't support or list the token.
+    /// with `tokens`; `nil` means CoinGecko can't be asked about the token, and ``NoQuote`` that
+    /// it was asked and returned no price.
     func resolvedPrices(_ tokens: [Token]) async -> [Result<CoinGeckoPrice?, any Swift.Error>] {
         var results = [Result<CoinGeckoPrice?, any Swift.Error>](repeating: .success(nil), count: tokens.count)
 
@@ -98,7 +105,7 @@ struct CoinGeckoPriceSource: PriceSource {
     }
 }
 
-private extension CoinGeckoPriceSource {
+extension CoinGeckoPriceSource {
     /// Assets per request, keeping query strings well under URL length limits.
     static let maxBatchSize = 50
 
@@ -141,21 +148,21 @@ private extension CoinGeckoPriceSource {
         }
 
         if token.isNativeToken {
-            guard let coinGeckoId = token.coinGeckoId ?? nativeCoinGeckoId(for: blockchain) else {
+            guard let coinGeckoId = token.coinGeckoId ?? Self.nativeCoinGeckoId(for: blockchain) else {
                 return nil
             }
 
             return .native(coinGeckoId)
         }
 
-        guard let address = token.address, let platform = assetPlatform(for: blockchain) else {
+        guard let address = token.address, let platform = Self.assetPlatform(for: blockchain) else {
             return nil
         }
 
         return .token(platform: platform, address: address)
     }
 
-    func nativeCoinGeckoId(for blockchain: Blockchain) -> String? {
+    static func nativeCoinGeckoId(for blockchain: Blockchain) -> String? {
         switch blockchain {
         case .aptos: "aptos"
         case .bitcoin: "bitcoin"
@@ -178,7 +185,7 @@ private extension CoinGeckoPriceSource {
         }
     }
 
-    func assetPlatform(for blockchain: Blockchain) -> String? {
+    static func assetPlatform(for blockchain: Blockchain) -> String? {
         switch blockchain {
         case .aptos: "aptos"
         case .bitcoin: nil
@@ -218,7 +225,7 @@ private extension CoinGeckoPriceSource {
             guard let usdPrice = response.first(where: {
                 $0.key.caseInsensitiveCompare(key) == .orderedSame
             })?.value["usd"] else {
-                return .success(nil)
+                return .failure(NoQuote())
             }
 
             return Result { try resolvedPrice(usdPrice, coinGeckoId: coinGeckoId) }.map { $0 }

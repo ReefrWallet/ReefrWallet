@@ -203,7 +203,10 @@ struct TokenPriceServiceTests {
             baseURL: testAPIURL,
             provider: coinGeckoProvider(response: Data(#"{}"#.utf8))
         )
-        #expect(try await unlistedSource.usdPrice(mainnetToken, rpcURL: testRPCURL) == nil)
+
+        await #expect(throws: NoQuote.self) {
+            _ = try await unlistedSource.usdPrice(mainnetToken, rpcURL: testRPCURL)
+        }
     }
 
     @Test func coinGeckoRejectsInvalidPrices() async {

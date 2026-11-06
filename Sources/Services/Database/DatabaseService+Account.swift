@@ -24,6 +24,7 @@ extension DatabaseService {
     /// Deletes all accounts across every key store, keeping the key stores themselves.
     func deleteAllAccounts() throws {
         try modelContext.delete(model: AccountModel.self)
+        try modelContext.delete(model: TokenSourceStatusModel.self)
         try modelContext.delete(model: BlockchainModel.self)
         try modelContext.save()
     }

@@ -10,11 +10,12 @@ import Foundation
 
 /// The manual refresh routine behind the sidebar's refresh button and pull-to-refresh.
 enum AccountRefresh {
-    /// Refreshes balances and approvals of `accounts`, then nudges the price scheduler.
+    /// Refreshes balances and approvals of `accounts`, then nudges the identity and price schedulers.
     /// Returns when everything is done.
     static func run(_ accounts: [Account]) async {
         let approvalService = DI.injectOrFail(ApprovalService.self)
         let balancesService = DI.injectOrFail(BalancesService.self)
+        let tokenIdentityScheduler = DI.injectOrFail(TokenIdentityScheduler.self)
         let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
 
         for account in accounts {
@@ -37,7 +38,8 @@ enum AccountRefresh {
             }
         }
 
-        // Prices refresh on their own schedule; just skip the current idle wait.
+        // Identities and prices refresh on their own schedule; just skip the current idle wait.
+        await tokenIdentityScheduler.refreshNow()
         await tokenPriceScheduler.refreshNow()
     }
 }

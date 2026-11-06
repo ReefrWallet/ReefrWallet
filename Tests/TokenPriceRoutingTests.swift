@@ -113,12 +113,28 @@ struct TokenPriceRoutingTests {
         #expect(isStale(await chainlinkResult(updatedAt: now + 10_000_000)))
     }
 
-    @Test func chainlinkEnsFeedsAllowTwentyFourHoursPlusGrace() async throws {
-        let fresh = await chainlinkEnsResult(updatedAt: now - 86_400 - 900)
-        let stale = await chainlinkEnsResult(updatedAt: now - 86_400 - 901)
+    @Test func ethereumFeedsAllowTwentyFourHoursPlusGrace() async throws {
+        let fresh = await ethereumUSDCResult(updatedAt: now - 86_400 - 900)
+        let stale = await ethereumUSDCResult(updatedAt: now - 86_400 - 901)
 
         #expect(try fresh.get() == 2_000)
         #expect(isStale(stale))
+    }
+
+    @Test func ethereumFeedsComeFromTheAddressTableNeverFromTheSymbol() async throws {
+        let stub = chainlinkStub(updatedAt: now)
+        let source = ethereumChainlinkSource(stub)
+        let usdc = erc20(on: ethereum, address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+
+        #expect(try await source.usdPrice(usdc, rpcURL: stub.endpoint) == 2_000)
+        #expect(Set(stub.calls().map(\.to)) == ["0x8fffffd4afb6115b954bd326cbe7b4ba576818f6"])
+
+        var squatter = erc20(on: ethereum, address: "0x" + String(repeating: "99", count: 20))
+        squatter.symbol = "USDC"
+        let callCount = stub.calls().count
+
+        #expect(try await source.usdPrice(squatter, rpcURL: stub.endpoint) == nil)
+        #expect(stub.calls().count == callCount)
     }
 
     @Test func chainlinkReadsTheNativeFeedForNativeTokens() async throws {
@@ -198,7 +214,7 @@ struct TokenPriceRoutingTests {
                 deployment: deployment
             )
 
-            await #expect(throws: BlockchainClientError.self) {
+            await #expect(throws: TokenNotListed.self) {
                 _ = try await source.usdPrice(erc20(on: arbitrum, address: tokenAddress), rpcURL: stub.endpoint)
             }
 
@@ -287,23 +303,21 @@ private func chainlinkResult(updatedAt: UInt64) async -> Result<Decimal?, any Sw
     return await capture { try await chainlinkSource(stub).usdPrice(token, rpcURL: stub.endpoint) }
 }
 
-private func chainlinkEnsResult(updatedAt: UInt64) async -> Result<Decimal?, any Swift.Error> {
-    let registry = "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e"
-    let resolver = "0x" + String(repeating: "77", count: 20)
-    let feed = "0x" + String(repeating: "88", count: 20)
+private let ethereum = Blockchain.evm(.ethereum(.mainnet))
 
-    let stub = EthereumStubURLProtocol.make { call in
-        switch call.to {
-        case registry: addressWord(resolver)
-        case resolver: addressWord(feed)
-        default: roundOrDecimals(call, updatedAt: updatedAt)
-        }
-    }
+private func ethereumChainlinkSource(_ stub: EthereumStubURLProtocol.Stub) -> ChainlinkPriceSource {
+    ChainlinkPriceSource(
+        clientProvider: BlockchainClientProvider(urlSession: stub.session),
+        lookup: .ethereum,
+        now: { Date(timeIntervalSince1970: TimeInterval(now)) }
+    )
+}
 
-    let ethereum = Blockchain.evm(.ethereum(.mainnet))
-    let token = Token(address: nil, blockchain: ethereum, tokenInfo: ethereum.nativeToken)
+private func ethereumUSDCResult(updatedAt: UInt64) async -> Result<Decimal?, any Swift.Error> {
+    let stub = chainlinkStub(updatedAt: updatedAt)
+    let usdc = erc20(on: ethereum, address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
 
-    return await capture { try await chainlinkSource(stub, lookup: .ens).usdPrice(token, rpcURL: stub.endpoint) }
+    return await capture { try await ethereumChainlinkSource(stub).usdPrice(usdc, rpcURL: stub.endpoint) }
 }
 
 private func chainlinkStub(updatedAt: UInt64) -> EthereumStubURLProtocol.Stub {
@@ -323,10 +337,6 @@ private func roundOrDecimals(_ call: EthereumStubURLProtocol.Call, updatedAt: UI
 private func word(_ value: UInt64) -> String {
     let hex = String(value, radix: 16)
     return String(repeating: "0", count: 64 - hex.count) + hex
-}
-
-private func addressWord(_ address: String) -> String {
-    "0x" + String(repeating: "0", count: 24) + address.dropFirst(2)
 }
 
 private func isStale(_ result: Result<Decimal?, any Swift.Error>) -> Bool {

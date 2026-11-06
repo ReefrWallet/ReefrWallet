@@ -19,10 +19,16 @@ struct Token: Hashable, Sendable {
     var decimalsCount: UInt8
     /// Whether the most recent price fetch failed; `usdPrice` then holds the last good quote, if any.
     var hasPriceFetchError = false
+    /// When identification is next attempted for a token no source has identified yet.
+    var identityRetryAt: Date?
     var imageURL: URL?
     var isHidden: Bool
     var isIncludedInBalance: Bool?
     let isNativeToken: Bool
+    /// Whether an identity source has confirmed this contract is a real asset; never reset to `false`.
+    var isWhitelisted = false
+    /// When the image lookup is next attempted for an identified token without one.
+    var metadataRetryAt: Date?
     var name: String
     /// The `PriceSource.id` that quoted `usdPrice`; `nil` after a failed fetch.
     var priceSourceId: String?
@@ -88,10 +94,12 @@ final class TokenModel {
     var coinGeckoId: String?
     var decimalsCount: UInt8
     var hasPriceFetchError = false
+    var identityRetryAt: Date?
     var imageURL: URL?
     var isIncludedInBalance: Bool?
     var isNativeToken: Bool
     var isWhitelisted: Bool?
+    var metadataRetryAt: Date?
     var name: String
     var priceSourceId: String?
     var priceUpdatedAt: Date?
@@ -106,6 +114,9 @@ final class TokenModel {
 
     @Relationship(deleteRule: .noAction, inverse: \BlockchainModel.tokens)
     var blockchain: BlockchainModel?
+
+    @Relationship(deleteRule: .cascade, inverse: \TokenSourceStatusModel.token)
+    var sourceStatuses: [TokenSourceStatusModel]? = []
 
     init(
         address: String?,
@@ -141,10 +152,13 @@ extension Token {
         coinGeckoId = model.coinGeckoId
         decimalsCount = model.decimalsCount
         hasPriceFetchError = model.hasPriceFetchError
+        identityRetryAt = model.identityRetryAt
         imageURL = model.imageURL
         isHidden = model.isHidden
         isIncludedInBalance = model.isIncludedInBalance
         isNativeToken = model.isNativeToken
+        isWhitelisted = model.isWhitelisted == true
+        metadataRetryAt = model.metadataRetryAt
         name = model.name
         priceSourceId = model.priceSourceId
         priceUpdatedAt = model.priceUpdatedAt
@@ -228,8 +242,9 @@ extension Token {
 }
 
 extension TokenModel {
+    /// Unidentified or unpriced non-native tokens: listed apart and left out of totals.
     var isHidden: Bool {
-        usdPrice == nil && !isNativeToken
+        !isNativeToken && (isWhitelisted != true || usdPrice == nil)
     }
 }
 

@@ -37,6 +37,7 @@ extension ServiceContainer {
                         ConnectedDappModel.self,
                         KeyStoreModel.self,
                         TokenModel.self,
+                        TokenSourceStatusModel.self,
                         SavedAddressModel.self,
                         StakingModel.self,
                         WalletTransactionModel.self,
@@ -114,6 +115,14 @@ extension ServiceContainer {
 
         register(StakingStateService.self) {
             StakingStateService()
+        }
+
+        register(TokenIdentityScheduler.self) {
+            TokenIdentityScheduler()
+        }
+
+        register(TokenIdentityService.self) {
+            TokenIdentityService()
         }
 
         register(TokenPriceScheduler.self) {

@@ -195,7 +195,10 @@ extension AccountModel {
     /// turns an O(N) sum into an O(N²) fault storm.
     func usdValue() -> Decimal {
         balances.reduce(into: staking?.stakedUSDValue ?? 0) { partialResult, balance in
-            partialResult += balance.usdValue
+            // Unidentified tokens keep any stale price but don't count.
+            if !balance.token.isHidden {
+                partialResult += balance.usdValue
+            }
         }
     }
 }

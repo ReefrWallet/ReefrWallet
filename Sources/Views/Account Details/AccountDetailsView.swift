@@ -72,9 +72,9 @@ extension AccountDetailsView: View {
         }
 
         // Balance refreshes update `BalanceModel` in place, so its persistent
-        // identifier does not change when the on-chain amount changes. Include
-        // the serialized amount in the task identity so the cached value list
-        // is rebuilt after every successful blockchain refresh.
+        // identifier does not change when the on-chain amount changes, and price, identity and
+        // image updates change only the token row. `refreshKey` covers all of them, so the cached
+        // value list is rebuilt after every such change.
         .task(id: balanceRefreshId) {
             cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
         }
@@ -443,9 +443,7 @@ private extension AccountDetailsView {
     }
 
     var balanceRefreshId: [String] {
-        accountBalances.map { balance in
-            "\(balance.persistentModelID)-\(balance.serializedAmount.base64EncodedString())"
-        }
+        accountBalances.map(\.refreshKey)
     }
 
     static let filterGlassId = "filter"

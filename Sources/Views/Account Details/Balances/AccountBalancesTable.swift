@@ -190,7 +190,9 @@ private extension AccountBalancesTable {
 
     func usdValue(_ balances: [Balance]) -> Decimal {
         balances.reduce(into: 0) { partialResult, balance in
-            partialResult += (balance.usdValue ?? 0)
+            if !balance.token.isHidden {
+                partialResult += (balance.usdValue ?? 0)
+            }
         }
     }
 

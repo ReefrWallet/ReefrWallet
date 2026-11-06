@@ -66,9 +66,7 @@ struct UniswapV3PriceSource: PriceSource {
         }
 
         guard let best = candidates.max(by: { $0.liquidity < $1.liquidity }), best.liquidity > 0 else {
-            throw BlockchainClientError.decodingFailed(
-                reason: "no Uniswap V3 pool with any liquidity exists for this pair at any standard fee tier"
-            )
+            throw TokenNotListed()
         }
 
         return best.pool

@@ -162,6 +162,7 @@ private struct Fixture {
             isHidden: false,
             isIncludedInBalance: true,
             isNativeToken: false,
+            isWhitelisted: true,
             name: address,
             symbol: address,
             usdPrice: nil

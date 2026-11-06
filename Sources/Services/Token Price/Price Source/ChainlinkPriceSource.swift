@@ -5,16 +5,13 @@ struct ChainlinkPriceSource: PriceSource {
     private static let heartbeatGrace: TimeInterval = 15 * 60
     /// How far past the device clock an `updatedAt` may be; beyond it a slow clock could hide staleness.
     private static let maxClockSkew: TimeInterval = 5 * 60
-    /// Every Ethereum crypto/USD feed in Chainlink's directory has a heartbeat of at most 24 hours.
-    private static let ensHeartbeat: TimeInterval = 24 * 60 * 60
-
     let clientProvider: BlockchainClientProvider
     let lookup: FeedLookup
     let now: @Sendable () -> Date
 
     init(
         clientProvider: BlockchainClientProvider,
-        lookup: FeedLookup = .ens,
+        lookup: FeedLookup,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.clientProvider = clientProvider
@@ -31,22 +28,15 @@ struct ChainlinkPriceSource: PriceSource {
             return nil
         }
 
-        let client = try clientProvider.ethereumClient(blockchain: .evm(blockchain), rpcURL: rpcURL)
-        let feed: EthereumAddress
-        let heartbeat: TimeInterval
-
-        switch lookup {
-        case .ens:
-            feed = try await chainlinkFeedAddress(base: token.symbol, client: client)
-            heartbeat = Self.ensHeartbeat
-        case let .table(native, tokens):
-            guard let entry = token.isNativeToken ? native : token.address.flatMap({ tokens[$0.lowercased()] }) else {
-                return nil
-            }
-
-            feed = try EthereumAddress(string: entry.address)
-            heartbeat = entry.heartbeat
+        guard case let .table(native, tokens) = lookup,
+              let entry = token.isNativeToken ? native : token.address.flatMap({ tokens[$0.lowercased()] })
+        else {
+            return nil
         }
+
+        let client = try clientProvider.ethereumClient(blockchain: .evm(blockchain), rpcURL: rpcURL)
+        let feed = try EthereumAddress(string: entry.address)
+        let heartbeat = entry.heartbeat
 
         async let round = latestRoundData(feed: feed, client: client)
 
@@ -79,13 +69,13 @@ struct ChainlinkPriceSource: PriceSource {
         }
     }
 
-    private func chainlinkFeedAddress(base: String, client: EthereumRPCClient) async throws -> EthereumAddress {
-        try await ENSResolver(clientProvider: clientProvider).resolve("\(base.lowercased())-usd.data.eth", client: client)
-    }
-
     private func latestRoundData(feed: EthereumAddress, client: EthereumRPCClient) async throws -> ChainlinkRoundData {
         let data = EthereumABI.encodeCall(selector: EthereumABI.selector("latestRoundData()"))
         let words = EthereumABI.words(try await client.call(to: feed, data: data))
+
+        guard !words.isEmpty else {
+            throw BlockchainClientError.decodingFailed(reason: "empty latestRoundData() response")
+        }
 
         guard words.count >= 5 else {
             throw BlockchainClientError.decodingFailed(reason: "expected 5 words, got \(words.count)")
@@ -108,8 +98,6 @@ extension ChainlinkPriceSource {
 
     /// How a token's feed is found.
     enum FeedLookup: Sendable {
-        /// `<symbol>-usd.data.eth` via ENS, Ethereum mainnet only.
-        case ens
         /// Fixed feeds: `native` for the chain's native token, `tokens` by lowercased contract address.
         case table(native: Feed, tokens: [String: Feed])
     }
