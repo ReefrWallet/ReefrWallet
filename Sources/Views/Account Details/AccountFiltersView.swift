@@ -21,7 +21,7 @@ struct AccountFiltersView: View {
         NavigationStack {
             List {
                 switch tab {
-                case .approvals, .staking:
+                case .addresses, .approvals, .staking:
                     EmptyView()
 
                 case .balances:

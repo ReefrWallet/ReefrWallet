@@ -271,6 +271,10 @@ final class AccountService {
 
         account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
 
+        if blockchain.supportsReceiveAddresses {
+            try? await ReceiveAddressService(databaseService: databaseService).ensureBaseRow(for: account)
+        }
+
         Task.detached {
             await self.transactionSyncService.start(account)
 

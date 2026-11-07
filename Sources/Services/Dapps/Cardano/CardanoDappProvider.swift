@@ -22,10 +22,23 @@ struct CardanoDappProvider: DappProvider {
 
     private let enabledAccounts = CardanoEnabledAccounts()
     private let makeClient: @Sendable (Account) throws -> CardanoClient
+    private let issuedIndices: @Sendable (Account) async -> Set<UInt32>
 
-    /// Defaults to the global DI container's client provider; tests pass a
+    /// Defaults to the global DI container's client provider and database; tests pass a
     /// factory returning a client over a stubbed session.
-    init(makeClient: (@Sendable (Account) throws -> CardanoClient)? = nil) {
+    init(
+        makeClient: (@Sendable (Account) throws -> CardanoClient)? = nil,
+        issuedIndices: (@Sendable (Account) async -> Set<UInt32>)? = nil
+    ) {
+        self.issuedIndices = issuedIndices ?? { account in
+            guard let accountId = account.id else {
+                return []
+            }
+
+            let rows = try? await DI.injectOrFail(DatabaseService.self).fetchReceiveAddresses(accountId: accountId)
+            return Set(rows?.map(\.index) ?? [])
+        }
+
         self.makeClient = makeClient ?? { account in
             let provider = DI.injectOrFail(BlockchainClientProvider.self)
             let client = try provider.makeClient(blockchain: account.blockchain, rpcURL: account.rpcURLOverride)
@@ -207,9 +220,11 @@ private extension CardanoDappProvider {
     func getUnusedAddresses(context: DappRequestContext) async throws(CardanoDappError) -> JSONValue {
         let session = try await authorized(context)
         let usage = try await call { try await session.client.addressUsage(session.descriptor) }
-        let address = try call {
-            try session.descriptor.address(role: 0, index: usage.firstUnusedExternalIndex())
+        guard let index = usage.firstUnusedExternalIndex() else {
+            return .array([])
         }
+
+        let address = try call { try session.descriptor.address(role: 0, index: index) }
 
         return .array([.string(try call { try cardanoAddressBytes(address.string).cardanoHex })])
     }
@@ -364,10 +379,7 @@ private extension CardanoDappProvider {
 
         let address = try call(.dataSign) { try Self.addressBytes(addressText) }
 
-        let usage = try await call(.dataSign) { try await session.client.addressUsage(session.descriptor) }
-        let path = try call(.dataSign) {
-            try cardanoSigningPath(for: address, owner: session.descriptor, usage: usage)
-        }
+        let path = try await signingPath(for: address, session: session)
 
         guard let path else {
             throw .dataSign(.addressNotPK, "This account doesn't hold the key behind that address.")
@@ -404,6 +416,31 @@ private extension CardanoDappProvider {
         }
 
         return .object(["key": .string(signed.key.cardanoHex), "signature": .string(signed.signature.cardanoHex)])
+    }
+
+    /// The key behind `address`. An address issued here is proven from the account key with no network
+    /// call; others go by on-chain usage.
+    func signingPath(
+        for address: Data,
+        session: Session
+    ) async throws(CardanoDappError) -> CardanoSigningPath? {
+        let issued = try await call(.dataSign) {
+            try cardanoIssuedSigningPath(
+                for: address,
+                owner: session.descriptor,
+                indices: await issuedIndices(session.account)
+            )
+        }
+
+        if let issued {
+            return issued
+        }
+
+        let usage = try await call(.dataSign) { try await session.client.addressUsage(session.descriptor) }
+
+        return try call(.dataSign) {
+            try cardanoSigningPath(for: address, owner: session.descriptor, usage: usage)
+        }
     }
 
     /// CIP-30 passes addresses as hex; some dapps send bech32.

@@ -26,6 +26,7 @@ private actor CardanoRecordingApproving: DappApproving {
 
 struct CardanoDappProviderFixture {
     let account: ReefrWallet.Account
+    let databaseService: DatabaseService
     let descriptor: CardanoAccountDescriptor
     let provider: CardanoDappProvider
     let session: DappSession
@@ -40,10 +41,12 @@ struct CardanoDappProviderFixture {
 
     /// - Parameter routes: extra Blockfrost routes, by path under `/api/v0`.
     /// - Parameter utxos: replaces the account's default single UTxO (a Blockfrost JSON array).
+    /// - Parameter status: HTTP status overrides, by account path suffix such as `/utxos`.
     static func make(
         routes: [String: String] = [:],
         addresses: [String]? = nil,
-        utxos: String? = nil
+        utxos: String? = nil,
+        status: [String: Int] = [:]
     ) async throws -> Self {
         let databaseService = try makeDatabaseService()
         let accountService = AccountService(databaseService: databaseService)
@@ -69,17 +72,32 @@ struct CardanoDappProviderFixture {
         {"coins_per_utxo_size":4310,"key_deposit":2000000,"max_tx_size":16384,"max_val_size":5000,
          "min_fee_a":44,"min_fee_b":155381,"pool_deposit":500000000}
         """
-        let stub = CardanoStubURLProtocol.make(routes: allRoutes)
+        let accountPath = "/api/v0/accounts/\(descriptor.stakeAddress)"
+        let stub = CardanoStubURLProtocol.make(
+            routes: allRoutes,
+            status: Dictionary(uniqueKeysWithValues: status.map { (accountPath + $0.key, $0.value) })
+        )
 
         let session = DappSession(origin: "https://dapp.example")
         await session.setActiveAccount(account)
 
         return Self(
             account: account,
+            databaseService: databaseService,
             descriptor: descriptor,
-            provider: CardanoDappProvider(makeClient: { _ in
-                CardanoClient(endpoint: stub.endpoint, projectId: "project-id", session: stub.session)
-            }),
+            provider: CardanoDappProvider(
+                makeClient: { _ in
+                    CardanoClient(endpoint: stub.endpoint, projectId: "project-id", session: stub.session)
+                },
+                issuedIndices: { account in
+                    guard let accountId = account.id else {
+                        return []
+                    }
+
+                    let rows = try? await databaseService.fetchReceiveAddresses(accountId: accountId)
+                    return Set(rows?.map(\.index) ?? [])
+                }
+            ),
             session: session,
             signingService: DappSigningService(transactionService: transactionService),
             stub: stub,
@@ -373,6 +391,44 @@ struct CardanoDappProviderTests {
         }
         #expect(keyRole == .payment)
         #expect(payload == Data("hello".utf8))
+    }
+
+    @Test func signDataForALocallyIssuedAddressNeedsNoNetworkAndStillAsksForApproval() async throws {
+        let fixture = try await CardanoDappProviderFixture.make(status: ["/utxos": 500, "/addresses": 500])
+        try await fixture.enable()
+        try await ReceiveAddressService(databaseService: fixture.databaseService).add(index: 500, to: fixture.account)
+
+        let issued = try fixture.descriptor.address(role: 0, index: 500).string
+        let address = try cardanoAddressBytes(issued).cardanoHex
+        let approving = CardanoRecordingApproving(result: .approved)
+
+        let result = try await call(fixture, "signData", [.string(address), .string("00")], approving: approving)
+
+        #expect(result["signature"]?.stringValue?.hasPrefix("84") == true)
+        #expect(await approving.requests.count == 1)
+        #expect(fixture.stub.requestCount(path: "/api/v0/accounts/\(fixture.descriptor.stakeAddress)/utxos") == 0)
+    }
+
+    @Test func signDataForAnUnissuedFarAddressIsRefusedBeforePrompting() async throws {
+        let fixture = try await CardanoDappProviderFixture.make()
+        try await fixture.enable()
+        let far = try cardanoAddressBytes(fixture.descriptor.address(role: 0, index: 500).string).cardanoHex
+        let approving = CardanoRecordingApproving(result: .approved)
+
+        let error = await cardanoError {
+            try await call(fixture, "signData", [.string(far), .string("00")], approving: approving)
+        }
+
+        #expect(error != nil)
+        #expect(await approving.requests.isEmpty)
+    }
+
+    @Test func addressQueriesFailRatherThanReturnAPartialListWhenTheUTxOReadFails() async throws {
+        let fixture = try await CardanoDappProviderFixture.make(status: ["/utxos": 500])
+        try await fixture.enable()
+
+        #expect(await cardanoError { try await call(fixture, "getUsedAddresses") } != nil)
+        #expect(await cardanoError { try await call(fixture, "getUnusedAddresses") } != nil)
     }
 
     @Test func signDataForTheRewardAddressUsesTheStakeKey() async throws {

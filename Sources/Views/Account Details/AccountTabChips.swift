@@ -9,6 +9,7 @@
 import SwiftUI
 
 enum AccountTab: String, CaseIterable, Identifiable {
+    case addresses
     case approvals
     case balances
     case staking
@@ -18,6 +19,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .addresses: "list.number"
         case .approvals: "checkmark.shield"
         case .balances: "chart.pie"
         case .staking: "lock"
@@ -27,6 +29,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
 
     var title: LocalizedStringResource {
         switch self {
+        case .addresses: .accountDetailsAddresses
         case .approvals: .accountDetailsApprovals
         case .balances: .accountDetailsBalances
         case .staking: .accountDetailsStaking

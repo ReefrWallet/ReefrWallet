@@ -32,6 +32,18 @@
         }
       }
     },
+    "accountDetails.addresses" : {
+      "comment" : "AccountTab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses"
+          }
+        }
+      }
+    },
     "accountDetails.approvals" : {
       "comment" : "AccountDetailsView",
       "extractionState" : "manual",
@@ -712,6 +724,198 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select"
+          }
+        }
+      }
+    },
+    "addresses.add" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "addresses.addAddress" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Address"
+          }
+        }
+      }
+    },
+    "addresses.addressIndex" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address Index"
+          }
+        }
+      }
+    },
+    "addresses.allListed" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All 1,000 addresses are already listed."
+          }
+        }
+      }
+    },
+    "addresses.customIndex" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Index"
+          }
+        }
+      }
+    },
+    "addresses.derives" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Derives %@."
+          }
+        }
+      }
+    },
+    "addresses.derivesLowestFree" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Derives %@, the lowest free index."
+          }
+        }
+      }
+    },
+    "addresses.derivesNext" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Derives %1$@, the next index after your newest address (#%2$lld)."
+          }
+        }
+      }
+    },
+    "addresses.footnoteMac" : {
+      "comment" : "AccountAddressesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses that have received funds are found on refresh. New addresses are derived in sequence unless you enter an index."
+          }
+        }
+      }
+    },
+    "addresses.footnotePhone" : {
+      "comment" : "AccountAddressesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses that have received funds are found on refresh. Add new ones in sequence or at a custom index."
+          }
+        }
+      }
+    },
+    "addresses.gapWarning" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is more than 20 addresses past your last used one. Other wallets may not find funds sent here when restoring from the recovery phrase."
+          }
+        }
+      }
+    },
+    "addresses.invalidIndex" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an unlisted index from 0 to 999."
+          }
+        }
+      }
+    },
+    "addresses.receiveAddresses" : {
+      "comment" : "AccountAddressesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receive Addresses"
+          }
+        }
+      }
+    },
+    "addresses.sheetTitleMac" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Receive Address"
+          }
+        }
+      }
+    },
+    "addresses.sheetTitlePhone" : {
+      "comment" : "AddReceiveAddressSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Address"
+          }
+        }
+      }
+    },
+    "addresses.unused" : {
+      "comment" : "ReceiveAddressRow",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unused"
           }
         }
       }

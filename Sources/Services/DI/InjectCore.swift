@@ -36,6 +36,7 @@ extension ServiceContainer {
                         BlockchainModel.self,
                         ConnectedDappModel.self,
                         KeyStoreModel.self,
+                        ReceiveAddressModel.self,
                         TokenModel.self,
                         TokenSourceStatusModel.self,
                         SavedAddressModel.self,

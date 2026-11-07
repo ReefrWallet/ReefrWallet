@@ -60,6 +60,11 @@ final class AccountModel {
     var rpcURLOverride: String?
     var signatureScheme: String?
     var bitcoinBackend: String?
+    /// When Cardano receive-address discovery last succeeded; `nil` if it never has.
+    var receiveAddressesObservedAt: Date?
+
+    @Relationship(deleteRule: .cascade, inverse: \ReceiveAddressModel.account)
+    var receiveAddresses: [ReceiveAddressModel] = []
 
     @Relationship(deleteRule: .cascade, inverse: \ApprovalModel.account)
     var approvals: [ApprovalModel] = []

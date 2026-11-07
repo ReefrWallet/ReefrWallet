@@ -17,6 +17,7 @@ struct AccountDetailsView {
     let keyStore: KeyStore
 
     @State private var cachedBalances: [Balance] = []
+    @State private var isAddAddressPresented = false
     @State private var isCopyWalletAddressButtonActive = false
     @State private var isFiltersPresented = false
     @State private var isTransactionSheetPresented = false
@@ -94,6 +95,10 @@ extension AccountDetailsView: View {
                     .sheetZoom(from: Self.sendSourceId, namespace: sheetNamespace)
             }
         }
+        .sheet(isPresented: $isAddAddressPresented) {
+            AddReceiveAddressSheet(account)
+                .sheetZoom(from: Self.addAddressSourceId, namespace: sheetNamespace)
+        }
         .modifier(AccountStakingSheets(model: staking))
         #if os(iOS)
         .sheet(isPresented: $isFiltersPresented) {
@@ -116,6 +121,16 @@ extension AccountDetailsView: View {
                         Label(.accountDetailsTokenBalances, systemImage: "chart.bar")
                     }
                     .tag(AccountTab.balances)
+
+                if account.blockchain.supportsReceiveAddresses {
+                    ScrollView {
+                        AccountAddressesView(account)
+                    }
+                    .tabItem {
+                        Label(.accountDetailsAddresses, systemImage: AccountTab.addresses.systemImage)
+                    }
+                    .tag(AccountTab.addresses)
+                }
 
                 AccountTransactionsView(account)
                     .tabItem {
@@ -145,7 +160,7 @@ extension AccountDetailsView: View {
             .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                if tab != .staking {
+                if tab != .staking, tab != .addresses {
                     bottomBar
                 }
             }
@@ -184,6 +199,9 @@ extension AccountDetailsView: View {
     @ViewBuilder
     private var content: some View {
         switch tab {
+        case .addresses:
+            AccountAddressesView(account)
+
         case .approvals:
             AccountApprovalsView(account, canSign: canSign, searchText: searchText)
 
@@ -215,6 +233,15 @@ extension AccountDetailsView: View {
         ToolbarItemGroup(placement: .primaryAction) {
             // Watch-only accounts can't sign, so they get no transaction buttons at all.
             switch tab {
+            case .addresses:
+                Button {
+                    isAddAddressPresented = true
+                } label: {
+                    Label(.addressesAddAddress, systemImage: "plus")
+                }
+                .sheetSource(Self.addAddressSourceId)
+                .accessibilityIdentifier("account-add-address-button")
+
             case .staking where canSign:
                 if let staking {
                     AccountStakingToolbarActions(model: staking)
@@ -446,6 +473,7 @@ private extension AccountDetailsView {
         accountBalances.map(\.refreshKey)
     }
 
+    static let addAddressSourceId = "account-add-address"
     static let filterGlassId = "filter"
     static let filtersSourceId = "account-filters"
     static let searchGlassId = "search"
@@ -464,6 +492,10 @@ private extension AccountDetailsView {
 
     var tabs: [AccountTab] {
         var tabs: [AccountTab] = [.balances, .transactions]
+
+        if account.blockchain.supportsReceiveAddresses {
+            tabs.insert(.addresses, at: 1)
+        }
 
         if account.blockchain.supportsApprovals {
             tabs.append(.approvals)

@@ -51,6 +51,8 @@ extension StyledView {
         case mono
         /// 11pt monospaced, Mac hashes and amounts.
         case smallMono
+        /// 12pt monospaced, iPhone hashes.
+        case phoneMono
         /// 10pt semibold, sidebar header glyphs.
         case smallIcon
         /// 22pt bold, iPhone list section titles.
@@ -124,6 +126,8 @@ private extension View {
             font(.system(size: 14, weight: .regular, design: .monospaced))
         case .smallMono:
             font(.system(size: 11, weight: .regular, design: .monospaced))
+        case .phoneMono:
+            font(.system(size: 12, weight: .regular, design: .monospaced))
         case .smallIcon:
             font(.system(size: 10, weight: .semibold))
         case .title:

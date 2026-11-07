@@ -28,6 +28,8 @@ actor BalancesService {
     private var activeFlush: Task<Void, Never>?
     /// Consecutive flushes that put something back on the queue.
     private var flushRetries = 0
+    /// The latest Cardano refresh per account; the next one waits for it.
+    private var cardanoRefreshes: [PersistentIdentifier: Task<Void, Never>] = [:]
     private var queuedAccountRefreshes: [PersistentIdentifier: Account] = [:]
     private var queuedTokenUpdates: [BalanceUpdateKey: Account] = [:]
 
@@ -68,7 +70,9 @@ actor BalancesService {
             backend: account.bitcoinBackend
         )
 
-        if client.isSupported(.allBalances) {
+        if let cardano = client as? CardanoClient {
+            try await updateCardanoBalances(account, client: cardano)
+        } else if client.isSupported(.allBalances) {
             let balances = try await fetchAllBalances(client: client, account: account)
             try await databaseService.updateBalances(account: account, updates: balances)
         } else {
@@ -291,6 +295,7 @@ private extension BalancesService {
     func fetchAllBalances(
         client: any BlockchainClientProtocol,
         account: Account,
+        amounts: [String: BigUInt]? = nil
     ) async throws -> [Balance] {
         guard client.isSupported(.allBalances) else {
             throw ReefrError.notSupported
@@ -298,7 +303,14 @@ private extension BalancesService {
 
         var balances: [Balance] = []
 
-        for (tokenAddress, amount) in try await client.getAllBalances(account.address) {
+        let allAmounts: [String: BigUInt]
+        if let amounts {
+            allAmounts = amounts
+        } else {
+            allAmounts = try await client.getAllBalances(account.address)
+        }
+
+        for (tokenAddress, amount) in allAmounts {
             let tokenInfo = try? await client.getTokenInfo(tokenAddress)
             let effectiveAddress = tokenInfo?.isNative == true ? nil : tokenAddress
             let storedToken: Token?
@@ -543,5 +555,48 @@ private extension BalancesService {
         }
 
         return order.compactMap { preferred[$0] }
+    }
+}
+
+// MARK: - Cardano
+
+extension BalancesService {
+    /// Cardano: one UTxO read feeds the account balances and the receive-address rows.
+    /// Refreshes of one account run one at a time, so an older read can't overwrite a newer one.
+    func updateCardanoBalances(_ account: Account, client: CardanoClient) async throws {
+        guard let accountId = account.id else {
+            throw ReefrError.invalidData
+        }
+
+        let previous = cardanoRefreshes[accountId]
+        let task = Task<Void, any Error> {
+            await previous?.value
+            try await self.refreshCardano(account, accountId: accountId, client: client)
+        }
+
+        cardanoRefreshes[accountId] = Task { _ = try? await task.value }
+        try await task.value
+    }
+
+    func refreshCardano(_ account: Account, accountId: PersistentIdentifier, client: CardanoClient) async throws {
+        let owner = try CardanoAccountDescriptor(string: account.address)
+        let snapshot = try await client.utxoSnapshot(owner)
+        var balances = try await fetchAllBalances(client: client, account: account, amounts: snapshot.balances)
+
+        // The snapshot is complete: stored units it no longer holds are now zero.
+        for stored in try await databaseService.fetchBalances(accountId: accountId)
+        where snapshot.balances[stored.token.address ?? "lovelace"] == nil && stored.amount != 0 {
+            balances.append(try await makeBalance(account: account, amount: 0, token: stored.token))
+        }
+
+        try await databaseService.updateBalances(account: account, updates: balances)
+
+        do {
+            let indices = try await databaseService.fetchReceiveAddresses(accountId: accountId).map(\.index)
+            let rows = try await client.receiveAddresses(owner, including: Set(indices), snapshot: snapshot)
+            try await databaseService.applyReceiveAddresses(accountId: accountId, rows: rows, observedAt: Date())
+        } catch {
+            printError("\(account.name) receive addresses: \(error)")
+        }
     }
 } // swiftlint:disable:this file_length
