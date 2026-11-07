@@ -19,7 +19,7 @@
    - Update `Docs/Decisions/` continuously as items are shipped.
 ## Swift Code Style
 - Write  `guard/if ... else { return/throw/break/continue }` in 3 lines so that return from scope is on its own line.
-- Sort methods, types, enum cases and other unordered entities alphabetycally where possible.
+- Sort methods, types, enum cases and other unordered entities alphabetically where possible.
 - Use `.style()` modifier for fonts, sizes and colors in SwiftUI.
 - Prefer `case let .foo(bar)` to `case .foo(let bar)`.
 - Omit `return` in one-liners wherever possible.

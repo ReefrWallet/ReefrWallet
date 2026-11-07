@@ -123,10 +123,9 @@ private extension SolanaStakingView {
             rows: model.unstaking.map { position in
                 StakingRow(
                     id: position.account.address,
-                    leading: SolanaStakingFormat.sol(position.account.delegation?.stake ?? position.account.lamports),
-                    secondary: model.name(of: position.account.delegation?.voter),
-                    trailing: model.nextEpochText() ?? "",
-                    trailingColor: .secondary
+                    leading: model.name(of: position.account.delegation?.voter),
+                    secondary: model.nextEpochText() ?? model.statusText(position),
+                    trailing: SolanaStakingFormat.sol(position.account.delegation?.stake ?? position.account.lamports)
                 )
             }
         )
