@@ -6,8 +6,18 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
 import SwiftUI
 import WalletKit
+
+// MARK: - CardanoStakingFeeLines
+
+/// What a Cardano staking transaction deposits and what it pays out beside its fee, in lovelace.
+struct CardanoStakingFeeLines: Equatable {
+    let deposit: BigUInt
+    /// Refund and withdrawn rewards: what the account receives.
+    let refund: BigUInt
+}
 
 // MARK: - TransactionFeesView
 
@@ -24,6 +34,8 @@ struct TransactionFeesView {
     var isTronFeeLimitEnabled = true
     /// The Penpot `Fees` `Solana Staking` variant: the total instead of its compute budget.
     var isSolanaStaking = false
+    /// The Penpot `Fees` `Cardano Staking` variant: the deposit paid, or the refund received.
+    var cardanoStaking: CardanoStakingFeeLines?
     /// Not in Penpot: a caution note under the section, e.g. dapp-set fees.
     var warning: String?
 
@@ -105,6 +117,23 @@ private extension TransactionFeesView {
     @ViewBuilder
     var cardanoFeesForm: some View {
         ParameterRow(String(localized: .transactionFeesNetworkFee), value: cardanoFee)
+
+        if let cardanoStaking {
+            if cardanoStaking.deposit > 0 {
+                ParameterRow(
+                    String(localized: .cardanoStakingFeesDeposit),
+                    value: CardanoStakingFormat.ada(cardanoStaking.deposit)
+                )
+            }
+
+            if cardanoStaking.refund > 0 {
+                ParameterRow(
+                    String(localized: .cardanoStakingFeesRefund),
+                    value: CardanoStakingFormat.ada(cardanoStaking.refund)
+                )
+            }
+        }
+
         ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
@@ -235,6 +264,8 @@ private extension TransactionFeesView {
 
     var footer: String? {
         switch blockchain {
+        case .cardano where cardanoStaking != nil:
+            warning ?? String(localized: .cardanoStakingFeesNote)
         case .cardano:
             String(localized: .transactionFeesFeeSizeNote)
         case .solana where isSolanaStaking:
@@ -259,6 +290,8 @@ private extension TransactionFeesView {
 
     var footerColor: Color {
         switch blockchain {
+        case .cardano where cardanoStaking != nil:
+            warning == nil ? .secondary : .caution
         case .cardano:
             .secondary
         case .solana where isSolanaStaking, .tron:

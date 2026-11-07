@@ -53,6 +53,7 @@ actor StakingStateService: StakingRefreshing {
     /// - Parameter loaders: One per chain family; defaults to the ones of the DI container.
     init(loaders: [any StakingPositionLoading]? = nil) {
         self.loaders = loaders ?? [
+            DI.injectOrFail(CardanoStakingPositionLoader.self),
             DI.injectOrFail(SolanaStakingPositionLoader.self),
             DI.injectOrFail(TronStakingPositionLoader.self)
         ]

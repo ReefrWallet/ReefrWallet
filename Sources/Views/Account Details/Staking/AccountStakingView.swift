@@ -16,6 +16,8 @@ struct AccountStakingView: View {
 
     var body: some View {
         switch model {
+        case let .cardano(cardano):
+            CardanoStakingView(model: cardano)
         case let .solana(solana):
             SolanaStakingView(model: solana)
         case let .tron(tron):
@@ -30,6 +32,8 @@ struct AccountStakingToolbarActions: View {
 
     var body: some View {
         switch model {
+        case let .cardano(cardano):
+            CardanoStakingToolbarActions(model: cardano)
         case let .solana(solana):
             SolanaStakingToolbarActions(model: solana)
         case let .tron(tron):
@@ -44,6 +48,11 @@ struct AccountStakingSheets: ViewModifier {
 
     func body(content: Content) -> some View {
         switch model {
+        case let .cardano(cardano):
+            content.sheet(item: Bindable(cardano).sheet) { kind in
+                CardanoStakingSheet(kind: kind, model: cardano)
+            }
+
         case let .solana(solana):
             content.sheet(item: Bindable(solana).sheet) { kind in
                 SolanaStakingSheet(kind: kind, model: solana)
@@ -65,12 +74,14 @@ struct AccountStakingSheets: ViewModifier {
 /// The staking position of an account, by chain, as the tab, toolbar and sheets use it.
 @MainActor
 enum AccountStakingModel {
+    case cardano(CardanoStakingModel)
     case solana(SolanaStakingModel)
     case tron(TronStakingModel)
 
     /// `nil` for chains without staking.
     nonisolated static func make(account: Account, keyStore: KeyStore) -> AccountStakingModel? {
         switch account.blockchain {
+        case .cardano: .cardano(CardanoStakingModel(account: account, keyStore: keyStore))
         case .solana: .solana(SolanaStakingModel(account: account, keyStore: keyStore))
         case .tron: .tron(TronStakingModel(account: account, keyStore: keyStore))
         default: nil
@@ -79,6 +90,7 @@ enum AccountStakingModel {
 
     func apply(_ staking: Staking?) {
         switch self {
+        case let .cardano(model): model.apply(staking)
         case let .solana(model): model.apply(staking)
         case let .tron(model): model.apply(staking)
         }
@@ -86,6 +98,7 @@ enum AccountStakingModel {
 
     func refresh() async {
         switch self {
+        case let .cardano(model): await model.refresh()
         case let .solana(model): await model.refresh()
         case let .tron(model): await model.refresh()
         }

@@ -106,6 +106,14 @@ extension ServiceContainer {
             KeyStoreService()
         }
 
+        register(CardanoStakingPositionLoader.self) {
+            CardanoStakingPositionLoader()
+        }
+
+        register(CardanoStakingService.self) {
+            CardanoStakingService()
+        }
+
         register(SolanaStakingPositionLoader.self) {
             SolanaStakingPositionLoader()
         }

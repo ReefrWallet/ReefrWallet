@@ -1256,6 +1256,1194 @@
         }
       }
     },
+    "cardanoStaking.actionChangeDrep" : {
+      "comment" : "Outcome Action row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.actionChangePool" : {
+      "comment" : "Outcome Action row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.actionStake" : {
+      "comment" : "Outcome Action row: the pool",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake to %@"
+          }
+        }
+      }
+    },
+    "cardanoStaking.actionStopStaking" : {
+      "comment" : "Outcome Action row; two-step workflow row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Staking"
+          }
+        }
+      }
+    },
+    "cardanoStaking.actionWithdraw" : {
+      "comment" : "Outcome Action row; two-step workflow row; sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdraw Rewards"
+          }
+        }
+      }
+    },
+    "cardanoStaking.cancel" : {
+      "comment" : "Continue section: drops the stored workflow",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "cardanoStaking.changeDrep" : {
+      "comment" : "Delegation action; sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.changePool" : {
+      "comment" : "Delegation action; sheet title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.chooseDrep" : {
+      "comment" : "DRep button placeholder",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.choosePool" : {
+      "comment" : "Delegation action when no pool is delegated",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.continue" : {
+      "comment" : "Continue section: opens the waiting step",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "cardanoStaking.depositRefundable" : {
+      "comment" : "Stake sheet Deposit row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, refundable"
+          }
+        }
+      }
+    },
+    "cardanoStaking.displayOnly" : {
+      "comment" : "Delegated stake row: not spendable and may include other keys",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display only"
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepAbstain" : {
+      "comment" : "DRep name",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always Abstain"
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepAbstainNote" : {
+      "comment" : "DRep picker row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts as no vote on governance actions"
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepInvalid" : {
+      "comment" : "DRep picker: pasted text isn't a DRep ID",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A DRep ID starts with drep1."
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepLookupFailed" : {
+      "comment" : "DRep picker: lookup failed",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't check this DRep. Try again."
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepNoConfidence" : {
+      "comment" : "DRep name",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Confidence"
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepNoConfidenceNote" : {
+      "comment" : "DRep picker row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signals no confidence in the current committee"
+          }
+        }
+      }
+    },
+    "cardanoStaking.drepSkipNote" : {
+      "comment" : "DRep picker row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a DRep later. Withdrawing rewards will need one."
+          }
+        }
+      }
+    },
+    "cardanoStaking.epochNumber" : {
+      "comment" : "Latest reward row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Epoch %lld"
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorAlreadyRegistered" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The stake key is already registered."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorDrepRequired" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawing needs a DRep. Delegate your vote first."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorDrepUnavailable" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This DRep isn't registered or has retired."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorMissingRefund" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The stake key's deposit couldn't be read, so Stop Staking is unavailable."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorNoRewards" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no rewards to withdraw."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorNotEnoughAda" : {
+      "comment" : "CardanoStakingFailure: the shortfall",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough ADA. %@ more is needed."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorNotRegistered" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The stake key isn't registered."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorPoolUnavailable" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This pool no longer exists or is retiring."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorRejected" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network rejected the transaction: %@"
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorTrezorUnavailable" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staking with a Trezor is available on Mac only."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorUnchanged" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That is already your current choice."
+          }
+        }
+      }
+    },
+    "cardanoStaking.errorWatchOnly" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch-only accounts can't stake."
+          }
+        }
+      }
+    },
+    "cardanoStaking.feesDeposit" : {
+      "comment" : "Fees: key deposit paid",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deposit"
+          }
+        }
+      }
+    },
+    "cardanoStaking.feesNote" : {
+      "comment" : "Fees footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The deposit is refunded when you stop staking."
+          }
+        }
+      }
+    },
+    "cardanoStaking.feesRefund" : {
+      "comment" : "Fees: refund and withdrawn rewards received",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refund"
+          }
+        }
+      }
+    },
+    "cardanoStaking.groupStake" : {
+      "comment" : "Stake sheet group header",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake ADA"
+          }
+        }
+      }
+    },
+    "cardanoStaking.groupStep" : {
+      "comment" : "Sheet group header of a two-step action",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · Step %2$lld of 2"
+          }
+        }
+      }
+    },
+    "cardanoStaking.latestReward" : {
+      "comment" : "Rewards group row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest reward"
+          }
+        }
+      }
+    },
+    "cardanoStaking.margin" : {
+      "comment" : "Pool row: the pool's margin",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ margin"
+          }
+        }
+      }
+    },
+    "cardanoStaking.nextEpoch" : {
+      "comment" : "Summary second line",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next epoch in about %@"
+          }
+        }
+      }
+    },
+    "cardanoStaking.noDrep" : {
+      "comment" : "DRep row when none is delegated",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.noPools" : {
+      "comment" : "Pool picker empty",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pools found."
+          }
+        }
+      }
+    },
+    "cardanoStaking.notDelegated" : {
+      "comment" : "Pool row when the stake key has no pool",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not delegated"
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteChangeDrep" : {
+      "comment" : "Change DRep sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes your governance vote only. Your pool stays the same."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteChangePool" : {
+      "comment" : "Change Pool sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takes effect from the next epoch. Earned rewards are kept."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteDreps" : {
+      "comment" : "DRep picker footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasted ID is checked on Blockfrost, and its name is shown once found."
+          }
+        }
+      }
+    },
+    "cardanoStaking.notePaused" : {
+      "comment" : "CardanoStakingFailure",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A transaction is unresolved. Staking stays paused until it resolves."
+          }
+        }
+      }
+    },
+    "cardanoStaking.notePools" : {
+      "comment" : "Pool picker footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pools come from Blockfrost. Margin and fixed cost are taken before rewards. Pools over 100% saturation earn less."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStake" : {
+      "comment" : "Stake sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without a DRep you can stake, but withdrawing rewards will first need you to pick one. Rewards start in about 15–20 days."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStepOnePending" : {
+      "comment" : "Continue section note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step 1 is on its way. Step 2 can continue once it confirms."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStepOneWaiting" : {
+      "comment" : "Continue section note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step 1 of 2: delegate your vote to a DRep. Step 2 follows."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStepTwoPending" : {
+      "comment" : "Continue section note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step 2 is on its way."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStepTwoReady" : {
+      "comment" : "Continue section note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vote delegation confirmed. Continue to finish."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStopStaking" : {
+      "comment" : "Stop Staking sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deregisters your stake key, withdraws your rewards and refunds the deposit. Your ADA stays spendable."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStopStakingStepOne" : {
+      "comment" : "Stop Staking step 1 footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawing rewards needs a DRep. Delegate your vote first, then stop staking in a second step."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteStopStakingStepTwo" : {
+      "comment" : "Stop Staking step 2 footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vote delegation confirmed. Stop staking now."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteWithdraw" : {
+      "comment" : "Withdraw sheet footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdraws your full reward balance to this account."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteWithdrawStepOne" : {
+      "comment" : "Withdraw step 1 footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawals need a DRep. Delegate your vote first, then withdraw in a second step."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noteWithdrawStepTwo" : {
+      "comment" : "Withdraw step 2 footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vote delegation confirmed. Withdraw your rewards now."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noticeRefreshFailed" : {
+      "comment" : "Notice with Retry",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't refresh. Showing last known data"
+          }
+        }
+      }
+    },
+    "cardanoStaking.noticeStepExpired" : {
+      "comment" : "Continue section and sheet notice",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last step expired before it confirmed. Sign it again."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noticeStepFailed" : {
+      "comment" : "Continue section and sheet notice",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network rejected the last step. Try it again."
+          }
+        }
+      }
+    },
+    "cardanoStaking.noticeSubmitted" : {
+      "comment" : "Unresolved transaction note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not yet confirmed. Staking stays paused until it resolves."
+          }
+        }
+      }
+    },
+    "cardanoStaking.notStakedNote" : {
+      "comment" : "Not staked note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake ADA to earn rewards. The stake key needs a refundable deposit, and your ADA stays spendable."
+          }
+        }
+      }
+    },
+    "cardanoStaking.outcomeExpiredNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It expired before it confirmed, so nothing was applied. Try again."
+          }
+        }
+      }
+    },
+    "cardanoStaking.outcomeSignAgainNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It expired while waiting for your signature, so nothing was sent. Sign again to continue."
+          }
+        }
+      }
+    },
+    "cardanoStaking.outcomeSubmittedNote" : {
+      "comment" : "Outcome footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not yet confirmed. Staking stays paused until it resolves. Delegation doesn't lock your ADA."
+          }
+        }
+      }
+    },
+    "cardanoStaking.pasteDrep" : {
+      "comment" : "DRep picker field",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste DRep ID (drep1…)"
+          }
+        }
+      }
+    },
+    "cardanoStaking.poolsFailed" : {
+      "comment" : "Pool picker footnote",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load the pool list. You can still paste a pool ID."
+          }
+        }
+      }
+    },
+    "cardanoStaking.poolTerms" : {
+      "comment" : "Pool picker row second line",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ margin · %2$@ fixed"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rewardsStart" : {
+      "comment" : "Summary second line after a first delegation",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards start in about 15–20 days"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowCurrentDrep" : {
+      "comment" : "Change DRep row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowCurrentPool" : {
+      "comment" : "Change Pool row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowDelegatedStake" : {
+      "comment" : "Delegation row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delegated stake"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowDeposit" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deposit"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowDepositRefunded" : {
+      "comment" : "Stop Staking sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deposit refunded"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowDrep" : {
+      "comment" : "Delegation row; sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowDrepOptional" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DRep (optional)"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowNewDrep" : {
+      "comment" : "Change DRep row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowNewPool" : {
+      "comment" : "Change Pool row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowPool" : {
+      "comment" : "Delegation row; sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowRewards" : {
+      "comment" : "Withdraw sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowRewardsAvailable" : {
+      "comment" : "Rewards group row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards available"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowRewardsWithdrawn" : {
+      "comment" : "Stop Staking sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards withdrawn"
+          }
+        }
+      }
+    },
+    "cardanoStaking.rowTotalEarned" : {
+      "comment" : "Rewards group row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total earned"
+          }
+        }
+      }
+    },
+    "cardanoStaking.saturated" : {
+      "comment" : "Pool picker row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ saturated"
+          }
+        }
+      }
+    },
+    "cardanoStaking.sectionContinueStopStaking" : {
+      "comment" : "Continue section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue Stop Staking"
+          }
+        }
+      }
+    },
+    "cardanoStaking.sectionContinueWithdrawal" : {
+      "comment" : "Continue section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue Withdrawal"
+          }
+        }
+      }
+    },
+    "cardanoStaking.sectionDelegation" : {
+      "comment" : "Tab section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delegation"
+          }
+        }
+      }
+    },
+    "cardanoStaking.sectionRewards" : {
+      "comment" : "Tab section title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards"
+          }
+        }
+      }
+    },
+    "cardanoStaking.selectDrep" : {
+      "comment" : "DRep picker title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select DRep"
+          }
+        }
+      }
+    },
+    "cardanoStaking.selectPool" : {
+      "comment" : "Pool picker title; pool button placeholder",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Pool"
+          }
+        }
+      }
+    },
+    "cardanoStaking.skipForNow" : {
+      "comment" : "Stake sheet DRep placeholder; DRep picker row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip for now"
+          }
+        }
+      }
+    },
+    "cardanoStaking.stepOne" : {
+      "comment" : "Continue section row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step 1 of 2"
+          }
+        }
+      }
+    },
+    "cardanoStaking.stepTwo" : {
+      "comment" : "Continue section row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step 2 of 2"
+          }
+        }
+      }
+    },
+    "cardanoStaking.stopStaking" : {
+      "comment" : "Toolbar button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Staking"
+          }
+        }
+      }
+    },
+    "cardanoStaking.summaryDelegated" : {
+      "comment" : "Summary label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delegated:"
+          }
+        }
+      }
+    },
+    "cardanoStaking.transaction" : {
+      "comment" : "Outcome group, row label; Continue and unresolved rows",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction"
+          }
+        }
+      }
+    },
     "cardanoTransactionParameters.certificates" : {
       "comment" : "CardanoTransactionParametersView",
       "extractionState" : "manual",

@@ -241,15 +241,19 @@ private extension TransactionService {
                 throw ReefrError.invalidData
             }
 
-            guard case let .cardano(network) = account.blockchain else {
+            guard case .cardano = account.blockchain else {
                 throw ReefrError.invalidData
             }
 
             return try await hardwareService.session {
                 let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
 
-                return try await CardanoTrezorSigner(network: network, path: derivationPath, device: device)
-                    .sign(transaction: request)
+                return try await CardanoTrezorSigner(
+                    descriptor: CardanoAccountDescriptor(string: account.address),
+                    path: derivationPath,
+                    device: device
+                )
+                .sign(transaction: request)
             }
 
         case .watchOnly:

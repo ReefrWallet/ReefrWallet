@@ -30,6 +30,7 @@ struct StakingSection: View {
     struct Action {
         let title: LocalizedStringResource
         let isProminent: Bool
+        var isDisabled = false
         let perform: () -> Void
     }
 
@@ -38,6 +39,8 @@ struct StakingSection: View {
     let rows: [StakingRow]
     var note: String?
     var action: Action?
+    /// Shown left of ``action``, like Cancel beside Continue.
+    var secondaryAction: Action?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -64,7 +67,7 @@ struct StakingSection: View {
                 .background(Self.cardColor, in: RoundedRectangle(cornerRadius: 10))
             }
 
-            if note != nil || action != nil {
+            if note != nil || action != nil || secondaryAction != nil {
                 HStack {
                     if let note {
                         Text(note)
@@ -74,6 +77,10 @@ struct StakingSection: View {
                     }
 
                     Spacer()
+
+                    if let secondaryAction {
+                        actionButton(secondaryAction)
+                    }
 
                     if let action {
                         actionButton(action)
@@ -147,14 +154,17 @@ struct StakingSection: View {
         if action.isProminent {
             Button(action.title, action: action.perform)
                 .buttonStyle(.borderedProminent)
+                .disabled(action.isDisabled)
         } else {
             Button(action.title, action: action.perform)
+                .disabled(action.isDisabled)
         }
         #else
         Button(action: action.perform) {
             Text(action.title)
                 .fontWeight(action.isProminent ? .semibold : .regular)
         }
+        .disabled(action.isDisabled)
         #endif
     }
 

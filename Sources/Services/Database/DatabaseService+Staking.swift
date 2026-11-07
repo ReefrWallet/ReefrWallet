@@ -55,6 +55,48 @@ extension DatabaseService {
         }
     }
 
+    /// Stores a Cardano read that started at `startedAt`, like the Tron overload. Returns whether
+    /// anything was applied.
+    @discardableResult
+    func saveStakingState(
+        accountId: PersistentIdentifier,
+        observation: CardanoStakingObservation,
+        startedAt: Date
+    ) throws -> Bool {
+        try saveStaking(accountId: accountId) { tokenId in
+            Staking.cardano(accountId: accountId, tokenId: tokenId, observation: observation, startedAt: startedAt)
+        } update: { current in
+            current.applying(observation: observation, startedAt: startedAt)
+        }
+    }
+
+    /// Replaces the account's pending Cardano submissions.
+    ///
+    /// - Throws: ``ReefrError/notFound`` if the account has no position to hold them. A caller
+    ///   about to broadcast must not go on: the record has to exist first.
+    func saveCardanoPendingSubmissions(
+        accountId: PersistentIdentifier,
+        submissions: [CardanoPendingSubmission]
+    ) throws {
+        try updateStored(accountId: accountId) { $0.applying(pendingSubmissions: submissions) }
+    }
+
+    /// Removes the pending Cardano submission `hash` and changes the workflow in one write.
+    func resolveCardanoSubmission(
+        accountId: PersistentIdentifier,
+        hash: String,
+        workflow change: (CardanoStakingWorkflow?) -> CardanoStakingWorkflow?
+    ) throws {
+        try updateStored(accountId: accountId) { $0.applying(resolved: hash, workflow: change) }
+    }
+
+    /// Replaces the account's Cardano workflow; `nil` clears it.
+    ///
+    /// - Throws: ``ReefrError/notFound`` if the account has no position to hold it.
+    func saveCardanoWorkflow(accountId: PersistentIdentifier, workflow: CardanoStakingWorkflow?) throws {
+        try updateStored(accountId: accountId) { $0.applying(workflow: workflow) }
+    }
+
     /// Replaces the account's pending Solana submissions.
     ///
     /// - Throws: ``ReefrError/notFound`` if the account has no position to hold them. A caller
@@ -100,6 +142,17 @@ extension DatabaseService {
 }
 
 private extension DatabaseService {
+    func updateStored(accountId: PersistentIdentifier, _ change: (Staking) -> Staking?) throws {
+        let account = try fetchAccountModel(id: accountId)
+
+        guard let model = account.staking, let updated = Staking(model: model).flatMap(change) else {
+            throw ReefrError.notFound
+        }
+
+        try model.update(from: updated)
+        try modelContext.save()
+    }
+
     func fetchAccountModel(id: PersistentIdentifier) throws -> AccountModel {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 

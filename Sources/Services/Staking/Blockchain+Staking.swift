@@ -12,7 +12,7 @@ extension Blockchain {
     /// Chains with a Staking tab.
     var supportsStaking: Bool {
         switch self {
-        case .solana, .tron: true
+        case .cardano, .solana, .tron: true
         default: false
         }
     }
