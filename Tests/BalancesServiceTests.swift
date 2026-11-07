@@ -107,12 +107,7 @@ struct BalancesServiceTests {
             usdPrice: 2_000
         )
 
-        try await databaseService.saveBalance(Balance(
-            account: account,
-            amount: nativeAmount,
-            token: pricedNativeToken,
-            usdValue: nil
-        ))
+        try await databaseService.updateTokenPrices([pricedNativeToken])
 
         #expect(try await balancesService.usdValue(accountId: accountId) == 10_000)
         #expect(try await balancesService.usdValue(keyStoreId: keyStoreId) == 10_000)

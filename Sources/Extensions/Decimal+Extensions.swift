@@ -19,7 +19,7 @@ extension Decimal {
     /// two fraction digits, or `fractionLength` if given. No currency symbol.
     func formattedAbbreviated(fractionLength: Int = 2) -> String {
         let magnitude = abs(self)
-        // swiflint:disable:next large_tuple
+        // swiftlint:disable:next large_tuple
         let tiers: [(threshold: Decimal, divisor: Decimal, suffix: String)] = [
             (1_000_000_000, 1_000_000_000, "B"),
             (1_000_000, 1_000_000, "M"),

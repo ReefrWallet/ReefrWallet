@@ -255,7 +255,7 @@ let project = Project(
     schemes: [walletScheme],
     additionalFiles: [
         ".github/**/*",
-        "Docs/**/*",
+        "docs/**/*",
         "Makefile",
         "Project.swift",
         "*.md"

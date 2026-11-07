@@ -2,13 +2,36 @@
 
 # [![logo](https://reefr.xyz/app-icon.png)<br/>Reefr Wallet](https://reefr.xyz)
 
-### A friendly multi-chain crypto wallet for Mac.
+### Friendly, native, self-custody, multi-chain crypto wallet for macOS and iOS.
 
 </div>
 
 [![Wallet CI](https://github.com/ReefrWallet/ReefrWallet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ReefrWallet/ReefrWallet/actions/workflows/ci.yml)
 
-Swift multi-chain crypto wallet app for macOS, built on top of [WalletKit](https://github.com/ReefrWallet/WalletKit) for key management and blockchain access.
+Open source under the BSD 3-Clause license. Written in SwiftUI on [WalletKit](https://github.com/ReefrWallet/WalletKit).
+
+[Download](https://github.com/ReefrWallet/ReefrWallet/releases)
+
+## Supported Blockchains
+
+| Network | Trezor | In-app browser APIs | WalletConnect |
+| --- | --- | --- | --- |
+| Bitcoin | Yes | — | — |
+| EVM | Yes | EIP-1193, EIP-6963, Wallet Standard | Yes |
+| Solana | Yes | Wallet Standard, `window.solana` | Yes |
+| Sui | — | Wallet Standard | Yes |
+| Cardano | Yes | CIP-30 | — |
+| Tron | Yes | TronLink, TIP-1193, TIP-6963 | Yes |
+| Aptos | — | Wallet Standard | Yes |
+
+## Features
+
+- Runs on macOS 15 or later and iOS 18 or later.
+- Local keys from BIP-39 recovery phrases. Each signature requires biometry or the device password.
+- Trezor over USB, on macOS only.
+- Watch-only addresses, including ENS names.
+- Built-in dapp browser and WalletConnect.
+- No account or Reefr servers. Custom RPC endpoints and optional API keys.
 
 ## Building
 

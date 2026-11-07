@@ -83,12 +83,19 @@ extension AddAccountView: View {
         .task(
             id: PathKey(blockchain: pathBlockchain, keyScheme: selectedKeyScheme, scriptType: selectedBitcoinScriptType)
         ) {
-            nextDerivationPath = await accountService.nextDerivationPath(
+            let path = await accountService.nextDerivationPath(
                 pathBlockchain,
                 keyStore: keyStore,
                 signatureScheme: selectedKeyScheme,
                 bitcoinScriptType: selectedBitcoinScriptType
             )
+
+            // A superseded lookup mustn't overwrite the newer selection's path.
+            guard !Task.isCancelled else {
+                return
+            }
+
+            nextDerivationPath = path
         }
         .onChange(of: selectedBlockchain, initial: true) { _, newValue in
             didSelectBlockchain(newValue)
@@ -440,15 +447,14 @@ private extension AddAccountView {
     func submit() {
         Task {
             do {
-                if case .evm(.custom) = selectedBlockchain {
-                    guard let chainId = UInt64(customChainId) else {
-                        throw ReefrError.invalidData
-                    }
-
-                    try await addAccount(.evm(.custom(chainId)), signatureScheme: selectedKeyScheme)
-                } else {
-                    try await addAccount(selectedNetwork!, signatureScheme: selectedKeyScheme)
+                guard let target = selectedBlockchain.accountTarget(
+                    network: selectedNetwork,
+                    customChainId: customChainId
+                ) else {
+                    throw ReefrError.invalidData
                 }
+
+                try await addAccount(target, signatureScheme: selectedKeyScheme)
             } catch {
                 self.error = error
                 isAlertPresented = true
@@ -570,13 +576,10 @@ private extension AddAccountView {
         )
     }
 
-    /// Bitcoin's coin type depends on the selected network.
+    /// The chain `submit()` adds to, which next-path numbering is per;
+    /// `selectedBlockchain` until a custom chain id parses.
     var pathBlockchain: Blockchain {
-        if case .bitcoin = selectedBlockchain, let selectedNetwork {
-            return selectedNetwork
-        }
-
-        return selectedBlockchain
+        selectedBlockchain.accountTarget(network: selectedNetwork, customChainId: customChainId) ?? selectedBlockchain
     }
 
     var trimmedDerivationPath: String {
@@ -752,6 +755,20 @@ private struct PathKey: Hashable {
     let blockchain: Blockchain
     let keyScheme: Curve?
     let scriptType: BitcoinScriptType
+}
+
+// MARK: - Blockchain + Account Target
+
+extension Blockchain {
+    /// The chain an account is added to when this chain is picked: the typed
+    /// id's chain for "Other EVM", else `network`; `nil` if not determined.
+    func accountTarget(network: Blockchain?, customChainId: String) -> Blockchain? {
+        guard isCustomEVM else {
+            return network
+        }
+
+        return UInt64(customChainId).map { .evm(.custom($0)) }
+    }
 }
 
 // MARK: - Blockchain + Key Scheme
