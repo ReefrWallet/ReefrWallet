@@ -5354,6 +5354,546 @@
         }
       }
     },
+    "suiStaking.commission" : {
+      "comment" : "Validator commission",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ commission"
+          }
+        }
+      }
+    },
+    "suiStaking.epochEndingSoon" : {
+      "comment" : "Next epoch time",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Epoch ending soon"
+          }
+        }
+      }
+    },
+    "suiStaking.error.belowMinimum" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The minimum is %@."
+          }
+        }
+      }
+    },
+    "suiStaking.error.gasUnstable" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network fees are changing too fast to sign safely. Try again in a moment."
+          }
+        }
+      }
+    },
+    "suiStaking.error.insufficientBalance" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough SUI for this amount and the network fee."
+          }
+        }
+      }
+    },
+    "suiStaking.error.rejected" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network refused this transaction, so nothing was sent."
+          }
+        }
+      }
+    },
+    "suiStaking.error.remainderBelowMinimum" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This would leave less than the %@ minimum staked. Unstake the full amount instead."
+          }
+        }
+      }
+    },
+    "suiStaking.error.simulationFailed" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network would reject this transaction: %@"
+          }
+        }
+      }
+    },
+    "suiStaking.error.stakeChanged" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This stake changed since it was loaded. Reopen the screen and try again."
+          }
+        }
+      }
+    },
+    "suiStaking.error.wrongNetwork" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected network doesn't match this transaction, so nothing was sent."
+          }
+        }
+      }
+    },
+    "suiStaking.estimatedPayout" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated payout"
+          }
+        }
+      }
+    },
+    "suiStaking.fullStakeOnly" : {
+      "comment" : "Unstake amount row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full stake only"
+          }
+        }
+      }
+    },
+    "suiStaking.group.stake" : {
+      "comment" : "Stake sheet group",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake SUI"
+          }
+        }
+      }
+    },
+    "suiStaking.group.transaction" : {
+      "comment" : "Outcome group",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transaction"
+          }
+        }
+      }
+    },
+    "suiStaking.group.unstake" : {
+      "comment" : "Unstake sheet group",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstake SUI"
+          }
+        }
+      }
+    },
+    "suiStaking.kind.unstakePartial" : {
+      "comment" : "Unresolved transaction: what it does",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partial unstake"
+          }
+        }
+      }
+    },
+    "suiStaking.nextEpoch" : {
+      "comment" : "Staking summary and stake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next epoch in about %@"
+          }
+        }
+      }
+    },
+    "suiStaking.note.fees" : {
+      "comment" : "Fees footer",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fee after the storage rebate, paid from your SUI."
+          }
+        }
+      }
+    },
+    "suiStaking.note.fullOnly" : {
+      "comment" : "Unstake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This stake is too small to split: each part must be at least %@. Unstake it in full."
+          }
+        }
+      }
+    },
+    "suiStaking.note.gasLeft" : {
+      "comment" : "Stake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You will have %@ left for gas; you may need to top up to unstake."
+          }
+        }
+      }
+    },
+    "suiStaking.note.keepsReserve" : {
+      "comment" : "Stake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAX keeps about %@ for gas to unstake."
+          }
+        }
+      }
+    },
+    "suiStaking.note.partial" : {
+      "comment" : "Unstake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pays out %1$@ now. The remaining %2$@ keeps earning."
+          }
+        }
+      }
+    },
+    "suiStaking.note.paused" : {
+      "comment" : "SuiStakingServiceError",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A previous transaction's outcome is still open. Staking is paused until it resolves."
+          }
+        }
+      }
+    },
+    "suiStaking.note.stake" : {
+      "comment" : "Stake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum %@. Earning starts with the next epoch. There is no cooldown when you unstake."
+          }
+        }
+      }
+    },
+    "suiStaking.note.unstake" : {
+      "comment" : "Unstake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pays out your stake and its rewards so far right away. There is no cooldown."
+          }
+        }
+      }
+    },
+    "suiStaking.note.unstakePending" : {
+      "comment" : "Unstake note",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This stake hasn't started earning yet, so only the principal is paid out."
+          }
+        }
+      }
+    },
+    "suiStaking.note.validators" : {
+      "comment" : "Validator picker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorted by name. Commission is the share of rewards a validator keeps."
+          }
+        }
+      }
+    },
+    "suiStaking.notStakedNote" : {
+      "comment" : "Empty Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stake SUI to earn rewards. You keep control of it and can unstake any time, with no cooldown."
+          }
+        }
+      }
+    },
+    "suiStaking.noValidators" : {
+      "comment" : "Validator picker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No validators found."
+          }
+        }
+      }
+    },
+    "suiStaking.rewards.estimated" : {
+      "comment" : "Staking summary",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated rewards: %@"
+          }
+        }
+      }
+    },
+    "suiStaking.rewards.estimatedAtLeast" : {
+      "comment" : "Staking summary",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated rewards: at least %@"
+          }
+        }
+      }
+    },
+    "suiStaking.rewards.unavailable" : {
+      "comment" : "Staking summary",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rewards unavailable"
+          }
+        }
+      }
+    },
+    "suiStaking.row.action" : {
+      "comment" : "Outcome row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action"
+          }
+        }
+      }
+    },
+    "suiStaking.row.digest" : {
+      "comment" : "Outcome row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digest"
+          }
+        }
+      }
+    },
+    "suiStaking.row.inStake" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In this stake"
+          }
+        }
+      }
+    },
+    "suiStaking.row.leftForGas" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left for gas"
+          }
+        }
+      }
+    },
+    "suiStaking.row.remaining" : {
+      "comment" : "Unstake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remaining"
+          }
+        }
+      }
+    },
+    "suiStaking.row.status" : {
+      "comment" : "Outcome row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "suiStaking.row.validator" : {
+      "comment" : "Stake sheet row",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Validator"
+          }
+        }
+      }
+    },
+    "suiStaking.section.stakes" : {
+      "comment" : "Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stakes"
+          }
+        }
+      }
+    },
+    "suiStaking.section.unresolved" : {
+      "comment" : "Staking tab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unresolved Transaction"
+          }
+        }
+      }
+    },
+    "suiStaking.selectValidator" : {
+      "comment" : "Validator picker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Validator"
+          }
+        }
+      }
+    },
+    "suiStaking.status.activating" : {
+      "comment" : "Stake status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts next epoch"
+          }
+        }
+      }
+    },
+    "suiStaking.status.earning" : {
+      "comment" : "Stake status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earning"
+          }
+        }
+      }
+    },
+    "suiStaking.status.retired" : {
+      "comment" : "Stake status",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Validator left"
+          }
+        }
+      }
+    },
     "suiTransactionParameters.commands" : {
       "comment" : "SuiTransactionParametersView",
       "extractionState" : "manual",

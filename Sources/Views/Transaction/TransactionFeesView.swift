@@ -34,6 +34,8 @@ struct TransactionFeesView {
     var isTronFeeLimitEnabled = true
     /// The Penpot `Fees` `Solana Staking` variant: the total instead of its compute budget.
     var isSolanaStaking = false
+    /// The `Sui Staking` variant: the fee after the storage rebate, which can't be edited.
+    var isSuiStaking = false
     /// The Penpot `Fees` `Cardano Staking` variant: the deposit paid, or the refund received.
     var cardanoStaking: CardanoStakingFeeLines?
     /// Not in Penpot: a caution note under the section, e.g. dapp-set fees.
@@ -159,8 +161,13 @@ private extension TransactionFeesView {
 
     @ViewBuilder
     var suiFeesForm: some View {
-        ParameterRow(String(localized: .transactionFeesGasPrice), value: estimatedFees?.suiGasPrice ?? "")
-        field(String(localized: .transactionFeesGasBudget), text: $suiGasBudget)
+        if isSuiStaking {
+            ParameterRow(String(localized: .transactionFeesNetworkFee), value: suiNetworkFee)
+        } else {
+            ParameterRow(String(localized: .transactionFeesGasPrice), value: estimatedFees?.suiGasPrice ?? "")
+            field(String(localized: .transactionFeesGasBudget), text: $suiGasBudget)
+        }
+
         ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
     }
 
@@ -262,6 +269,11 @@ private extension TransactionFeesView {
         return SolanaStakingFormat.sol(lamports)
     }
 
+    /// The simulated cost of the staking transaction as built, in SUI.
+    var suiNetworkFee: String {
+        estimatedFees?.nativeFeeReserve.flatMap { UInt64($0) }.map(SuiStakingFormat.sui) ?? ""
+    }
+
     var footer: String? {
         switch blockchain {
         case .cardano where cardanoStaking != nil:
@@ -270,6 +282,8 @@ private extension TransactionFeesView {
             String(localized: .transactionFeesFeeSizeNote)
         case .solana where isSolanaStaking:
             warning ?? String(localized: .solanaStakingNoteFees)
+        case .sui where isSuiStaking:
+            warning ?? String(localized: .suiStakingNoteFees)
         case .tron:
             tronFooter
         default:
@@ -294,7 +308,7 @@ private extension TransactionFeesView {
             warning == nil ? .secondary : .caution
         case .cardano:
             .secondary
-        case .solana where isSolanaStaking, .tron:
+        case .solana where isSolanaStaking, .sui where isSuiStaking, .tron:
             warning == nil ? .secondary : .caution
         default:
             .caution

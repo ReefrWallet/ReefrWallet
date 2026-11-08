@@ -54,7 +54,9 @@ struct AccountDetailsView {
         self.account = account
         self.keyStore = keyStore
 
-        _accountBalances = Query(filter: predicate)
+        var balancesDescriptor = FetchDescriptor(predicate: predicate)
+        balancesDescriptor.relationshipKeyPathsForPrefetching = [\.token]
+        _accountBalances = Query(balancesDescriptor)
         _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.id == accountId })
         _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
     }

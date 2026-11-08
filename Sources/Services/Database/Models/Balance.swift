@@ -89,7 +89,8 @@ extension BalanceModel {
     /// Changes whenever anything a balance row shows changes: the amount, or its token's price,
     /// identity or image. Balance and token rows are updated in place, so identifiers don't.
     var refreshKey: String {
-        [
+        let token = token
+        return [
             "\(persistentModelID)",
             serializedAmount.base64EncodedString(),
             token.usdPrice.map { "\($0)" } ?? "-",

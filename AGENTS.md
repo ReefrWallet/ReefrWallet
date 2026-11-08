@@ -4,6 +4,7 @@
 - Prefer Xcode mcp tools over make/xcodebuild/xcrun/tuist.
 - Prefer the codebase memory MCP graph tools for code discovery before grep/file search: use `codebase-memory` skill.
 - Respect warnings from compiler, linter and documentation compiler, and fix them when building code.
+- No warnings are allowed in ANY target: app, WalletKit, unit tests and UI tests, macOS and iOS. Any build or test run can produce compiler or SwiftLint warnings, so after EVERY build and test run read the full warning list (`GetBuildLog` with `severity: warning`, no glob or pattern filter, as globs match task names and hide issues) for every scheme you touched, and fix every warning, including pre-existing ones. Cross-check changed files with `mise x swiftlint -- swiftlint lint --quiet --config .swiftlint.yml <files>`. Never report a build as clean without having checked.
 - To examine animations from a screen recording, extract frames with `Scripts/video_frames.swift <video.mp4> [every-n-frames] [out-dir]` and view the PNGs.
 - Be as succinct and concise as possible in decisions logs and documentation you produce, including source code comments. Don't overexplain.
 ## Memory & System Constraints

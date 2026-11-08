@@ -20,6 +20,8 @@ struct AccountStakingView: View {
             CardanoStakingView(model: cardano)
         case let .solana(solana):
             SolanaStakingView(model: solana)
+        case let .sui(sui):
+            SuiStakingView(model: sui)
         case let .tron(tron):
             TronStakingView(model: tron)
         }
@@ -36,6 +38,8 @@ struct AccountStakingToolbarActions: View {
             CardanoStakingToolbarActions(model: cardano)
         case let .solana(solana):
             SolanaStakingToolbarActions(model: solana)
+        case let .sui(sui):
+            SuiStakingToolbarActions(model: sui)
         case let .tron(tron):
             TronStakingToolbarActions(model: tron)
         }
@@ -58,6 +62,11 @@ struct AccountStakingSheets: ViewModifier {
                 SolanaStakingSheet(kind: kind, model: solana)
             }
 
+        case let .sui(sui):
+            content.sheet(item: Bindable(sui).sheet) { kind in
+                SuiStakingSheet(kind: kind, model: sui)
+            }
+
         case let .tron(tron):
             content.sheet(item: Bindable(tron).sheet) { kind in
                 TronStakingSheet(kind: kind, model: tron)
@@ -76,6 +85,7 @@ struct AccountStakingSheets: ViewModifier {
 enum AccountStakingModel {
     case cardano(CardanoStakingModel)
     case solana(SolanaStakingModel)
+    case sui(SuiStakingModel)
     case tron(TronStakingModel)
 
     /// `nil` for chains without staking.
@@ -83,6 +93,7 @@ enum AccountStakingModel {
         switch account.blockchain {
         case .cardano: .cardano(CardanoStakingModel(account: account, keyStore: keyStore))
         case .solana: .solana(SolanaStakingModel(account: account, keyStore: keyStore))
+        case .sui: .sui(SuiStakingModel(account: account, keyStore: keyStore))
         case .tron: .tron(TronStakingModel(account: account, keyStore: keyStore))
         default: nil
         }
@@ -92,6 +103,7 @@ enum AccountStakingModel {
         switch self {
         case let .cardano(model): model.apply(staking)
         case let .solana(model): model.apply(staking)
+        case let .sui(model): model.apply(staking)
         case let .tron(model): model.apply(staking)
         }
     }
@@ -100,6 +112,7 @@ enum AccountStakingModel {
         switch self {
         case let .cardano(model): await model.refresh()
         case let .solana(model): await model.refresh()
+        case let .sui(model): await model.refresh()
         case let .tron(model): await model.refresh()
         }
     }

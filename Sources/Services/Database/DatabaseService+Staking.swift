@@ -55,6 +55,136 @@ extension DatabaseService {
         }
     }
 
+    /// Stores a Sui read that started at `startedAt`, like the Tron overload. Returns whether anything
+    /// was applied.
+    @discardableResult
+    func saveStakingState(
+        accountId: PersistentIdentifier,
+        read: SuiStakingRead,
+        startedAt: Date
+    ) throws -> Bool {
+        try saveStaking(accountId: accountId) { tokenId in
+            Staking.sui(accountId: accountId, tokenId: tokenId, read: read, startedAt: startedAt)
+        } update: { current in
+            current.applying(read: read, startedAt: startedAt)
+        }
+    }
+
+    /// Records `submission` as the account's only unresolved Sui transaction, in one write.
+    ///
+    /// This is the claim a broadcast needs: the actor makes the check and the write indivisible, so two
+    /// sends cannot both pass it.
+    ///
+    /// - Returns: `false` if another submission is still unresolved, in which case nothing is written.
+    /// - Throws: ``ReefrError/notFound`` if the account has no position to hold it. A caller about to
+    ///   broadcast must not go on: the record has to exist first.
+    func claimSuiSubmission(accountId: PersistentIdentifier, submission: SuiPendingSubmission) throws -> Bool {
+        let account = try fetchAccountModel(id: accountId)
+
+        guard let model = account.staking, let current = Staking(model: model), case .sui = current.details else {
+            throw ReefrError.notFound
+        }
+
+        guard let claimed = current.claiming(submission) else {
+            return false
+        }
+
+        try model.update(from: claimed)
+        try modelContext.save()
+        return true
+    }
+
+    /// Records the history placeholder for the Sui transaction `digest`, only while it is still pending.
+    ///
+    /// The check and the write happen in one actor call, so a send whose response arrives after
+    /// reconciliation proved it expired and cleared the claim cannot bring the placeholder back.
+    ///
+    /// - Returns: whether the placeholder was recorded.
+    @discardableResult
+    func recordSuiBroadcast(digest: String, for account: Account) throws -> Bool {
+        guard
+            let accountId = account.id,
+            case let .sui(details)? = try fetchStaking(accountId: accountId)?.details,
+            details.pendingSubmissions.contains(where: { $0.digest == digest })
+        else {
+            return false
+        }
+
+        try saveTransactions([BlockchainTransaction(identifier: digest, status: .broadcast)], for: account)
+        return true
+    }
+
+    /// Clears a Sui submission proven never to have run: its claim and its history placeholder, in one save.
+    ///
+    /// A late send response cannot slip between the two: the placeholder is only ever written while the claim
+    /// exists, and both are gone together. A confirmed or failed history row is never touched.
+    func clearNonExecutedSuiSubmission(digest: String, for account: Account) throws {
+        guard let accountId = account.id else {
+            throw ReefrError.invalidData
+        }
+
+        let accountModel = try fetchAccountModel(id: accountId)
+
+        let model = accountModel.staking
+        let updated = model.flatMap(Staking.init(model:)).flatMap { Self.removing(digest, from: $0) }
+
+        do {
+            if let model, let updated {
+                try model.update(from: updated)
+            }
+
+            _ = try deleteBroadcastPlaceholder(identifier: digest, for: account)
+            try modelContext.save()
+        } catch {
+            // Otherwise a later save could persist the claim's removal alone.
+            modelContext.rollback()
+            throw error
+        }
+    }
+
+    /// `staking` without the pending Sui submission `digest`; `nil` if it isn't pending (or isn't Sui).
+    private static func removing(_ digest: String, from staking: Staking) -> Staking? {
+        guard
+            case let .sui(details) = staking.details,
+            details.pendingSubmissions.contains(where: { $0.digest == digest })
+        else {
+            return nil
+        }
+
+        return staking.applying(pendingSubmissions: details.pendingSubmissions.filter { $0.digest != digest })
+    }
+
+    /// Removes the pending Sui submission `digest`, checking and writing in one actor call. Two resolvers
+    /// racing for the same digest cannot erase a submission claimed in between: the second finds it gone.
+    ///
+    /// - Returns: whether it was still there.
+    @discardableResult
+    func removeSuiSubmission(accountId: PersistentIdentifier, digest: String) throws -> Bool {
+        let account = try fetchAccountModel(id: accountId)
+
+        guard
+            let model = account.staking,
+            let current = Staking(model: model),
+            let updated = Self.removing(digest, from: current)
+        else {
+            return false
+        }
+
+        try model.update(from: updated)
+        try modelContext.save()
+        return true
+    }
+
+    /// Replaces the account's pending Sui submissions.
+    ///
+    /// - Throws: ``ReefrError/notFound`` if the account has no position to hold them.
+    func saveSuiPendingSubmissions(
+        accountId: PersistentIdentifier,
+        submissions: [SuiPendingSubmission]
+    ) throws {
+        try updateStored(accountId: accountId) { $0.applying(pendingSubmissions: submissions) }
+    }
+
     /// Stores a Cardano read that started at `startedAt`, like the Tron overload. Returns whether
     /// anything was applied.
     @discardableResult

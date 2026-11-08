@@ -34,6 +34,41 @@ extension DatabaseService {
     }
     #endif
 
+    /// Removes the placeholder a broadcast recorded for `identifier`, if it is still one.
+    ///
+    /// - Returns: whether one was removed; a confirmed or failed row is never touched.
+    @discardableResult
+    func removeBroadcastPlaceholder(identifier: String, for account: Account) throws -> Bool {
+        let removed = try deleteBroadcastPlaceholder(identifier: identifier, for: account)
+
+        if removed {
+            try modelContext.save()
+        }
+
+        return removed
+    }
+
+    /// Like ``removeBroadcastPlaceholder(identifier:for:)``, but leaves saving to the caller so the removal
+    /// can share one save with other changes.
+    func deleteBroadcastPlaceholder(identifier: String, for account: Account) throws -> Bool {
+        let placeholder = BlockchainTransaction(identifier: identifier, status: .broadcast)
+        let stableId = try WalletTransaction(account: account, transaction: placeholder).stableId
+
+        guard
+            let model = try fetchTransactionIndex(stableIds: [stableId])[stableId],
+            model.status == BlockchainTransactionStatus.broadcast.rawValue
+        else {
+            return false
+        }
+
+        for effect in model.effects {
+            modelContext.delete(effect)
+        }
+
+        modelContext.delete(model)
+        return true
+    }
+
     func fetchTransactions(accountId: PersistentIdentifier) throws -> [WalletTransaction] {
         let descriptor = FetchDescriptor<WalletTransactionModel>(
             predicate: #Predicate { $0.account.persistentModelID == accountId },
@@ -188,20 +223,14 @@ extension DatabaseService {
             throw ReefrError.invalidData
         }
 
-        let predicate = #Predicate<WalletTransactionModel> { $0.account.persistentModelID == accountId }
-
-        let transactions = try modelContext.fetch(FetchDescriptor(predicate: predicate))
-
-        let tokenAddresses = Set(
-            transactions
-                .flatMap(\.effects)
-                .filter { $0.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue }
-                .compactMap(\.assetIdentifier)
-        )
+        let effects = try modelContext.fetch(tokenTransferEffects(accountId: accountId, onlyUnlinked: true))
+        guard !effects.isEmpty else {
+            return
+        }
 
         let balanceIndex = try fetchBalanceIndex(
             accountId: accountId,
-            tokenAddresses: tokenAddresses,
+            tokenAddresses: Set(effects.compactMap(\.assetIdentifier)),
             blockchain: account.blockchain
         )
 
@@ -217,20 +246,32 @@ extension DatabaseService {
             }
         }
 
-        for transaction in transactions {
-            for effect in transaction.effects {
-                guard effect.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue,
-                      let tokenAddress = effect.assetIdentifier,
-                      let balance = balanceIndex[tokenAddress] ?? caseInsensitiveIndex[tokenAddress.lowercased()]
-                else {
-                    continue
-                }
-
-                effect.balance = balance
+        for effect in effects {
+            guard let tokenAddress = effect.assetIdentifier,
+                  let balance = balanceIndex[tokenAddress] ?? caseInsensitiveIndex[tokenAddress.lowercased()]
+            else {
+                continue
             }
+
+            effect.balance = balance
         }
 
-        try modelContext.save()
+        if modelContext.hasChanges {
+            try modelContext.save()
+        }
+    }
+
+    func tokenTransferEffects(
+        accountId: PersistentIdentifier,
+        onlyUnlinked: Bool = false
+    ) -> FetchDescriptor<WalletTransactionEffectModel> {
+        let kind = BlockchainTransactionEffect.Kind.tokenTransfer.rawValue
+        return FetchDescriptor(predicate: #Predicate {
+            $0.transaction.account.persistentModelID == accountId
+                && $0.kind == kind
+                && $0.assetIdentifier != nil
+                && (!onlyUnlinked || $0.balance == nil)
+        })
     }
 
     /// Rewrites stable ids from the old `PersistentIdentifier.description` form, which changed

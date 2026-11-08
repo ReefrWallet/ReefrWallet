@@ -226,17 +226,31 @@ struct SolanaStakingStoreTests {
     @Test func aResolvedAnswerIsCachedForTheEpochAndAddresses() {
         let answer = rewards()
 
-        #expect(!SolanaStakingDetails.needsRewards(stored: answer, epoch: 99, addresses: ["a"], now: stakingDate(99_999)))
-        #expect(SolanaStakingDetails.needsRewards(stored: answer, epoch: 100, addresses: ["a"], now: stakingDate(0)))
-        #expect(SolanaStakingDetails.needsRewards(stored: answer, epoch: 99, addresses: ["a", "b"], now: stakingDate(0)))
-        #expect(SolanaStakingDetails.needsRewards(stored: nil, epoch: 99, addresses: ["a"], now: stakingDate(0)))
+        func needsRewards(
+            _ stored: SolanaStakingRewards?, epoch: UInt64, addresses: Set<String>, at seconds: TimeInterval
+        ) -> Bool {
+            SolanaStakingDetails.needsRewards(
+                stored: stored, epoch: epoch, addresses: addresses, now: stakingDate(seconds)
+            )
+        }
+
+        #expect(!needsRewards(answer, epoch: 99, addresses: ["a"], at: 99_999))
+        #expect(needsRewards(answer, epoch: 100, addresses: ["a"], at: 0))
+        #expect(needsRewards(answer, epoch: 99, addresses: ["a", "b"], at: 0))
+        #expect(needsRewards(nil, epoch: 99, addresses: ["a"], at: 0))
     }
 
     @Test func unknownsRetryHourly() {
         let answer = rewards(unknown: ["a"])
 
-        #expect(!SolanaStakingDetails.needsRewards(stored: answer, epoch: 99, addresses: ["a"], now: stakingDate(3_599)))
-        #expect(SolanaStakingDetails.needsRewards(stored: answer, epoch: 99, addresses: ["a"], now: stakingDate(3_600)))
+        func needsRewards(at seconds: TimeInterval) -> Bool {
+            SolanaStakingDetails.needsRewards(
+                stored: answer, epoch: 99, addresses: ["a"], now: stakingDate(seconds)
+            )
+        }
+
+        #expect(!needsRewards(at: 3_599))
+        #expect(needsRewards(at: 3_600))
     }
 
     @Test func aFailedLookupKeepsTheOlderAnswerUnderItsOwnEpoch() async throws {
@@ -289,12 +303,16 @@ struct SolanaStakingStoreTests {
     }
 
     @Test func degradedDiscoveryQualifiesTheTotal() {
-        #expect(line(details(rewards: rewards(lamports: 4_100_000), discovery: .degraded))?.hasPrefix("Last epoch: at least") == true)
+        let text = line(details(rewards: rewards(lamports: 4_100_000), discovery: .degraded))
+        #expect(text?.hasPrefix("Last epoch: at least") == true)
     }
 
     @Test func anUnknownZeroIsNeverShownAsZero() {
-        #expect(line(details(rewards: rewards(lamports: 0, unknown: ["a"])))?.hasPrefix("Rewards unavailable") == true)
-        #expect(line(details(rewards: rewards(lamports: 0), discovery: .degraded))?.hasPrefix("Rewards unavailable") == true)
+        let unknown = line(details(rewards: rewards(lamports: 0, unknown: ["a"])))
+        let degraded = line(details(rewards: rewards(lamports: 0), discovery: .degraded))
+
+        #expect(unknown?.hasPrefix("Rewards unavailable") == true)
+        #expect(degraded?.hasPrefix("Rewards unavailable") == true)
     }
 
     @Test func noAnswerIsUnavailable() {
@@ -307,7 +325,8 @@ struct SolanaStakingStoreTests {
     }
 
     @Test func anOlderEpochIsQualifiedTheSameWay() {
-        #expect(line(details(rewards: rewards(epoch: 98, lamports: 3_900_000, unknown: ["a"])))?.hasPrefix("Epoch 98: at least") == true)
+        let text = line(details(rewards: rewards(epoch: 98, lamports: 3_900_000, unknown: ["a"])))
+        #expect(text?.hasPrefix("Epoch 98: at least") == true)
     }
 
     @Test func everythingProvablyNotEarningShowsOnlyAPY() {
@@ -424,6 +443,7 @@ struct SolanaStakingStoreTests {
 
     @Test func solanaSupportsTheStakingTab() {
         #expect(Blockchain.solana(.mainnet).supportsStaking)
+        #expect(Blockchain.sui(.mainnet).supportsStaking)
         #expect(Blockchain.tron(.mainnet).supportsStaking)
         #expect(!Blockchain.bitcoin(.mainnet).supportsStaking)
     }

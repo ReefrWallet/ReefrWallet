@@ -55,6 +55,7 @@ actor StakingStateService: StakingRefreshing {
         self.loaders = loaders ?? [
             DI.injectOrFail(CardanoStakingPositionLoader.self),
             DI.injectOrFail(SolanaStakingPositionLoader.self),
+            DI.injectOrFail(SuiStakingPositionLoader.self),
             DI.injectOrFail(TronStakingPositionLoader.self)
         ]
     }

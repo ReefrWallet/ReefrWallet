@@ -39,22 +39,13 @@ struct CardanoDappProviderFixture {
 
     static let utxoHash = String(repeating: "07", count: 32)
 
-    /// - Parameter routes: extra Blockfrost routes, by path under `/api/v0`.
-    /// - Parameter utxos: replaces the account's default single UTxO (a Blockfrost JSON array).
-    /// - Parameter status: HTTP status overrides, by account path suffix such as `/utxos`.
-    static func make(
-        routes: [String: String] = [:],
-        addresses: [String]? = nil,
-        utxos: String? = nil,
-        status: [String: Int] = [:]
-    ) async throws -> Self {
-        let databaseService = try makeDatabaseService()
-        let accountService = AccountService(databaseService: databaseService)
-        let transactionService = TransactionService(databaseService: databaseService)
-        let keyStore = try await makeLocalKeyStore(databaseService: databaseService, name: "Cardano Test Key Store")
-        let account = try await accountService.makeAccount(.cardano(.preprod), keyStore: keyStore)
-        let descriptor = try CardanoAccountDescriptor(string: account.address)
-
+    /// The Blockfrost routes a test needs: `routes` win over the defaults derived from `descriptor`.
+    private static func defaultRoutes(
+        for descriptor: CardanoAccountDescriptor,
+        routes: [String: String],
+        addresses: [String]?,
+        utxos: String?
+    ) -> [String: String] {
         var allRoutes = routes
         let utxo = """
         [{"address":"\(descriptor.receiveAddress.string)",
@@ -72,6 +63,26 @@ struct CardanoDappProviderFixture {
         {"coins_per_utxo_size":4310,"key_deposit":2000000,"max_tx_size":16384,"max_val_size":5000,
          "min_fee_a":44,"min_fee_b":155381,"pool_deposit":500000000}
         """
+        return allRoutes
+    }
+
+    /// - Parameter routes: extra Blockfrost routes, by path under `/api/v0`.
+    /// - Parameter utxos: replaces the account's default single UTxO (a Blockfrost JSON array).
+    /// - Parameter status: HTTP status overrides, by account path suffix such as `/utxos`.
+    static func make(
+        routes: [String: String] = [:],
+        addresses: [String]? = nil,
+        utxos: String? = nil,
+        status: [String: Int] = [:]
+    ) async throws -> Self {
+        let databaseService = try makeDatabaseService()
+        let accountService = AccountService(databaseService: databaseService)
+        let transactionService = TransactionService(databaseService: databaseService)
+        let keyStore = try await makeLocalKeyStore(databaseService: databaseService, name: "Cardano Test Key Store")
+        let account = try await accountService.makeAccount(.cardano(.preprod), keyStore: keyStore)
+        let descriptor = try CardanoAccountDescriptor(string: account.address)
+
+        let allRoutes = defaultRoutes(for: descriptor, routes: routes, addresses: addresses, utxos: utxos)
         let accountPath = "/api/v0/accounts/\(descriptor.stakeAddress)"
         let stub = CardanoStubURLProtocol.make(
             routes: allRoutes,

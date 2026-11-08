@@ -21,7 +21,6 @@ struct AccountApprovalsView: View {
     @State private var selection: Set<TokenApproval.ID> = []
 
     @Query private var approvalModels: [ApprovalModel]
-    @Query private var balanceModels: [BalanceModel]
 
     private let service = DI.injectOrFail(ApprovalService.self)
 
@@ -36,8 +35,13 @@ struct AccountApprovalsView: View {
 
         let approvalSort = [SortDescriptor(\ApprovalModel.approvedAt, order: .reverse)]
 
-        _approvalModels = Query(filter: #Predicate<ApprovalModel> { $0.account.id == accountId }, sort: approvalSort)
-        _balanceModels = Query(filter: #Predicate<BalanceModel> { $0.account.id == accountId })
+        var descriptor = FetchDescriptor(
+            predicate: #Predicate<ApprovalModel> { $0.account.id == accountId },
+            sortBy: approvalSort
+        )
+
+        descriptor.relationshipKeyPathsForPrefetching = [\.token]
+        _approvalModels = Query(descriptor)
     }
 
     var body: some View {
@@ -166,16 +170,9 @@ private extension AccountApprovalsView {
             }
 
             TableColumn(.approvalsAsset) { approval in
-                HStack {
-                    Text(approval.token.symbol)
-                        .style(.medium, foreground: .primary)
-
-                    if let balance = balance(of: approval.token) {
-                        Text(balance)
-                            .style(.medium, foreground: .secondary)
-                    }
-                }
-                .help(approval.token.address ?? "")
+                Text(approval.token.name)
+                    .style(.medium, foreground: .primary)
+                    .help(approval.token.address ?? "")
             }
             .width(min: 90, ideal: 150)
 
@@ -236,13 +233,6 @@ private extension AccountApprovalsView {
                 }
             }
         )
-    }
-
-    /// The account's held amount of `token`, if it has a stored balance.
-    func balance(of token: Token) -> String? {
-        balanceModels
-            .first { $0.token.address == token.address }
-            .map { Self.amountText($0.amount, token) }
     }
 
     func selectionBinding(_ id: TokenApproval.ID) -> Binding<Bool> {

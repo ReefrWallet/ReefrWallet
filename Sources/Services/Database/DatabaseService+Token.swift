@@ -48,12 +48,10 @@ extension DatabaseService {
             throw ReefrError.notFound
         }
 
-        let tokenAddresses = Set(accountModel.balances.compactMap(\.token.address)).union(
-            accountModel.transactions
-                .flatMap(\.effects)
-                .filter { $0.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue }
-                .compactMap(\.assetIdentifier)
-        )
+        var transfers = tokenTransferEffects(accountId: accountId)
+        transfers.propertiesToFetch = [\.assetIdentifier]
+        let transferAddresses = try modelContext.fetch(transfers).compactMap(\.assetIdentifier)
+        let tokenAddresses = Set(accountModel.balances.compactMap(\.token.address)).union(transferAddresses)
 
         return accountModel.blockchain.tokens
             .filter { $0.isNativeToken || tokenAddresses.contains($0.address ?? "") }

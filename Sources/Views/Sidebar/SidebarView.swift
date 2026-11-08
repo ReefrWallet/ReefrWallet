@@ -56,7 +56,9 @@ struct SidebarView {
     @State private var editingName: String = ""
 
     @State private var expansionOverrides: [PersistentIdentifier: Bool] = [:]
-    @State private var hoverLocation: CGPoint?
+#if os(macOS)
+    @State private var hover = SidebarHover()
+#endif
     @State private var isListEditing = false
     @State private var isUpdating = false
 
@@ -135,12 +137,12 @@ extension SidebarView: View {
         .onContinuousHover(coordinateSpace: .global) { phase in
             switch phase {
             case let .active(location):
-                hoverLocation = location
+                hover.location.send(location)
             case .ended:
-                hoverLocation = nil
+                hover.location.send(nil)
             }
         }
-        .environment(\.sidebarHoverLocation, hoverLocation)
+        .environment(\.sidebarHover, hover)
         .scrollContentBackground(.hidden)
         .background(Color.sidebarBackground)
 #else

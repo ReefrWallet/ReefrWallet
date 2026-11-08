@@ -144,7 +144,11 @@ final class FakeSolanaStakingSource: SolanaStakingSource, @unchecked Sendable {
             set { values.reconcile = newValue }
         }
 
-        var rewards: Result<SolanaStakingRewards?, any Error> { get { values.rewards } set { values.rewards = newValue } }
+        var rewards: Result<SolanaStakingRewards?, any Error> {
+            get { values.rewards }
+            set { values.rewards = newValue }
+        }
+
         var statuses: [SolanaSignatureStatus] { get { values.statuses } set { values.statuses = newValue } }
         var validators: Result<[SolanaValidator], any Error> {
             get { values.validators }

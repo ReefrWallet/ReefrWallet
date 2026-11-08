@@ -6,7 +6,7 @@ import WalletKit
 
 @Suite(.serialized, .timeLimit(.minutes(1)))
 struct TokenSourceStatusTests {
-    @Test func classifiesFailuresByWhetherTheyShowTheTokenIsMissing() async {
+    @Test func sortsFailuresByWhetherTheyShowTheTokenIsMissing() async {
         let unavailable: [any Swift.Error] = [
             TokenNotListed(),
             BlockchainClientError.rpcError(code: 3, message: "execution reverted"),

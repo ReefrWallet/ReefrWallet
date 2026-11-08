@@ -70,7 +70,8 @@ struct ReceiveAddressTests {
     // MARK: Storage
 
     @Test func rowsAreScopedToTheirAccountAndInsertIsIdempotent() async throws {
-        let (databaseService, first, second) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let (first, second) = (accounts[0], accounts[1])
         let firstId = try #require(first.id)
         let secondId = try #require(second.id)
 
@@ -91,7 +92,8 @@ struct ReceiveAddressTests {
     }
 
     @Test func anOfflineAddLeavesDiscoveryPending() async throws {
-        let (databaseService, account, _) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let account = accounts[0]
         let accountId = try #require(account.id)
 
         try await ReceiveAddressService(databaseService: databaseService).ensureBaseRow(for: account)
@@ -102,7 +104,8 @@ struct ReceiveAddressTests {
     }
 
     @Test func deletingTheAccountDeletesItsRows() async throws {
-        let (databaseService, account, other) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let (account, other) = (accounts[0], accounts[1])
         let accountId = try #require(account.id)
         let otherId = try #require(other.id)
 
@@ -115,7 +118,8 @@ struct ReceiveAddressTests {
     }
 
     @Test func aRefreshThatFinishesAfterTheAccountWasDeletedFailsWithoutCrashing() async throws {
-        let (databaseService, account, _) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let account = accounts[0]
         let accountId = try #require(account.id)
         let owner = try CardanoAccountDescriptor(string: account.address)
         let rows = try await client(makeStub(owner, addresses: [], utxos: []))
@@ -137,7 +141,8 @@ struct ReceiveAddressTests {
     // MARK: Refresh
 
     @Test func aRefreshStoresAmountsAndKeepsAddedRows() async throws {
-        let (databaseService, account, _) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let account = accounts[0]
         let accountId = try #require(account.id)
         let owner = try CardanoAccountDescriptor(string: account.address)
         let funded = try owner.address(role: 0, index: 2).string
@@ -145,7 +150,7 @@ struct ReceiveAddressTests {
 
         try await ReceiveAddressService(databaseService: databaseService).add(index: 9, to: account)
 
-        let stub = makeStub(owner, addresses: [funded], utxos: [(funded, "7000000", nil)])
+        let stub = makeStub(owner, addresses: [funded], utxos: [StubUTxO(address: funded, lovelace: "7000000")])
         try await service.updateCardanoBalances(account, client: client(stub))
 
         let stored = try await databaseService.fetchReceiveAddresses(accountId: accountId)
@@ -159,7 +164,8 @@ struct ReceiveAddressTests {
     }
 
     @Test func spendingEverythingZeroesTheTotalsTheTokensAndTheAddressRow() async throws {
-        let (databaseService, account, _) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let account = accounts[0]
         let accountId = try #require(account.id)
         let owner = try CardanoAccountDescriptor(string: account.address)
         let address = owner.receiveAddress.string
@@ -168,7 +174,11 @@ struct ReceiveAddressTests {
         _ = try await databaseService.insertToken(assetToken(), blockchain: account.blockchain)
 
         // The asset's metadata request fails (404): the stored token is still updated.
-        let funded = makeStub(owner, addresses: [address], utxos: [(address, "5000000", (Self.assetUnit, "42"))])
+        let token = StubAsset(unit: Self.assetUnit, quantity: "42")
+        let funded = makeStub(
+            owner, addresses: [address], utxos: [StubUTxO(address: address, lovelace: "5000000", asset: token)]
+        )
+
         try await service.updateCardanoBalances(account, client: client(funded))
 
         var balances = try await databaseService.fetchBalances(accountId: accountId)
@@ -187,7 +197,8 @@ struct ReceiveAddressTests {
     }
 
     @Test func aFailedAddressReadStillSavesBalancesAndLeavesRowsAlone() async throws {
-        let (databaseService, account, _) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let account = accounts[0]
         let accountId = try #require(account.id)
         let owner = try CardanoAccountDescriptor(string: account.address)
         let address = owner.receiveAddress.string
@@ -196,9 +207,10 @@ struct ReceiveAddressTests {
         let stub = makeStub(
             owner,
             addresses: [address],
-            utxos: [(address, "3000000", nil)],
+            utxos: [StubUTxO(address: address, lovelace: "3000000")],
             status: ["/api/v0/accounts/\(owner.stakeAddress)/addresses": 500]
         )
+
         try await service.updateCardanoBalances(account, client: client(stub))
 
         let native = try await databaseService.fetchBalances(accountId: accountId).first { $0.token.isNativeToken }
@@ -209,7 +221,8 @@ struct ReceiveAddressTests {
     }
 
     @Test func refreshesOfOneAccountNeverOverlap() async throws {
-        let (databaseService, account, _) = try await makeTwoAccounts()
+        let (databaseService, accounts) = try await makeTwoAccounts()
+        let account = accounts[0]
         let owner = try CardanoAccountDescriptor(string: account.address)
         let service = BalancesService(databaseService: databaseService)
         let stub = makeStub(owner, addresses: [], utxos: [], delay: 0.15)
@@ -248,10 +261,21 @@ private extension ReceiveAddressTests {
         CardanoClient(endpoint: stub.endpoint, projectId: "project-id", session: stub.session)
     }
 
+    struct StubAsset {
+        let unit: String
+        let quantity: String
+    }
+
+    struct StubUTxO {
+        let address: String
+        let lovelace: String
+        var asset: StubAsset?
+    }
+
     func makeStub(
         _ owner: CardanoAccountDescriptor,
         addresses: [String],
-        utxos: [(address: String, lovelace: String, asset: (unit: String, quantity: String)?)],
+        utxos: [StubUTxO],
         status: [String: Int] = [:],
         delay: TimeInterval = 0
     ) -> CardanoStubURLProtocol.Stub {
@@ -280,7 +304,7 @@ private extension ReceiveAddressTests {
     }
 
     /// Two watch-only Cardano accounts with different keys, so the same index derives different addresses.
-    func makeTwoAccounts() async throws -> (DatabaseService, ReefrWallet.Account, ReefrWallet.Account) {
+    func makeTwoAccounts() async throws -> (database: DatabaseService, accounts: [ReefrWallet.Account]) {
         let databaseService = try makeDatabaseService()
         let keyStore = try await makeWatchOnlyKeyStore(databaseService: databaseService)
         let keyStoreId = try #require(keyStore.id)
@@ -292,6 +316,7 @@ private extension ReceiveAddressTests {
                 network: .preprod,
                 path: .cardanoAccount(accountIndex: 0)
             )
+
             var account = Account(
                 address: descriptor.string,
                 blockchain: .cardano(.preprod),
@@ -304,6 +329,6 @@ private extension ReceiveAddressTests {
             accounts.append(account)
         }
 
-        return (databaseService, accounts[0], accounts[1])
+        return (databaseService, accounts)
     }
 }

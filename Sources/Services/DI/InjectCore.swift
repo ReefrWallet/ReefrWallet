@@ -126,6 +126,14 @@ extension ServiceContainer {
             StakingStateService()
         }
 
+        register(SuiStakingPositionLoader.self) {
+            SuiStakingPositionLoader()
+        }
+
+        register(SuiStakingService.self) {
+            SuiStakingService()
+        }
+
         register(TokenIdentityScheduler.self) {
             TokenIdentityScheduler()
         }

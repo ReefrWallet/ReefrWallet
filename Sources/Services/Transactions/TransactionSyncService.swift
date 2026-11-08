@@ -82,6 +82,24 @@ actor TransactionSyncService {
         tasks.removeValue(forKey: id)?.cancel()
     }
 
+    /// Clears a Sui staking transaction proven never to have run: its pending claim and its history
+    /// placeholder, together. Chain history will never return it.
+    ///
+    /// - Throws: if it can't be saved; the claim is then still there, so the caller can retry.
+    func clearNonExecutedSuiSubmission(digest: String, account: Account) async throws {
+        try await databaseService.clearNonExecutedSuiSubmission(digest: digest, for: account)
+    }
+
+    /// Like ``recordBroadcast(identifier:account:)`` for a Sui staking transaction, written only while its
+    /// submission is still pending, so cleanup after a proven non-execution can't be undone by a late send.
+    func recordPendingSuiBroadcast(digest: String, account: Account) async {
+        do {
+            try await databaseService.recordSuiBroadcast(digest: digest, for: account)
+        } catch {
+            printError("\(account.name): \(error)")
+        }
+    }
+
     func recordBroadcast(identifier: String, account: Account) async {
         let transaction = BlockchainTransaction(identifier: identifier, status: .broadcast)
 
@@ -306,8 +324,7 @@ private extension TransactionSyncService {
                         cursor: state.ascendingCursor,
                         direction: .ascending,
                         lowerBound: currentHead + 1,
-                        upperBound: head,
-                        assetHints: try await assetHints(account: account)
+                        upperBound: head
                     )
                 )
             } catch let error where state.ascendingCursor != nil && !(error is CancellationError) {
@@ -343,7 +360,7 @@ private extension TransactionSyncService {
         guard account.rpcURLOverride == nil,
               let source = transactionHistorySources.first(where: { $0.providesForwardHistory && $0.supports(account) })
         else {
-            return try await client.transactionHistory(account.address, request: request)
+            return try await nodeForwardHistory(account: account, client: client, request: request)
         }
 
         do {
@@ -353,7 +370,7 @@ private extension TransactionSyncService {
             return page
         } catch let error where request.cursor == nil && !(error is CancellationError) {
             printError("\(account.name): indexed forward history failed, scanning the node instead: \(error)")
-            let page = try await client.transactionHistory(account.address, request: request)
+            let page = try await nodeForwardHistory(account: account, client: client, request: request)
             logForward(account: account, source: "node (fallback)", request: request, page: page)
 
             return page
@@ -389,8 +406,27 @@ private extension TransactionSyncService {
         return try await databaseService.latestTransactionBlockHeight(accountId: try accountId(account))
     }
 
-    func assetHints(account: Account) async throws -> [String] {
-        try await databaseService.fetchTokens(account: account).compactMap(\.address)
+    func nodeForwardHistory(
+        account: Account,
+        client: any BlockchainClientProtocol,
+        request: BlockchainTransactionHistoryRequest
+    ) async throws -> BlockchainTransactionPage {
+        guard case .evm = account.blockchain else {
+            return try await client.transactionHistory(account.address, request: request)
+        }
+
+        let addresses = try await databaseService.fetchTokens(account: account).compactMap(\.address)
+        return try await client.transactionHistory(
+            account.address,
+            request: BlockchainTransactionHistoryRequest(
+                cursor: request.cursor,
+                direction: request.direction,
+                lowerBound: request.lowerBound,
+                upperBound: request.upperBound,
+                limit: request.limit,
+                assetHints: addresses
+            )
+        )
     }
 
     func transactionHistory(
