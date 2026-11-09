@@ -6,6 +6,13 @@ struct TransactionAccessibilityData: View {
     let model: TransactionRowModel
 
     var body: some View {
+        if case .test = Inject.mode {
+            markers
+        }
+    }
+
+    // Exact-value markers for UI tests. Regular rows expose their visible cells.
+    private var markers: some View {
         ZStack {
             marker("transaction-amount-\(model.identifier)", label: model.rawAmountText)
             marker("transaction-block-\(model.identifier)", label: model.blockHeight.map(String.init))

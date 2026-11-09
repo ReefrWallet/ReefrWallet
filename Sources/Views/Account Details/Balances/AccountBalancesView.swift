@@ -11,23 +11,44 @@ import SwiftUI
 /// Mail-style list of token balances: name and amount, then unit price and USD value.
 struct AccountBalancesView: View {
     let balances: [Balance]
-    var stakedUSDValue: Decimal = 0
+    let hiddenBalances: [Balance]
+    let hasHiddenBalances: Bool
+    let isLoaded: Bool
+    let totalUSDValue: Decimal?
 
     @Binding var selection: String?
 
+    let onBalanceAppear: (Balance.ID) -> Void
+    let onHiddenBalanceAppear: (Balance.ID) -> Void
+    let onOpenHidden: () async -> Void
+    let onSort: ([BalanceListSort]) -> Void
+
     var body: some View {
         #if os(macOS)
-        AccountBalancesTable(balances: balances, stakedUSDValue: stakedUSDValue, selection: $selection)
+        if isLoaded {
+            AccountBalancesTable(
+                balances: balances,
+                hiddenBalances: hiddenBalances,
+                hasHiddenBalances: hasHiddenBalances,
+                totalUSDValue: totalUSDValue,
+                selection: $selection,
+                onBalanceAppear: onBalanceAppear,
+                onHiddenBalanceAppear: onHiddenBalanceAppear,
+                onOpenHidden: onOpenHidden,
+                onSort: onSort
+            )
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
         #else
-        // `balances` is cached by AccountDetailsView so this view does not re-fault SwiftData
-        // relationships or redo BigUInt/Decimal math on selection changes.
-        let entries = balances
-            .map { BalancesTableEntry.balance($0) }
-            .sorted { $0.usdValue > $1.usdValue }
+        let entries = balances.map(BalancesTableEntry.balance)
 
         AccountCountLabel(text: String(localized: .accountDetailsBalanceCount(entries.count)))
 
-        if entries.isEmpty {
+        if !isLoaded {
+            ProgressView()
+        } else if entries.isEmpty {
             AccountEmptyRow(title: .commonZeroBalances)
                 .accessibilityIdentifier("account-zero-balances")
         } else {
@@ -44,6 +65,11 @@ struct AccountBalancesView: View {
                     selection = entry.id
                 }
                 .listRowBackground(selection == entry.id ? Color.accentColor : nil)
+                .onAppear {
+                    if case let .balance(balance) = entry {
+                        onBalanceAppear(balance.id)
+                    }
+                }
         }
     }
 }

@@ -12,11 +12,20 @@ import WalletKit
 
 // MARK: - AccountDetailsView
 
+@MainActor
 struct AccountDetailsView {
     let account: Account
     let keyStore: KeyStore
 
-    @State private var cachedBalances: [Balance] = []
+    @State private var balanceIndex: BalanceListIndex?
+    @State private var balancePages = AccountPages<Balance>()
+    @State private var hiddenBalancePages = AccountPages<Balance>()
+    @State private var nativeBalance: Balance?
+    #if os(iOS)
+    @State private var balanceSort = [BalanceListSort(field: .value, ascending: false)]
+    #else
+    @State private var balanceSort: [BalanceListSort] = []
+    #endif
     @State private var isAddAddressPresented = false
     @State private var isCopyWalletAddressButtonActive = false
     @State private var isFiltersPresented = false
@@ -38,25 +47,21 @@ struct AccountDetailsView {
 
     @Environment(\.sheetNamespace) private var sheetNamespace
 
-    @Query var accountBalances: [BalanceModel]
     @Query var stakingRows: [StakingModel]
+    #if os(iOS)
     @Query var allAccounts: [AccountModel]
+    #endif
+
+    private let databaseService = DI.injectOrFail(DatabaseService.self)
 
     init(_ account: Account, keyStore: KeyStore) {
         guard let accountId = account.id else {
             preconditionFailure()
         }
 
-        let predicate = #Predicate<BalanceModel> { item in
-            item.account.id == accountId
-        }
-
         self.account = account
         self.keyStore = keyStore
 
-        var balancesDescriptor = FetchDescriptor(predicate: predicate)
-        balancesDescriptor.relationshipKeyPathsForPrefetching = [\.token]
-        _accountBalances = Query(balancesDescriptor)
         _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.id == accountId })
         _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
     }
@@ -66,7 +71,7 @@ struct AccountDetailsView {
 
 extension AccountDetailsView: View {
     var body: some View {
-        let selected = selectedBalance(in: cachedBalances)
+        let selected = selectedBalance
 
         mainContent
         .navigationTitle(account.name)
@@ -74,12 +79,8 @@ extension AccountDetailsView: View {
             toolbarContent(selected)
         }
 
-        // Balance refreshes update `BalanceModel` in place, so its persistent
-        // identifier does not change when the on-chain amount changes, and price, identity and
-        // image updates change only the token row. `refreshKey` covers all of them, so the cached
-        // value list is rebuilt after every such change.
-        .task(id: balanceRefreshId) {
-            cachedBalances = accountBalances.compactMap { try? Balance(model: $0) }
+        .task(id: tab == .balances ? balanceSort : nil) {
+            await observeBalances()
         }
 
         // Resource patches change the row in place too; `revision` tells every applied write.
@@ -103,6 +104,11 @@ extension AccountDetailsView: View {
         }
         .modifier(AccountStakingSheets(model: staking))
         #if os(iOS)
+        .task(id: searchesBalances && balancePages.isLoaded) {
+            if searchesBalances, balancePages.isLoaded {
+                await loadRemainingBalances()
+            }
+        }
         .sheet(isPresented: $isFiltersPresented) {
             AccountFiltersView(tab: tab, filter: filter)
                 .sheetZoom(from: Self.filtersSourceId, namespace: sheetNamespace)
@@ -114,11 +120,11 @@ extension AccountDetailsView: View {
     private var mainContent: some View {
         #if os(macOS)
         VStack(alignment: .leading) {
-            header(cachedBalances)
+            header(nativeBalance)
                 .padding()
 
             TabView(selection: tabSelection) {
-                AccountBalancesView(balances: cachedBalances, selection: $selection)
+                balanceContent
                     .tabItem {
                         Label(.accountDetailsTokenBalances, systemImage: "chart.bar")
                     }
@@ -134,18 +140,26 @@ extension AccountDetailsView: View {
                     .tag(AccountTab.addresses)
                 }
 
-                AccountTransactionsView(account)
-                    .tabItem {
-                        Label(.accountDetailsTransactions, systemImage: "list.bullet")
+                VStack(spacing: 0) {
+                    if tab == .transactions {
+                        AccountTransactionsView(account)
                     }
-                    .tag(AccountTab.transactions)
+                }
+                .tabItem {
+                    Label(.accountDetailsTransactions, systemImage: "list.bullet")
+                }
+                .tag(AccountTab.transactions)
 
                 if account.blockchain.supportsApprovals {
-                    AccountApprovalsView(account, canSign: canSign)
-                        .tabItem {
-                            Label(.accountDetailsApprovals, systemImage: "checkmark.shield")
+                    VStack(spacing: 0) {
+                        if tab == .approvals {
+                            AccountApprovalsView(account, canSign: canSign)
                         }
-                        .tag(AccountTab.approvals)
+                    }
+                    .tabItem {
+                        Label(.accountDetailsApprovals, systemImage: "checkmark.shield")
+                    }
+                    .tag(AccountTab.approvals)
                 }
 
                 if let staking {
@@ -174,7 +188,7 @@ extension AccountDetailsView: View {
     private var scrollContent: some View {
         List {
             // `navigationSubtitle` makes the large title open collapsed, so the header is a row.
-            header(cachedBalances)
+            header(nativeBalance)
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
 
@@ -198,6 +212,7 @@ extension AccountDetailsView: View {
         await AccountRefresh.run([account])
     }
 
+    #if os(iOS)
     @ViewBuilder
     private var content: some View {
         switch tab {
@@ -208,11 +223,7 @@ extension AccountDetailsView: View {
             AccountApprovalsView(account, canSign: canSign, searchText: searchText)
 
         case .balances:
-            AccountBalancesView(
-                balances: visibleBalances,
-                stakedUSDValue: stakingRows.first?.stakedUSDValue ?? 0,
-                selection: $selection
-            )
+            balanceContent
 
         case .staking:
             if let staking {
@@ -228,6 +239,7 @@ extension AccountDetailsView: View {
             )
         }
     }
+    #endif
 
     @MainActor
     @ToolbarContentBuilder
@@ -408,6 +420,21 @@ extension AccountDetailsView: View {
 // MARK: - Subviews
 
 private extension AccountDetailsView {
+    var balanceContent: some View {
+        AccountBalancesView(
+            balances: visibleBalances,
+            hiddenBalances: hiddenBalancePages.rows,
+            hasHiddenBalances: !(balanceIndex?.hidden.isEmpty ?? true),
+            isLoaded: balancePages.isLoaded,
+            totalUSDValue: balanceIndex?.totalUSDValue,
+            selection: $selection,
+            onBalanceAppear: loadMoreBalances,
+            onHiddenBalanceAppear: loadMoreHiddenBalances,
+            onOpenHidden: loadHiddenBalances,
+            onSort: { balanceSort = $0 }
+        )
+    }
+
     /// `account.address` for Bitcoin is the account's whole descriptor
     /// (`wpkh(...)`/`tr(...)`/`addr(...)`), not a human-facing address —
     /// this decodes it to the first external (index 0) address instead.
@@ -431,7 +458,7 @@ private extension AccountDetailsView {
     }
 
     /// Address, chain details and native balance; the account name is the navigation title.
-    func header(_ balances: [Balance]) -> some View {
+    func header(_ balance: Balance?) -> some View {
         LazyVStack(alignment: .leading) {
             HStack {
                 Text(displayAddress)
@@ -463,7 +490,7 @@ private extension AccountDetailsView {
             .style(isPhone ? .caption : .small, foreground: .secondary)
             .padding(.bottom, 1)
 
-            if let balance = balances.first(where: { $0.token.isNativeToken }) {
+            if let balance {
                 Text("\(balance.decimalAmount.description) \(balance.token.symbol)")
                     .style(isPhone ? .caption : .small, foreground: .secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -471,9 +498,97 @@ private extension AccountDetailsView {
         }
     }
 
-    var balanceRefreshId: [String] {
-        accountBalances.map(\.refreshKey)
+    func observeBalances() async {
+        let account = account
+        let sort = balanceSort
+        let showsBalances = tab == .balances
+        await databaseService.modelContainer.observeSaves(affecting: ["BalanceModel", "TokenModel"]) {
+            if showsBalances {
+                let index = try await databaseService.modelContainer.readSnapshot { reader in
+                    #if os(macOS)
+                    try await reader.balanceListIndex(for: account, sort: sort, separatesHidden: true)
+                    #else
+                    try await reader.balanceListIndex(for: account, sort: sort, separatesHidden: false)
+                    #endif
+                }
+
+                try Task.checkCancellation()
+                if balanceIndex != index {
+                    balanceIndex = index
+                }
+
+                nativeBalance = index.native
+                try await balancePages.refresh(using: balanceFetcher(for: index.visible))
+                if hiddenBalancePages.isLoaded {
+                    try await hiddenBalancePages.refresh(using: balanceFetcher(for: index.hidden))
+                }
+            } else {
+                let balance = try await databaseService.modelContainer.readSnapshot { reader in
+                    try await reader.fetchBalance(account: account, tokenAddress: nil)
+                }
+
+                try Task.checkCancellation()
+                nativeBalance = balance
+            }
+        }
     }
+
+    func balanceFetcher(for ids: [PersistentIdentifier]) -> AccountPages<Balance>.Fetch {
+        let account = account
+        let container = databaseService.modelContainer
+        return { offset, limit in
+            try await container.readSnapshot { reader in
+                try await reader.fetchBalancePage(for: account, orderedIds: ids, offset: offset, limit: limit)
+            }
+        }
+    }
+
+    func loadMoreBalances(near id: Balance.ID) {
+        if let balanceIndex {
+            balancePages.requestNext(near: id, using: balanceFetcher(for: balanceIndex.visible))
+        }
+    }
+
+    func loadMoreHiddenBalances(near id: Balance.ID) {
+        if let balanceIndex {
+            hiddenBalancePages.requestNext(near: id, using: balanceFetcher(for: balanceIndex.hidden))
+        }
+    }
+
+    func loadHiddenBalances() async {
+        guard let balanceIndex, !hiddenBalancePages.isLoaded else {
+            return
+        }
+
+        do {
+            try await hiddenBalancePages.refresh(using: balanceFetcher(for: balanceIndex.hidden))
+        } catch is CancellationError {
+            return
+        } catch {
+            printError(error)
+        }
+    }
+
+    #if os(iOS)
+    func loadRemainingBalances() async {
+        guard let balanceIndex else {
+            return
+        }
+
+        do {
+            try await balancePages.loadRemaining(using: balanceFetcher(for: balanceIndex.visible))
+        } catch is CancellationError {
+            return
+        } catch {
+            printError(error)
+        }
+    }
+
+    var searchesBalances: Bool {
+        tab == .balances
+            && (filterValue.isActive(in: .balances) || !searchText.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
+    #endif
 
     static let addAddressSourceId = "account-add-address"
     static let filterGlassId = "filter"
@@ -522,9 +637,12 @@ private extension AccountDetailsView {
 
     /// Balances after the filter and search.
     var visibleBalances: [Balance] {
+        #if os(macOS)
+        balancePages.rows
+        #else
         let query = searchText.trimmingCharacters(in: .whitespaces)
 
-        return cachedBalances.filter { balance in
+        return balancePages.rows.filter { balance in
             guard filterValue.includes(balance) else {
                 return false
             }
@@ -533,6 +651,7 @@ private extension AccountDetailsView {
                 || balance.token.symbol.localizedCaseInsensitiveContains(query)
                 || balance.token.name.localizedCaseInsensitiveContains(query)
         }
+        #endif
     }
 }
 
@@ -567,14 +686,13 @@ private extension AccountDetailsView {
         return amount > 0
     }
 
-    func selectedBalance(in balances: [Balance]) -> Balance? {
-        balances.first { balance in
-            guard let id = balance.id else {
-                return false
-            }
-
-            return selection == "\(id)"
+    var selectedBalance: Balance? {
+        guard let selection else {
+            return nil
         }
+
+        return balancePages.rows.first { $0.idString == selection }
+            ?? hiddenBalancePages.rows.first { $0.idString == selection }
     }
 
     func copyToClipboard(_ string: String) {

@@ -133,8 +133,6 @@ private extension WatchOnlyCardanoAccountUITests {
         let transactionCount = app.staticTexts["account-transactions-count"]
         XCTAssertTrue(transactionCount.waitForExistence(timeout: 10))
 
-        // "12 Transactions", or "Latest 100 Transactions" once the view's
-        // fetch limit is hit — take whichever component is the number.
         let count = transactionCount.text.split(separator: " ").compactMap { Int($0) }.first ?? 0
         XCTAssertGreaterThan(
             count, 0,

@@ -21,6 +21,7 @@ actor TransactionSyncService {
     private let balancesService: BalancesService
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private let databaseService: DatabaseService
+    private var nextBackfillWrite = ContinuousClock.now
     private var tasks: [PersistentIdentifier: Task<Void, Never>] = [:]
     private let transactionHistorySources: [any TransactionHistorySource]
 
@@ -79,7 +80,8 @@ actor TransactionSyncService {
 
         printDebug("Stopping transaction history fetching for \(account.name)")
 
-        tasks.removeValue(forKey: id)?.cancel()
+        // Keep the task registered until both tracks finish unwinding.
+        tasks[id]?.cancel()
     }
 
     /// Clears a Sui staking transaction proven never to have run: its pending claim and its history
@@ -174,6 +176,10 @@ private extension TransactionSyncService {
                 )
             )
 
+            if state.currentHead != nil || state.descendingCursor != nil {
+                try await paceBackfillWrite()
+            }
+
             try await commit(
                 page,
                 account: account,
@@ -181,12 +187,6 @@ private extension TransactionSyncService {
                 track: .descending,
                 updatesBalances: false
             )
-
-            // Backfill pages otherwise run back-to-back with no suspension
-            // point, unlike the ascending track's idle sleep — yield so the
-            // cooperative thread pool can schedule pending main-actor work
-            // between pages.
-            await Task.yield()
 
             if page.reachedBoundary {
                 // Backfill spans many pages, each committed with `updatesBalances:
@@ -198,6 +198,14 @@ private extension TransactionSyncService {
                 return
             }
         }
+    }
+
+    /// Space history writes across accounts so their SwiftData merges leave time for UI work.
+    /// The first page can establish the live cursor immediately.
+    func paceBackfillWrite() async throws {
+        let slot = max(nextBackfillWrite, .now)
+        nextBackfillWrite = slot + .seconds(1)
+        try await Task.sleep(until: slot, clock: .continuous)
     }
 
     func maintainForwardSync(account: Account, client: any BlockchainClientProtocol) async throws {
@@ -467,6 +475,7 @@ private extension TransactionSyncService {
         track: Track,
         updatesBalances: Bool
     ) async throws {
+        try Task.checkCancellation()
         try await processTokenTransfers(page.transactions, account: account, client: client)
 
         let id = try accountId(account)
@@ -499,6 +508,7 @@ private extension TransactionSyncService {
         // a backfill page used to cost two separate write transactions (and
         // two main-thread @Query merges) for this.
         try await databaseService.saveTransactions(page.transactions, for: account, syncState: state)
+        try Task.checkCancellation()
 
         if updatesBalances {
             await enqueueBalanceUpdates(for: page.transactions, account: account)
@@ -512,6 +522,10 @@ private extension TransactionSyncService {
     }
 
     func recordFailure(_ error: any Swift.Error, account: Account) async {
+        guard !Task.isCancelled else {
+            return
+        }
+
         do {
             var state = try await databaseService.transactionSyncState(accountId: try accountId(account))
             state.lastError = error.localizedDescription
@@ -525,7 +539,7 @@ private extension TransactionSyncService {
     /// A no-op when there are none, so idle polling that finds nothing new
     /// never reaches `BalancesService`.
     func refreshBalances(account: Account, transactions: [BlockchainTransaction]) async {
-        guard !transactions.isEmpty else {
+        guard !Task.isCancelled, !transactions.isEmpty else {
             return
         }
 
@@ -545,16 +559,20 @@ private extension TransactionSyncService {
     /// not on every idle iteration.
     func enqueueFullRefresh(account: Account) async {
         do {
+            try Task.checkCancellation()
             try await databaseService.linkTransactionTokens(for: account)
             let tokens = try await databaseService.fetchTokens(account: account)
 
             for token in tokens {
+                try Task.checkCancellation()
                 await balancesService.enqueueBalanceUpdate(
                     account: account,
                     tokenAddress: token.address,
                     blockchain: account.blockchain
                 )
             }
+        } catch is CancellationError {
+            return
         } catch {
             printError("\(account.name): \(error)")
         }
@@ -562,6 +580,10 @@ private extension TransactionSyncService {
 
     func enqueueBalanceUpdates(for transactions: [BlockchainTransaction], account: Account) async {
         for tokenAddress in Self.balanceRefreshTokens(for: transactions) {
+            guard !Task.isCancelled else {
+                return
+            }
+
             await balancesService.enqueueBalanceUpdate(
                 account: account,
                 tokenAddress: tokenAddress,
@@ -609,6 +631,7 @@ private extension TransactionSyncService {
         }
 
         for tokenAddress in tokenAddresses {
+            try Task.checkCancellation()
             guard try await databaseService.fetchToken(
                 tokenAddress: tokenAddress,
                 blockchain: account.blockchain
@@ -623,6 +646,7 @@ private extension TransactionSyncService {
                 client: client
             )
 
+            try Task.checkCancellation()
             try await databaseService.insertToken(token, blockchain: account.blockchain)
         }
     }

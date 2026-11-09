@@ -47,6 +47,8 @@ enum PresentedSheet: Identifiable {
 
 struct SidebarView {
     @State private var deleteAccountAlertPresented = false
+    @State private var deleteAccountError: String?
+    @State private var deleteAccountErrorPresented = false
     @State private var deletingAccount: Account?
 
     @State private var deleteKeyStoreAlertPresented = false
@@ -57,9 +59,11 @@ struct SidebarView {
 
     @State private var expansionOverrides: [PersistentIdentifier: Bool] = [:]
 #if os(macOS)
+    @State private var accountValues: [PersistentIdentifier: Decimal] = [:]
     @State private var hover = SidebarHover()
 #endif
     @State private var isListEditing = false
+    @State private var isDeletingAccount = false
     @State private var isUpdating = false
 
     @FocusState private var isAccountsListFocused: Bool
@@ -67,8 +71,8 @@ struct SidebarView {
     @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
-    @Query
-    var allAccounts: [AccountModel]
+    @Binding var isAccountDeletionHUDPresented: Bool
+    let allAccounts: [AccountModel]
 
     @Query
     var keyStores: [KeyStoreModel]
@@ -92,6 +96,11 @@ extension SidebarView: View {
             .alert(.sidebarDeleteAccountTitle, isPresented: $deleteAccountAlertPresented) {
                 deleteAccountAlertActions
             }
+            .alert(.commonRequestFailed, isPresented: $deleteAccountErrorPresented) {
+                Button(.commonOk) {}
+            } message: {
+                Text(deleteAccountError ?? "")
+            }
             .alert(.sidebarDeleteKeyStoreTitle, isPresented: $deleteKeyStoreAlertPresented) {
                 deleteKeyStoreAlertActions
             }
@@ -99,10 +108,13 @@ extension SidebarView: View {
 
     @MainActor
     private var styledList: some View {
-        List(selection: sidebarSelection) {
+        let accountsByKeyStore = Dictionary(grouping: allAccounts) { $0.keyStore.id }
+        let orderedKeyStores = orderedKeyStores(accountsByKeyStore: accountsByKeyStore)
+
+        return List(selection: sidebarSelection) {
             if !keyStores.isEmpty {
                 ForEach(orderedKeyStores) { keyStore in
-                    makeKeyStoreSection(keyStore)
+                    makeKeyStoreSection(keyStore, accounts: accountsByKeyStore[keyStore.id, default: []])
                 }
 
                 if isPhone, isListEditing, orderedKeyStores.last?.isWatchOnly != true {
@@ -129,7 +141,11 @@ extension SidebarView: View {
             }
 
             if !keyStores.isEmpty {
-                ConnectedDappsSidebarSection(.sidebarConnectedDapps, isEditing: isListEditing)
+                ConnectedDappsSidebarSection(
+                    .sidebarConnectedDapps,
+                    hasAccounts: !allAccounts.isEmpty,
+                    isEditing: isListEditing
+                )
             }
         }
         .listStyle(.sidebar)
@@ -145,6 +161,9 @@ extension SidebarView: View {
         .environment(\.sidebarHover, hover)
         .scrollContentBackground(.hidden)
         .background(Color.sidebarBackground)
+        .task {
+            await observeAccountValues()
+        }
 #else
         .navigationTitle(isPhone ? String(localized: .sidebarKeyStores) : "")
         .navigationBarTitleDisplayMode(.large)
@@ -212,15 +231,7 @@ extension SidebarView: View {
     private var deleteAccountAlertActions: some View {
         Button(.sidebarDelete) {
             if let deletingAccount {
-                sidebarSelection.wrappedValue = nil
-
-                Task {
-                    do {
-                        try await accountService.deleteAccount(deletingAccount)
-                    } catch {
-                        printError("\(deletingAccount.name): \(error)")
-                    }
-                }
+                Task { await deleteAccount(deletingAccount) }
             }
 
             self.deletingAccount = nil
@@ -230,6 +241,31 @@ extension SidebarView: View {
         Button(.commonCancel) {
             deletingAccount = nil
             deleteAccountAlertPresented = false
+        }
+    }
+
+    @MainActor
+    private func deleteAccount(_ account: Account) async {
+        guard !isDeletingAccount, let accountId = account.id else {
+            return
+        }
+
+        isDeletingAccount = true
+        defer {
+            isAccountDeletionHUDPresented = false
+            isDeletingAccount = false
+        }
+
+        do {
+            isAccountDeletionHUDPresented = try await databaseService.transactionCount(accountId: accountId) > 1_000
+            try await accountService.deleteAccount(account)
+            if sidebarSelection.wrappedValue == accountId {
+                sidebarSelection.wrappedValue = nil
+            }
+        } catch {
+            printError("\(account.name): \(error)")
+            deleteAccountError = error.localizedDescription
+            deleteAccountErrorPresented = true
         }
     }
 
@@ -381,6 +417,7 @@ private extension SidebarView {
     func makeMacAccountItem(_ account: AccountModel) -> some View {
         SidebarAccountRow(
             account: account,
+            usdValue: accountValue(account),
             editingName: $editingName,
             isEditing: {
                 editingId == account.id
@@ -445,7 +482,7 @@ private extension SidebarView {
     }
 
     @MainActor @ViewBuilder
-    func makeKeyStoreSection(_ keyStore: KeyStoreModel) -> some View {
+    func makeKeyStoreSection(_ keyStore: KeyStoreModel, accounts: [AccountModel]) -> some View {
         SidebarSection(isExpanded: expansionBinding(keyStore)) {
 #if os(macOS)
             SidebarAddButton(
@@ -457,7 +494,7 @@ private extension SidebarView {
             }
 #endif
         } content: {
-            ForEach(keyStore.accounts.sorted()) { account in
+            ForEach(accounts.sorted()) { account in
                 makeAccountItem(account)
             }
 
@@ -476,8 +513,10 @@ private extension SidebarView {
         } title: {
             makeKeyStoreTitle(keyStore)
         } trailing: {
-            if !keyStore.isWatchOnly, !(expansionOverrides[keyStore.id] ?? !keyStore.isCollapsed) {
-                Text("\(totalValue(keyStore).formattedAbbreviated()) US$")
+            if !keyStore.isWatchOnly,
+               !(expansionOverrides[keyStore.id] ?? !keyStore.isCollapsed),
+               let value = totalValue(accounts) {
+                Text("\(value.formattedAbbreviated()) US$")
                     .style(
                         isPhone ? .large : .small,
                         foreground: isPhone ? .phoneSecondaryLabel : .sidebarSecondaryLabel
@@ -588,8 +627,25 @@ private extension SidebarView {
         )
     }
 
-    func totalValue(_ keyStore: KeyStoreModel) -> Decimal {
-        keyStore.accounts.reduce(into: 0) { $0 += $1.usdValue() }
+    func accountValue(_ account: AccountModel) -> Decimal? {
+#if os(macOS)
+        accountValues[account.id]
+#else
+        account.usdValue()
+#endif
+    }
+
+    func totalValue(_ accounts: [AccountModel]) -> Decimal? {
+        var total: Decimal = 0
+        for account in accounts {
+            guard let value = accountValue(account) else {
+                return nil
+            }
+
+            total += value
+        }
+
+        return total
     }
 
     func addAccountSourceId(_ keyStore: KeyStoreModel) -> String {
@@ -604,6 +660,22 @@ private extension SidebarView {
 // MARK: - Logic
 
 extension SidebarView {
+#if os(macOS)
+    private func observeAccountValues() async {
+        let entities = ["AccountModel", "BalanceModel", "StakingModel", "TokenModel"]
+        await databaseService.modelContainer.observeSaves(affecting: Set(entities)) {
+            let values = try await databaseService.modelContainer.readSnapshot { reader in
+                try await reader.accountUSDValues()
+            }
+
+            try Task.checkCancellation()
+            if values != accountValues {
+                accountValues = values
+            }
+        }
+    }
+#endif
+
     var selectedAccount: AccountModel? {
         allAccounts.first { $0.id == sidebarSelection.wrappedValue }
     }
@@ -628,10 +700,10 @@ extension SidebarView {
         }
     }
 
-    var orderedKeyStores: [KeyStoreModel] {
+    func orderedKeyStores(accountsByKeyStore: [PersistentIdentifier: [AccountModel]]) -> [KeyStoreModel] {
         var result = hardwareKeyStores + localKeyStores
 
-        if let watchOnlyKeyStore, !watchOnlyKeyStore.accounts.isEmpty {
+        if let watchOnlyKeyStore, !accountsByKeyStore[watchOnlyKeyStore.id, default: []].isEmpty {
             result.append(watchOnlyKeyStore)
         }
 

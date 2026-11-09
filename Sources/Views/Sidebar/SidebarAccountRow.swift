@@ -5,6 +5,7 @@ import SwiftUI
 /// decode) for rows whose selection/editing state didn't change.
 struct SidebarAccountRow: View {
     let account: AccountModel
+    let usdValue: Decimal?
     @Binding var editingName: String
 
     let isEditing: () -> Bool
@@ -19,8 +20,10 @@ struct SidebarAccountRow: View {
 
             Spacer()
 
-            Text("\(account.usdValue().formattedAbbreviated(fractionLength: 0)) US$")
-                .style(.small, foreground: isSelected() ? .white : .sidebarSecondaryLabel)
+            if let usdValue {
+                Text("\(usdValue.formattedAbbreviated(fractionLength: 0)) US$")
+                    .style(.small, foreground: isSelected() ? .white : .sidebarSecondaryLabel)
+            }
         }
     }
 

@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftData
+import Synchronization
 
 extension ServiceContainer {
     func registerModelContainer(useInMemoryStore: Bool = false) -> Self {
@@ -77,7 +78,8 @@ extension ServiceContainer {
         }
 
         register(DatabaseService.self) {
-            let databaseService = DatabaseService(modelContainer: DI.injectOrFail(ModelContainer.self))
+            let container = DI.injectOrFail(ModelContainer.self)
+            let databaseService = Self.makeDatabaseService(container: container)
 
             if case .preview = Inject.mode {
                 Task {
@@ -167,6 +169,20 @@ extension ServiceContainer {
         }
 
         return self
+    }
+
+    private static func makeDatabaseService(container: ModelContainer) -> DatabaseService {
+        // A context created on the main thread binds its executor there.
+        // Keep one writer, but create its context off the main thread.
+        let service = Mutex<DatabaseService?>(nil)
+        let ready = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            service.withLock { $0 = DatabaseService(modelContainer: container) }
+            ready.signal()
+        }
+
+        ready.wait()
+        return service.withLock { $0! }
     }
 
     func registerKeyVault() -> Self {

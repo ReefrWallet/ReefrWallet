@@ -6,6 +6,7 @@ import WalletKit
 struct TransactionsTable: View {
     let rows: [TransactionRowModel]
     let schema: TransactionTableSchema
+    var onRowAppear: (TransactionRowModel.ID) -> Void = { _ in }
 
     @State private var selection: TransactionRowModel.ID?
 
@@ -24,6 +25,7 @@ struct TransactionsTable: View {
                 Text(model.timestamp.map(Self.dateText) ?? "—")
                     .style(Self.textSize, foreground: .secondary)
                     .help(model.timestamp?.formatted(date: .complete, time: .standard) ?? "")
+                    .onAppear { onRowAppear(model.id) }
             }
             .width(min: 90, ideal: 126)
 

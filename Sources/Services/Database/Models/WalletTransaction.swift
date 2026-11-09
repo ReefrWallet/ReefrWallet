@@ -33,11 +33,25 @@ struct WalletTransaction: Identifiable, Sendable {
             throw ReefrError.invalidData
         }
 
-        self.id = nil
-        self.accountId = accountId
-        chainIdentifier = try account.blockchain.asJSONString()
-        let stableId = try Self.stableId(
+        self.init(
             accountId: accountId,
+            accountKey: try accountId.stableKey(),
+            chainIdentifier: try account.blockchain.asJSONString(),
+            transaction: transaction
+        )
+    }
+
+    init(
+        accountId: PersistentIdentifier,
+        accountKey: String,
+        chainIdentifier: String,
+        transaction: BlockchainTransaction
+    ) {
+        id = nil
+        self.accountId = accountId
+        self.chainIdentifier = chainIdentifier
+        let stableId = Self.stableId(
+            accountKey: accountKey,
             chainIdentifier: chainIdentifier,
             identifier: transaction.identifier
         )
@@ -83,7 +97,11 @@ struct WalletTransaction: Identifiable, Sendable {
         chainIdentifier: String,
         identifier: String
     ) throws -> String {
-        "\(try accountId.stableKey())|\(chainIdentifier)|\(identifier)"
+        try stableId(accountKey: accountId.stableKey(), chainIdentifier: chainIdentifier, identifier: identifier)
+    }
+
+    static func stableId(accountKey: String, chainIdentifier: String, identifier: String) -> String {
+        "\(accountKey)|\(chainIdentifier)|\(identifier)"
     }
 }
 

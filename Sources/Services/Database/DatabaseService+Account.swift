@@ -9,14 +9,36 @@ import SwiftData
 import WalletKit
 
 extension DatabaseService {
+    func accountUSDValues() throws -> [PersistentIdentifier: Decimal] {
+        let accountIds = try modelContext.fetchIdentifiers(FetchDescriptor<AccountModel>())
+        var values = Dictionary(uniqueKeysWithValues: accountIds.map { ($0, Decimal.zero) })
+
+        var balances = FetchDescriptor<BalanceModel>()
+        balances.relationshipKeyPathsForPrefetching = [\.account, \.token]
+        for balance in try modelContext.fetch(balances) {
+            let token = balance.token
+            if !token.isHidden, let price = token.usdPrice {
+                values[balance.account.id, default: 0] += balance.decimalAmount * price
+            }
+        }
+
+        var staking = FetchDescriptor<StakingModel>()
+        staking.relationshipKeyPathsForPrefetching = [\.account, \.token]
+        for position in try modelContext.fetch(staking) {
+            values[position.account.id, default: 0] += position.stakedUSDValue
+        }
+
+        return values
+    }
+
     func deleteAccount(id: PersistentIdentifier) throws {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 
-        guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+        guard try modelContext.fetchCount(FetchDescriptor(predicate: predicate)) != 0 else {
             throw ReefrError.notFound
         }
 
-        modelContext.delete(account)
+        try modelContext.delete(model: AccountModel.self, where: predicate)
         try modelContext.save()
     }
 

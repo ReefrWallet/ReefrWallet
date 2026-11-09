@@ -33,14 +33,19 @@ struct MainView: View {
 
     @Namespace private var sheetNamespace
 
+    @State private var isAccountDeletionHUDPresented = false
     @State private var presentedSheet: PresentedSheet?
     @State private var sidebarSelection: PersistentIdentifier?
 
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
+    private var accountDeletionPrompt: HostedPrompt? {
+        isAccountDeletionHUDPresented ? .progress(String(localized: .sidebarDeletingAccount)) : nil
+    }
+
     var body: some View {
         NavigationSplitView {
-            SidebarView()
+            SidebarView(isAccountDeletionHUDPresented: $isAccountDeletionHUDPresented, allAccounts: allAccounts)
                 .environment(\.presentSheet, PresentSheetAction(presentedSheet: $presentedSheet))
                 .environment(\.sidebarSelection, $sidebarSelection)
         } detail: {
@@ -123,7 +128,7 @@ struct MainView: View {
                 .hardwareKeyPromptHost(progress: walletConnect.approver.progressPrompt)
             }
         }
-        .hardwareKeyPromptHost()
+        .hardwareKeyPromptHost(progress: accountDeletionPrompt)
         .alert(
             .commonRequestFailed,
             isPresented: isFailureAlertPresented,

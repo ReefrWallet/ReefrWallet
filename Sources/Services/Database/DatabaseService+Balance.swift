@@ -8,6 +8,59 @@
 import SwiftData
 import WalletKit
 
+struct BalanceListIndex: Equatable, Sendable {
+    let hidden: [PersistentIdentifier]
+    let native: Balance?
+    let totalUSDValue: Decimal
+    let visible: [PersistentIdentifier]
+}
+
+struct BalanceListSort: Hashable, Sendable {
+    enum Field: Hashable, Sendable {
+        case amount
+        case name
+        case price
+        case value
+    }
+
+    let field: Field
+    let ascending: Bool
+}
+
+private struct BalanceListRank {
+    let id: PersistentIdentifier
+    let amount: Decimal
+    let isHidden: Bool
+    let name: String
+    let price: Decimal
+    let value: Decimal
+
+    func precedes(_ other: Self, sort: [BalanceListSort]) -> Bool {
+        for order in sort {
+            let result = switch order.field {
+            case .amount: compare(amount, other.amount)
+            case .name: name.localizedStandardCompare(other.name)
+            case .price: compare(price, other.price)
+            case .value: compare(value, other.value)
+            }
+
+            if result != .orderedSame {
+                return result == (order.ascending ? .orderedAscending : .orderedDescending)
+            }
+        }
+
+        return id < other.id
+    }
+
+    private func compare(_ lhs: Decimal, _ rhs: Decimal) -> ComparisonResult {
+        if lhs < rhs {
+            return .orderedAscending
+        }
+
+        return rhs < lhs ? .orderedDescending : .orderedSame
+    }
+}
+
 extension DatabaseService {
     #if DEBUG
     /// Deletes all balances across every account, keeping the tokens themselves.
@@ -31,9 +84,92 @@ extension DatabaseService {
     }
 
     func fetchBalances(accountId: PersistentIdentifier) throws -> [Balance] {
-        try modelContext
-            .fetch(FetchDescriptor(predicate: #Predicate { $0.account.persistentModelID == accountId }))
-            .map(Balance.init(model:))
+        var descriptor = FetchDescriptor<BalanceModel>(
+            predicate: #Predicate { $0.account.persistentModelID == accountId }
+        )
+
+        descriptor.relationshipKeyPathsForPrefetching = [\.token]
+        return try modelContext.fetch(descriptor).map(Balance.init(model:))
+    }
+
+    func balanceListIndex(
+        for account: Account,
+        sort: [BalanceListSort],
+        separatesHidden: Bool
+    ) throws -> BalanceListIndex {
+        guard let accountId = account.id else {
+            throw ReefrError.invalidData
+        }
+
+        var descriptor = FetchDescriptor<BalanceModel>(
+            predicate: #Predicate { $0.account.persistentModelID == accountId }
+        )
+
+        descriptor.relationshipKeyPathsForPrefetching = [\.token]
+        var native: Balance?
+        var total: Decimal = 0
+        var ranks: [BalanceListRank] = []
+        try modelContext.enumerate(descriptor, batchSize: 128) { model in
+            try Task.checkCancellation()
+            let token = model.token
+            let amount = model.decimalAmount
+            let price = token.usdPrice ?? 0
+            let value = amount * price
+            let hidden = token.isHidden
+            if token.isNativeToken, native == nil {
+                native = Balance(model: model, account: account)
+            }
+
+            if !hidden {
+                total += value
+            }
+
+            ranks.append(BalanceListRank(
+                id: model.persistentModelID,
+                amount: amount,
+                isHidden: hidden,
+                name: token.name,
+                price: price,
+                value: value
+            ))
+        }
+
+        ranks.sort { $0.precedes($1, sort: sort) }
+        return BalanceListIndex(
+            hidden: separatesHidden ? ranks.filter(\.isHidden).map(\.id) : [],
+            native: native,
+            totalUSDValue: total,
+            visible: ranks.filter { !separatesHidden || !$0.isHidden }.map(\.id)
+        )
+    }
+
+    func fetchBalancePage(
+        for account: Account,
+        orderedIds: [PersistentIdentifier],
+        offset: Int,
+        limit: Int
+    ) throws -> AccountPage<Balance> {
+        guard let accountId = account.id else {
+            throw ReefrError.invalidData
+        }
+
+        let pageIds = orderedIds.dropFirst(offset).prefix(limit)
+        guard !pageIds.isEmpty else {
+            return AccountPage(rows: [], hasMore: false)
+        }
+
+        let ids = Set(pageIds)
+        var descriptor = FetchDescriptor<BalanceModel>(
+            predicate: #Predicate { ids.contains($0.persistentModelID) && $0.account.persistentModelID == accountId }
+        )
+
+        descriptor.relationshipKeyPathsForPrefetching = [\.token]
+        let balances = try modelContext.fetch(descriptor).map {
+            ($0.persistentModelID, Balance(model: $0, account: account))
+        }
+
+        let byId = Dictionary(uniqueKeysWithValues: balances)
+        return AccountPage(rows: pageIds.compactMap { byId[$0] }, hasMore: offset + pageIds.count < orderedIds.count)
     }
 
     @discardableResult

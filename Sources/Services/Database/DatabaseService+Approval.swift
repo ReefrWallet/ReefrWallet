@@ -22,13 +22,36 @@ extension DatabaseService {
     }
 
     func fetchApprovals(account: Account) throws -> [TokenApproval] {
+        try modelContext.fetch(approvalDescriptor(for: account)).map(TokenApproval.init(model:))
+    }
+
+    func fetchApprovalPage(account: Account, offset: Int, limit: Int) throws -> AccountPage<TokenApproval> {
+        var descriptor = try approvalDescriptor(for: account)
+        descriptor.fetchOffset = offset
+        descriptor.fetchLimit = limit + 1
+        let models = try modelContext.fetch(descriptor)
+        return AccountPage(
+            rows: models.prefix(limit).map(TokenApproval.init(model:)),
+            hasMore: models.count > limit
+        )
+    }
+
+    private func approvalDescriptor(for account: Account) throws -> FetchDescriptor<ApprovalModel> {
         guard let accountId = account.id else {
             throw ReefrError.invalidData
         }
 
-        return try modelContext
-            .fetch(FetchDescriptor(predicate: #Predicate<ApprovalModel> { $0.account.persistentModelID == accountId }))
-            .map(TokenApproval.init(model:))
+        var descriptor = FetchDescriptor(
+            predicate: #Predicate<ApprovalModel> { $0.account.persistentModelID == accountId },
+            sortBy: [
+                SortDescriptor(\.approvedAt, order: .reverse),
+                SortDescriptor(\.spender),
+                SortDescriptor(\.token.address)
+            ]
+        )
+
+        descriptor.relationshipKeyPathsForPrefetching = [\.token]
+        return descriptor
     }
 
     func fetchApprovalScans(account: Account) throws -> [String: ApprovalScanState] {

@@ -70,15 +70,42 @@ extension DatabaseService {
     }
 
     func fetchTransactions(accountId: PersistentIdentifier) throws -> [WalletTransaction] {
-        let descriptor = FetchDescriptor<WalletTransactionModel>(
-            predicate: #Predicate { $0.account.persistentModelID == accountId },
+        try modelContext.fetch(transactionDescriptor(accountId: accountId)).map(WalletTransaction.init(model:))
+    }
+
+    func fetchTransactionPage(
+        accountId: PersistentIdentifier,
+        offset: Int,
+        limit: Int
+    ) throws -> AccountPage<WalletTransaction> {
+        var descriptor = transactionDescriptor(accountId: accountId)
+        descriptor.fetchOffset = offset
+        descriptor.fetchLimit = limit + 1
+        descriptor.relationshipKeyPathsForPrefetching = [\.effects]
+        let models = try modelContext.fetch(descriptor)
+        return AccountPage(
+            rows: models.prefix(limit).compactMap { try? WalletTransaction(model: $0) },
+            hasMore: models.count > limit
+        )
+    }
+
+    func transactionCount(accountId: PersistentIdentifier) throws -> Int {
+        try modelContext.fetchCount(FetchDescriptor(predicate: transactionPredicate(accountId: accountId)))
+    }
+
+    private func transactionDescriptor(accountId: PersistentIdentifier) -> FetchDescriptor<WalletTransactionModel> {
+        FetchDescriptor<WalletTransactionModel>(
+            predicate: transactionPredicate(accountId: accountId),
             sortBy: [
                 SortDescriptor(\WalletTransactionModel.timestamp, order: .reverse),
-                SortDescriptor(\WalletTransactionModel.transactionIndex, order: .reverse)
+                SortDescriptor(\WalletTransactionModel.transactionIndex, order: .reverse),
+                SortDescriptor(\WalletTransactionModel.stableId)
             ]
         )
+    }
 
-        return try modelContext.fetch(descriptor).map(WalletTransaction.init(model:))
+    private func transactionPredicate(accountId: PersistentIdentifier) -> Predicate<WalletTransactionModel> {
+        #Predicate { $0.account.persistentModelID == accountId }
     }
 
     /// The highest block height among the account's stored transactions.
@@ -120,6 +147,10 @@ extension DatabaseService {
         for account: Account,
         syncState: WalletTransactionSyncState?
     ) throws {
+        if syncState != nil {
+            try Task.checkCancellation()
+        }
+
         guard let accountId = account.id else {
             throw ReefrError.invalidData
         }
@@ -130,7 +161,16 @@ extension DatabaseService {
             throw ReefrError.notFound
         }
 
-        let walletTransactions = try transactions.map { try WalletTransaction(account: account, transaction: $0) }
+        let accountKey = try accountId.stableKey()
+        let chainIdentifier = try account.blockchain.asJSONString()
+        let walletTransactions = transactions.map {
+            WalletTransaction(
+                accountId: accountId,
+                accountKey: accountKey,
+                chainIdentifier: chainIdentifier,
+                transaction: $0
+            )
+        }
 
         var transactionIndex = try fetchTransactionIndex(stableIds: Set(walletTransactions.map(\.stableId)))
         var effectIndex = try fetchEffectIndex(
@@ -151,41 +191,44 @@ extension DatabaseService {
         )
 
         for transaction in walletTransactions {
-            let model = transactionIndex[transaction.stableId]
-                ?? WalletTransactionModel(account: accountModel, transaction: transaction)
-
-            model.blockHeight = transaction.blockHeight
-            model.blockHash = transaction.blockHash
-            model.timestamp = transaction.timestamp
-            model.transactionIndex = transaction.transactionIndex
-            model.sender = transaction.sender
-            model.recipient = transaction.recipient
-            model.status = transaction.status.rawValue
-            model.rawPayload = transaction.rawPayload
-            // Sources differ in richness (indexer vs. node); don't let a poorer re-sync erase labels.
-            model.counterpartyName = transaction.counterpartyName ?? model.counterpartyName
-            model.fee = transaction.fee ?? model.fee
-            model.method = transaction.method ?? model.method
-
-            if model.modelContext == nil {
+            let model: WalletTransactionModel
+            if let existing = transactionIndex[transaction.stableId] {
+                model = existing
+                model.blockHeight = transaction.blockHeight
+                model.blockHash = transaction.blockHash
+                model.timestamp = transaction.timestamp
+                model.transactionIndex = transaction.transactionIndex
+                model.sender = transaction.sender
+                model.recipient = transaction.recipient
+                model.status = transaction.status.rawValue
+                model.rawPayload = transaction.rawPayload
+                // Sources differ in richness. Preserve labels when a source omits them.
+                model.counterpartyName = transaction.counterpartyName ?? model.counterpartyName
+                model.fee = transaction.fee ?? model.fee
+                model.method = transaction.method ?? model.method
+            } else {
+                model = WalletTransactionModel(account: accountModel, transaction: transaction)
                 modelContext.insert(model)
             }
 
             transactionIndex[transaction.stableId] = model
 
             for effect in transaction.effects {
-                let effectModel = effectIndex[effect.stableId]
-                    ?? WalletTransactionEffectModel(transaction: model, effect: effect)
-                effectModel.effectIndex = effect.index
-                effectModel.kind = effect.kind.rawValue
-                effectModel.assetIdentifier = effect.assetIdentifier
-                effectModel.amount = effect.amount
-                effectModel.sender = effect.sender
-                effectModel.recipient = effect.recipient
-                effectModel.rawPayload = effect.rawPayload
-                effectModel.transaction = model
-
-                if effectModel.modelContext == nil {
+                let effectModel: WalletTransactionEffectModel
+                if let existing = effectIndex[effect.stableId] {
+                    effectModel = existing
+                    effectModel.effectIndex = effect.index
+                    effectModel.kind = effect.kind.rawValue
+                    effectModel.assetIdentifier = effect.assetIdentifier
+                    effectModel.amount = effect.amount
+                    effectModel.sender = effect.sender
+                    effectModel.recipient = effect.recipient
+                    effectModel.rawPayload = effect.rawPayload
+                    if effectModel.transaction != model {
+                        effectModel.transaction = model
+                    }
+                } else {
+                    effectModel = WalletTransactionEffectModel(transaction: model, effect: effect)
                     modelContext.insert(effectModel)
                 }
 
@@ -207,6 +250,8 @@ extension DatabaseService {
     }
 
     func saveTransactionSyncState(_ state: WalletTransactionSyncState) throws {
+        try Task.checkCancellation()
+
         let accountId = state.accountId
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
 
@@ -219,6 +264,8 @@ extension DatabaseService {
     }
 
     func linkTransactionTokens(for account: Account) throws {
+        try Task.checkCancellation()
+
         guard let accountId = account.id else {
             throw ReefrError.invalidData
         }
@@ -278,10 +325,14 @@ extension DatabaseService {
     /// per launch and duplicated rows on every rescan, and drops the duplicates. A no-op once done.
     func normalizeTransactionStableIds() throws {
         var groups: [String: [WalletTransactionModel]] = [:]
+        var accountKeys: [PersistentIdentifier: String] = [:]
 
         for model in try modelContext.fetch(FetchDescriptor<WalletTransactionModel>()) {
-            let stableId = try WalletTransaction.stableId(
-                accountId: model.account.persistentModelID,
+            let accountId = model.account.persistentModelID
+            let accountKey = try accountKeys[accountId] ?? accountId.stableKey()
+            accountKeys[accountId] = accountKey
+            let stableId = WalletTransaction.stableId(
+                accountKey: accountKey,
                 chainIdentifier: model.chainIdentifier,
                 identifier: model.identifier
             )

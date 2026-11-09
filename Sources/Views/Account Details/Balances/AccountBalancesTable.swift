@@ -12,9 +12,16 @@ import SwiftUI
 /// macOS token balances table with the hidden-balances disclosure and details bar.
 struct AccountBalancesTable: View {
     let balances: [Balance]
-    var stakedUSDValue: Decimal = 0
+    let hiddenBalances: [Balance]
+    let hasHiddenBalances: Bool
+    let totalUSDValue: Decimal?
 
     @Binding var selection: String?
+
+    let onBalanceAppear: (Balance.ID) -> Void
+    let onHiddenBalanceAppear: (Balance.ID) -> Void
+    let onOpenHidden: () async -> Void
+    let onSort: ([BalanceListSort]) -> Void
 
     @State private var isCopyContractAddressButtonActive = false
     @State private var isHiddenBalancesExpanded = false
@@ -26,21 +33,21 @@ struct AccountBalancesTable: View {
     private var columnCustomization: TableColumnCustomization<BalancesTableEntry>
 
     var body: some View {
-        // `balances` is cached by AccountDetailsView so this view does not re-fault SwiftData
-        // relationships or redo BigUInt/Decimal math on table selection changes.
-        let entries = makeEntries(balances.filter { !$0.token.isHidden })
-        let hidden = makeEntries(balances.filter { $0.token.isHidden })
+        let entries = balances.map(BalancesTableEntry.balance)
+        let hidden = hiddenBalances.map(BalancesTableEntry.balance)
 
-        if !entries.isEmpty || !hidden.isEmpty {
+        if !entries.isEmpty || hasHiddenBalances {
             VStack {
                 HStack(spacing: 4) {
                     Text(.commonTotalValueLabel)
                         .style(.mediumHeader, foreground: .primary)
                         .accessibilityIdentifier("account-total-value-label")
 
-                    Text("\((usdValue(balances) + stakedUSDValue).formattedAbbreviated()) US$")
-                        .style(.mediumHeader, foreground: .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let totalUSDValue {
+                        Text("\(totalUSDValue.formattedAbbreviated()) US$")
+                            .style(.mediumHeader, foreground: .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 .padding(.leading)
 
@@ -62,13 +69,11 @@ struct AccountBalancesTable: View {
 
 private extension AccountBalancesTable {
     var selectedBalance: Balance? {
-        balances.first { balance in
-            guard let id = balance.id else {
-                return false
-            }
-
-            return selection == "\(id)"
+        guard let selection else {
+            return nil
         }
+
+        return balances.first { $0.idString == selection } ?? hiddenBalances.first { $0.idString == selection }
     }
 
     // swiftlint:disable:next function_body_length
@@ -97,6 +102,13 @@ private extension AccountBalancesTable {
                     .accessibilityIdentifier(
                         balance.token.isHidden ? "balance-row-hidden-\(entry.id)" : "balance-row-visible-\(entry.id)"
                     )
+                    .onAppear {
+                        if balance.token.isHidden {
+                            onHiddenBalanceAppear(balance.id)
+                        } else {
+                            onBalanceAppear(balance.id)
+                        }
+                    }
 
                 case .hiddenBalancesTitle:
                     Text(entry.displayName)
@@ -135,7 +147,7 @@ private extension AccountBalancesTable {
                 TableRow(balance)
             }
 
-            if !hidden.isEmpty {
+            if hasHiddenBalances {
                 DisclosureTableRow(.hiddenBalancesTitle, isExpanded: $isHiddenBalancesExpanded) {
                     Optional<TableRow<BalancesTableEntry>>.none
                 }
@@ -148,6 +160,23 @@ private extension AccountBalancesTable {
             }
         }
         .focused($isBalancesTableFocused)
+        .task(id: isHiddenBalancesExpanded) {
+            if isHiddenBalancesExpanded {
+                await onOpenHidden()
+            }
+        }
+        .onChange(of: sortOrder) {
+            onSort(sortOrder.map { comparator in
+                let field: BalanceListSort.Field = switch comparator.keyPath {
+                case \BalancesTableEntry.decimalAmount: .amount
+                case \BalancesTableEntry.usdPrice: .price
+                case \BalancesTableEntry.usdValue: .value
+                default: .name
+                }
+
+                return BalanceListSort(field: field, ascending: comparator.order == .forward)
+            })
+        }
         .onChange(of: selection) {
             // Selecting a balance should steal keyboard focus from the sidebar
             // so arrow keys navigate this table instead.
@@ -180,20 +209,6 @@ private extension AccountBalancesTable {
             }
         }
         .style(.medium, foreground: .secondary)
-    }
-
-    func makeEntries(_ balances: [Balance]) -> [BalancesTableEntry] {
-        balances
-            .map { BalancesTableEntry.balance($0) }
-            .sorted(using: sortOrder)
-    }
-
-    func usdValue(_ balances: [Balance]) -> Decimal {
-        balances.reduce(into: 0) { partialResult, balance in
-            if !balance.token.isHidden {
-                partialResult += (balance.usdValue ?? 0)
-            }
-        }
     }
 
     func copyToClipboard(_ string: String) {

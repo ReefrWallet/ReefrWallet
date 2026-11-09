@@ -25,7 +25,7 @@ struct ConnectedDappsSidebarSection: View {
     @Environment(\.presentSheet) private var presentSheet
     @Environment(\.sidebarSelection) private var sidebarSelection: Binding<PersistentIdentifier?>
 
-    @Query private var accounts: [AccountModel]
+    let hasAccounts: Bool
 
     @Query(filter: #Predicate<ConnectedDappModel> { $0.kindRaw == browserRawKind }, sort: \ConnectedDappModel.name)
     private var browserDapps: [ConnectedDappModel]
@@ -36,8 +36,9 @@ struct ConnectedDappsSidebarSection: View {
     private let store = DI.injectOrFail(ConnectedDappStore.self)
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
-    init(_ title: LocalizedStringResource, isEditing: Bool = false) {
+    init(_ title: LocalizedStringResource, hasAccounts: Bool, isEditing: Bool = false) {
         self.title = title
+        self.hasAccounts = hasAccounts
         self.isEditing = isEditing
         let isExpanded = UserDefaults.standard.object(forKey: "connectedDappsExpanded") as? Bool ?? true
         _isExpanded = State(initialValue: isExpanded)
@@ -66,7 +67,7 @@ struct ConnectedDappsSidebarSection: View {
             ) {
                 presentSheet?(.addBrowserDapp)
             }
-            .disabled(accounts.isEmpty)
+            .disabled(!hasAccounts)
             .sheetSource(PresentedSheet.addBrowserDapp.id)
         } content: {
             ForEach(browserDapps) { dapp in
@@ -104,7 +105,7 @@ struct ConnectedDappsSidebarSection: View {
                 }
                 .phoneRowNeverHighlighted()
                 .selectionDisabled()
-                .disabled(accounts.isEmpty)
+                .disabled(!hasAccounts)
                 .sheetSource(PresentedSheet.addBrowserDapp.id)
             }
 
@@ -136,9 +137,9 @@ struct ConnectedDappsSidebarSection: View {
                 }
                 .tag(hub.id)
                 .phoneRowNeverHighlighted()
-                .selectionDisabled(accounts.isEmpty)
-                .allowsHitTesting(!accounts.isEmpty)
-                .opacity(accounts.isEmpty ? 0.4 : 1)
+                .selectionDisabled(!hasAccounts)
+                .allowsHitTesting(hasAccounts)
+                .opacity(hasAccounts ? 1 : 0.4)
                 .accessibilityIdentifier("sidebar-walletconnect")
             }
         } title: {

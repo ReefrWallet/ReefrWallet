@@ -18,46 +18,50 @@ struct AccountApprovalsView: View {
 
     @State private var errorMessage: String?
     @State private var isRevoking = false
+    @State private var isSelectingAll = false
+    @State private var pages = AccountPages<TokenApproval>()
     @State private var selection: Set<TokenApproval.ID> = []
 
-    @Query private var approvalModels: [ApprovalModel]
-
+    private let databaseService = DI.injectOrFail(DatabaseService.self)
     private let service = DI.injectOrFail(ApprovalService.self)
 
     init(_ account: Account, canSign: Bool, searchText: String = "") {
-        guard let accountId = account.id else {
-            preconditionFailure()
-        }
-
         self.account = account
         self.canSign = canSign
         self.searchText = searchText
-
-        let approvalSort = [SortDescriptor(\ApprovalModel.approvedAt, order: .reverse)]
-
-        var descriptor = FetchDescriptor(
-            predicate: #Predicate<ApprovalModel> { $0.account.id == accountId },
-            sortBy: approvalSort
-        )
-
-        descriptor.relationshipKeyPathsForPrefetching = [\.token]
-        _approvalModels = Query(descriptor)
     }
 
     var body: some View {
-        let approvals = approvalModels.map(TokenApproval.init(model:)).filter { $0.matches(searchText) }
+        let approvals = pages.rows.filter { $0.matches(searchText) }
 
         #if os(iOS)
         alerting(AccountCountLabel(text: String(localized: .approvalsApprovalCount(approvals.count))))
+            .task { await observeApprovals() }
+            .task(id: isSearching && pages.isLoaded) {
+                if isSearching, pages.isLoaded {
+                    await loadRemaining()
+                }
+            }
+            .task(id: isSelectingAll) {
+                if isSelectingAll {
+                    await selectAll()
+                }
+            }
+            .onChange(of: searchText) {
+                isSelectingAll = false
+            }
 
         if !service.supports(account) {
             AccountEmptyRow(title: .approvalsNeedsEtherscanKey)
-        } else if approvalModels.isEmpty {
+        } else if !pages.isLoaded || (approvals.isEmpty && isSearching && pages.hasMore) {
+            ProgressView()
+        } else if pages.rows.isEmpty {
             AccountEmptyRow(title: .approvalsNoApprovals)
                 .accessibilityIdentifier("account-no-approvals")
         } else {
             ForEach(approvals) { approval in
                 row(approval)
+                    .onAppear { loadMore(near: approval.id) }
             }
 
             if canSign {
@@ -81,6 +85,12 @@ struct AccountApprovalsView: View {
                 }
             }
         )
+        .task { await observeApprovals() }
+        .task(id: isSelectingAll) {
+            if isSelectingAll {
+                await selectAll()
+            }
+        }
         #endif
     }
 }
@@ -88,6 +98,37 @@ struct AccountApprovalsView: View {
 // MARK: - Subviews
 
 private extension AccountApprovalsView {
+    var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    func fetchPage(offset: Int, limit: Int) async throws -> AccountPage<TokenApproval> {
+        let account = account
+        return try await databaseService.modelContainer.readSnapshot { reader in
+            try await reader.fetchApprovalPage(account: account, offset: offset, limit: limit)
+        }
+    }
+
+    func loadMore(near id: TokenApproval.ID) {
+        pages.requestNext(near: id, using: fetchPage)
+    }
+
+    func loadRemaining() async {
+        do {
+            try await pages.loadRemaining(using: fetchPage)
+        } catch is CancellationError {
+            return
+        } catch {
+            printError(error)
+        }
+    }
+
+    func observeApprovals() async {
+        await databaseService.modelContainer.observeSaves(affecting: ["ApprovalModel", "TokenModel"]) {
+            try await pages.refresh(using: fetchPage)
+        }
+    }
+
     func alerting(_ view: some View) -> some View {
         view.alert(
             .accountDetailsApprovals,
@@ -106,7 +147,7 @@ private extension AccountApprovalsView {
 
         return HStack {
             Toggle(.approvalsSelectAll, isOn: allSelected(approvals))
-                .disabled(approvals.isEmpty)
+                .disabled(approvals.isEmpty || isSelectingAll)
 
             Spacer()
 
@@ -115,7 +156,7 @@ private extension AccountApprovalsView {
                     await revokeSelected(approvals)
                 }
             }
-            .disabled(selectedCount == 0 || isRevoking)
+            .disabled(selectedCount == 0 || isRevoking || isSelectingAll)
             .accessibilityIdentifier("approvals-revoke-selected-button")
         }
     }
@@ -151,6 +192,9 @@ private extension AccountApprovalsView {
     func content(_ approvals: [TokenApproval]) -> some View {
         if !service.supports(account) {
             EmptyStateView(.approvalsNeedsEtherscanKey)
+        } else if !pages.isLoaded {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if approvals.isEmpty {
             EmptyStateView(.approvalsNoApprovals)
                 .accessibilityIdentifier("account-no-approvals")
@@ -173,6 +217,7 @@ private extension AccountApprovalsView {
                 Text(approval.token.name)
                     .style(.medium, foreground: .primary)
                     .help(approval.token.address ?? "")
+                    .onAppear { loadMore(near: approval.id) }
             }
             .width(min: 90, ideal: 150)
 
@@ -224,15 +269,31 @@ private extension AccountApprovalsView {
 
     func allSelected(_ approvals: [TokenApproval]) -> Binding<Bool> {
         Binding(
-            get: { !approvals.isEmpty && approvals.allSatisfy { selection.contains($0.id) } },
+            get: { !pages.hasMore && !approvals.isEmpty && approvals.allSatisfy { selection.contains($0.id) } },
             set: { isOn in
                 if isOn {
-                    selection.formUnion(approvals.map(\.id))
+                    isSelectingAll = true
                 } else {
                     selection.subtract(approvals.map(\.id))
                 }
             }
         )
+    }
+
+    func selectAll() async {
+        defer {
+            isSelectingAll = false
+        }
+
+        do {
+            try await pages.loadRemaining(using: fetchPage)
+            try Task.checkCancellation()
+            selection.formUnion(pages.rows.filter { $0.matches(searchText) }.map(\.id))
+        } catch is CancellationError {
+            return
+        } catch {
+            printError(error)
+        }
     }
 
     func selectionBinding(_ id: TokenApproval.ID) -> Binding<Bool> {

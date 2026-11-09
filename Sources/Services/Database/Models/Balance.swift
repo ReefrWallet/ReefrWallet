@@ -60,13 +60,17 @@ final class BalanceModel: Identifiable {
 
 extension Balance {
     init(model: BalanceModel) throws {
+        self.init(model: model, account: try Account(model: model.account))
+    }
+
+    init(model: BalanceModel, account: Account) {
         amount = model.amount
-        account = try Account(model: model.account)
+        self.account = account
         id = model.id
         idString = "\(model.id)"
         token = Token(model: model.token)
-        usdValue = model.usdValue
         decimalAmount = Decimal(sign: .plus, exponent: -Int(token.decimalsCount), significand: Decimal(amount))
+        usdValue = decimalAmount * (token.usdPrice ?? 0)
     }
 }
 
@@ -84,18 +88,5 @@ extension BalanceModel {
 
     var usdValue: Decimal {
         decimalAmount * (token.usdPrice ?? 0)
-    }
-
-    /// Changes whenever anything a balance row shows changes: the amount, or its token's price,
-    /// identity or image. Balance and token rows are updated in place, so identifiers don't.
-    var refreshKey: String {
-        let token = token
-        return [
-            "\(persistentModelID)",
-            serializedAmount.base64EncodedString(),
-            token.usdPrice.map { "\($0)" } ?? "-",
-            token.isWhitelisted.map { "\($0)" } ?? "-",
-            token.imageURL?.absoluteString ?? "-"
-        ].joined(separator: "|")
     }
 }

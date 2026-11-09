@@ -4010,6 +4010,18 @@
         }
       }
     },
+    "sidebar.deletingAccount" : {
+      "comment" : "Progress HUD shown while deleting an account",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting account…"
+          }
+        }
+      }
+    },
     "sidebar.deleteItem" : {
       "comment" : "SidebarView",
       "extractionState" : "manual",
@@ -6598,18 +6610,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Version %@"
-          }
-        }
-      }
-    },
-    "transactions.latestTransactions" : {
-      "comment" : "AccountTransactionsView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Latest %lld Transactions"
           }
         }
       }

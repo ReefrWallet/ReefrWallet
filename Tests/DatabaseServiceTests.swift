@@ -69,6 +69,67 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
+    func deletingAccountRemovesItsBalancesAndLinkedTransactions() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
+        let token = makeToken(address: "0x0000000000000000000000000000000000000001")
+        _ = try await service.saveBalance(Balance(account: account, amount: 25, token: token, usdValue: nil))
+        try await service.saveTransactions([
+            BlockchainTransaction(
+                identifier: "0xtransaction",
+                status: .confirmed,
+                effects: [
+                    BlockchainTransactionEffect(index: 0, kind: .tokenTransfer, assetIdentifier: token.address)
+                ]
+            )
+        ], for: account)
+        let transactions = try await service.fetchTransactions(accountId: accountId)
+        #expect(transactions.first?.effects.first?.balance != nil)
+
+        try await service.deleteAccount(id: accountId)
+
+        let reader = DatabaseService(modelContainer: service.modelContainer)
+        #expect(try await reader.fetchAccount(id: accountId) == nil)
+        #expect(try await reader.fetchAccounts(keyStoreId: keyStoreId).isEmpty)
+        #expect(try await reader.fetchBalances(accountId: accountId).isEmpty)
+        #expect(try await reader.fetchTransactions(accountId: accountId).isEmpty)
+    }
+
+    @Test
+    func cancelledBackfillPageLeavesHistoryAndCursorUntouched() async throws {
+        let service = try makeDatabaseService()
+        let keyStore = try await service.watchOnlyKeyStore()
+        let keyStoreId = try #require(keyStore.id)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
+        let savedAccount = account
+        var state = WalletTransactionSyncState(accountId: accountId)
+        state.descendingCursor = Data("next".utf8)
+        let nextState = state
+
+        let page = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await service.saveTransactions(
+                [BlockchainTransaction(identifier: "late-page", status: .confirmed)],
+                for: savedAccount,
+                syncState: nextState
+            )
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await page.value
+        }
+
+        #expect(try await service.fetchTransactions(accountId: accountId).isEmpty)
+        #expect(try await service.transactionSyncState(accountId: accountId).descendingCursor == nil)
+    }
+
+    @Test
     func blockchainsRejectDuplicatesAndTokensCanBeFetchedByBlockchain() async throws {
         let service = try makeDatabaseService()
         let blockchain = Blockchain.evm(.ethereum(.mainnet))
@@ -193,6 +254,80 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
         #expect(resetState.initialBackfillHead == nil)
         #expect(resetState.currentHead == nil)
         #expect(resetState.descendingCursor == nil)
+    }
+
+    @Test
+    func approvalPagesKeepStableOrderAcrossEqualDates() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let addresses = ["0x0000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000002"]
+        let spender = "0x0000000000000000000000000000000000000003"
+        try await service.replaceApprovals(
+            account: account,
+            updates: addresses.reversed().map {
+                ApprovalUpdate(allowance: 1, approvedAt: nil, spender: spender, token: makeToken(address: $0))
+            }
+        )
+
+        let first = try await service.fetchApprovalPage(account: account, offset: 0, limit: 1)
+        let second = try await service.fetchApprovalPage(account: account, offset: 1, limit: 1)
+
+        #expect(first.rows.map(\.token.address) == [addresses[0]])
+        #expect(first.hasMore)
+        #expect(second.rows.map(\.token.address) == [addresses[1]])
+        #expect(!second.hasMore)
+    }
+
+    @Test
+    func transactionPagesContinuePastFormerDisplayLimit() async throws {
+        let service = try makeDatabaseService()
+        let keyStore = try await service.watchOnlyKeyStore()
+        let keyStoreId = try #require(keyStore.id)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        let accountId = try await service.insertAccount(account, keyStore: keyStore)
+        account.id = accountId
+
+        for start in stride(from: 0, to: 1_001, by: 40) {
+            let transactions = (start..<min(start + 40, 1_001)).map {
+                BlockchainTransaction(identifier: "tx-\($0)", status: .confirmed)
+            }
+
+            try await service.saveTransactions(transactions, for: account)
+        }
+
+        let afterLimit = try await service.fetchTransactionPage(accountId: accountId, offset: 500, limit: 40)
+        let last = try await service.fetchTransactionPage(accountId: accountId, offset: 1_000, limit: 40)
+
+        #expect(try await service.transactionCount(accountId: accountId) == 1_001)
+        #expect(afterLimit.rows.count == 40)
+        #expect(afterLimit.hasMore)
+        #expect(last.rows.count == 1)
+        #expect(!last.hasMore)
+    }
+
+    @Test
+    func transactionPagesKeepStableOrderAcrossEqualDates() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let accountId = try #require(account.id)
+        try await service.saveTransactions(
+            ["c", "a", "b"].map { BlockchainTransaction(identifier: $0, status: .confirmed) },
+            for: account
+        )
+
+        let first = try await service.fetchTransactionPage(accountId: accountId, offset: 0, limit: 2)
+        let second = try await service.fetchTransactionPage(accountId: accountId, offset: 2, limit: 2)
+
+        #expect(first.rows.map(\.identifier) == ["a", "b"])
+        #expect(first.hasMore)
+        #expect(second.rows.map(\.identifier) == ["c"])
+        #expect(!second.hasMore)
     }
 
     @Test
@@ -346,6 +481,45 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     /// A multi-balance batch, including a brand-new token and a duplicate token
     /// address appearing twice in the same batch, is upserted in one call — and
     /// every returned identifier is the permanent one the row kept.
+    @Test
+    func balancePagesPreserveGlobalOrderAndHiddenTotals() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        var lower = makeToken(address: "0x0000000000000000000000000000000000000001", usdPrice: 3)
+        var higher = makeToken(address: "0x0000000000000000000000000000000000000002", usdPrice: 2)
+        let hidden = makeToken(address: "0x0000000000000000000000000000000000000003", usdPrice: 100)
+        lower.isWhitelisted = true
+        higher.isWhitelisted = true
+        try await service.saveBalances([
+            Balance(account: account, amount: 2, token: lower, usdValue: nil),
+            Balance(account: account, amount: 5, token: higher, usdValue: nil),
+            Balance(account: account, amount: 1, token: hidden, usdValue: nil)
+        ])
+
+        let savedAccount = account
+        let index = try await service.modelContainer.readSnapshot { reader in
+            try await reader.balanceListIndex(
+                for: savedAccount,
+                sort: [BalanceListSort(field: .value, ascending: false)],
+                separatesHidden: true
+            )
+        }
+
+        let first = try await service.fetchBalancePage(for: account, orderedIds: index.visible, offset: 0, limit: 1)
+        let second = try await service.fetchBalancePage(for: account, orderedIds: index.visible, offset: 1, limit: 1)
+        let hiddenPage = try await service.fetchBalancePage(for: account, orderedIds: index.hidden, offset: 0, limit: 1)
+
+        #expect(first.rows.map(\.token.address) == [higher.address])
+        #expect(first.hasMore)
+        #expect(second.rows.map(\.token.address) == [lower.address])
+        #expect(!second.hasMore)
+        #expect(hiddenPage.rows.map(\.token.address) == [hidden.address])
+        #expect(index.totalUSDValue == 16)
+    }
+
     @Test
     func savingABatchOfBalancesUpsertsEveryTokenInOneCall() async throws {
         let service = try makeDatabaseService()
