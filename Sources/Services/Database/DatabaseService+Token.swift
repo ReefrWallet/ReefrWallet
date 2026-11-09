@@ -65,6 +65,24 @@ extension DatabaseService {
             .map(Token.init(model:))
     }
 
+    /// Finds tokens that will have no references after removing the account.
+    /// The blockchain requires its native token even when no account holds it.
+    func unusedTokens(
+        blockchainId: PersistentIdentifier,
+        removingAccountId: PersistentIdentifier
+    ) throws -> [TokenModel] {
+        var descriptor = FetchDescriptor<TokenModel>(
+            predicate: #Predicate { !$0.isNativeToken && $0.blockchain?.persistentModelID == blockchainId }
+        )
+
+        descriptor.relationshipKeyPathsForPrefetching = [\.approvals, \.balances, \.stakings]
+        return try modelContext.fetch(descriptor).filter { token in
+            token.approvals?.contains { $0.account.persistentModelID != removingAccountId } != true
+                && token.balances?.contains { $0.account.persistentModelID != removingAccountId } != true
+                && token.stakings?.contains { $0.account.persistentModelID != removingAccountId } != true
+        }
+    }
+
     /// Batch-fetches every `TokenModel` in `addresses` (an entry of `nil` matches the chain's
     /// native token) on `blockchain`, in one query — used by `saveBalances` so a multi-balance
     /// batch doesn't look up its tokens one at a time.
@@ -140,6 +158,7 @@ extension DatabaseService {
 
     @discardableResult
     func insertToken(_ token: Token, blockchain: Blockchain) throws -> PersistentIdentifier {
+        try Task.checkCancellation()
         let serializedBlockchain = try blockchain.asJSONString()
         let tokenModel = try upsertTokenModel(token, serializedBlockchain: serializedBlockchain)
         try modelContext.save()

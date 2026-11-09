@@ -39,7 +39,7 @@ struct BlockchainClientProvider: Sendable {
             return try tronClient(blockchain: blockchain, rpcURL: rpcURL)
         case .solana:
             let endpoint = rpcURL ?? blockchain.rpcURL
-            return SolanaRPCClient(endpoint: endpoint)
+            return SolanaRPCClient(endpoint: endpoint, session: urlSession)
         }
     }
 
@@ -230,6 +230,7 @@ struct BlockchainClientProvider: Sendable {
         // A custom node opts out of third-party indexers; the validator index only covers mainnet.
         return SolanaRPCClient(
             endpoint: account.rpcURLOverride ?? account.blockchain.rpcURL,
+            session: urlSession,
             validatorIndexEndpoint: account.rpcURLOverride == nil && network == .mainnet
                 ? SolanaRPCClient.defaultValidatorIndex
                 : nil

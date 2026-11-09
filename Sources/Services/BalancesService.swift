@@ -396,8 +396,6 @@ private extension BalancesService {
         } else {
             let tokenInfo = try await client.getTokenInfo(tokenAddress)
             let token = Token(address: tokenAddress, blockchain: account.blockchain, tokenInfo: tokenInfo)
-            try await databaseService.insertToken(token, blockchain: account.blockchain)
-
             let balance = Balance(
                 account: account,
                 amount: amount,
@@ -450,8 +448,6 @@ private extension BalancesService {
         } else if amount > 0 {
             let tokenInfo = try await client.getTokenInfo(tokenAddress)
             let token = Token(address: tokenAddress, blockchain: account.blockchain, tokenInfo: tokenInfo)
-            try await databaseService.insertToken(token, blockchain: account.blockchain)
-
             let balance = Balance(account: account, amount: amount, token: token, usdValue: nil)
             try await databaseService.saveBalance(balance)
         }

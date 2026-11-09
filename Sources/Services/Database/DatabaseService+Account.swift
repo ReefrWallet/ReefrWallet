@@ -34,12 +34,20 @@ extension DatabaseService {
     func deleteAccount(id: PersistentIdentifier) throws {
         let predicate = #Predicate<AccountModel> { $0.persistentModelID == id }
 
-        guard try modelContext.fetchCount(FetchDescriptor(predicate: predicate)) != 0 else {
+        guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
             throw ReefrError.notFound
         }
 
-        try modelContext.delete(model: AccountModel.self, where: predicate)
-        try modelContext.save()
+        let unusedTokens = try unusedTokens(blockchainId: account.blockchain.persistentModelID, removingAccountId: id)
+
+        do {
+            try modelContext.delete(model: AccountModel.self, where: predicate)
+            unusedTokens.forEach(modelContext.delete)
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 
     #if DEBUG

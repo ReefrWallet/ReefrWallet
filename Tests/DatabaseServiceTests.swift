@@ -100,6 +100,50 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
+    func deletingAccountPrunesOnlyUnusedTokensOnItsBlockchain() async throws {
+        let service = try makeDatabaseService()
+        let blockchain = Blockchain.evm(.ethereum(.mainnet))
+        let otherBlockchain = Blockchain.evm(.ethereum(.sepolia))
+        let removed = try await makeStakingAccount(service, blockchain: blockchain, address: "removed")
+        let remaining = try await makeStakingAccount(service, blockchain: blockchain, address: "remaining")
+        let removedId = try #require(removed.id)
+        let remainingId = try #require(remaining.id)
+        _ = try await service.insertBlockchain(otherBlockchain)
+
+        let orphan = makeToken(address: "0xorphan")
+        let balanceOnly = makeToken(address: "0xbalance")
+        let approvalOnly = makeToken(address: "0xapproval")
+        let stakingOnly = makeToken(address: "0xstaking")
+        let removedBalance = makeToken(address: "0xremoved")
+        _ = try await service.insertToken(orphan, blockchain: blockchain)
+        _ = try await service.insertToken(orphan, blockchain: otherBlockchain)
+        _ = try await service.saveBalance(Balance(account: removed, amount: 25, token: removedBalance, usdValue: nil))
+        _ = try await service.saveBalance(Balance(account: remaining, amount: 25, token: balanceOnly, usdValue: nil))
+        try await service.replaceApprovals(
+            account: remaining,
+            updates: [ApprovalUpdate(allowance: 1, approvedAt: nil, spender: "0xspender", token: approvalOnly)]
+        )
+
+        let stakingTokenId = try await service.insertToken(stakingOnly, blockchain: blockchain)
+        try await service.saveStakingState(
+            accountId: remainingId,
+            state: stakingPosition(),
+            representatives: [:],
+            startedAt: .now
+        )
+
+        try await service.assignTestStakingToken(stakingTokenId, accountId: remainingId)
+        try await service.deleteAccount(id: removedId)
+
+        let reader = DatabaseService(modelContainer: service.modelContainer)
+        let tokens = try await reader.fetchTokens(blockchain: blockchain)
+        #expect(tokens.contains { $0.isNativeToken })
+        #expect(Set(tokens.compactMap(\.address)) == ["0xbalance", "0xapproval", "0xstaking"])
+        #expect(try await reader.fetchStaking(accountId: remainingId)?.tokenId == stakingTokenId)
+        #expect(try await reader.fetchToken(tokenAddress: "0xorphan", blockchain: otherBlockchain) != nil)
+    }
+
+    @Test
     func cancelledBackfillPageLeavesHistoryAndCursorUntouched() async throws {
         let service = try makeDatabaseService()
         let keyStore = try await service.watchOnlyKeyStore()
@@ -726,5 +770,15 @@ extension DatabaseServiceTests {
             symbol: "TST",
             usdPrice: usdPrice
         )
+    }
+}
+
+private extension DatabaseService {
+    func assignTestStakingToken(_ tokenId: PersistentIdentifier, accountId: PersistentIdentifier) throws {
+        let stakingPredicate = #Predicate<StakingModel> { $0.account.persistentModelID == accountId }
+        let staking = try #require(modelContext.fetch(FetchDescriptor(predicate: stakingPredicate)).first)
+        let predicate = #Predicate<TokenModel> { $0.persistentModelID == tokenId }
+        staking.token = try #require(modelContext.fetch(FetchDescriptor(predicate: predicate)).first)
+        try modelContext.save()
     }
 } // swiftlint:disable:this file_length

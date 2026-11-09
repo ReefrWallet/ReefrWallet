@@ -118,6 +118,9 @@ final class TokenModel {
     @Relationship(deleteRule: .cascade, inverse: \TokenSourceStatusModel.token)
     var sourceStatuses: [TokenSourceStatusModel]? = []
 
+    @Relationship(deleteRule: .cascade, inverse: \StakingModel.token)
+    var stakings: [StakingModel]? = []
+
     init(
         address: String?,
         blockchain: BlockchainModel? = nil,

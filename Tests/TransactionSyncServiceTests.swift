@@ -8,6 +8,58 @@ import WalletKitTesting
 // swiftlint:disable type_body_length
 @Suite(.timeLimit(.minutes(3)), .serialized)
 struct TransactionSyncServiceTests {
+    @Test
+    func retriesSolanaTransactionDetailsUntilTheyAreAvailable() async throws {
+        let stub = SolanaTransactionSyncStubURLProtocol.make()
+        let databaseService = try makeDatabaseService()
+        let keyStore = try await databaseService.watchOnlyKeyStore()
+        let keyStoreId = try #require(keyStore.id)
+        let signature = SolanaTransactionSyncStubURLProtocol.signature
+
+        var account = Account(
+            address: SolanaTransactionSyncStubURLProtocol.owner,
+            blockchain: .solana(.mainnet),
+            derivationPath: nil,
+            keyStoreId: keyStoreId,
+            name: "Solana Detail Retry",
+            rpcURLOverride: stub.endpoint
+        )
+
+        account.id = try await databaseService.insertAccount(account, keyStore: keyStore)
+
+        let service = TransactionSyncService(
+            clientProvider: BlockchainClientProvider(urlSession: stub.session),
+            databaseService: databaseService
+        )
+
+        await service.start(account)
+
+        defer {
+            Task {
+                await service.stop(account)
+            }
+        }
+
+        let accountId = try #require(account.id)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+
+        while ContinuousClock.now < deadline {
+            let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+            if transactions.contains(where: { $0.identifier == signature }) {
+                #expect(stub.transactionRequests >= 2)
+                return
+            }
+
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        let transactions = try await databaseService.fetchTransactions(accountId: accountId)
+        #expect(
+            transactions.contains(where: { $0.identifier == signature }),
+            "The transaction detail never recovered after the first null response."
+        )
+    }
+
     @Test(.enabled(if: ProcessInfo.processInfo.environment["TRONGRID_API_KEY"] != nil))
     func syncsWatchOnlyNileTransactions() async throws {
         let apiKey = try #require(ProcessInfo.processInfo.environment["TRONGRID_API_KEY"])

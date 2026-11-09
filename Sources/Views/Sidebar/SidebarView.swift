@@ -43,6 +43,35 @@ enum PresentedSheet: Identifiable {
     }
 }
 
+// MARK: - Total Value Footer
+
+private struct SidebarTotalValueFooter: View {
+    let value: Decimal?
+
+    var body: some View {
+        if let value {
+#if os(macOS)
+            HStack {
+                Text(.commonTotalValueLabel)
+                    .style(.smallHeader, foreground: .sidebarLabel)
+
+                Spacer()
+
+                Text("\(value.formattedAbbreviated()) US$")
+                    .style(.small, foreground: .sidebarLabel)
+            }
+            .padding()
+#else
+            HStack(spacing: 4) {
+                Text(.commonTotalValueLabel)
+                Text("\(value.formattedAbbreviated()) US$")
+            }
+            .style(.caption, foreground: .phoneSecondaryLabel)
+#endif
+        }
+    }
+}
+
 // MARK: - SidebarView
 
 struct SidebarView {
@@ -146,6 +175,14 @@ extension SidebarView: View {
                     hasAccounts: !allAccounts.isEmpty,
                     isEditing: isListEditing
                 )
+
+#if os(iOS)
+                Section {
+                    EmptyView()
+                } footer: {
+                    SidebarTotalValueFooter(value: totalValueExcludingWatchOnlyAccounts())
+                }
+#endif
             }
         }
         .listStyle(.sidebar)
@@ -161,11 +198,17 @@ extension SidebarView: View {
         .environment(\.sidebarHover, hover)
         .scrollContentBackground(.hidden)
         .background(Color.sidebarBackground)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !keyStores.isEmpty {
+                SidebarTotalValueFooter(value: totalValueExcludingWatchOnlyAccounts())
+                    .background(Color.sidebarBackground)
+            }
+        }
         .task {
             await observeAccountValues()
         }
 #else
-        .navigationTitle(isPhone ? String(localized: .sidebarKeyStores) : "")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.large)
         .animation(.default, value: isListEditing)
         .refreshable {
@@ -646,6 +689,10 @@ private extension SidebarView {
         }
 
         return total
+    }
+
+    func totalValueExcludingWatchOnlyAccounts() -> Decimal? {
+        totalValue(allAccounts.filter { !$0.keyStore.isWatchOnly })
     }
 
     func addAccountSourceId(_ keyStore: KeyStoreModel) -> String {

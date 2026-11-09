@@ -19,7 +19,7 @@ actor TransactionSyncService {
     }
 
     private let balancesService: BalancesService
-    private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
+    private let clientProvider: BlockchainClientProvider
     private let databaseService: DatabaseService
     private var nextBackfillWrite = ContinuousClock.now
     private var tasks: [PersistentIdentifier: Task<Void, Never>] = [:]
@@ -27,6 +27,7 @@ actor TransactionSyncService {
 
     init(
         balancesService: BalancesService? = nil,
+        clientProvider: BlockchainClientProvider? = nil,
         databaseService: DatabaseService? = nil,
         transactionHistorySources: [any TransactionHistorySource] = [
             EtherscanTransactionHistorySource(),
@@ -36,6 +37,7 @@ actor TransactionSyncService {
     ) {
         let databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
         self.balancesService = balancesService ?? BalancesService(databaseService: databaseService)
+        self.clientProvider = clientProvider ?? DI.injectOrFail(BlockchainClientProvider.self)
         self.databaseService = databaseService
         self.transactionHistorySources = transactionHistorySources
     }
@@ -187,6 +189,20 @@ private extension TransactionSyncService {
                 track: .descending,
                 updatesBalances: false
             )
+
+            // The newest page is committed first. Refresh it immediately so
+            // a current receipt is reflected even while an archive backfill
+            // continues through older activity.
+            if state.currentHead == nil {
+                await refreshBalances(account: account, transactions: page.transactions)
+            }
+
+            if page.nextCursor == state.descendingCursor, !page.reachedBoundary {
+                // A node can list a confirmed signature before it serves the
+                // transaction detail. Its client deliberately keeps the
+                // cursor unchanged so this retry cannot skip the activity.
+                try await Task.sleep(for: .seconds(1))
+            }
 
             if page.reachedBoundary {
                 // Backfill spans many pages, each committed with `updatesBalances:
@@ -347,6 +363,10 @@ private extension TransactionSyncService {
 
             try await commit(page, account: account, client: client, track: .ascending, updatesBalances: false)
             touched += page.transactions
+
+            if page.nextCursor == state.ascendingCursor, !page.reachedBoundary {
+                try await Task.sleep(for: .seconds(1))
+            }
 
             if page.reachedBoundary {
                 break

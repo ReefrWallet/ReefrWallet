@@ -283,6 +283,8 @@ extension AccountDetailsView: View {
     private var bottomBar: some View {
         let isActive = filterValue.isActive(in: tab)
         let isSearchExpanded = !isActive || tab == .approvals || isSearchOpen || !searchText.isEmpty
+        let searchGlassId = Self.searchGlassId
+        let searchGlassNamespace = glassNamespace
 
         return GlassBar {
             HStack(spacing: 0) {
@@ -300,7 +302,7 @@ extension AccountDetailsView: View {
                             .scaleEffect(x: 1 + 0.05 * pulse, y: 1 + 0.21 * pulse)
                             .padding(.horizontal, 9 * pulse)
                             .padding(.vertical, 5 * pulse)
-                            .glassCapsule(id: Self.searchGlassId, in: glassNamespace)
+                            .glassCapsule(id: searchGlassId, in: searchGlassNamespace)
                             .padding(.horizontal, -9 * pulse)
                             .padding(.vertical, -5 * pulse)
                     } keyframes: { _ in
