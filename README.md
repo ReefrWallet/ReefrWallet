@@ -4,7 +4,7 @@
 
 ### Friendly, native, self-custody, multi-chain crypto wallet for macOS and iOS.
 
-<img src="https://reefr.xyz/screenshots/portfolio.png" alt="Reefr Wallet on Mac and iPhone" width="800">
+<img src="https://reefr.xyz/screenshots/reefr-large.png" alt="Reefr Wallet on Mac and iPhone" width="800">
 
 </div>
 

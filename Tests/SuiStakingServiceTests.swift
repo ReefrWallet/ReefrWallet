@@ -95,13 +95,23 @@ struct SuiStakingServiceTests {
 
         let service = harness.service
         let account = harness.account
-        async let one = Result { try await service.submit(first, signature: Data([1]), account: account) }
-        async let two = Result { try await service.submit(second, signature: Data([2]), account: account) }
+        async let one = Self.attempt { try await service.submit(first, signature: Data([1]), account: account) }
+        async let two = Self.attempt { try await service.submit(second, signature: Data([2]), account: account) }
         let results = await [one, two]
 
         #expect(results.filter { if case .success = $0 { true } else { false } }.count == 1)
         #expect(harness.source.broadcasts.count == 1)
         #expect(try await harness.pending().count == 1)
+    }
+
+    private static func attempt(
+        _ body: @Sendable () async throws -> SuiStakingOutcome
+    ) async -> Result<SuiStakingOutcome, Error> {
+        do {
+            return .success(try await body())
+        } catch {
+            return .failure(error)
+        }
     }
 
     // MARK: Outcomes
