@@ -192,7 +192,11 @@ extension DatabaseService {
 
         for transaction in walletTransactions {
             let model: WalletTransactionModel
-            if let existing = transactionIndex[transaction.stableId] {
+            if let existing = transactionIndex[transaction.stableId], transaction.isEffectsOnly {
+                // Only some effects of a transaction this source doesn't list in full: the
+                // stored sender, recipient, payload and status are the better record.
+                model = existing
+            } else if let existing = transactionIndex[transaction.stableId] {
                 model = existing
                 model.blockHeight = transaction.blockHeight
                 model.blockHash = transaction.blockHash
@@ -246,6 +250,32 @@ extension DatabaseService {
             applySyncState(syncState, to: accountModel)
         }
 
+        try modelContext.save()
+    }
+
+    /// Records the ERC-20 transfer backfill's progress without touching the sync cursors, so a
+    /// concurrent forward scan's progress is never overwritten. `complete` ends the backfill.
+    func saveTokenBackfillProgress(accountId: PersistentIdentifier, cursor: Data?, complete: Bool) throws {
+        try Task.checkCancellation()
+
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
+
+        guard let account = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+            throw ReefrError.notFound
+        }
+
+        let model: WalletTransactionSyncStateModel
+        if let existing = account.transactionSyncState {
+            model = existing
+        } else {
+            let empty = WalletTransactionSyncState(accountId: accountId)
+            model = WalletTransactionSyncStateModel(account: account, state: empty)
+            account.transactionSyncState = model
+            modelContext.insert(model)
+        }
+
+        model.tokenBackfillCursor = complete ? nil : cursor
+        model.tokenBackfillVersion = complete ? 1 : model.tokenBackfillVersion
         try modelContext.save()
     }
 

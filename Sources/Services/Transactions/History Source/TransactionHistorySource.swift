@@ -19,10 +19,19 @@ protocol TransactionHistorySource {
         account: Account,
         request: BlockchainTransactionHistoryRequest
     ) async throws -> BlockchainTransactionPage
+
+    /// One page of the account's ERC-20 transfers, newest first, as effects-only records, for
+    /// an account whose backfill finished before it included them. `nil` when this source's
+    /// backfill already covers them.
+    func tokenTransferHistory(account: Account, cursor: Data?) async throws -> BlockchainTransactionPage?
 }
 
 extension TransactionHistorySource {
     var providesForwardHistory: Bool {
         false
+    }
+
+    func tokenTransferHistory(account: Account, cursor: Data?) async throws -> BlockchainTransactionPage? {
+        nil
     }
 }

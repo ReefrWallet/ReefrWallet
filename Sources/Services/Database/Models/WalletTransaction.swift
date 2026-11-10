@@ -27,6 +27,8 @@ struct WalletTransaction: Identifiable, Sendable {
     let counterpartyName: String?
     let fee: String?
     let method: String?
+    /// Carries only some effects of a transaction its source didn't list in full.
+    let isEffectsOnly: Bool
 
     init(account: Account, transaction: BlockchainTransaction) throws {
         guard let accountId = account.id else {
@@ -70,6 +72,7 @@ struct WalletTransaction: Identifiable, Sendable {
         counterpartyName = transaction.counterpartyName
         fee = transaction.fee
         method = transaction.method
+        isEffectsOnly = transaction.isEffectsOnly == true
     }
 
     init(model: WalletTransactionModel) throws {
@@ -90,6 +93,7 @@ struct WalletTransaction: Identifiable, Sendable {
         counterpartyName = model.counterpartyName
         fee = model.fee
         method = model.method
+        isEffectsOnly = false
     }
 
     static func stableId(

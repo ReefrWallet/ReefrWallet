@@ -173,6 +173,11 @@ private extension TransactionSyncService {
 
             guard !state.backfillComplete else {
                 printDebug("Backfill complete for \(account.name)")
+
+                if state.tokenBackfillVersion < 1 {
+                    await runTokenTransferBackfill(account: account, client: client)
+                }
+
                 return
             }
 
@@ -214,15 +219,28 @@ private extension TransactionSyncService {
             }
 
             if page.reachedBoundary {
-                // Backfill spans many pages, each committed with `updatesBalances:
-                // false` to avoid enqueueing on every page. Now that the whole
-                // history is in, sweep every token this account is known to
-                // hold once so none of the tokens discovered along the way are
-                // left without a balance.
-                await enqueueFullRefresh(account: account)
+                try await completeBackfill(account: account)
                 return
             }
         }
+    }
+
+    /// The merged backfill covers ERC-20 transfers, so no separate pass is owed; sweeps the
+    /// balances of every token found along the way.
+    func completeBackfill(account: Account) async throws {
+        // The merged backfill covers ERC-20 transfers; no separate pass is owed.
+        try await databaseService.saveTokenBackfillProgress(
+            accountId: try accountId(account),
+            cursor: nil,
+            complete: true
+        )
+
+        // Backfill spans many pages, each committed with `updatesBalances:
+        // false` to avoid enqueueing on every page. Now that the whole
+        // history is in, sweep every token this account is known to
+        // hold once so none of the tokens discovered along the way are
+        // left without a balance.
+        await enqueueFullRefresh(account: account)
     }
 
     /// Space history writes across accounts so their SwiftData merges leave time for UI work.
@@ -692,10 +710,11 @@ private extension TransactionSyncService {
                 )
             } catch is CancellationError {
                 throw CancellationError()
-            } catch {
-                // A contract whose metadata can't be read (a non-standard or spam token) must not
-                // stall the history page that mentions it. Its transfers are kept; the token is
-                // retried the next time a transfer of it is committed.
+            } catch where Self.isPermanentTokenFailure(error) {
+                // A contract that can't describe itself (non-standard, spam or a non-contract
+                // address) must not stall the page that mentions it. Its transfers are kept and
+                // the token is retried when one is next committed. A transient failure (timeout,
+                // quota) propagates, so the page itself is retried.
                 printError("\(account.name): skipping token \(tokenAddress): \(error)")
                 continue
             }
@@ -749,6 +768,74 @@ private extension TransactionSyncService {
             symbol: tokenInfo.symbol,
             usdPrice: nil
         )
+    }
+}
+
+extension TransactionSyncService {
+    /// Whether a token-metadata read failed because of the contract rather than the connection.
+    static func isPermanentTokenFailure(_ error: any Error) -> Bool {
+        switch error {
+        case BlockchainClientError.decodingFailed:
+            true
+        case let BlockchainClientError.rpcError(_, message):
+            message.localizedCaseInsensitiveContains("revert")
+        default:
+            false
+        }
+    }
+
+    /// Backfills the ERC-20 transfers of an account whose history backfill finished before it
+    /// included them (ADR-065). Resumable, and it never touches the sync cursors, so forward
+    /// progress is preserved. A failure is logged and retried next session; it must not stop
+    /// the account's other tracks.
+    func runTokenTransferBackfill(account: Account, client: any BlockchainClientProtocol) async {
+        do {
+            if try await backfillTokenTransfers(account: account, client: client) {
+                await enqueueFullRefresh(account: account)
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            printError("\(account.name): token transfer backfill: \(error)")
+        }
+    }
+
+    /// - Returns: whether this call finished the backfill.
+    func backfillTokenTransfers(account: Account, client: any BlockchainClientProtocol) async throws -> Bool {
+        let id = try accountId(account)
+
+        while !Task.isCancelled {
+            let state = try await databaseService.transactionSyncState(accountId: id)
+
+            guard state.tokenBackfillVersion < 1 else {
+                return false
+            }
+
+            guard
+                account.rpcURLOverride == nil,
+                let source = transactionHistorySources.first(where: { $0.supports(account) }),
+                let page = try await source.tokenTransferHistory(account: account, cursor: state.tokenBackfillCursor)
+            else {
+                try await databaseService.saveTokenBackfillProgress(accountId: id, cursor: nil, complete: true)
+                return false
+            }
+
+            try await paceBackfillWrite()
+            try Task.checkCancellation()
+            try await processTokenTransfers(page.transactions, account: account, client: client)
+            try await databaseService.saveTransactions(page.transactions, for: account)
+            try await databaseService.saveTokenBackfillProgress(
+                accountId: id,
+                cursor: page.nextCursor,
+                complete: page.reachedBoundary
+            )
+
+            if page.reachedBoundary {
+                return true
+            }
+        }
+
+        return false
     }
 }
 

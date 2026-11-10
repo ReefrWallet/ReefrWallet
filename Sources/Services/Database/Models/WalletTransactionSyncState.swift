@@ -16,6 +16,10 @@ struct WalletTransactionSyncState: Equatable, Sendable {
     var backfillComplete: Bool
     var historyBoundary: UInt64?
     var lastError: String?
+    /// `1` once the account's ERC-20 transfers are fully backfilled. Accounts synced before
+    /// that backfill existed read `0` and get one resumable pass (ADR-065).
+    var tokenBackfillVersion: Int
+    var tokenBackfillCursor: Data?
 
     init(accountId: PersistentIdentifier) {
         self.accountId = accountId
@@ -26,6 +30,8 @@ struct WalletTransactionSyncState: Equatable, Sendable {
         backfillComplete = false
         historyBoundary = nil
         lastError = nil
+        tokenBackfillVersion = 0
+        tokenBackfillCursor = nil
     }
 
     init(model: WalletTransactionSyncStateModel) {
@@ -37,6 +43,8 @@ struct WalletTransactionSyncState: Equatable, Sendable {
         backfillComplete = model.backfillComplete
         historyBoundary = model.historyBoundary
         lastError = model.lastError
+        tokenBackfillVersion = model.tokenBackfillVersion
+        tokenBackfillCursor = model.tokenBackfillCursor
     }
 }
 
@@ -50,6 +58,8 @@ final class WalletTransactionSyncStateModel {
     var backfillComplete: Bool
     var historyBoundary: UInt64?
     var lastError: String?
+    var tokenBackfillVersion: Int = 0
+    var tokenBackfillCursor: Data?
 
     @Relationship(deleteRule: .noAction)
     var account: AccountModel
@@ -63,6 +73,8 @@ final class WalletTransactionSyncStateModel {
         backfillComplete = state.backfillComplete
         historyBoundary = state.historyBoundary
         lastError = state.lastError
+        tokenBackfillVersion = state.tokenBackfillVersion
+        tokenBackfillCursor = state.tokenBackfillCursor
         self.account = account
     }
 }

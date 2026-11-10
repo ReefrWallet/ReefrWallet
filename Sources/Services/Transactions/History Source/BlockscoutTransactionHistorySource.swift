@@ -85,6 +85,26 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
     }
 }
 
+extension BlockscoutTransactionHistorySource {
+    func tokenTransferHistory(account: Account, cursor: Data?) async throws -> BlockchainTransactionPage? {
+        guard let apiBaseURL = apiBaseURL(for: account.blockchain) else {
+            return nil
+        }
+
+        let pagination = try cursor.map { try JSONDecoder().decode(BlockscoutPageParameters.self, from: $0) }
+        let response: BlockscoutListResponse<BlockscoutTokenTransfer> = try await provider(for: apiBaseURL).request(
+            .tokenTransfers(address: account.address, baseURL: apiBaseURL, pagination: pagination)
+        )
+
+        return BlockchainTransactionPage(
+            transactions: mergedRecords(transactions: [], transfers: response.items),
+            nextCursor: try response.nextPageParams.map(JSONEncoder().encode),
+            reachedBoundary: response.nextPageParams == nil,
+            head: nil
+        )
+    }
+}
+
 private extension BlockscoutTransactionHistorySource {
     /// Blockscout only lists newest-first, so a forward (ascending) request pages
     /// down from the tip until it passes `lowerBound`, returning one complete page.
@@ -174,11 +194,12 @@ private extension BlockscoutTransactionHistorySource {
             let response: BlockscoutListResponse<Item> = try await pageProvider.request(currentTarget)
             items.append(contentsOf: response.items)
 
-            guard
-                let next = response.nextPageParams,
-                let oldest = response.items.map(\.blockNumber).min(),
-                oldest >= lowerBound
-            else {
+            guard let next = response.nextPageParams else {
+                return items
+            }
+
+            // An all-pending page has no block numbers; keep following the cursor.
+            if let oldest = response.items.map(\.blockNumber).min(), oldest < lowerBound {
                 return items
             }
 
@@ -301,27 +322,39 @@ private struct BlockscoutListResponse<Item: Decodable>: Decodable {
         case items, nextPageParams
     }
 
-    /// An item that doesn't decode is dropped, not fatal: Blockscout lists the account's own
-    /// pending transactions with a null block number, status and timestamp, and one of those
-    /// must not fail the whole page. It is picked up once mined.
+    /// Only explicitly pending items are skipped: Blockscout lists the account's own pending
+    /// transactions with a null block number, status and timestamp, and one of those must not
+    /// fail the whole page. It is picked up once mined. Any other item that doesn't decode
+    /// fails the page, so its cursor is never committed past a record that was never read.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let lossy = try container.decode([BlockscoutLossyItem<Item>].self, forKey: .items)
-        items = lossy.compactMap(\.value)
+        let listed = try container.decode([BlockscoutListItem<Item>].self, forKey: .items)
+        items = listed.compactMap(\.value)
 
-        if items.count < lossy.count {
-            printDebug("Blockscout: dropped \(lossy.count - items.count) undecodable \(Item.self) item(s)")
+        if items.count < listed.count {
+            printDebug("Blockscout: skipped \(listed.count - items.count) pending item(s)")
         }
 
         nextPageParams = try container.decodeIfPresent(BlockscoutPageParameters.self, forKey: .nextPageParams)
     }
 }
 
-private struct BlockscoutLossyItem<Item: Decodable>: Decodable {
+private struct BlockscoutListItem<Item: Decodable>: Decodable {
+    /// `nil` for a pending item.
     let value: Item?
 
+    private enum ProbeKeys: String, CodingKey {
+        case blockNumber
+    }
+
     init(from decoder: Decoder) throws {
-        value = try? Item(from: decoder)
+        let probe = try decoder.container(keyedBy: ProbeKeys.self)
+
+        if probe.contains(.blockNumber), try probe.decodeNil(forKey: .blockNumber) {
+            value = nil
+        } else {
+            value = try Item(from: decoder)
+        }
     }
 }
 
@@ -372,7 +405,8 @@ private struct BlockscoutTokenTransfer: Codable, BlockscoutBlockNumbered {
             status: .confirmed,
             effects: effects,
             counterpartyName: token.name,
-            method: "Transfer"
+            method: "Transfer",
+            isEffectsOnly: true
         )
     }
 

@@ -6,88 +6,10 @@ import Foundation
 import Testing
 import WalletKit
 
-/// Serves canned Blockscout pages keyed by path and query, per stub host.
-private final class BlockscoutStubURLProtocol: URLProtocol, @unchecked Sendable {
-    struct Stub {
-        let host: String
-        let configuration: URLSessionConfiguration
-
-        func requests(path: String) -> [URLRequest] {
-            BlockscoutStubURLProtocol.requests(host: host).filter { $0.url?.path == "/api/v2/addresses/\(path)" }
-        }
-    }
-
-    private static let lock = NSLock()
-    nonisolated(unsafe) private static var routes: [String: [String: String]] = [:]
-    nonisolated(unsafe) private static var captured: [String: [URLRequest]] = [:]
-
-    /// `routes` maps `"<address>/<list>"` or `"<address>/<list>?<sorted query>"` to a JSON body.
-    static func make(routes: [String: String]) -> Stub {
-        let host = "blockscout-\(UUID().uuidString.lowercased()).test"
-        lock.withLock { self.routes[host] = routes }
-
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [BlockscoutStubURLProtocol.self]
-        return Stub(host: host, configuration: configuration)
-    }
-
-    static func requests(host: String) -> [URLRequest] {
-        lock.withLock { captured[host] ?? [] }
-    }
-
-    override static func canInit(with request: URLRequest) -> Bool { true }
-
-    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        let url = request.url!
-        let host = url.host ?? ""
-        let list = url.path.replacingOccurrences(of: "/api/v2/addresses/", with: "")
-        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
-            .filter { $0.name != "type" }
-            .map { "\($0.name)=\($0.value ?? "")" }
-            .sorted()
-            .joined(separator: "&")
-
-        let key = query.flatMap { $0.isEmpty ? nil : "\(list)?\($0)" } ?? list
-        let body = Self.lock.withLock { () -> String? in
-            Self.captured[host, default: []].append(request)
-            return Self.routes[host]?[key]
-        }
-
-        let status = body == nil ? 404 : 200
-        let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Data((body ?? "not found").utf8))
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
-}
-
 struct BlockscoutBackfillTests {
-    private static let owner = "0x261B90cA1f43BaE342e6a55192A514E1eDa1CE0d"
-    private static let usdc = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+    private static let owner = BlockscoutFixtures.owner
+    private static let usdc = BlockscoutFixtures.usdc
     private static let sepolia = Blockchain.evm(.ethereum(.sepolia))
-
-    private static func transaction(hash: String, block: Int) -> String {
-        """
-        {"block_number":\(block),"fee":{"value":"21"},"from":{"hash":"\(owner)"},"hash":"\(hash)","method":null,
-         "status":"ok","timestamp":"2026-01-01T00:00:00.000000Z","to":{"hash":"0xbbbb"},"value":"5"}
-        """
-    }
-
-    private static func transfer(hash: String, block: Int, value: String) -> String {
-        """
-        {"block_number":\(block),"from":{"hash":"0xaaaa"},"log_index":3,"timestamp":"2026-01-01T00:00:00.000000Z",
-         "to":{"hash":"\(owner)"},"token":{"address_hash":"\(usdc)","decimals":"6","name":"USDC","symbol":"USDC"},
-         "total":{"value":"\(value)"},"transaction_hash":"\(hash)"}
-        """
-    }
-
-    private static func list(_ items: [String], next: String? = nil) -> String {
-        "{\"items\":[\(items.joined(separator: ","))],\"next_page_params\":\(next ?? "null")}"
-    }
 
     private func makeSource(_ stub: BlockscoutStubURLProtocol.Stub) -> BlockscoutTransactionHistorySource {
         BlockscoutTransactionHistorySource(
@@ -129,8 +51,8 @@ struct BlockscoutBackfillTests {
 
     @Test func aTokenReceivedInATransactionTheAccountDidNotSendIsDiscovered() async throws {
         let stub = BlockscoutStubURLProtocol.make(routes: [
-            "\(Self.owner)/transactions": Self.list([Self.transaction(hash: "0xsent", block: 200)]),
-            "\(Self.owner)/token-transfers": Self.list([Self.transfer(hash: "0xreceived", block: 100, value: "20000000")])
+            "\(Self.owner)/transactions": BlockscoutFixtures.list([BlockscoutFixtures.transaction(hash: "0xsent", block: 200)]),
+            "\(Self.owner)/token-transfers": BlockscoutFixtures.list([BlockscoutFixtures.transfer(hash: "0xreceived", block: 100, value: "20000000")])
         ])
 
         let page = try await backfill(makeSource(stub), account: try await makeAccount())
@@ -148,10 +70,10 @@ struct BlockscoutBackfillTests {
     @Test func bothListsArePagedUntilEachIsExhausted() async throws {
         let next = #"{"block_number":150,"index":0,"items_count":50}"#
         let stub = BlockscoutStubURLProtocol.make(routes: [
-            "\(Self.owner)/transactions": Self.list([Self.transaction(hash: "0xnew", block: 200)], next: next),
+            "\(Self.owner)/transactions": BlockscoutFixtures.list([BlockscoutFixtures.transaction(hash: "0xnew", block: 200)], next: next),
             "\(Self.owner)/transactions?block_number=150&index=0&items_count=50":
-                Self.list([Self.transaction(hash: "0xold", block: 120)]),
-            "\(Self.owner)/token-transfers": Self.list([Self.transfer(hash: "0xtoken", block: 190, value: "1")])
+                BlockscoutFixtures.list([BlockscoutFixtures.transaction(hash: "0xold", block: 120)]),
+            "\(Self.owner)/token-transfers": BlockscoutFixtures.list([BlockscoutFixtures.transfer(hash: "0xtoken", block: 190, value: "1")])
         ])
 
         let source = makeSource(stub)
@@ -174,8 +96,8 @@ struct BlockscoutBackfillTests {
         let legacy = #"{"block_number":150,"index":0,"items_count":50}"#
         let stub = BlockscoutStubURLProtocol.make(routes: [
             "\(Self.owner)/transactions?block_number=150&index=0&items_count=50":
-                Self.list([Self.transaction(hash: "0xold", block: 120)]),
-            "\(Self.owner)/token-transfers": Self.list([Self.transfer(hash: "0xtoken", block: 190, value: "1")])
+                BlockscoutFixtures.list([BlockscoutFixtures.transaction(hash: "0xold", block: 120)]),
+            "\(Self.owner)/token-transfers": BlockscoutFixtures.list([BlockscoutFixtures.transfer(hash: "0xtoken", block: 190, value: "1")])
         ])
 
         let page = try await backfill(
@@ -190,19 +112,51 @@ struct BlockscoutBackfillTests {
     }
 
     @Test func aPendingTransactionDoesNotFailThePage() async throws {
-        let pending = """
-        {"block_number":null,"fee":{"value":"21"},"from":{"hash":"\(Self.owner)"},"hash":"0xpending","method":null,
-         "status":null,"timestamp":null,"to":{"hash":"0xbbbb"},"value":"5"}
-        """
-
         let stub = BlockscoutStubURLProtocol.make(routes: [
-            "\(Self.owner)/transactions": Self.list([pending, Self.transaction(hash: "0xmined", block: 200)]),
-            "\(Self.owner)/token-transfers": Self.list([])
+            "\(Self.owner)/transactions": BlockscoutFixtures.list([
+                BlockscoutFixtures.pending(hash: "0xpending"),
+                BlockscoutFixtures.transaction(hash: "0xmined", block: 200)
+            ]),
+            "\(Self.owner)/token-transfers": BlockscoutFixtures.list([])
         ])
 
         let page = try await backfill(makeSource(stub), account: try await makeAccount())
 
         #expect(page.transactions.map(\.identifier) == ["0xmined"])
         #expect(page.reachedBoundary)
+    }
+
+    @Test func aConfirmedItemThatDoesNotDecodeFailsThePage() async throws {
+        let broken = #"{"block_number":150,"hash":"0xbroken"}"#
+        let stub = BlockscoutStubURLProtocol.make(routes: [
+            "\(Self.owner)/transactions": BlockscoutFixtures.list([broken]),
+            "\(Self.owner)/token-transfers": BlockscoutFixtures.list([])
+        ])
+
+        await #expect(throws: (any Error).self) {
+            _ = try await backfill(makeSource(stub), account: try await makeAccount())
+        }
+    }
+
+    @Test func aForwardScanFollowsTheCursorPastAnAllPendingPage() async throws {
+        let next = #"{"block_number":150,"index":0,"items_count":50}"#
+        let stub = BlockscoutStubURLProtocol.make(routes: [
+            "\(Self.owner)/transactions": BlockscoutFixtures.list([BlockscoutFixtures.pending(hash: "0xp")], next: next),
+            "\(Self.owner)/transactions?block_number=150&index=0&items_count=50":
+                BlockscoutFixtures.list([BlockscoutFixtures.transaction(hash: "0xmined", block: 120)]),
+            "\(Self.owner)/token-transfers": BlockscoutFixtures.list([])
+        ])
+
+        let page = try await makeSource(stub).transactionHistory(
+            account: try await makeAccount(),
+            request: BlockchainTransactionHistoryRequest(
+                cursor: nil,
+                direction: .ascending,
+                lowerBound: 100,
+                upperBound: nil
+            )
+        )
+
+        #expect(page.transactions.map(\.identifier) == ["0xmined"])
     }
 }
