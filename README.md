@@ -1,8 +1,10 @@
 <div align="center">
 
-# [![logo](https://reefr.xyz/app-icon.png)<br/>Reefr Wallet](https://reefr.xyz)
+# [Reefr Wallet](https://reefr.xyz)
 
 ### Friendly, native, self-custody, multi-chain crypto wallet for macOS and iOS.
+
+<img src="https://reefr.xyz/screenshots/portfolio.png" alt="Reefr Wallet on Mac and iPhone" width="800">
 
 </div>
 
