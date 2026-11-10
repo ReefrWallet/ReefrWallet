@@ -78,7 +78,7 @@ private extension TronRepresentativePicker {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: representative.name ?? representative.address.string.shortened(prefix: 6, suffix: 4))
-                        .style(isPhone ? .large : .medium, foreground: .primary)
+                        .style(isIOS ? .large : .medium, foreground: .primary)
 
                     Text(verbatim: representative.address.string)
                         .style(.smallMono, foreground: .secondary)

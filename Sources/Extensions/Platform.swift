@@ -9,6 +9,15 @@ var isPhone: Bool {
 #endif
 }
 
+/// `true` on iPhone and iPad: sheets and sidebar editing use the iOS layouts on both.
+var isIOS: Bool {
+#if os(iOS)
+    true
+#else
+    false
+#endif
+}
+
 extension View {
     /// Keeps the iPhone row card unhighlighted while its selection lingers during the back animation.
     @ViewBuilder

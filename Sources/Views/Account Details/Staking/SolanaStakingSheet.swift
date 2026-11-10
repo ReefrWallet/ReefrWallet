@@ -254,7 +254,7 @@ private extension SolanaStakingSheet {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: model.name(of: position.account.delegation?.voter))
-                        .style(isPhone ? .large : .medium, foreground: isEligible ? .primary : .secondary)
+                        .style(isIOS ? .large : .medium, foreground: isEligible ? .primary : .secondary)
 
                     Text(verbatim: reason(position) ?? model.statusText(position))
                         .style(.small, foreground: .secondary)

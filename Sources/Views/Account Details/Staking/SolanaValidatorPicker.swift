@@ -84,7 +84,7 @@ private extension SolanaValidatorPicker {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: validator.name ?? validator.voteAddress.shortened(prefix: 6, suffix: 4))
-                        .style(isPhone ? .large : .medium, foreground: .primary)
+                        .style(isIOS ? .large : .medium, foreground: .primary)
 
                     if let commission = validator.commission {
                         Text(.solanaStakingCommission(
@@ -117,7 +117,7 @@ private extension SolanaValidatorPicker {
     }
 
     func logo(_ validator: SolanaValidator) -> some View {
-        let size: CGFloat = isPhone ? 28 : 24
+        let size: CGFloat = isIOS ? 28 : 24
 
         return AsyncImage(url: validator.imageURL) { image in
             image.resizable().scaledToFill()

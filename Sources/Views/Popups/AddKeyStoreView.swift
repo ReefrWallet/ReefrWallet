@@ -80,7 +80,7 @@ struct AddKeyStoreView: View {
 private extension AddKeyStoreView {
     @ViewBuilder
     var layout: some View {
-        if isPhone {
+        if isIOS {
             phoneLayout
         } else {
             VStack(alignment: .leading) {
@@ -225,7 +225,7 @@ private extension AddKeyStoreView {
     var editableKeyView: some View {
         WordTokenizerView(
             phrase: $seedPhrase,
-            columns: isPhone ? 3 : 4
+            columns: isIOS ? 3 : 4
         )
             .onChange(of: seedPhrase, initial: true) { _, newValue in
                 validateSeedPhrase(newValue)
@@ -233,7 +233,7 @@ private extension AddKeyStoreView {
     }
 
     var generatedKeyView: some View {
-        WordTokenizerView(phrase: $seedPhrase, columns: isPhone ? 3 : 4, readOnly: true)
+        WordTokenizerView(phrase: $seedPhrase, columns: isIOS ? 3 : 4, readOnly: true)
             .onChange(of: seedPhrase, initial: true) { _, newValue in
                 validateSeedPhrase(newValue)
             }

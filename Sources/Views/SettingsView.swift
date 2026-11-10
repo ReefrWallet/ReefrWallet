@@ -97,7 +97,7 @@ private extension SettingsView {
     /// iPhone: label left, "Optional" value right; macOS keeps the plain field.
     @ViewBuilder
     func optionalField(_ title: LocalizedStringResource, text: Binding<String>) -> some View {
-        if isPhone {
+        if isIOS {
             LabeledContent {
                 TextField("", text: text, prompt: Text(.settingsOptional))
                     .multilineTextAlignment(.trailing)

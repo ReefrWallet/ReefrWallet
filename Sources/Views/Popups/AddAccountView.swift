@@ -144,7 +144,7 @@ extension AddAccountView: View {
 private extension AddAccountView {
     @ViewBuilder
     var layout: some View {
-        if isPhone {
+        if isIOS {
             phoneForm
                 .phoneSheet(
                     .commonAddAccount,

@@ -241,7 +241,7 @@ private extension SuiStakingSheet {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: model.name(of: position))
-                        .style(isPhone ? .large : .medium, foreground: .primary)
+                        .style(isIOS ? .large : .medium, foreground: .primary)
 
                     Text(verbatim: SuiStakingModel.statusText(position))
                         .style(.small, foreground: .secondary)

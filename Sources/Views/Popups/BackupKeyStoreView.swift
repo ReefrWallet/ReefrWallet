@@ -43,7 +43,7 @@ struct BackupKeyStoreView: View {
 private extension BackupKeyStoreView {
     @ViewBuilder
     var content: some View {
-        if isPhone {
+        if isIOS {
             Form {
                 Section {
                     WordTokenizerView(phrase: $seedPhrase, columns: 3, readOnly: true)

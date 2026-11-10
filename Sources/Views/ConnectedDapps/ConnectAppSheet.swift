@@ -19,7 +19,7 @@ struct ConnectAppSheet: View {
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
     var body: some View {
-        if isPhone {
+        if isIOS {
             phoneBody
         } else {
             macBody

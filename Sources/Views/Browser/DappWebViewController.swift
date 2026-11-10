@@ -30,6 +30,8 @@ final class DappWebViewController {
 
     fileprivate weak var webView: WKWebView?
 
+    @ObservationIgnored private var lastCrashReload: ContinuousClock.Instant?
+
     init(bridge: DappBridge) {
         self.bridge = bridge
     }
@@ -60,6 +62,25 @@ final class DappWebViewController {
 
     func reload() {
         webView?.reload()
+    }
+
+    /// Reloads the page after its web content process died (e.g. a WebKit
+    /// crash), which otherwise leaves it blank. A second death within
+    /// ``crashReloadInterval`` of that reload leaves the page as is, so a
+    /// page that keeps crashing doesn't loop.
+    func webContentProcessDidTerminate() {
+        defer { updateNavigationState() }
+
+        let now = ContinuousClock.now
+        if let lastCrashReload, now - lastCrashReload < Self.crashReloadInterval {
+            printDebug("Web content process terminated again; not reloading")
+            return
+        }
+
+        lastCrashReload = now
+        if webView?.reload() == nil {
+            load(currentURLString)
+        }
     }
 
     func attach(to webView: WKWebView) {
@@ -104,5 +125,6 @@ final class DappWebViewController {
         #endif
     }
 
+    private static let crashReloadInterval = Duration.seconds(10)
     private static let externallyOpenableSchemes: Set<String> = ["http", "https"]
 }

@@ -54,7 +54,7 @@ struct DappRequestSheet: View {
 private extension DappRequestSheet {
     @ViewBuilder
     var connectSheet: some View {
-        if isPhone {
+        if isIOS {
             Form {
                 ParameterSection {
                     siteRow

@@ -73,7 +73,7 @@ struct BrowserDappDetailsView: View {
                 namespace: namespace,
                 selection: grantBinding(namespace, choices: choices)
             )
-            .fixedSize(horizontal: !isPhone, vertical: false)
+            .fixedSize(horizontal: !isIOS, vertical: false)
         }
     }
 

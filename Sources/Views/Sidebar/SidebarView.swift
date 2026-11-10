@@ -141,7 +141,7 @@ extension SidebarView: View {
                     makeKeyStoreSection(keyStore, accounts: accountsByKeyStore[keyStore.id, default: []])
                 }
 
-                if isPhone, isListEditing, orderedKeyStores.last?.isWatchOnly != true {
+                if isIOS, isListEditing, orderedKeyStores.last?.isWatchOnly != true {
                     emptyWatchOnlySection
                 }
             } else {
@@ -164,7 +164,7 @@ extension SidebarView: View {
                 .frame(maxWidth: .infinity)
             }
 
-            if !keyStores.isEmpty {
+            if !keyStores.isEmpty, !isIOS || !allAccounts.isEmpty {
                 ConnectedDappsSidebarSection(
                     .sidebarConnectedDapps,
                     hasAccounts: !allAccounts.isEmpty,
@@ -225,11 +225,11 @@ extension SidebarView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(.commonDone) {
-                        isListEditing = false
+                    if isPhone {
+                        doneButton.buttonStyle(.borderedProminent)
+                    } else {
+                        doneButton
                     }
-                    .buttonStyle(.borderedProminent)
-                    .fontWeight(.semibold)
                 }
 
                 ToolbarItem(placement: .bottomBar) {
@@ -327,6 +327,13 @@ extension SidebarView: View {
 // MARK: - Subviews
 
 private extension SidebarView {
+    var doneButton: some View {
+        Button(.commonDone) {
+            isListEditing = false
+        }
+        .fontWeight(.semibold)
+    }
+
     var addKeyMenuItem: some View {
         Button {
             presentSheet?(.addKeyStore)
@@ -428,7 +435,7 @@ private extension SidebarView {
 
     @MainActor @ViewBuilder
     func makeAccountItem(_ account: AccountModel) -> some View {
-        if isPhone {
+        if isPhone || isListEditing {
             KeyStoreAccountRow(account: account, isEditing: isListEditing) {
                 if let account = try? Account(model: account) {
                     deletingAccount = account
@@ -527,7 +534,7 @@ private extension SidebarView {
                 makeAccountItem(account)
             }
 
-            if isPhone, isListEditing {
+            if isIOS, isListEditing {
                 EditModeButton(
                     kind: .add,
                     accessibilityLabel: .sidebarAddAccountRow,
@@ -571,14 +578,14 @@ private extension SidebarView {
             .sheetSource(watchOnlyKeyStore.map(addAccountSourceId) ?? PresentedSheet.addWatchOnlyAccount.id)
         } header: {
             Text(.sidebarWatchOnlyAccounts)
-                .style(.title, foreground: .phoneLabel)
+                .style(isPhone ? .title : nil, foreground: isPhone ? .phoneLabel : .sidebarLabel)
         }
     }
 
     @MainActor
     func makeKeyStoreTitle(_ keyStore: KeyStoreModel) -> some View {
-        HStack(spacing: isPhone ? 12 : 4) {
-            if isPhone, isListEditing, !keyStore.isWatchOnly {
+        HStack(spacing: isPhone || isListEditing ? 12 : 4) {
+            if isIOS, isListEditing, !keyStore.isWatchOnly {
                 EditModeButton(kind: .remove, accessibilityLabel: .commonRemove) {
                     if let keyStore = try? KeyStore(model: keyStore) {
                         deletingKeyStore = keyStore

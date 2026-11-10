@@ -52,6 +52,10 @@ extension DappWebView.Coordinator: WKNavigationDelegate {
         controller.updateNavigationState()
     }
 
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        controller.webContentProcessDidTerminate()
+    }
+
     /// Keeps in-dApp-domain link clicks navigating inside this WebView;
     /// hands cross-domain links off to the system browser instead of
     /// letting the dApp browser navigate away from the dApp.

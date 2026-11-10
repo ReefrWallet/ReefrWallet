@@ -43,7 +43,7 @@ struct CardanoPoolPicker: View {
                     .accessibilityIdentifier("pools-search-field")
 
                 if isLoading {
-                    if !isPhone {
+                    if !isIOS {
                         ProgressView()
                             .frame(maxWidth: .infinity, minHeight: 120)
                     }
@@ -107,7 +107,7 @@ private extension CardanoPoolPicker {
                         name: pool.name,
                         poolId: pool.poolId
                     ))
-                        .style(isPhone ? .large : .medium, foreground: .primary)
+                        .style(isIOS ? .large : .medium, foreground: .primary)
 
                     Text(.cardanoStakingPoolTerms(
                         CardanoStakingFormat.percent(pool.marginCost),
@@ -135,7 +135,7 @@ private extension CardanoPoolPicker {
     }
 
     func logo(_ pool: CardanoPool) -> some View {
-        let size: CGFloat = isPhone ? 28 : 24
+        let size: CGFloat = isIOS ? 28 : 24
 
         return Text(verbatim: String((pool.ticker ?? pool.name ?? "?").prefix(1)).uppercased())
             .style(.small, foreground: .secondary)

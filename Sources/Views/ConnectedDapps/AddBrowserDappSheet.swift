@@ -21,7 +21,7 @@ struct AddBrowserDappSheet: View {
     private let store = DI.injectOrFail(ConnectedDappStore.self)
 
     var body: some View {
-        if isPhone {
+        if isIOS {
             phoneBody
         } else {
             macBody

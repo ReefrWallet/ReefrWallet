@@ -82,7 +82,7 @@ private extension SuiValidatorPicker {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: validator.name)
-                        .style(isPhone ? .large : .medium, foreground: .primary)
+                        .style(isIOS ? .large : .medium, foreground: .primary)
 
                     Text(.suiStakingCommission(Self.commissionText(validator)))
                         .style(.small, foreground: .secondary)

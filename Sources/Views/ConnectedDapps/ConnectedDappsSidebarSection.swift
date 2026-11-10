@@ -72,7 +72,7 @@ struct ConnectedDappsSidebarSection: View {
         } content: {
             ForEach(browserDapps) { dapp in
                 HStack(spacing: isPhone ? 12 : 8) {
-                    if isPhone, isEditing {
+                    if isIOS, isEditing {
                         EditModeButton(kind: .remove, accessibilityLabel: .commonRemove) {
                             remove(dapp)
                         }
@@ -95,7 +95,7 @@ struct ConnectedDappsSidebarSection: View {
                 .accessibilityIdentifier("sidebar-connected-dapp-\(dapp.host)")
             }
 
-            if isPhone, isEditing {
+            if isIOS, isEditing {
                 EditModeButton(
                     kind: .add,
                     accessibilityLabel: .sidebarAddDappRow,
@@ -109,7 +109,7 @@ struct ConnectedDappsSidebarSection: View {
                 .sheetSource(PresentedSheet.addBrowserDapp.id)
             }
 
-            if let hub = walletConnectHubs.first, !(isPhone && isEditing) {
+            if let hub = walletConnectHubs.first, !(isIOS && isEditing) {
                 HStack(spacing: isPhone ? 12 : 8) {
                     Image("walletConnect16")
                         .style(foreground: .sidebarControl)

@@ -21,7 +21,7 @@ struct DappAccountChoiceView: View {
     @State private var picked: [DappNamespace: DappAccountChoice?] = [:]
 
     var body: some View {
-        if isPhone {
+        if isIOS {
             phoneBody
         } else {
             macBody

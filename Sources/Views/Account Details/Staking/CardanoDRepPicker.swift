@@ -113,7 +113,7 @@ private extension CardanoDRepPicker {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: title)
-                        .style(isPhone ? .large : .medium, foreground: .primary)
+                        .style(isIOS ? .large : .medium, foreground: .primary)
 
                     if let subtitle {
                         Text(verbatim: subtitle)

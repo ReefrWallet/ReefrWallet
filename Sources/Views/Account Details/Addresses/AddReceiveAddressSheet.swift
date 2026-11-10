@@ -39,7 +39,7 @@ struct AddReceiveAddressSheet: View {
         )
 
         Group {
-            if isPhone {
+            if isIOS {
                 form(current)
                     .phoneSheet(
                         .addressesSheetTitlePhone,
