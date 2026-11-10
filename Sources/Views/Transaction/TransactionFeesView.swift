@@ -10,15 +10,6 @@ import BigInt
 import SwiftUI
 import WalletKit
 
-// MARK: - CardanoStakingFeeLines
-
-/// What a Cardano staking transaction deposits and what it pays out beside its fee, in lovelace.
-struct CardanoStakingFeeLines: Equatable {
-    let deposit: BigUInt
-    /// Refund and withdrawn rewards: what the account receives.
-    let refund: BigUInt
-}
-
 // MARK: - TransactionFeesView
 
 /// The "<Chain> Fees" section of ``TransactionSheet``, per the Penpot `Fees` component.
@@ -40,6 +31,7 @@ struct TransactionFeesView {
     var cardanoStaking: CardanoStakingFeeLines?
     /// Not in Penpot: a caution note under the section, e.g. dapp-set fees.
     var warning: String?
+    var ethereumGasLimit: BigUInt?
 
     @Binding var fees: Fees?
 
@@ -107,13 +99,13 @@ private extension TransactionFeesView {
         )
 
         field(String(localized: .transactionFeesMaxGas), text: $aptosMaxGasAmount, id: "transfer-aptos-max-gas-field")
-        ParameterRow(String(localized: .transactionFeesMaxTransactionCost), value: transactionCost)
+        TransactionCostRow(label: .transactionFeesMaxTransactionCost, value: transactionCost)
     }
 
     @ViewBuilder
     var bitcoinFeesForm: some View {
         field(String(localized: .transactionFeesFeeRate), text: $bitcoinFeeRate, id: "transfer-bitcoin-fee-rate-field")
-        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+        TransactionCostRow(value: transactionCost)
     }
 
     @ViewBuilder
@@ -136,7 +128,7 @@ private extension TransactionFeesView {
             }
         }
 
-        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+        TransactionCostRow(value: transactionCost)
     }
 
     @ViewBuilder
@@ -144,7 +136,7 @@ private extension TransactionFeesView {
         ParameterRow(String(localized: .transactionFeesBaseFee), value: ethereumBaseFee)
         field(String(localized: .transactionFeesMaxPriorityFee), text: $ethereumMaxPriorityFee)
         field(String(localized: .transactionFeesMaxFee), text: $ethereumMaxFee)
-        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+        TransactionCostRow(value: transactionCost)
     }
 
     @ViewBuilder
@@ -156,7 +148,7 @@ private extension TransactionFeesView {
             field(String(localized: .transactionFeesComputeUnitLimit), text: $solanaComputeUnitLimit)
         }
 
-        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+        TransactionCostRow(value: transactionCost)
     }
 
     @ViewBuilder
@@ -168,7 +160,7 @@ private extension TransactionFeesView {
             field(String(localized: .transactionFeesGasBudget), text: $suiGasBudget)
         }
 
-        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+        TransactionCostRow(value: transactionCost)
     }
 
     /// Every Tron transaction (transfers, dapp requests, staking) shows what it uses and whether
@@ -205,7 +197,7 @@ private extension TransactionFeesView {
             ParameterRow(String(localized: .transactionFeesNetworkFee), value: "")
         }
 
-        ParameterRow(String(localized: .transactionFeesTransactionCost), value: transactionCost)
+        TransactionCostRow(value: transactionCost)
     }
 
     /// "Covered by your resources (810 available)", or what burning the shortfall costs.
@@ -344,8 +336,10 @@ private extension TransactionFeesView {
     /// formatted USD string. Empty when the estimate or price isn't available
     /// yet (for example, when no configured price source supports the chain).
     var transactionCost: String {
+        let nativeFeeReserve = ethereumGasLimit == nil
+            ? estimatedFees?.nativeFeeReserve : validatedFees?.nativeFeeReserve
         guard
-            let nativeFeeReserve = estimatedFees?.nativeFeeReserve,
+            let nativeFeeReserve,
             let feeAmount = BigUInt(nativeFeeReserve),
             let nativeTokenPriceUSD
         else {
@@ -389,7 +383,8 @@ private extension TransactionFeesView {
         case .evm:
             guard
                 let maxPriorityFee = Gwei.wei(fromGwei: ethereumMaxPriorityFee),
-                let maxFee = Gwei.wei(fromGwei: ethereumMaxFee)
+                let maxFee = Gwei.wei(fromGwei: ethereumMaxFee),
+                maxFee > 0, maxFee.bitWidth <= 256, maxPriorityFee <= maxFee
             else {
                 return nil
             }
@@ -397,7 +392,8 @@ private extension TransactionFeesView {
             return Fees(
                 ethereumBaseFee: estimatedFees?.ethereumBaseFee,
                 ethereumMaxFee: maxFee.description,
-                ethereumMaxPriorityFee: maxPriorityFee.description
+                ethereumMaxPriorityFee: maxPriorityFee.description,
+                nativeFeeReserve: ethereumGasLimit.map { ($0 * maxFee).description }
             )
 
         case .solana:
@@ -434,7 +430,7 @@ private extension TransactionFeesView {
                 return Fees()
             }
 
-            guard UInt64(tronFeeLimit) != nil else {
+            guard let limit = UInt64(tronFeeLimit), limit <= UInt64(Int64.max) else {
                 return nil
             }
 

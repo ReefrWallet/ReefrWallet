@@ -248,8 +248,12 @@ private extension TronStakingSheet {
                     .accessibilityIdentifier("staking-votes-\(representative.id)")
 
                 if let apr = representative.apr {
-                    Text(.tronStakingApr("\(apr.formatted(.number.precision(.fractionLength(0...2))))%"))
-                        .style(.small, foreground: .secondary)
+                    Text(
+                        .tronStakingApr(
+                            (apr / 100).formatted(.percent.precision(.fractionLength(0...2)))
+                        )
+                    )
+                    .style(.small, foreground: .secondary)
                 }
             }
         }

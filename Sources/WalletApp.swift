@@ -32,7 +32,6 @@ import WalletKit
         let syncService = transactionSyncService!
         let tokenIdentityScheduler = DI.injectOrFail(TokenIdentityScheduler.self)
         let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
-        let approvalService = DI.injectOrFail(ApprovalService.self)
         Task {
             await Self.processPostStartupOptions(
                 accountService: accountService,
@@ -55,7 +54,7 @@ import WalletKit
 #endif
 
             await syncService.startAll()
-            await approvalService.refreshAll()
+            await AccountRefresh.enqueueAllApprovals()
         }
     }
 

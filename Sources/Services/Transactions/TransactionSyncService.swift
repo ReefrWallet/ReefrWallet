@@ -13,6 +13,9 @@ import WalletKit
 /// cursors: the descending task must never jump back to a newer head after an
 /// interruption, while the ascending task closes the gap to the live head.
 actor TransactionSyncService {
+    static let idlePollInterval = Duration.seconds(60)
+    static let idlePollSpacing = Duration.seconds(2)
+
     enum Track {
         case descending
         case ascending
@@ -22,6 +25,7 @@ actor TransactionSyncService {
     private let clientProvider: BlockchainClientProvider
     private let databaseService: DatabaseService
     private var nextBackfillWrite = ContinuousClock.now
+    private var nextIdlePoll = ContinuousClock.now
     private var tasks: [PersistentIdentifier: Task<Void, Never>] = [:]
     private let transactionHistorySources: [any TransactionHistorySource]
 
@@ -224,6 +228,14 @@ private extension TransactionSyncService {
         try await Task.sleep(until: slot, clock: .continuous)
     }
 
+    func waitForIdlePollSlot() async throws {
+        try await Task.sleep(for: Self.idlePollInterval)
+
+        let slot = max(nextIdlePoll, .now)
+        nextIdlePoll = slot + Self.idlePollSpacing
+        try await Task.sleep(until: slot, clock: .continuous)
+    }
+
     func maintainForwardSync(account: Account, client: any BlockchainClientProtocol) async throws {
         var hasRefreshedAllBalances = false
 
@@ -248,10 +260,9 @@ private extension TransactionSyncService {
             }
 
             // Standard HTTP JSON-RPC nodes are not guaranteed to expose
-            // WebSocket pub-sub. Repeating the forward range scan is the
-            // safe fallback; `transactionSubscription` replaces this wait
-            // with an immediate node-head event.
-            try await Task.sleep(for: .seconds(10))
+            // WebSocket pub-sub. Space fallback polls across accounts so a
+            // quiet wallet does not wake every client and SwiftData at once.
+            try await waitForIdlePollSlot()
         }
     }
 
@@ -499,7 +510,8 @@ private extension TransactionSyncService {
         try await processTokenTransfers(page.transactions, account: account, client: client)
 
         let id = try accountId(account)
-        var state = try await databaseService.transactionSyncState(accountId: id)
+        let storedState = try await databaseService.transactionSyncState(accountId: id)
+        var state = storedState
 
         switch track {
         case .descending:
@@ -524,6 +536,11 @@ private extension TransactionSyncService {
         }
 
         state.lastError = nil
+
+        guard !page.transactions.isEmpty || state != storedState else {
+            return
+        }
+
         // One save() covers both the transaction rows and the sync cursor —
         // a backfill page used to cost two separate write transactions (and
         // two main-thread @Query merges) for this.
@@ -537,7 +554,7 @@ private extension TransactionSyncService {
         // Approvals come from the account's own transactions; a new one may grant or revoke.
         if track == .ascending, account.blockchain.supportsApprovals,
            page.transactions.contains(where: { $0.sender?.caseInsensitiveCompare(account.address) == .orderedSame }) {
-            DI.injectOrFail(ApprovalService.self).enqueueRefresh(account)
+            AccountRefresh.enqueueApprovals(account)
         }
     }
 

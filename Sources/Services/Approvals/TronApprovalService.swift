@@ -17,17 +17,27 @@ import WalletKit
 /// (ADR-048). The scan cursor is the newest scanned `block_timestamp`, in milliseconds.
 final class TronApprovalService: @unchecked Sendable {
     private static let approveSelector = "095ea7b3"
-    private static let feeLimit = 100_000_000
+    private static let feeLimit: UInt64 = 100_000_000
     private static let pageSize = 200
     private static let receiptPollInterval = Duration.seconds(3)
     private static let receiptPollLimit = 40
 
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
-    private lazy var transactionService = DI.injectOrFail(TransactionService.self)
     private let databaseService: DatabaseService
+    private let refreshQueue = ApprovalRefreshQueue()
 
-    init(databaseService: DatabaseService) {
-        self.databaseService = databaseService
+    init(databaseService: DatabaseService? = nil) {
+        self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
+    }
+
+    func enqueueRefresh(_ account: Account) {
+        guard case .tron = account.blockchain else {
+            return
+        }
+
+        refreshQueue.enqueue(account) { [self] account in
+            try await updateApprovals(account)
+        }
     }
 
     /// Re-reads `account`'s approvals: new `approve` calls since the last scan are merged with
@@ -93,41 +103,43 @@ final class TronApprovalService: @unchecked Sendable {
         )
     }
 
-    /// Broadcasts `approve(spender, 0)`, waits for it to succeed and forgets the approval;
-    /// returns the transaction hash.
-    func revoke(_ approval: TokenApproval, account: Account) async throws -> String {
-        guard let tokenAddress = approval.token.address else {
+    func prepareRevoke(_ approval: TokenApproval, account: Account) async throws -> PreparedApprovalRevoke {
+        let client = try clientProvider.tronClient(for: account)
+        let raw = try await buildRevoke(approval, account: account, client: client, feeLimit: Self.feeLimit)
+        let fee = try await client.estimateFee(for: raw)
+        let fees = Fees(nativeFeeReserve: String(fee.burnedSun), tronFee: fee, tronFeeLimit: String(Self.feeLimit))
+        return PreparedApprovalRevoke(approval: approval, fees: fees, transaction: .tron(raw))
+    }
+
+    func submitRevoke(
+        _ prepared: PreparedApprovalRevoke,
+        account: Account,
+        fees: Fees,
+        onSending: @MainActor @Sendable () -> Void
+    ) async throws {
+        guard case let .tron(quoted) = prepared.transaction,
+              let feeLimit = UInt64(fees.tronFeeLimit ?? String(Self.feeLimit)) else {
             throw ReefrError.invalidData
         }
 
         let client = try clientProvider.tronClient(for: account)
-        let sender = try TronAddress(string: account.address)
-        let spender = try TronAddress(string: approval.spender)
-
-        let response = try await post(client, "wallet/triggersmartcontract", [
-            "contract_address": tokenAddress,
-            "fee_limit": Self.feeLimit,
-            "function_selector": "approve(address,uint256)",
-            "owner_address": sender.string,
-            "parameter": Self.word(spender) + String(repeating: "0", count: 64),
-            "visible": true
-        ])
-
-        // The node nests the transaction under `transaction`.
-        let transaction = response["transaction"] ?? response
-
-        guard transaction["raw_data_hex"] != nil else {
-            throw TronApprovalError.api("The node did not build the revoke transaction")
+        let transaction = if feeLimit == quoted.feeLimit {
+            quoted
+        } else {
+            try await buildRevoke(prepared.approval, account: account, client: client, feeLimit: feeLimit)
         }
 
-        let request = try transaction.encoded()
+        let transactionService = DI.injectOrFail(TransactionService.self)
+        try checkExpiration(transaction)
+
+        let request = try transaction.signingEnvelope()
         let signature = try await transactionService.signTransaction(request, account: account)
+        try checkExpiration(transaction)
+
+        await onSending()
         let hash = try await transactionService.sendTransaction(request, signature, account: account)
-
         try await waitForSuccess(hash, client: client)
-        try await databaseService.deleteApproval(id: approval.id)
-
-        return hash
+        try await databaseService.deleteApproval(id: prepared.approval.id)
     }
 }
 
@@ -155,6 +167,59 @@ private extension TronApprovalService {
         }
 
         return value
+    }
+
+    func buildRevoke(
+        _ approval: TokenApproval,
+        account: Account,
+        client: TronClient,
+        feeLimit: UInt64
+    ) async throws -> TronRawTransaction {
+        guard feeLimit <= UInt64(Int64.max) else {
+            throw ReefrError.invalidData
+        }
+
+        guard let tokenAddress = approval.token.address else {
+            throw ReefrError.invalidData
+        }
+
+        let sender = try TronAddress(string: account.address)
+        let spender = try TronAddress(string: approval.spender)
+        let token = try TronAddress(string: tokenAddress)
+        let parameter = Self.word(spender) + String(repeating: "0", count: 64)
+
+        let response = try await post(client, "wallet/triggersmartcontract", [
+            "contract_address": tokenAddress,
+            "fee_limit": feeLimit,
+            "function_selector": "approve(address,uint256)",
+            "owner_address": sender.string,
+            "parameter": parameter,
+            "visible": true
+        ])
+
+        // The node nests the transaction under `transaction`.
+        let transaction = response["transaction"] ?? response
+
+        guard transaction["raw_data_hex"] != nil else {
+            throw TronApprovalError.api("The node did not build the revoke transaction")
+        }
+
+        let raw = try TronRawTransaction(envelope: transaction.encoded())
+        guard case let .triggerSmartContract(owner, contract, callValue, data) = raw.contract,
+              owner == sender, contract == token, callValue == 0,
+              (raw.feeLimit ?? 0) == feeLimit, raw.memo == nil,
+              data.map({ String(format: "%02x", $0) }).joined() == Self.approveSelector + parameter
+        else {
+            throw ReefrError.invalidData
+        }
+
+        return raw
+    }
+
+    func checkExpiration(_ transaction: TronRawTransaction) throws {
+        guard Double(transaction.expiration) / 1000 > Date.now.timeIntervalSince1970 else {
+            throw RevokeExpiredError()
+        }
     }
 
     /// The owner's successful `approve` calls with block timestamp ≥ `since` (oldest first),

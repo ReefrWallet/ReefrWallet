@@ -87,7 +87,9 @@ private extension SolanaValidatorPicker {
                         .style(isPhone ? .large : .medium, foreground: .primary)
 
                     if let commission = validator.commission {
-                        Text(.solanaStakingCommission(commission))
+                        Text(.solanaStakingCommission(
+                            (Double(commission) / 100).formatted(.percent.precision(.fractionLength(0...2)))
+                        ))
                             .style(.small, foreground: .secondary)
                     }
                 }
@@ -95,7 +97,9 @@ private extension SolanaValidatorPicker {
                 Spacer()
 
                 if let apy = validator.apy {
-                    Text(.solanaStakingApy("\(apy.formatted(.number.precision(.fractionLength(0...2))))%"))
+                    Text(.solanaStakingApy(
+                        (apy / 100.0).formatted(.percent.precision(.fractionLength(0...2)))
+                    ))
                         .style(.medium, foreground: .primary)
                 }
 

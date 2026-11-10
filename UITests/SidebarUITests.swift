@@ -65,3 +65,11 @@ final class SidebarUITests: XCTestCase {
         XCTAssertFalse(deletedAccount.exists)
     }
 }
+
+private extension XCUIApplication {
+    func firstDescendant(withIdentifier identifier: String) -> XCUIElement {
+        descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .firstMatch
+    }
+}

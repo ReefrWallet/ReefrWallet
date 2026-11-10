@@ -46,36 +46,35 @@ struct AccountTransactionsView: View {
                 }
             }
 
-        if visibleRows.isEmpty, !pages.isLoaded || (isSearching && pages.hasMore) {
-            ProgressView()
-        } else if pages.rows.isEmpty {
-            AccountEmptyRow(title: .transactionsNoTransactions)
-                .accessibilityIdentifier("account-no-transactions")
-        } else {
+        if !visibleRows.isEmpty {
             ForEach(visibleRows) { model in
                 TransactionRow(model: model)
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     .onAppear { loadMore(near: model.id) }
             }
+        } else if pages.isLoaded, pages.rows.isEmpty {
+            AccountEmptyRow(title: .transactionsNoTransactions)
+                .accessibilityIdentifier("account-no-transactions")
         }
         #else
-        VStack {
-            Text(transactionCountText)
-                .accessibilityIdentifier("account-transactions-count")
-                .accessibilityHidden(totalTransactionCount == nil)
-                .style(.mediumHeader, foreground: .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading)
-
+        Group {
             if !pages.isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Color.clear
             } else if pages.rows.isEmpty {
                 EmptyStateView(.transactionsNoTransactions)
                     .accessibilityIdentifier("account-no-transactions")
             } else {
                 TransactionsTable(rows: visibleRows, schema: presenter.schema, onRowAppear: loadMore)
             }
+        }
+        .statusBar(edge: .top) {
+            Text(transactionCountText)
+                .accessibilityIdentifier("account-transactions-count")
+                .accessibilityHidden(totalTransactionCount == nil)
+                .style(.mediumHeader, foreground: .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading)
+                .padding(.bottom, 8)
         }
         .task { await observeTransactions() }
         #endif

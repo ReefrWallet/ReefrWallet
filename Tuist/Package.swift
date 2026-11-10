@@ -7,7 +7,7 @@ import PackageDescription
     let packageSettings = PackageSettings(
         baseSettings: .settings(base: [
             "ENABLE_MODULE_VERIFIER": true,
-            "ENABLE_USER_SCRIPT_SANDBOXING": false,
+            "ENABLE_USER_SCRIPT_SANDBOXING": true,
             "IPHONEOS_DEPLOYMENT_TARGET": "18.0",
             "MACOSX_DEPLOYMENT_TARGET": "15.0",
             "OTHER_LIBTOOLFLAGS": "-no_warning_for_no_symbols",
@@ -18,6 +18,10 @@ import PackageDescription
 
 let package = Package(
     name: "ReefrWallet",
+    platforms: [
+        .iOS(.v18),
+        .macOS(.v15)
+    ],
     dependencies: [
         .package(url: "https://github.com/Moya/Moya", from: "15.0.0"),
         .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver", from: "2.1.0"),

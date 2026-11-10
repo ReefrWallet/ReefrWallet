@@ -57,3 +57,60 @@ extension Color {
 #endif
     }
 }
+
+#if os(macOS)
+extension View {
+    /// Status bar with the toolbar's scroll edge effect on macOS 26+.
+    /// Content under a top bar grows transparent toward the top edge, hiding the container's hard edge.
+    func statusBar(
+        edge: VerticalEdge = .bottom,
+        background: Color = Color(nsColor: .windowBackgroundColor),
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        modifier(StatusBarModifier(background: background, bar: content(), edge: edge))
+    }
+}
+
+private struct StatusBarModifier<Bar: View>: ViewModifier {
+    let background: Color
+    let bar: Bar
+    let edge: VerticalEdge
+
+    @State private var barHeight: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .mask {
+                    if edge == .top {
+                        topFadeMask
+                            .ignoresSafeArea()
+                    } else {
+                        Color.black
+                            .ignoresSafeArea()
+                    }
+                }
+                .safeAreaBar(edge: edge, spacing: 0) {
+                    bar
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
+                }
+                .scrollEdgeEffectStyle(.soft, for: edge == .top ? .top : .bottom)
+        } else {
+            content
+                .safeAreaInset(edge: edge, spacing: 0) {
+                    bar
+                        .background(background)
+                }
+        }
+    }
+
+    private var topFadeMask: some View {
+        VStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                .frame(height: barHeight)
+
+            Color.black
+        }
+    }
+}
+#endif

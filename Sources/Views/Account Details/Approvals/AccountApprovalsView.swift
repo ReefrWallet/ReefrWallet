@@ -11,98 +11,203 @@ import SwiftUI
 import WalletKit
 
 struct AccountApprovalsView: View {
-    let account: Account
-    /// Revoking signs, so watch-only accounts see the approvals without the means to select them.
+    @Bindable var model: AccountApprovalsModel
+
     let canSign: Bool
-    let searchText: String
-
-    @State private var errorMessage: String?
-    @State private var isRevoking = false
-    @State private var isSelectingAll = false
-    @State private var pages = AccountPages<TokenApproval>()
-    @State private var selection: Set<TokenApproval.ID> = []
-
-    private let databaseService = DI.injectOrFail(DatabaseService.self)
-    private let service = DI.injectOrFail(ApprovalService.self)
-
-    init(_ account: Account, canSign: Bool, searchText: String = "") {
-        self.account = account
-        self.canSign = canSign
-        self.searchText = searchText
-    }
+    var searchText = ""
 
     var body: some View {
-        let approvals = pages.rows.filter { $0.matches(searchText) }
+        let approvals = model.visibleApprovals(matching: searchText)
 
         #if os(iOS)
-        alerting(AccountCountLabel(text: String(localized: .approvalsApprovalCount(approvals.count))))
-            .task { await observeApprovals() }
-            .task(id: isSearching && pages.isLoaded) {
-                if isSearching, pages.isLoaded {
-                    await loadRemaining()
+        let showsCount = model.pages.isLoaded
+
+        AccountCountLabel(text: showsCount ? String(localized: .approvalsApprovalCount(approvals.count)) : "")
+            .accessibilityHidden(!showsCount)
+            .task { await model.observeApprovals() }
+            .task(id: isSearching && model.pages.isLoaded) {
+                if isSearching, model.pages.isLoaded {
+                    await model.loadRemaining()
                 }
-            }
-            .task(id: isSelectingAll) {
-                if isSelectingAll {
-                    await selectAll()
-                }
-            }
-            .onChange(of: searchText) {
-                isSelectingAll = false
             }
 
-        if !service.supports(account) {
+        if !model.isSupported {
             AccountEmptyRow(title: .approvalsNeedsEtherscanKey)
-        } else if !pages.isLoaded || (approvals.isEmpty && isSearching && pages.hasMore) {
-            ProgressView()
-        } else if pages.rows.isEmpty {
-            AccountEmptyRow(title: .approvalsNoApprovals)
-                .accessibilityIdentifier("account-no-approvals")
-        } else {
+        } else if !approvals.isEmpty {
             ForEach(approvals) { approval in
                 row(approval)
-                    .onAppear { loadMore(near: approval.id) }
+                    .onAppear { model.loadMore(near: approval.id) }
             }
-
-            if canSign {
-                actions(approvals)
-                    .listRowSeparator(.hidden)
-            }
+        } else if model.pages.isLoaded, model.pages.rows.isEmpty {
+            AccountEmptyRow(title: .approvalsNoApprovals)
+                .accessibilityIdentifier("account-no-approvals")
         }
         #else
-        alerting(
-            VStack {
+        content(approvals)
+            .statusBar(edge: .top) {
                 Text(.approvalsApprovalCount(approvals.count))
                     .style(.mediumHeader, foreground: .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-
-                content(approvals)
-
-                if canSign {
-                    actions(approvals)
-                        .padding([.bottom, .horizontal])
-                }
+                    .padding(.bottom, 8)
             }
-        )
-        .task { await observeApprovals() }
-        .task(id: isSelectingAll) {
-            if isSelectingAll {
-                await selectAll()
-            }
-        }
+            .task { await model.observeApprovals() }
         #endif
     }
 }
 
-// MARK: - Subviews
-
 private extension AccountApprovalsView {
+    #if os(iOS)
     var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    func fetchPage(offset: Int, limit: Int) async throws -> AccountPage<TokenApproval> {
+    @ViewBuilder
+    func row(_ approval: TokenApproval) -> some View {
+        if canSign {
+            let isSelected = model.selection.contains(approval.id)
+
+            Button {
+                if isSelected {
+                    model.selection.remove(approval.id)
+                } else {
+                    model.selection.insert(approval.id)
+                }
+            } label: {
+                rowContent(approval)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .listRowBackground(isSelected ? Color.accentColor.opacity(0.18) : nil)
+        } else {
+            rowContent(approval)
+        }
+    }
+
+    func rowContent(_ approval: TokenApproval) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(approval.token.symbol)
+                .style(.headline, foreground: .primary)
+
+            Text(approval.spender.shortened(prefix: 8, suffix: 6))
+                .style(.mono, foreground: .secondary)
+
+            LabeledContent {
+                Text(allowanceText(approval))
+                    .style(.callout, foreground: approval.isUnlimited ? .red : .primary)
+            } label: {
+                Text(.approvalsApprovedAmount)
+                    .style(.callout, foreground: .secondary)
+            }
+
+            LabeledContent {
+                Text(approvedAtText(approval))
+                    .style(.callout, foreground: .primary)
+            } label: {
+                Text(.approvalsMyApprovalTime)
+                    .style(.callout, foreground: .secondary)
+            }
+        }
+    }
+    #else
+    @ViewBuilder
+    func content(_ approvals: [TokenApproval]) -> some View {
+        if !model.isSupported {
+            EmptyStateView(.approvalsNeedsEtherscanKey)
+        } else if !model.pages.isLoaded {
+            Color.clear
+        } else if approvals.isEmpty {
+            EmptyStateView(.approvalsNoApprovals)
+                .accessibilityIdentifier("account-no-approvals")
+        } else if canSign {
+            Table(approvals, selection: $model.selection) { approvalColumns }
+        } else {
+            Table(approvals) { approvalColumns }
+        }
+    }
+
+    @TableColumnBuilder<TokenApproval, Never>
+    var approvalColumns: some TableColumnContent<TokenApproval, Never> {
+        TableColumn(.approvalsAsset) { approval in
+            Text(approval.token.name)
+                .style(.medium, foreground: .primary)
+                .help(approval.token.address ?? "")
+                .onAppear { model.loadMore(near: approval.id) }
+        }
+        .width(min: 90, ideal: 150)
+
+        TableColumn(.approvalsApprovedAmount) { approval in
+            Text(allowanceText(approval))
+                .style(.medium, foreground: approval.isUnlimited ? .red : .primary)
+        }
+        .width(min: 100, ideal: 140)
+
+        TableColumn(.approvalsApprovedSpender) { approval in
+            Text(approval.spender.shortened(prefix: 8, suffix: 6))
+                .style(.mono, foreground: .secondary)
+                .help(approval.spender)
+        }
+        .width(min: 120, ideal: 180)
+
+        TableColumn(.approvalsMyApprovalTime) { approval in
+            Text(approvedAtText(approval))
+                .style(.medium, foreground: .secondary)
+                .help(approval.approvedAt?.formatted(date: .complete, time: .standard) ?? "")
+        }
+        .width(min: 90, ideal: 130)
+    }
+    #endif
+
+    func allowanceText(_ approval: TokenApproval) -> String {
+        if approval.isUnlimited {
+            return String(localized: .approvalsUnlimited)
+        }
+
+        let value = Decimal(
+            sign: .plus,
+            exponent: -Int(approval.token.decimalsCount),
+            significand: Decimal(approval.allowance)
+        )
+
+        return value.formatted(.number.precision(.fractionLength(0...4)))
+    }
+
+    func approvedAtText(_ approval: TokenApproval) -> String {
+        approval.approvedAt?.formatted(.relative(presentation: .numeric, unitsStyle: .wide)) ?? "—"
+    }
+}
+
+@MainActor
+@Observable
+final class AccountApprovalsModel {
+    var selection: Set<TokenApproval.ID> = []
+
+    let pages = AccountPages<TokenApproval>()
+
+    private let account: Account
+    private let databaseService = DI.injectOrFail(DatabaseService.self)
+
+    init(_ account: Account) {
+        self.account = account
+    }
+
+    var isSupported: Bool {
+        switch account.blockchain {
+        case .evm:
+            DI.injectOrFail(EthereumApprovalService.self).supports(account)
+        case .tron:
+            true
+        default:
+            false
+        }
+    }
+
+    func visibleApprovals(matching searchText: String) -> [TokenApproval] {
+        pages.rows.filter { $0.matches(searchText) }
+    }
+
+    private func fetchPage(offset: Int, limit: Int) async throws -> AccountPage<TokenApproval> {
         let account = account
         return try await databaseService.modelContainer.readSnapshot { reader in
             try await reader.fetchApprovalPage(account: account, offset: offset, limit: limit)
@@ -129,205 +234,31 @@ private extension AccountApprovalsView {
         }
     }
 
-    func alerting(_ view: some View) -> some View {
-        view.alert(
-            .accountDetailsApprovals,
-            isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil }),
-            presenting: errorMessage
-        ) { _ in
-            Button(.commonOk) {}
-        } message: { message in
-            Text(message)
+    func prepareRevoke(_ approval: TokenApproval) async throws -> PreparedApprovalRevoke {
+        switch account.blockchain {
+        case .evm:
+            try await DI.injectOrFail(EthereumApprovalService.self).prepareRevoke(approval, account: account)
+        case .tron:
+            try await DI.injectOrFail(TronApprovalService.self).prepareRevoke(approval, account: account)
+        default:
+            throw ReefrError.notSupported
         }
     }
 
-    /// Search can hide a selected approval, so only the listed ones are counted or revoked.
-    func actions(_ approvals: [TokenApproval]) -> some View {
-        let selectedCount = approvals.count { selection.contains($0.id) }
-
-        return HStack {
-            Toggle(.approvalsSelectAll, isOn: allSelected(approvals))
-                .disabled(approvals.isEmpty || isSelectingAll)
-
-            Spacer()
-
-            Button(.approvalsRevokeSelected(selectedCount)) {
-                Task {
-                    await revokeSelected(approvals)
-                }
-            }
-            .disabled(selectedCount == 0 || isRevoking || isSelectingAll)
-            .accessibilityIdentifier("approvals-revoke-selected-button")
-        }
-    }
-
-    func row(_ approval: TokenApproval) -> some View {
-        HStack(spacing: 12) {
-            if canSign {
-                Toggle("", isOn: selectionBinding(approval.id))
-                    .labelsHidden()
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(approval.token.symbol)
-                    .style(.headline, foreground: .primary)
-
-                Text(approval.spender.shortened(prefix: 8, suffix: 6))
-                    .style(.mono, foreground: .secondary)
-            }
-
-            Spacer()
-
-            Text(
-                approval.isUnlimited ? String(localized: .approvalsUnlimited) : Self.amountText(
-                    approval.allowance,
-                    approval.token
-                )
-            )
-                .style(.large, foreground: approval.isUnlimited ? .red : .primary)
-        }
-    }
-
-    @ViewBuilder
-    func content(_ approvals: [TokenApproval]) -> some View {
-        if !service.supports(account) {
-            EmptyStateView(.approvalsNeedsEtherscanKey)
-        } else if !pages.isLoaded {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if approvals.isEmpty {
-            EmptyStateView(.approvalsNoApprovals)
-                .accessibilityIdentifier("account-no-approvals")
-        } else {
-            table(approvals)
-        }
-    }
-
-    func table(_ approvals: [TokenApproval]) -> some View {
-        Table(approvals) {
-            if canSign {
-                TableColumn("") { approval in
-                    Toggle("", isOn: selectionBinding(approval.id))
-                        .labelsHidden()
-                }
-                .width(28)
-            }
-
-            TableColumn(.approvalsAsset) { approval in
-                Text(approval.token.name)
-                    .style(.medium, foreground: .primary)
-                    .help(approval.token.address ?? "")
-                    .onAppear { loadMore(near: approval.id) }
-            }
-            .width(min: 90, ideal: 150)
-
-            TableColumn(.commonType) { _ in
-                Text(.commonToken)
-                    .style(.medium, foreground: .primary)
-            }
-            .width(min: 60, ideal: 80)
-
-            TableColumn(.approvalsApprovedAmount) { approval in
-                Text(
-                    approval.isUnlimited ? String(localized: .approvalsUnlimited) : Self.amountText(
-                        approval.allowance,
-                        approval.token
-                    )
-                )
-                    .style(.medium, foreground: approval.isUnlimited ? .red : .primary)
-            }
-            .width(min: 100, ideal: 140)
-
-            TableColumn(.approvalsApprovedSpender) { approval in
-                Text(approval.spender.shortened(prefix: 8, suffix: 6))
-                    .style(.mono, foreground: .secondary)
-                    .help(approval.spender)
-            }
-            .width(min: 120, ideal: 180)
-
-            TableColumn(.approvalsMyApprovalTime) { approval in
-                Text(approval.approvedAt.map(Self.timeText) ?? "—")
-                    .style(.medium, foreground: .secondary)
-                    .help(approval.approvedAt?.formatted(date: .complete, time: .standard) ?? "")
-            }
-            .width(min: 90, ideal: 130)
-        }
-    }
-}
-
-// MARK: - Logic
-
-private extension AccountApprovalsView {
-    static func amountText(_ amount: BigUInt, _ token: Token) -> String {
-        let value = Decimal(sign: .plus, exponent: -Int(token.decimalsCount), significand: Decimal(amount))
-        return value.formatted(.number.precision(.fractionLength(0...4)))
-    }
-
-    static func timeText(_ date: Date) -> String {
-        date.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
-    }
-
-    func allSelected(_ approvals: [TokenApproval]) -> Binding<Bool> {
-        Binding(
-            get: { !pages.hasMore && !approvals.isEmpty && approvals.allSatisfy { selection.contains($0.id) } },
-            set: { isOn in
-                if isOn {
-                    isSelectingAll = true
-                } else {
-                    selection.subtract(approvals.map(\.id))
-                }
-            }
-        )
-    }
-
-    func selectAll() async {
-        defer {
-            isSelectingAll = false
+    func submitRevoke(
+        _ prepared: PreparedApprovalRevoke,
+        fees: Fees,
+        onSending: @MainActor @Sendable () -> Void
+    ) async throws {
+        switch prepared.transaction {
+        case .ethereum:
+            try await DI.injectOrFail(EthereumApprovalService.self)
+                .submitRevoke(prepared, account: account, fees: fees, onSending: onSending)
+        case .tron:
+            try await DI.injectOrFail(TronApprovalService.self)
+                .submitRevoke(prepared, account: account, fees: fees, onSending: onSending)
         }
 
-        do {
-            try await pages.loadRemaining(using: fetchPage)
-            try Task.checkCancellation()
-            selection.formUnion(pages.rows.filter { $0.matches(searchText) }.map(\.id))
-        } catch is CancellationError {
-            return
-        } catch {
-            printError(error)
-        }
-    }
-
-    func selectionBinding(_ id: TokenApproval.ID) -> Binding<Bool> {
-        Binding(
-            get: { selection.contains(id) },
-            set: { isOn in
-                if isOn {
-                    selection.insert(id)
-                } else {
-                    selection.remove(id)
-                }
-            }
-        )
-    }
-
-    /// Sequential: each revoke is its own signature (and hardware prompt).
-    /// Stops at the first failure; broadcast revokes leave the list.
-    func revokeSelected(_ approvals: [TokenApproval]) async {
-        isRevoking = true
-        defer {
-            isRevoking = false
-        }
-
-        for approval in approvals where selection.contains(approval.id) {
-            do {
-                _ = try await service.revoke(approval, account: account)
-                selection.remove(approval.id)
-            } catch {
-                errorMessage = String(
-                    localized: .approvalsRevokeFailed(approval.token.symbol, error.localizedDescription)
-                )
-
-                return
-            }
-        }
+        selection.remove(prepared.approval.id)
     }
 }

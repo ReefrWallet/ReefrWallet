@@ -21,5 +21,6 @@ let workspace =  Workspace(
         "Tuist/Package.swift",
         "Tuist/ProjectDescriptionHelpers/**/*.swift",
         "Workspace.swift"
-    ]
+    ],
+    generationOptions: .options(lastXcodeUpgradeCheck: Version(27, 2, 0))
 )

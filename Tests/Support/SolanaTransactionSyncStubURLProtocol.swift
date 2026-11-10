@@ -54,7 +54,7 @@ final class SolanaTransactionSyncStubURLProtocol: URLProtocol, @unchecked Sendab
 
 private extension SolanaTransactionSyncStubURLProtocol {
     static func response(for request: URLRequest) -> Data {
-        guard let requestBody = request.httpBody,
+        guard let requestBody = requestBody(for: request),
               let rawBody = try? JSONSerialization.jsonObject(with: requestBody),
               let body = rawBody as? [String: Any],
               let method = body["method"] as? String
@@ -104,5 +104,36 @@ private extension SolanaTransactionSyncStubURLProtocol {
 
     static func json(_ string: String) -> Data {
         Data(string.utf8)
+    }
+
+    static func requestBody(for request: URLRequest) -> Data? {
+        if let body = request.httpBody {
+            return body
+        }
+
+        guard let stream = request.httpBodyStream else {
+            return nil
+        }
+
+        stream.open()
+        defer { stream.close() }
+
+        var body = Data()
+        var buffer = [UInt8](repeating: 0, count: 1_024)
+
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count >= 0 else {
+                return nil
+            }
+
+            guard count > 0 else {
+                break
+            }
+
+            body.append(buffer, count: count)
+        }
+
+        return body
     }
 }

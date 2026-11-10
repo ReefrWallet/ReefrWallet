@@ -36,6 +36,7 @@ extension StyledView {
         case largeHeader
         case mediumHeader
         case smallHeader
+        case sidebarHeader
         case large
         case medium
         case small
@@ -114,6 +115,8 @@ private extension View {
             font(.system(size: 12, weight: .regular))
         case .smallHeader:
             font(.system(size: 12, weight: .bold))
+        case .sidebarHeader:
+            font(.system(size: 11, weight: .bold))
         case .caption:
             font(.system(size: 13, weight: .regular))
         case .callout:

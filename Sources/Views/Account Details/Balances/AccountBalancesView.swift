@@ -25,34 +25,29 @@ struct AccountBalancesView: View {
 
     var body: some View {
         #if os(macOS)
-        if isLoaded {
-            AccountBalancesTable(
-                balances: balances,
-                hiddenBalances: hiddenBalances,
-                hasHiddenBalances: hasHiddenBalances,
-                totalUSDValue: totalUSDValue,
-                selection: $selection,
-                onBalanceAppear: onBalanceAppear,
-                onHiddenBalanceAppear: onHiddenBalanceAppear,
-                onOpenHidden: onOpenHidden,
-                onSort: onSort
-            )
-        } else {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        AccountBalancesTable(
+            balances: balances,
+            hiddenBalances: hiddenBalances,
+            hasHiddenBalances: hasHiddenBalances,
+            isLoaded: isLoaded,
+            totalUSDValue: totalUSDValue,
+            selection: $selection,
+            onBalanceAppear: onBalanceAppear,
+            onHiddenBalanceAppear: onHiddenBalanceAppear,
+            onOpenHidden: onOpenHidden,
+            onSort: onSort
+        )
         #else
         let entries = balances.map(BalancesTableEntry.balance)
 
-        AccountCountLabel(text: String(localized: .accountDetailsBalanceCount(entries.count)))
+        AccountCountLabel(text: isLoaded ? String(localized: .accountDetailsBalanceCount(entries.count)) : "")
+            .accessibilityHidden(!isLoaded)
 
-        if !isLoaded {
-            ProgressView()
-        } else if entries.isEmpty {
+        if !entries.isEmpty {
+            rows(entries)
+        } else if isLoaded {
             AccountEmptyRow(title: .commonZeroBalances)
                 .accessibilityIdentifier("account-zero-balances")
-        } else {
-            rows(entries)
         }
         #endif
     }

@@ -53,14 +53,15 @@ private struct SidebarTotalValueFooter: View {
 #if os(macOS)
             HStack {
                 Text(.commonTotalValueLabel)
-                    .style(.smallHeader, foreground: .sidebarLabel)
+                    .style(.sidebarHeader, foreground: .sidebarLabel)
 
                 Spacer()
 
                 Text("\(value.formattedAbbreviated()) US$")
                     .style(.small, foreground: .sidebarLabel)
             }
-            .padding()
+            .padding([.vertical, .trailing])
+            .padding(.leading, 14)
 #else
             HStack(spacing: 4) {
                 Text(.commonTotalValueLabel)
@@ -198,10 +199,9 @@ extension SidebarView: View {
         .environment(\.sidebarHover, hover)
         .scrollContentBackground(.hidden)
         .background(Color.sidebarBackground)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .statusBar(background: .sidebarBackground) {
             if !keyStores.isEmpty {
                 SidebarTotalValueFooter(value: totalValueExcludingWatchOnlyAccounts())
-                    .background(Color.sidebarBackground)
             }
         }
         .task {

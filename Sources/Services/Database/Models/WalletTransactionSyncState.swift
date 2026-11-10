@@ -7,7 +7,7 @@ import Foundation
 import SwiftData
 
 /// Durable, chain-opaque progress state for the two concurrent sync tracks.
-struct WalletTransactionSyncState: Sendable {
+struct WalletTransactionSyncState: Equatable, Sendable {
     let accountId: PersistentIdentifier
     var initialBackfillHead: UInt64?
     var descendingCursor: Data?

@@ -17,10 +17,12 @@ struct AccountDetailsView {
     let account: Account
     let keyStore: KeyStore
 
+    @State private var approvals: AccountApprovalsModel
     @State private var balanceIndex: BalanceListIndex?
     @State private var balancePages = AccountPages<Balance>()
     @State private var hiddenBalancePages = AccountPages<Balance>()
     @State private var nativeBalance: Balance?
+    @State private var revokeReview: ApprovalRevokeReview?
     #if os(iOS)
     @State private var balanceSort = [BalanceListSort(field: .value, ascending: false)]
     #else
@@ -29,6 +31,7 @@ struct AccountDetailsView {
     @State private var isAddAddressPresented = false
     @State private var isCopyWalletAddressButtonActive = false
     @State private var isFiltersPresented = false
+    @State private var isNativeBalanceLoaded = false
     @State private var isTransactionSheetPresented = false
     @State private var searchText = ""
     @State private var staking: AccountStakingModel?
@@ -62,6 +65,7 @@ struct AccountDetailsView {
         self.account = account
         self.keyStore = keyStore
 
+        _approvals = State(initialValue: AccountApprovalsModel(account))
         _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.id == accountId })
         _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
     }
@@ -98,6 +102,9 @@ extension AccountDetailsView: View {
                     .sheetZoom(from: Self.sendSourceId, namespace: sheetNamespace)
             }
         }
+        .sheet(item: $revokeReview) { review in
+            ApprovalRevokeSheet(account: account, isHardware: keyStore.isHardware, model: approvals, review: review)
+        }
         .sheet(isPresented: $isAddAddressPresented) {
             AddReceiveAddressSheet(account)
                 .sheetZoom(from: Self.addAddressSourceId, namespace: sheetNamespace)
@@ -131,13 +138,11 @@ extension AccountDetailsView: View {
                     .tag(AccountTab.balances)
 
                 if account.blockchain.supportsReceiveAddresses {
-                    ScrollView {
-                        AccountAddressesView(account)
-                    }
-                    .tabItem {
-                        Label(.accountDetailsAddresses, systemImage: AccountTab.addresses.systemImage)
-                    }
-                    .tag(AccountTab.addresses)
+                    AccountAddressesView(account)
+                        .tabItem {
+                            Label(.accountDetailsAddresses, systemImage: AccountTab.addresses.systemImage)
+                        }
+                        .tag(AccountTab.addresses)
                 }
 
                 VStack(spacing: 0) {
@@ -153,7 +158,7 @@ extension AccountDetailsView: View {
                 if account.blockchain.supportsApprovals {
                     VStack(spacing: 0) {
                         if tab == .approvals {
-                            AccountApprovalsView(account, canSign: canSign)
+                            AccountApprovalsView(model: approvals, canSign: canSign)
                         }
                     }
                     .tabItem {
@@ -220,7 +225,7 @@ extension AccountDetailsView: View {
             AccountAddressesView(account)
 
         case .approvals:
-            AccountApprovalsView(account, canSign: canSign, searchText: searchText)
+            AccountApprovalsView(model: approvals, canSign: canSign, searchText: searchText)
 
         case .balances:
             balanceContent
@@ -255,6 +260,20 @@ extension AccountDetailsView: View {
                 }
                 .sheetSource(Self.addAddressSourceId)
                 .accessibilityIdentifier("account-add-address-button")
+
+            case .approvals where canSign && approvals.isSupported:
+                let selectedApprovals = approvals.visibleApprovals(matching: searchText).filter {
+                    approvals.selection.contains($0.id)
+                }
+
+                Button {
+                    isSearchFocused = false
+                    revokeReview = ApprovalRevokeReview(approvals: selectedApprovals)
+                } label: {
+                    Label(.approvalsRevokeSelected(selectedApprovals.count), systemImage: "xmark.shield")
+                }
+                .disabled(selectedApprovals.isEmpty)
+                .accessibilityIdentifier("approvals-revoke-selected-button")
 
             case .staking where canSign:
                 if let staking {
@@ -492,11 +511,14 @@ private extension AccountDetailsView {
             .style(isPhone ? .caption : .small, foreground: .secondary)
             .padding(.bottom, 1)
 
-            if let balance {
-                Text("\(balance.decimalAmount.description) \(balance.token.symbol)")
-                    .style(isPhone ? .caption : .small, foreground: .secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            let amount = balance?.decimalAmount ?? .zero
+            let symbol = balance?.token.symbol ?? account.blockchain.nativeToken.symbol
+            // Laid out while loading so the content below doesn't shift.
+            Text("\(amount.description) \(symbol)")
+                .style(isPhone ? .caption : .small, foreground: .secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(isNativeBalanceLoaded ? 1 : 0)
+                .accessibilityHidden(!isNativeBalanceLoaded)
         }
     }
 
@@ -520,6 +542,7 @@ private extension AccountDetailsView {
                 }
 
                 nativeBalance = index.native
+                isNativeBalanceLoaded = true
                 try await balancePages.refresh(using: balanceFetcher(for: index.visible))
                 if hiddenBalancePages.isLoaded {
                     try await hiddenBalancePages.refresh(using: balanceFetcher(for: index.hidden))
@@ -531,6 +554,7 @@ private extension AccountDetailsView {
 
                 try Task.checkCancellation()
                 nativeBalance = balance
+                isNativeBalanceLoaded = true
             }
         }
     }

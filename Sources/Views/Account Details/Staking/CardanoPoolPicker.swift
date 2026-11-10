@@ -28,6 +28,8 @@ struct CardanoPoolPicker: View {
     private let service = DI.injectOrFail(CardanoStakingService.self)
 
     var body: some View {
+        let saturationThreshold = 1.0.formatted(.percent)
+
         TransactionSheet(
             title: String(localized: .cardanoStakingSelectPool),
             confirmTitle: String(localized: .commonDone),
@@ -36,13 +38,15 @@ struct CardanoPoolPicker: View {
             onConfirm: onDone,
             accessibilityIds: .init(confirm: "pools-done-button", title: "pools-sheet-title")
         ) {
-            ParameterSection(footer: failure ?? String(localized: .cardanoStakingNotePools)) {
+            ParameterSection(footer: failure ?? String(localized: .cardanoStakingNotePools(saturationThreshold))) {
                 TextField(String(localized: .accountDetailsSearch), text: $searchText)
                     .accessibilityIdentifier("pools-search-field")
 
                 if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 120)
+                    if !isPhone {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 120)
+                    }
                 } else if visible.isEmpty {
                     Text(.cardanoStakingNoPools)
                         .style(.medium, foreground: .secondary)

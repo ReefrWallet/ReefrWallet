@@ -61,10 +61,6 @@ extension ServiceContainer {
             AccountService()
         }
 
-        register(ApprovalService.self) {
-            ApprovalService()
-        }
-
         register(BalancesService.self) {
             BalancesService()
         }
@@ -94,6 +90,10 @@ extension ServiceContainer {
             }
 
             return databaseService
+        }
+
+        register(EthereumApprovalService.self) {
+            EthereumApprovalService()
         }
 
         register(FeeEstimationService.self) {
@@ -154,6 +154,10 @@ extension ServiceContainer {
 
         register(TransactionService.self) {
             TransactionService()
+        }
+
+        register(TronApprovalService.self) {
+            TronApprovalService()
         }
 
         register(TronStakingPositionLoader.self) {

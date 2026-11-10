@@ -43,25 +43,49 @@ struct AccountAddressesView: View {
             footnote
                 .listRowSeparator(.hidden)
             #else
-            VStack(alignment: .leading, spacing: 8) {
-                Text(.addressesReceiveAddresses)
-                    .style(.mediumHeader, foreground: .primary)
+            Table(rows) {
+                TableColumn(Text(verbatim: "#")) { row in
+                    Text(verbatim: "\(row.index)")
+                        .style(.medium, foreground: .secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .accessibilityIdentifier("receive-address-row-\(row.index)")
+                }
+                .width(min: 24, ideal: 32, max: 48)
 
-                VStack(spacing: 0) {
-                    ForEach(rows) { row in
-                        ReceiveAddressRow(address: row)
+                TableColumn(.addressesAddress) { row in
+                    Text(row.address)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .style(.mono, foreground: .primary)
+                }
 
-                        if row.id != rows.last?.id {
-                            Divider()
-                        }
+                TableColumn(.balancesBalance) { row in
+                    ReceiveAddressAmount(address: row)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .width(min: 80, ideal: 140)
+            }
+            .contextMenu(forSelectionType: ReceiveAddress.ID.self) { ids in
+                if let row = rows.first(where: { ids.contains($0.id) }) {
+                    Button(.accountDetailsCopyAddress) {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(row.address, forType: .string)
                     }
                 }
-                .padding(.horizontal)
-                .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
-
-                footnote
             }
-            .padding(.horizontal)
+            .statusBar(edge: .top) {
+                Text(.addressesReceiveAddresses)
+                    .style(.mediumHeader, foreground: .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading)
+                    .padding(.bottom, 8)
+            }
+            .statusBar {
+                footnote
+                    .padding([.horizontal, .top], 16)
+                    // The macOS tab container adds 3 pt below its content.
+                    .padding(.bottom, 13)
+            }
             #endif
         }
         .task(id: account.id) {
@@ -150,7 +174,7 @@ struct AccountAddressesView: View {
         .listStyle(.plain)
         .modelContainer(container)
     #else
-    return ScrollView { AccountAddressesView(previewAccount) }
+    return AccountAddressesView(previewAccount)
         .modelContainer(container)
     #endif
 }

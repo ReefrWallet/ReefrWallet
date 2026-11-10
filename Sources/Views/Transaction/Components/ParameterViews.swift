@@ -196,6 +196,30 @@ extension ParameterRow where Content == ParameterValue {
     }
 }
 
+// MARK: - TransactionCostRow
+
+struct TransactionCostRow: View {
+    var label: LocalizedStringResource = .transactionFeesTransactionCost
+    let value: String
+
+    var body: some View {
+        ParameterRow(String(localized: label)) {
+            // Keep the value's height and baseline while the USD cost is unavailable.
+            Text(verbatim: value.isEmpty ? "0" : value)
+                #if os(macOS)
+                .style(.medium, foreground: .primary)
+                #endif
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .help(value)
+                .opacity(value.isEmpty ? 0 : 1)
+                .accessibilityHidden(value.isEmpty)
+                .allowsHitTesting(!value.isEmpty)
+        }
+    }
+}
+
 // MARK: - ParameterSection
 
 /// A titled group of rows with an optional footer note: a stack on macOS, a form section on iOS.
@@ -262,7 +286,7 @@ struct ParameterValue: View {
 #if os(macOS)
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .style(.medium)
+                .style(.medium, foreground: .primary)
                 .lineLimit(lineLimit)
                 .truncationMode(.middle)
                 .textSelection(.enabled)

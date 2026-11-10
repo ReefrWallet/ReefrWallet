@@ -72,10 +72,6 @@ private extension CardanoStakingView {
         } else if let error = model.error {
             failure(error)
                 .stakingRow()
-        } else {
-            ProgressView()
-                .frame(maxWidth: .infinity, minHeight: 160)
-                .stakingRow()
         }
     }
 

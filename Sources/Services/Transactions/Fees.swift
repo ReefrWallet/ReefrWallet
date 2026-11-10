@@ -6,6 +6,7 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
+import BigInt
 import WalletKit
 
 struct Fees: Equatable {
@@ -77,4 +78,13 @@ struct Fees: Equatable {
         self.tronFee = tronFee
         self.tronFeeLimit = tronFeeLimit
     }
+}
+
+// MARK: - CardanoStakingFeeLines
+
+/// What a Cardano staking transaction deposits and what it pays out beside its fee, in lovelace.
+struct CardanoStakingFeeLines: Equatable {
+    let deposit: BigUInt
+    /// Refund and withdrawn rewards: what the account receives.
+    let refund: BigUInt
 }

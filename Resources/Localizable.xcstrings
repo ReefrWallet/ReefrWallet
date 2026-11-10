@@ -7,6 +7,16 @@
     "%@" : {
 
     },
+    "%@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        }
+      }
+    },
     "%@ %@" : {
       "localizations" : {
         "en" : {
@@ -752,6 +762,18 @@
         }
       }
     },
+    "addresses.address" : {
+      "comment" : "AccountAddressesView table column",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        }
+      }
+    },
     "addresses.addressIndex" : {
       "comment" : "AddReceiveAddressSheet",
       "extractionState" : "manual",
@@ -939,7 +961,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Approved Amount"
+            "value" : "Allowance"
           }
         }
       }
@@ -975,7 +997,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My Approval Time"
+            "value" : "Approved at"
           }
         }
       }
@@ -992,6 +1014,18 @@
         }
       }
     },
+    "approvals.newAllowance" : {
+      "comment" : "ApprovalRevokeSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Allowance"
+          }
+        }
+      }
+    },
     "approvals.noApprovals" : {
       "comment" : "AccountApprovalsView",
       "extractionState" : "manual",
@@ -1000,6 +1034,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Approvals"
+          }
+        }
+      }
+    },
+    "approvals.revokeConfirm" : {
+      "comment" : "ApprovalRevokeSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke"
+          }
+        }
+      }
+    },
+    "approvals.revokeEstimateFailed" : {
+      "comment" : "ApprovalRevokeSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not estimate the revoke fee: %@"
+          }
+        }
+      }
+    },
+    "approvals.revokeExpired" : {
+      "comment" : "ApprovalRevokeSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The reviewed transaction expired. Close and reopen the review for a new estimate."
           }
         }
       }
@@ -1016,6 +1086,18 @@
         }
       }
     },
+    "approvals.revokeProgress" : {
+      "comment" : "ApprovalRevokeSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "approvals.revokeSelected" : {
       "comment" : "AccountApprovalsView",
       "extractionState" : "manual",
@@ -1028,14 +1110,14 @@
         }
       }
     },
-    "approvals.selectAll" : {
-      "comment" : "AccountApprovalsView",
+    "approvals.revokeTitle" : {
+      "comment" : "ApprovalRevokeSheet",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select All"
+            "value" : "Revoke Approval"
           }
         }
       }
@@ -1839,7 +1921,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pools come from Blockfrost. Margin and fixed cost are taken before rewards. Pools over 100% saturation earn less."
+            "value" : "Pools come from Blockfrost. Margin and fixed cost are taken before rewards. Pools over %@ saturation earn less."
           }
         }
       }
@@ -4010,18 +4092,6 @@
         }
       }
     },
-    "sidebar.deletingAccount" : {
-      "comment" : "Progress HUD shown while deleting an account",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleting account…"
-          }
-        }
-      }
-    },
     "sidebar.deleteItem" : {
       "comment" : "SidebarView",
       "extractionState" : "manual",
@@ -4042,6 +4112,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Confirm Delete Key Store"
+          }
+        }
+      }
+    },
+    "sidebar.deletingAccount" : {
+      "comment" : "Progress HUD shown while deleting an account",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting account…"
           }
         }
       }
@@ -4304,8 +4386,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld%% commission"
+            "state" : "machine_translated",
+            "value" : "%@ commission"
           }
         }
       }
@@ -7912,5 +7994,5 @@
       "comment" : "ConnectAppSheet"
     }
   },
-  "version" : "1.0"
+  "version" : "1.3"
 }

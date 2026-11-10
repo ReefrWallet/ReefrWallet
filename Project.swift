@@ -71,8 +71,9 @@ private let wallet: Target = .target(
     ]),
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Sources",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml Sources",
             name: "SwiftLint",
+            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "Sources/**/*.swift"],
             basedOnDependencyAnalysis: false
         )
     ],
@@ -109,8 +110,9 @@ private let iosTests: Target = .target(
     buildableFolders: [.folder("Tests", exceptions: .exceptions([.exception(excluded: iosTestExclusions)]))],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Tests",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml Tests",
             name: "SwiftLint",
+            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "Tests/**/*.swift"],
             basedOnDependencyAnalysis: false
         )
     ],
@@ -131,8 +133,9 @@ private let iosUITests: Target = .target(
     buildableFolders: ["UITests"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml UITests",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml UITests",
             name: "SwiftLint",
+            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "UITests/**/*.swift"],
             basedOnDependencyAnalysis: false
         )
     ],
@@ -161,8 +164,9 @@ private let macOSTests: Target = .target(
     buildableFolders: ["Tests"],
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml Tests",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml Tests",
             name: "SwiftLint",
+            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "Tests/**/*.swift"],
             basedOnDependencyAnalysis: false
         )
     ],
@@ -187,8 +191,9 @@ private let macOSUITests: Target = .target(
     ]),
     scripts: [
         .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --config .swiftlint.yml UITests",
+            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml UITests",
             name: "SwiftLint",
+            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "UITests/**/*.swift"],
             basedOnDependencyAnalysis: false
         )
     ],
@@ -246,9 +251,10 @@ let project = Project(
         "DEVELOPMENT_TEAM": "V785L3L8JT",
         "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,
-        "ENABLE_USER_SCRIPT_SANDBOXING": false,
+        "ENABLE_USER_SCRIPT_SANDBOXING": true,
         "OTHER_LDFLAGS[sdk=iphone*]": ["-lc++"],
         "OTHER_LDFLAGS[sdk=macosx*]": ["-lc++", libUsbPathFlag, "-lusb-1.0"],
+        "REGISTER_APP_GROUPS": true,
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
     targets: [wallet, macOSTests, iosTests, macOSUITests],

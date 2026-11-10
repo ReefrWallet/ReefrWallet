@@ -3,10 +3,16 @@
 ## General
 - Prefer Xcode mcp tools over make/xcodebuild/xcrun/tuist.
 - Prefer the codebase memory MCP graph tools for code discovery before grep/file search: use `codebase-memory` skill.
-- Respect warnings from compiler, linter and documentation compiler, and fix them when building code.
-- No warnings are allowed in ANY target: app, WalletKit, unit tests and UI tests, macOS and iOS. Any build or test run can produce compiler or SwiftLint warnings, so after EVERY build and test run read the full warning list (`GetBuildLog` with `severity: warning`, no glob or pattern filter, as globs match task names and hide issues) for every scheme you touched, and fix every warning, including pre-existing ones. Cross-check changed files with `mise x swiftlint -- swiftlint lint --quiet --config .swiftlint.yml <files>`. Never report a build as clean without having checked.
 - To examine animations from a screen recording, extract frames with `Scripts/video_frames.swift <video.mp4> [every-n-frames] [out-dir]` and view the PNGs.
 - Be as succinct and concise as possible in decisions logs and documentation you produce, including source code comments. Don't overexplain.
+
+## Build and diagnostics gate
+
+1. **Record what ran.** Use Xcode MCP and verify the workspace, scheme, and destination before running. Cover each affected macOS and iOS target. Explicitly build or run the affected unit and UI test targets alongside the app and WalletKit as applicable.
+2. **After every build, test, or retry, inspect the completed run.** Call `GetBuildLog` with `severity: warning` and no `glob` or `pattern`. It includes errors and warnings. Check the full log returned by the build or test tool if the issue list is empty on failure, missing, or truncated. Check the run status and test results separately.
+3. **After code changes, run SwiftLint directly.** Use `mise x swiftlint -- swiftlint lint --strict --quiet --no-cache --config .swiftlint.yml <paths>` from the repository root. Check the changed Swift files and lint the full source scope of each affected target using the paths and working directory in its build phase. After WalletKit code or documentation changes, run the WalletKit DocC build (`make -C WalletKit docs`), inspect its complete output, and verify the generated documentation.
+4. **Fix and recheck before closing.** Resolve all applicable errors and warnings, including pre-existing ones and those from build scripts, project settings, and dependencies. Fix generated project settings in their source configuration and regenerate before verifying. Repeat the checks that found the issues and make sure the affected targets ran again. Report which checks passed. If any diagnostic remains or a required check is unavailable, name it and leave the gate open. A successful build or an empty log alone is insufficient to report a clean result.
+
 ## Memory & System Constraints
 - You are working in a codebase that uses Architectural Decision Records (ADRs).
 - Your shared memory resides in the `Docs/Decisions/` folder.
@@ -64,4 +70,3 @@ Repeated taps could submit a transfer more than once while the
 initial request was pending. Disable submission until it completes
 so each pending transfer produces a single request.
 ```
-

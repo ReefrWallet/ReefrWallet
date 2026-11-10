@@ -1,5 +1,6 @@
+// swiftlint:disable file_length
 //
-//  ApprovalService.swift
+//  EthereumApprovalService.swift
 //  Reefr Wallet
 //
 //  Created by Andrey Yurkevich on 24.10.26.
@@ -8,15 +9,10 @@
 
 import Alamofire
 import Moya
-import SwiftData
 import WalletKit
 
-// MARK: - ApprovalService
-
-/// Discovers an EVM account's ERC-20 approvals from Etherscan `Approval` logs
-/// (confirmed against the live `allowance`) and revokes them with
-/// `approve(spender, 0)` (ADR-048).
-final class ApprovalService: @unchecked Sendable {
+/// Discovers and revokes EVM token approvals (ADR-048).
+final class EthereumApprovalService: @unchecked Sendable {
     private static let approvalTopic = "0x" + EthereumABI
         .keccak256(Data("Approval(address,address,uint256)".utf8))
         .map { String(format: "%02x", $0) }
@@ -24,94 +20,43 @@ final class ApprovalService: @unchecked Sendable {
 
     private static let logsPageSize = 1000
     private static let maxLogPages = 10
+    private static let rateLimitRetries = 5
+    private static let receiptPollInterval = Duration.seconds(2)
+    private static let receiptPollLimit = 90
     /// Blocks re-read below the last scanned one, so a reorg can't hide a log.
     private static let reorgOverlap: UInt64 = 32
     private static let origin = "https://api.etherscan.io"
 
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
-    private lazy var transactionService = DI.injectOrFail(TransactionService.self)
     private let databaseService: DatabaseService
-    private var pendingRefreshes: Set<PersistentIdentifier> = []
     private let provider: MoyaProvider<ApprovalLogsAPI>
-    private let refreshLock = NSLock()
-    private var runningRefreshes: Set<PersistentIdentifier> = []
-    private let tronService: TronApprovalService
+    private let refreshQueue = ApprovalRefreshQueue()
     private let userDefaults: UserDefaults
 
     init(databaseService: DatabaseService? = nil, userDefaults: UserDefaults = .standard) {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
         self.userDefaults = userDefaults
-        tronService = TronApprovalService(databaseService: self.databaseService)
 
         let policy = RateGateRegistry.shared.makeRetryPolicy(for: Self.origin, provider: .etherscan)
         provider = MoyaProvider<ApprovalLogsAPI>(session: Session(interceptor: policy))
     }
 
-    func supports(_ account: Account) -> Bool {
-        switch account.blockchain {
-        case .tron:
-            true
-        default:
-            EtherscanTransactionHistorySource(userDefaults: userDefaults).supports(account)
-        }
-    }
-
-    /// Refreshes every supported account in the background (app start).
-    func refreshAll() async {
-        do {
-            for account in try await databaseService.fetchAllAccounts() {
-                enqueueRefresh(account)
-            }
-        } catch {
-            printError("Approvals: \(error)")
-        }
-    }
-
-    /// Refreshes `account` in the background; calls during a run coalesce into one follow-up.
     func enqueueRefresh(_ account: Account) {
-        guard let id = account.id, supports(account) else {
+        guard supports(account) else {
             return
         }
 
-        refreshLock.lock()
-        defer {
-            refreshLock.unlock()
-        }
-
-        guard runningRefreshes.insert(id).inserted else {
-            pendingRefreshes.insert(id)
-            return
-        }
-
-        _Concurrency.Task {
-            repeat {
-                refreshLock.withLock {
-                    _ = pendingRefreshes.remove(id)
-                }
-
-                do {
-                    try await updateApprovals(account)
-                } catch {
-                    printError("\(account.name) approvals: \(error)")
-                }
-            } while refreshLock.withLock({ pendingRefreshes.contains(id) })
-
-            refreshLock.withLock {
-                _ = runningRefreshes.remove(id)
-            }
+        refreshQueue.enqueue(account) { [self] account in
+            try await updateApprovals(account)
         }
     }
 
-    /// Re-reads `account`'s active approvals from Etherscan and stores them (ADR-048).
-    ///
-    /// Only blocks since the last scan are queried (a few blocks back, for reorgs); every
-    /// stored approval and every newly logged one is then re-checked against its live
-    /// `allowance`, so allowances that changed without a log (or were spent) are dropped.
-    func updateApprovals(_ account: Account) async throws {
-        if case .tron = account.blockchain {
-            return try await tronService.updateApprovals(account)
-        }
+    func supports(_ account: Account) -> Bool {
+        EtherscanTransactionHistorySource(userDefaults: userDefaults).supports(account)
+    }
 
+    /// Rescans from the reorg window and checks every candidate's live allowance.
+    func updateApprovals(_ account: Account) async throws {
         guard case let .evm(chain) = account.blockchain else {
             throw ReefrError.notSupported
         }
@@ -153,19 +98,13 @@ final class ApprovalService: @unchecked Sendable {
         )
     }
 
-    /// Broadcasts `approve(spender, 0)`, waits for it to confirm and forgets the approval;
-    /// returns the transaction hash. Waiting keeps the next revoke's nonce (read at `latest`)
-    /// from colliding with this still-pending transaction.
-    func revoke(_ approval: TokenApproval, account: Account) async throws -> String {
-        if case .tron = account.blockchain {
-            return try await tronService.revoke(approval, account: account)
-        }
-
+    func prepareRevoke(_ approval: TokenApproval, account: Account) async throws -> PreparedApprovalRevoke {
         guard let tokenAddress = approval.token.address else {
             throw ReefrError.invalidData
         }
 
         let client = try clientProvider.ethereumClient(for: account)
+        let feeService = DI.injectOrFail(FeeEstimationService.self)
         let sender = try EthereumAddress(string: account.address)
         let token = try EthereumAddress(string: tokenAddress)
         let spender = try EthereumAddress(string: approval.spender)
@@ -174,22 +113,72 @@ final class ApprovalService: @unchecked Sendable {
             parameters: [.address(spender), .uint256(0)]
         )
 
-        let request = try await EthereumTransactionBuilder(client: client)
-            .buildCall(sender: sender, to: token, value: 0, data: data, options: [])
+        async let nonce = client.nonce(of: sender)
+        let (gasLimit, rates) = try await feeService.estimateCall(
+            to: token, value: 0, data: data, gasLimit: nil, account: account
+        )
+
+        let transaction = UnsignedEIP1559Transaction(
+            nonce: try await BigUInt(nonce),
+            maxPriorityFeePerGas: rates.maxPriorityFeePerGas,
+            maxFeePerGas: rates.maxFeePerGas,
+            gasLimit: gasLimit,
+            to: token,
+            value: 0,
+            data: data,
+            chainId: client.chainId
+        )
+
+        let fees = feeService.ethereumFees(
+            rates: rates,
+            gasLimit: gasLimit,
+            maxFee: transaction.maxFeePerGas,
+            maxPriorityFee: transaction.maxPriorityFeePerGas
+        )
+
+        return PreparedApprovalRevoke(approval: approval, fees: fees, transaction: .ethereum(transaction))
+    }
+
+    func submitRevoke(
+        _ prepared: PreparedApprovalRevoke,
+        account: Account,
+        fees: Fees,
+        onSending: @MainActor @Sendable () -> Void
+    ) async throws {
+        guard case let .ethereum(transaction) = prepared.transaction,
+              let maxFee = fees.ethereumMaxFee.flatMap({ BigUInt($0) }),
+              let priorityFee = fees.ethereumMaxPriorityFee.flatMap({ BigUInt($0) }),
+              maxFee > 0, maxFee.bitWidth <= 256, priorityFee <= maxFee else {
+            throw ReefrError.invalidData
+        }
+
+        let client = try clientProvider.ethereumClient(for: account)
+        let sender = try EthereumAddress(string: account.address)
+        guard try await BigUInt(client.nonce(of: sender)) == transaction.nonce else {
+            throw RevokeExpiredError()
+        }
+
+        let transactionService = DI.injectOrFail(TransactionService.self)
+        let request = UnsignedEIP1559Transaction(
+            nonce: transaction.nonce,
+            maxPriorityFeePerGas: priorityFee,
+            maxFeePerGas: maxFee,
+            gasLimit: transaction.gasLimit,
+            to: transaction.to,
+            value: transaction.value,
+            data: transaction.data,
+            chainId: transaction.chainId
+        ).signingData
+
         let signature = try await transactionService.signTransaction(request, account: account)
+        await onSending()
         let hash = try await transactionService.sendTransaction(request, signature, account: account)
-
         try await waitForSuccess(hash, client: client)
-        try await databaseService.deleteApproval(id: approval.id)
-
-        return hash
+        try await databaseService.deleteApproval(id: prepared.approval.id)
     }
 }
 
-private extension ApprovalService {
-    static let receiptPollInterval = Duration.seconds(2)
-    static let receiptPollLimit = 90
-
+private extension EthereumApprovalService {
     func waitForSuccess(_ hash: String, client: EthereumRPCClient) async throws {
         let params = try JSONValue.array([.string(hash)]).encoded()
 
@@ -200,7 +189,7 @@ private extension ApprovalService {
 
             if let status = receipt?["status"]?.stringValue {
                 guard status == "0x1" else {
-                    throw ApprovalServiceError.api("Revoke transaction \(hash) reverted")
+                    throw RevokeReceiptError("Revoke transaction \(hash) reverted")
                 }
 
                 return
@@ -209,7 +198,7 @@ private extension ApprovalService {
             try await _Concurrency.Task.sleep(for: Self.receiptPollInterval)
         }
 
-        throw ApprovalServiceError.api("Revoke transaction \(hash) not confirmed yet")
+        throw RevokeReceiptError("Revoke transaction \(hash) not confirmed yet")
     }
 
     /// The candidates whose live `allowance` is still positive.
@@ -272,7 +261,7 @@ private extension ApprovalService {
 
 // MARK: - Chain reads
 
-private extension ApprovalService {
+private extension EthereumApprovalService {
     func blockNumber(_ client: EthereumRPCClient) async throws -> UInt64 {
         let value = try JSONValue(
             data: await client.request(method: "eth_blockNumber", params: JSONValue.array([]).encoded())
@@ -292,7 +281,7 @@ private extension ApprovalService {
 
 // MARK: - Logs
 
-private extension ApprovalService {
+private extension EthereumApprovalService {
     var apiKey: String {
         userDefaults
             .string(forKey: EtherscanTransactionHistorySource.apiKeyDefaultsKey)?
@@ -312,7 +301,7 @@ private extension ApprovalService {
         var page = 1
 
         while start <= to {
-            let response: ApprovalLogsResponse = try await provider.request(
+            let logs = try await logs(
                 .logs(
                     apiKey: apiKey,
                     chainId: chainId,
@@ -323,8 +312,6 @@ private extension ApprovalService {
                     topic0: Self.approvalTopic
                 )
             )
-
-            let logs = try response.result()
 
             for log in logs.compactMap(ApprovalLog.init) {
                 if let existing = latest[log.id], log < existing {
@@ -342,7 +329,7 @@ private extension ApprovalService {
                 page += 1
             } else {
                 guard let newest = logs.compactMap(ApprovalLog.init).map(\.blockNumber).max(), newest > start else {
-                    throw ApprovalServiceError.api("Too many approval logs in block \(start)")
+                    throw EthereumApprovalServiceError.api("Too many approval logs in block \(start)")
                 }
 
                 start = newest
@@ -351,6 +338,27 @@ private extension ApprovalService {
         }
 
         return Array(latest.values)
+    }
+
+    /// Etherscan reports rate limits in-band (HTTP 200), invisible to the interceptor; a
+    /// concurrent history backfill hits them often. Push the shared gate and retry (ADR-026).
+    func logs(_ target: ApprovalLogsAPI) async throws -> [ApprovalLogsResponse.Log] {
+        for attempt in 0..<Self.rateLimitRetries {
+            let response: ApprovalLogsResponse = try await provider.request(target)
+
+            guard response.isRateLimited else {
+                return try response.result()
+            }
+
+            await RateGateRegistry.shared.penalize(
+                origin: Self.origin,
+                provider: .etherscan,
+                by: .seconds(RateLimitRetryPolicy.backoffSeconds(attempt: attempt))
+            )
+        }
+
+        let response: ApprovalLogsResponse = try await provider.request(target)
+        return try response.result()
     }
 }
 
@@ -467,6 +475,10 @@ private struct ApprovalLogsResponse: Decodable {
         case result
     }
 
+    var isRateLimited: Bool {
+        logs == nil && text?.localizedCaseInsensitiveContains("rate limit") == true
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -484,11 +496,11 @@ private struct ApprovalLogsResponse: Decodable {
             return []
         }
 
-        throw ApprovalServiceError.api(text ?? message ?? "Unknown API error")
+        throw EthereumApprovalServiceError.api(text ?? message ?? "Unknown API error")
     }
 }
 
-private enum ApprovalServiceError: LocalizedError {
+private enum EthereumApprovalServiceError: LocalizedError {
     case api(String)
 
     var errorDescription: String? {
@@ -496,5 +508,17 @@ private enum ApprovalServiceError: LocalizedError {
         case let .api(message):
             String(localized: .etherscanError(message))
         }
+    }
+}
+
+private struct RevokeReceiptError: LocalizedError {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+
+    var errorDescription: String? {
+        message
     }
 }

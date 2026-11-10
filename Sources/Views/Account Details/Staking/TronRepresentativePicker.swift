@@ -89,8 +89,12 @@ private extension TronRepresentativePicker {
                 Spacer()
 
                 if let apr = representative.apr {
-                    Text(.tronStakingApr("\(apr.formatted(.number.precision(.fractionLength(0...2))))%"))
-                        .style(.medium, foreground: .secondary)
+                    Text(
+                        .tronStakingApr(
+                            (apr / 100.0).formatted(.percent.precision(.fractionLength(0...2)))
+                        )
+                    )
+                    .style(.medium, foreground: .secondary)
                 }
             }
         }

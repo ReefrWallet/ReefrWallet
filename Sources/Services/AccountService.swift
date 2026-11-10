@@ -277,6 +277,7 @@ final class AccountService {
 
         Task.detached {
             await self.transactionSyncService.start(account)
+            AccountRefresh.enqueueApprovals(account)
 
             do {
                 try await self.balancesService.updateBalances(account)

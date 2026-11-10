@@ -14,6 +14,7 @@ struct AccountBalancesTable: View {
     let balances: [Balance]
     let hiddenBalances: [Balance]
     let hasHiddenBalances: Bool
+    let isLoaded: Bool
     let totalUSDValue: Decimal?
 
     @Binding var selection: String?
@@ -36,28 +37,34 @@ struct AccountBalancesTable: View {
         let entries = balances.map(BalancesTableEntry.balance)
         let hidden = hiddenBalances.map(BalancesTableEntry.balance)
 
-        if !entries.isEmpty || hasHiddenBalances {
+        // Shows the empty table while loading so the pane doesn't blank out on account switch.
+        if !isLoaded || !entries.isEmpty || hasHiddenBalances {
             VStack {
-                HStack(spacing: 4) {
-                    Text(.commonTotalValueLabel)
-                        .style(.mediumHeader, foreground: .primary)
-                        .accessibilityIdentifier("account-total-value-label")
-
-                    if let totalUSDValue {
-                        Text("\(totalUSDValue.formattedAbbreviated()) US$")
-                            .style(.mediumHeader, foreground: .primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .padding(.leading)
-
                 balancesTable(entries: entries, hidden: hidden)
+                    .statusBar(edge: .top) {
+                        HStack(spacing: 4) {
+                            Text(.commonTotalValueLabel)
+                                .style(.mediumHeader, foreground: .primary)
+                                .accessibilityIdentifier("account-total-value-label")
 
-                if let selected = selectedBalance {
-                    detailsBar(selected)
+                            if let totalUSDValue {
+                                Text("\(totalUSDValue.formattedAbbreviated()) US$")
+                                    .style(.mediumHeader, foreground: .primary)
+                            }
+                        }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                }
+                        .padding(.leading)
+                        .padding(.bottom, 8)
+                    }
+                    .statusBar {
+                        if let selected = selectedBalance {
+                            detailsBar(selected)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding([.horizontal, .top], 16)
+                                // The macOS tab container adds 3 pt below its content.
+                                .padding(.bottom, 13)
+                        }
+                    }
             }
             .accessibilityIdentifier("account-balances-content")
         } else {
@@ -208,7 +215,7 @@ private extension AccountBalancesTable {
                     }
             }
         }
-        .style(.medium, foreground: .secondary)
+        .style(.small, foreground: .secondary)
     }
 
     func copyToClipboard(_ string: String) {
