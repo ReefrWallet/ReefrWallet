@@ -46,6 +46,12 @@ actor BalancesService {
     /// The two are independent: the position is read even if a balance request fails,
     /// and a failed position read is only logged, so the balance error is the one thrown.
     func updateBalances(_ account: Account, includeStaking: Bool = true) async throws {
+        try await RequestLane.$current.withValue(.balances) {
+            try await refreshBalances(account, includeStaking: includeStaking)
+        }
+    }
+
+    private func refreshBalances(_ account: Account, includeStaking: Bool) async throws {
         var failure: (any Error)?
 
         do {
@@ -191,7 +197,9 @@ private extension BalancesService {
         let previous = activeFlush
         activeFlush = Task { [weak self] in
             await previous?.value
-            await self?.flushQueue()
+            await RequestLane.$current.withValue(.balances) {
+                await self?.flushQueue()
+            }
         }
     }
 

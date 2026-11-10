@@ -8,27 +8,15 @@
 
 import Foundation
 import Moya
+import WalletKit
 
 public extension MoyaProvider {
+    /// Cancelling the calling task cancels the underlying request.
     func request<T>(_ target: Target) async throws -> T where T: Decodable {
-        try await withCheckedThrowingContinuation { continuation in
-            self.request(target) { result in
-                switch result {
-                case .success(let response):
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try await requestResponse(target)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-                    do {
-                        let decoded = try decoder.decode(T.self, from: response.data)
-                        continuation.resume(returning: decoded)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+        return try decoder.decode(T.self, from: response.data)
     }
 }

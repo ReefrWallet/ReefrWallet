@@ -24,8 +24,7 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
 
-        let policy = RateGateRegistry.shared.makeRetryPolicy(for: Self.origin, provider: .etherscan)
-        provider = MoyaProvider<EtherscanAPI>(session: Session(interceptor: policy))
+        provider = RateGateRegistry.shared.makeProvider(origin: Self.origin, provider: .etherscan)
     }
 
     func supports(_ account: Account) -> Bool {
@@ -169,7 +168,7 @@ private extension EtherscanTransactionHistorySource {
 
         for attempt in 0..<3 {
             do {
-                return try await provider.request(target)
+                return try await decodedAndCounted(target)
             } catch EtherscanAPIError.rateLimited where attempt < 2 {
                 // In-band (HTTP 200), invisible to the interceptor — push
                 // the shared gate directly (ADR-026). No sleep needed: the
@@ -182,7 +181,14 @@ private extension EtherscanTransactionHistorySource {
             }
         }
 
-        return try await provider.request(target)
+        return try await decodedAndCounted(target)
+    }
+
+    /// Quota arrives in-band, so a decoded response is the success signal for the gate.
+    private func decodedAndCounted<T: Decodable>(_ target: EtherscanAPI) async throws -> EtherscanResponse<T> {
+        let response: EtherscanResponse<T> = try await provider.request(target)
+        await RateGateRegistry.shared.reportSuccess(origin: Self.origin, provider: .etherscan)
+        return response
     }
 
     func merge(

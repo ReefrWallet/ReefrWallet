@@ -37,8 +37,7 @@ final class EthereumApprovalService: @unchecked Sendable {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
         self.userDefaults = userDefaults
 
-        let policy = RateGateRegistry.shared.makeRetryPolicy(for: Self.origin, provider: .etherscan)
-        provider = MoyaProvider<ApprovalLogsAPI>(session: Session(interceptor: policy))
+        provider = RateGateRegistry.shared.makeProvider(origin: Self.origin, provider: .etherscan)
     }
 
     func enqueueRefresh(_ account: Account) {
@@ -57,6 +56,12 @@ final class EthereumApprovalService: @unchecked Sendable {
 
     /// Rescans from the reorg window and checks every candidate's live allowance.
     func updateApprovals(_ account: Account) async throws {
+        try await RequestLane.$current.withValue(.approvals) {
+            try await scanApprovals(account)
+        }
+    }
+
+    private func scanApprovals(_ account: Account) async throws {
         guard case let .evm(chain) = account.blockchain else {
             throw ReefrError.notSupported
         }
@@ -347,6 +352,7 @@ private extension EthereumApprovalService {
             let response: ApprovalLogsResponse = try await provider.request(target)
 
             guard response.isRateLimited else {
+                await RateGateRegistry.shared.reportSuccess(origin: Self.origin, provider: .etherscan)
                 return try response.result()
             }
 
@@ -358,6 +364,11 @@ private extension EthereumApprovalService {
         }
 
         let response: ApprovalLogsResponse = try await provider.request(target)
+
+        if !response.isRateLimited {
+            await RateGateRegistry.shared.reportSuccess(origin: Self.origin, provider: .etherscan)
+        }
+
         return try response.result()
     }
 }

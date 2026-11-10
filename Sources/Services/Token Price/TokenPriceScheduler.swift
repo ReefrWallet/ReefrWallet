@@ -1,4 +1,5 @@
 import Foundation
+import WalletKit
 
 /// Keeps account-relevant token prices fresh. Prices all due tokens, oldest price first, in batched
 /// requests so rate-limited public sources stay within quota (ADR-047).
@@ -41,7 +42,9 @@ actor TokenPriceScheduler {
         printDebug("Starting periodic token price updates")
 
         task = Task(priority: .utility) { [weak self] in
-            await self?.run()
+            await RequestLane.$current.withValue(.balances) {
+                await self?.run()
+            }
         }
     }
 

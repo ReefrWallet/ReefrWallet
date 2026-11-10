@@ -73,7 +73,12 @@ actor StakingStateService: StakingRefreshing {
             return try await running.value
         }
 
-        let task = Task { try await loader.load(account, accountId: accountId) }
+        let task = Task {
+            try await RequestLane.$current.withValue(.balances) {
+                try await loader.load(account, accountId: accountId)
+            }
+        }
+
         inFlight[accountId] = task
         defer { clear(task, accountId: accountId) }
 

@@ -43,6 +43,12 @@ final class TronApprovalService: @unchecked Sendable {
     /// Re-reads `account`'s approvals: new `approve` calls since the last scan are merged with
     /// the stored ones, and each is re-checked against its live `allowance`.
     func updateApprovals(_ account: Account) async throws {
+        try await RequestLane.$current.withValue(.approvals) {
+            try await scanApprovals(account)
+        }
+    }
+
+    private func scanApprovals(_ account: Account) async throws {
         let client = try clientProvider.tronClient(for: account)
         let owner = try TronAddress(string: account.address)
         let scanKey = ApprovalScanState.allTokensKey

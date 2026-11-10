@@ -1,4 +1,5 @@
 import Foundation
+import WalletKit
 
 /// Keeps token identities and images current, parallel to ``TokenPriceScheduler``. Identification
 /// never pauses for rate limits, since the listing backs off on its own and local tables need no
@@ -30,8 +31,10 @@ actor TokenIdentityScheduler {
         printDebug("Starting periodic token identification")
 
         task = Task(priority: .utility) { [weak self] in
-            await self?.service.resetRetriesIfConfigurationChanged()
-            await self?.run()
+            await RequestLane.$current.withValue(.balances) {
+                await self?.service.resetRetriesIfConfigurationChanged()
+                await self?.run()
+            }
         }
     }
 

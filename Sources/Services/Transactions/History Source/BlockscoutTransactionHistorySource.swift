@@ -6,12 +6,14 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
     private static let maxForwardPages = 20
 
     private let apiBaseURLs: [UInt64: URL]
+    private let sessionConfiguration: URLSessionConfiguration
 
     var providesForwardHistory: Bool {
         true
     }
 
-    init(apiBaseURLs: [UInt64: URL] = [:]) {
+    init(apiBaseURLs: [UInt64: URL] = [:], sessionConfiguration: URLSessionConfiguration = .default) {
+        self.sessionConfiguration = sessionConfiguration
         let defaultAPIBaseURLs = [
             UInt64(1): URL(string: "https://eth.blockscout.com/api/v2")!,
             UInt64(42161): URL(string: "https://arbitrum.blockscout.com/api/v2")!,
@@ -44,25 +46,41 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
             return try await forwardHistory(account: account, apiBaseURL: apiBaseURL, request: request)
         }
 
-        let pagination = try request.cursor.map {
-            try JSONDecoder().decode(BlockscoutPageParameters.self, from: $0)
-        }
+        let position = try request.cursor.map(BlockscoutBackfillCursor.init(storedCursor:))
+            ?? BlockscoutBackfillCursor()
 
-        let response: BlockscoutTransactionsResponse = try await provider(for: apiBaseURL).request(
-            .transactions(
-                address: account.address,
-                baseURL: apiBaseURL,
-                pagination: pagination
+        async let transactionPage: BlockscoutTransactionsResponse? = position.transactionsFinished
+            ? nil
+            : provider(for: apiBaseURL).request(
+                .transactions(address: account.address, baseURL: apiBaseURL, pagination: position.transactions)
             )
+
+        // The transactions list omits ERC-20 transfers the account didn't initiate, so its
+        // token transfers are paged alongside it; otherwise a token received before the first
+        // sync would never be discovered.
+        async let transferPage: BlockscoutListResponse<BlockscoutTokenTransfer>? = position.tokenTransfersFinished
+            ? nil
+            : provider(for: apiBaseURL).request(
+                .tokenTransfers(address: account.address, baseURL: apiBaseURL, pagination: position.tokenTransfers)
+            )
+
+        let transactions = try await transactionPage
+        let transfers = try await transferPage
+        let next = BlockscoutBackfillCursor(
+            transactions: transactions?.nextPageParams,
+            transactionsFinished: position.transactionsFinished || transactions?.nextPageParams == nil,
+            tokenTransfers: transfers?.nextPageParams,
+            tokenTransfersFinished: position.tokenTransfersFinished || transfers?.nextPageParams == nil
         )
 
-        let transactions = response.items.map(\.blockchainTransaction)
+        let merged = mergedRecords(transactions: transactions?.items ?? [], transfers: transfers?.items ?? [])
+        let reachedBoundary = next.transactionsFinished && next.tokenTransfersFinished
 
         return BlockchainTransactionPage(
-            transactions: transactions,
-            nextCursor: try response.nextPageParams.map(JSONEncoder().encode),
-            reachedBoundary: response.nextPageParams == nil,
-            head: transactions.map(\.blockHeight).compactMap { $0 }.max()
+            transactions: merged,
+            nextCursor: reachedBoundary ? nil : try JSONEncoder().encode(next),
+            reachedBoundary: reachedBoundary,
+            head: merged.compactMap(\.blockHeight).max()
         )
     }
 }
@@ -90,6 +108,22 @@ private extension BlockscoutTransactionHistorySource {
 
         let transactions = try await nativeItems.filter { (lowerBound...upperBound).contains($0.blockNumber) }
         let transfers = try await tokenItems.filter { (lowerBound...upperBound).contains($0.blockNumber) }
+        let merged = mergedRecords(transactions: transactions, transfers: transfers)
+
+        return BlockchainTransactionPage(
+            transactions: merged,
+            nextCursor: nil,
+            reachedBoundary: true,
+            head: merged.compactMap(\.blockHeight).max()
+        )
+    }
+
+    /// Joins ERC-20 transfers to the transactions that carry them by hash; a transfer
+    /// whose transaction isn't in the list becomes a transaction of its own.
+    func mergedRecords(
+        transactions: [BlockscoutTransaction],
+        transfers: [BlockscoutTokenTransfer]
+    ) -> [BlockchainTransaction] {
         var records = Dictionary(
             transactions.map { ($0.hash, $0.blockchainTransaction) },
             uniquingKeysWith: { first, _ in first }
@@ -121,16 +155,9 @@ private extension BlockscoutTransactionHistorySource {
             }
         }
 
-        let merged = records.values.sorted {
+        return records.values.sorted {
             ($0.blockHeight ?? 0, $0.identifier) < ($1.blockHeight ?? 0, $1.identifier)
         }
-
-        return BlockchainTransactionPage(
-            transactions: merged,
-            nextCursor: nil,
-            reachedBoundary: true,
-            head: merged.compactMap(\.blockHeight).max()
-        )
     }
 
     /// Pages a newest-first Blockscout list until it reaches items older than `lowerBound`.
@@ -173,8 +200,11 @@ private extension BlockscoutTransactionHistorySource {
     /// its own `RateGate` via `RateGateRegistry`'s per-origin keying,
     /// rather than one shared across every chain this source supports.
     func provider(for apiBaseURL: URL) -> MoyaProvider<BlockscoutAPI> {
-        let policy = RateGateRegistry.shared.makeRetryPolicy(for: Self.origin(of: apiBaseURL), provider: .blockscout)
-        return MoyaProvider<BlockscoutAPI>(session: Session(interceptor: policy))
+        RateGateRegistry.shared.makeProvider(
+            origin: Self.origin(of: apiBaseURL),
+            provider: .blockscout,
+            configuration: sessionConfiguration
+        )
     }
 
     static func origin(of url: URL) -> String {
@@ -263,82 +293,36 @@ private struct BlockscoutFee: Codable {
     let value: String?
 }
 
-/// Blockscout's opaque `next_page_params`, echoed back verbatim as query parameters.
-private struct BlockscoutPageParameters: Codable {
-    let values: [String: BlockscoutScalar]
-
-    init(from decoder: Decoder) throws {
-        values = try decoder.singleValueContainer().decode([String: BlockscoutScalar].self)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(values)
-    }
-
-    /// Keys are snake-cased back: the shared decoder converts dictionary keys too.
-    var parameters: [String: Any] {
-        values.reduce(into: [:]) { result, item in
-            guard let value = item.value.queryValue else {
-                return
-            }
-
-            result[item.key.snakeCased] = value
-        }
-    }
-}
-
-private enum BlockscoutScalar: Codable {
-    case bool(Bool)
-    case null
-    case number(Double)
-    case string(String)
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-
-        if container.decodeNil() {
-            self = .null
-        } else if let value = try? container.decode(Bool.self) {
-            self = .bool(value)
-        } else if let value = try? container.decode(Double.self) {
-            self = .number(value)
-        } else {
-            self = .string(try container.decode(String.self))
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-
-        switch self {
-        case let .bool(value):
-            try container.encode(value)
-        case .null:
-            try container.encodeNil()
-        case let .number(value):
-            try container.encode(value)
-        case let .string(value):
-            try container.encode(value)
-        }
-    }
-
-    var queryValue: Any? {
-        switch self {
-        case let .bool(value): value
-        case .null:
-            nil
-        case let .number(value):
-            value.rounded() == value ? Int64(value) as Any : value
-        case let .string(value):
-            value
-        }
-    }
-}
-
 private struct BlockscoutListResponse<Item: Decodable>: Decodable {
     let items: [Item]
     let nextPageParams: BlockscoutPageParameters?
+
+    private enum CodingKeys: String, CodingKey {
+        case items, nextPageParams
+    }
+
+    /// An item that doesn't decode is dropped, not fatal: Blockscout lists the account's own
+    /// pending transactions with a null block number, status and timestamp, and one of those
+    /// must not fail the whole page. It is picked up once mined.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let lossy = try container.decode([BlockscoutLossyItem<Item>].self, forKey: .items)
+        items = lossy.compactMap(\.value)
+
+        if items.count < lossy.count {
+            printDebug("Blockscout: dropped \(lossy.count - items.count) undecodable \(Item.self) item(s)")
+        }
+
+        nextPageParams = try container.decodeIfPresent(BlockscoutPageParameters.self, forKey: .nextPageParams)
+    }
+}
+
+private struct BlockscoutLossyItem<Item: Decodable>: Decodable {
+    let value: Item?
+
+    init(from decoder: Decoder) throws {
+        value = try? Item(from: decoder)
+    }
 }
 
 private struct BlockscoutToken: Codable {
@@ -464,16 +448,4 @@ private extension ISO8601DateFormatter {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
-}
-
-private extension String {
-    var snakeCased: String {
-        reduce(into: "") { result, character in
-            if character.isUppercase {
-                result += "_" + character.lowercased()
-            } else {
-                result.append(character)
-            }
-        }
-    }
 }

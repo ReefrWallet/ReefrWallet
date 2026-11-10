@@ -122,15 +122,35 @@ private let iosTests: Target = .target(
     environmentVariables: testEnvironmentVariables
 )
 
+/// UI tests that need WalletKitTesting or subprocesses, which are macOS-only for now.
+private let iosUITestExclusions: [String] = [
+    "AnvilTransactionHistoryUITests.swift",
+    "BitcoinForwardSyncUITests.swift",
+    "BrowserAccountSelectorUITests.swift",
+    "DappBrowserUITests.swift",
+    "DappConnectionUITests.swift",
+    "EthereumForwardSyncUITests.swift",
+    "LocalDappServer.swift",
+    "RelaunchBalanceSyncUITests.swift",
+    "SolanaForwardSyncUITests.swift",
+    "SolanaStakingUITests.swift",
+    "SuiForwardSyncUITests.swift",
+    "SuiTransactionHistoryUITests.swift",
+    "TronTRXTransferUITests.swift",
+    "TronUSDTTransferUITests.swift",
+    "UniswapConnectionUITests.swift",
+    "WatchOnlySuiAccountUITests.swift"
+]
+
 private let iosUITests: Target = .target(
     name: "ReefrWalletUITests-iOS",
-    destinations: [.mac],
+    destinations: [.iPhone, .iPad],
     product: .uiTests,
     bundleId: "xyz.reefr.wallet.uitests",
     deploymentTargets: .iOS("18.0"),
     infoPlist: .default,
     resources: ["TestVectors/**/*"],
-    buildableFolders: ["UITests"],
+    buildableFolders: [.folder("UITests", exceptions: .exceptions([.exception(excluded: iosUITestExclusions)]))],
     scripts: [
         .post(
             script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml UITests",
@@ -257,7 +277,7 @@ let project = Project(
         "REGISTER_APP_GROUPS": true,
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),
-    targets: [wallet, macOSTests, iosTests, macOSUITests],
+    targets: [wallet, macOSTests, iosTests, iosUITests, macOSUITests],
     schemes: [walletScheme],
     additionalFiles: [
         ".github/**/*",

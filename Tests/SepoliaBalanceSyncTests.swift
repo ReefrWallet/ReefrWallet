@@ -120,11 +120,24 @@ struct SepoliaBalanceSyncTests {
 
             let manualUpdate = BalancesService(databaseService: databaseService)
 
-            for account in scenario.accounts {
-                try await manualUpdate.updateBalances(account)
-            }
+            // Public RPC nodes are load-balanced and can answer from a block behind the
+            // receipt just seen, so an Update right after a transfer may read the old
+            // balance. The button can be pressed again: allow it a few more tries.
+            let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+            var mismatches: [String]
 
-            let mismatches = try await scenario.currentMismatches(expectedTransactions: [])
+            repeat {
+                for account in scenario.accounts {
+                    try await manualUpdate.updateBalances(account)
+                }
+
+                mismatches = try await scenario.currentMismatches(expectedTransactions: [])
+
+                if !mismatches.isEmpty {
+                    try await Task.sleep(for: .seconds(3))
+                }
+            } while !mismatches.isEmpty && ContinuousClock.now < deadline
+
             #expect(mismatches.isEmpty, "Sepolia Update: \(mismatches.joined(separator: "; "))")
         } catch {
             if owesTransferBack {

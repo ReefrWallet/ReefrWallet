@@ -45,12 +45,12 @@ enum PresentedSheet: Identifiable {
 
 // MARK: - Total Value Footer
 
+#if os(macOS)
 private struct SidebarTotalValueFooter: View {
     let value: Decimal?
 
     var body: some View {
         if let value {
-#if os(macOS)
             HStack {
                 Text(.commonTotalValueLabel)
                     .style(.sidebarHeader, foreground: .sidebarLabel)
@@ -62,16 +62,10 @@ private struct SidebarTotalValueFooter: View {
             }
             .padding([.vertical, .trailing])
             .padding(.leading, 14)
-#else
-            HStack(spacing: 4) {
-                Text(.commonTotalValueLabel)
-                Text("\(value.formattedAbbreviated()) US$")
-            }
-            .style(.caption, foreground: .phoneSecondaryLabel)
-#endif
         }
     }
 }
+#endif
 
 // MARK: - SidebarView
 
@@ -176,14 +170,6 @@ extension SidebarView: View {
                     hasAccounts: !allAccounts.isEmpty,
                     isEditing: isListEditing
                 )
-
-#if os(iOS)
-                Section {
-                    EmptyView()
-                } footer: {
-                    SidebarTotalValueFooter(value: totalValueExcludingWatchOnlyAccounts())
-                }
-#endif
             }
         }
         .listStyle(.sidebar)
@@ -208,7 +194,7 @@ extension SidebarView: View {
             await observeAccountValues()
         }
 #else
-        .navigationTitle("")
+        .navigationTitle(totalValueExcludingWatchOnlyAccounts().map { "\($0.formattedAbbreviated()) US$" } ?? "")
         .navigationBarTitleDisplayMode(.large)
         .animation(.default, value: isListEditing)
         .refreshable {

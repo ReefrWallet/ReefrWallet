@@ -309,7 +309,10 @@ private extension SolanaStakingPositionLoader {
         }
 
         reconciling[accountId] = Task {
-            await reconcileAll(account, accountId: accountId)
+            await RequestLane.$current.withValue(.balances) {
+                await reconcileAll(account, accountId: accountId)
+            }
+
             finishReconciling(accountId)
         }
     }

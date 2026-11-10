@@ -137,10 +137,15 @@ private extension TransactionSyncService {
                 return
             }
 
-            async let descending: Void = scanDescending(account: account, client: client)
-            async let ascending: Void = client.isSupported(.transactionSubscription)
-                ? maintainSubscription(account: account, client: client)
-                : maintainForwardSync(account: account, client: client)
+            async let descending: Void = RequestLane.$current.withValue(.backfill) {
+                try await scanDescending(account: account, client: client)
+            }
+
+            async let ascending: Void = RequestLane.$current.withValue(.polling) {
+                try await client.isSupported(.transactionSubscription)
+                    ? maintainSubscription(account: account, client: client)
+                    : maintainForwardSync(account: account, client: client)
+            }
 
             _ = try await (descending, ascending)
         } catch is CancellationError {
@@ -676,15 +681,27 @@ private extension TransactionSyncService {
                 continue
             }
 
-            let token = try await token(
-                address: tokenAddress,
-                effects: tokenEffects,
-                blockchain: account.blockchain,
-                client: client
-            )
+            let resolved: Token
+
+            do {
+                resolved = try await token(
+                    address: tokenAddress,
+                    effects: tokenEffects,
+                    blockchain: account.blockchain,
+                    client: client
+                )
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // A contract whose metadata can't be read (a non-standard or spam token) must not
+                // stall the history page that mentions it. Its transfers are kept; the token is
+                // retried the next time a transfer of it is committed.
+                printError("\(account.name): skipping token \(tokenAddress): \(error)")
+                continue
+            }
 
             try Task.checkCancellation()
-            try await databaseService.insertToken(token, blockchain: account.blockchain)
+            try await databaseService.insertToken(resolved, blockchain: account.blockchain)
         }
     }
 
