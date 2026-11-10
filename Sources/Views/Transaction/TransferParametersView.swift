@@ -125,7 +125,7 @@ private extension TransferParametersView {
     var receiverRow: some View {
         ParameterRow(String(localized: .transferParametersReceiver)) {
             HStack {
-                TextField("", text: $receiverText, prompt: Text(receiverPrompt))
+                TextField("", text: $receiverText, prompt: Text(verbatim: receiverPrompt))
                     .accessibilityIdentifier("transfer-receiver-field")
 
                 Button {
@@ -144,7 +144,7 @@ private extension TransferParametersView {
             VStack(alignment: .leading, spacing: 4) {
                 Picker(selection: $selectedBalanceId) {
                     ForEach(accountBalances, id: \.self) { balance in
-                        Text(balance.token.symbol)
+                        Text(verbatim: balance.token.symbol)
                             .tag(balance.id as PersistentIdentifier?)
                     }
                 } label: {

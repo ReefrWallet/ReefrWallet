@@ -103,7 +103,7 @@ private extension AccountBalancesTable {
                                 .clipShape(Circle())
                         }
 
-                        Text(entry.displayName)
+                        Text(verbatim: entry.displayName)
                     }
                     .style(.medium, foreground: .primary)
                     .accessibilityIdentifier(
@@ -118,7 +118,7 @@ private extension AccountBalancesTable {
                     }
 
                 case .hiddenBalancesTitle:
-                    Text(entry.displayName)
+                    Text(verbatim: entry.displayName)
                         .style(.smallHeader, foreground: .secondary)
                         .accessibilityIdentifier("balances-table-hidden-disclosure-row")
 
@@ -129,14 +129,14 @@ private extension AccountBalancesTable {
             .customizationID("token")
 
             TableColumn(.balancesPrice, value: \.usdPrice) { entry in
-                Text(entry.displayUSDPrice)
+                Text(verbatim: entry.displayUSDPrice)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
             }
             .customizationID("balance")
 
             TableColumn(.balancesBalance, value: \.decimalAmount) { entry in
-                Text(entry.displayAmount)
+                Text(verbatim: entry.displayAmount)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
                     .accessibilityIdentifier(entry.amountAccessibilityIdentifier)
@@ -144,7 +144,7 @@ private extension AccountBalancesTable {
             .customizationID("balance")
 
             TableColumn(.commonUsdValue, value: \.usdValue) { entry in
-                Text(entry.displayUSDValue)
+                Text(verbatim: entry.displayUSDValue)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(.medium, foreground: entry.isIncludedInBalance ? .primary : .secondary)
             }
@@ -200,7 +200,7 @@ private extension AccountBalancesTable {
 
             Text(verbatim: .dot)
 
-            Text(balance.usdValue.map { "\($0.formattedAbbreviated()) US$" } ?? "")
+            Text(verbatim: balance.usdValue.map { "\($0.formattedAbbreviated()) US$" } ?? "")
 
             if balance.token.isNativeToken != true, let address = balance.token.address {
                 Text(verbatim: .dot)

@@ -34,7 +34,7 @@ struct TransactionAccessibilityData: View {
     @ViewBuilder
     private func marker(_ identifier: String, label: String?) -> some View {
         if let label {
-            Text(label)
+            Text(verbatim: label)
                 .foregroundStyle(.clear)
                 .accessibilityIdentifier(identifier)
         }
@@ -46,7 +46,7 @@ struct TransactionAmountText: View {
     let size: StyledView.Size
 
     var body: some View {
-        Text(model.amountText)
+        Text(verbatim: model.amountText)
             .style(size, foreground: model.amountColor)
     }
 }

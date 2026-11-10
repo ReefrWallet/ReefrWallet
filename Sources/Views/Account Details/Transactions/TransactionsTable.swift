@@ -22,7 +22,7 @@ struct TransactionsTable: View {
             .width(Self.statusColumnWidth)
 
             TableColumn(.transactionsTableDate) { model in
-                Text(model.timestamp.map(Self.dateText) ?? "—")
+                Text(verbatim: model.timestamp.map(Self.dateText) ?? "—")
                     .style(Self.textSize, foreground: .secondary)
                     .help(model.timestamp?.formatted(date: .complete, time: .standard) ?? "")
                     .onAppear { onRowAppear(model.id) }
@@ -30,7 +30,7 @@ struct TransactionsTable: View {
             .width(min: 90, ideal: 126)
 
             TableColumn(schema.methodTitle) { model in
-                Text(model.method ?? model.title)
+                Text(verbatim: model.method ?? model.title)
                     .style(Self.textSize, foreground: .primary)
                     .help(model.method ?? model.title)
             }
@@ -40,7 +40,7 @@ struct TransactionsTable: View {
             macColumns
             #else
             TableColumn(.transactionsTableCounterparty) { model in
-                Text(model.subtitle)
+                Text(verbatim: model.subtitle)
                     .truncationMode(.middle)
                     .style(.callout, foreground: .primary)
                     .help(model.subtitle)
@@ -48,7 +48,7 @@ struct TransactionsTable: View {
             .width(min: 120, ideal: 198)
 
             TableColumn(schema.hashTitle) { model in
-                Text(model.identifier.shortened(prefix: 8, suffix: 6))
+                Text(verbatim: model.identifier.shortened(prefix: 8, suffix: 6))
                     .style(.mono, foreground: .secondary)
                     .help(model.identifier)
             }
@@ -63,7 +63,7 @@ struct TransactionsTable: View {
             .width(min: 90, ideal: 140)
 
             TableColumn(schema.feeTitle) { model in
-                Text(model.feeText)
+                Text(verbatim: model.feeText)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .style(Self.monoSize, foreground: Self.feeColor)
                     .help(model.fee == nil ? "" : "\(model.feeText) \(model.feeSymbol)")
@@ -97,21 +97,21 @@ private extension TransactionsTable {
     @TableColumnBuilder<TransactionRowModel, Never>
     var macColumns: some TableColumnContent<TransactionRowModel, Never> {
         TableColumn(schema.hashTitle) { model in
-            Text(model.identifier.shortened(prefix: 8, suffix: 6))
+            Text(verbatim: model.identifier.shortened(prefix: 8, suffix: 6))
                 .style(.smallMono, foreground: .primary)
                 .help(model.identifier)
         }
         .width(min: 90, ideal: 128)
 
         TableColumn(schema.blockTitle) { model in
-            Text(model.blockHeight.map(String.init) ?? "—")
+            Text(verbatim: model.blockHeight.map(String.init) ?? "—")
                 .style(.smallMono, foreground: .primary)
                 .help(model.blockLabel)
         }
         .width(min: 60, ideal: 80)
 
         TableColumn(schema.fromTitle ?? "") { model in
-            Text(model.fromLabel ?? "—")
+            Text(verbatim: model.fromLabel ?? "—")
                 .truncationMode(.middle)
                 .style(.small, foreground: .primary)
                 .help(model.sender ?? model.fromLabel ?? "")
@@ -120,7 +120,7 @@ private extension TransactionsTable {
         .defaultVisibility(schema.fromTitle == nil ? .hidden : .automatic)
 
         TableColumn("") { model in
-            Text(model.direction.rawValue)
+            Text(verbatim: model.direction.rawValue)
                 .frame(maxWidth: .infinity)
                 .style(.small, foreground: model.direction.color)
         }
@@ -128,7 +128,7 @@ private extension TransactionsTable {
         .defaultVisibility(schema.showsDirection ? .automatic : .hidden)
 
         TableColumn(schema.toTitle ?? "") { model in
-            Text(model.toLabel ?? "—")
+            Text(verbatim: model.toLabel ?? "—")
                 .truncationMode(.middle)
                 .style(.small, foreground: .primary)
                 .help(model.recipient ?? model.toLabel ?? "")

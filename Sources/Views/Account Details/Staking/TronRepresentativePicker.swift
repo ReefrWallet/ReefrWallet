@@ -77,10 +77,10 @@ private extension TronRepresentativePicker {
         return Toggle(isOn: Binding(get: { isSelected }, set: { toggle(representative, isOn: $0) })) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(representative.name ?? representative.address.string.shortened(prefix: 6, suffix: 4))
+                    Text(verbatim: representative.name ?? representative.address.string.shortened(prefix: 6, suffix: 4))
                         .style(isPhone ? .large : .medium, foreground: .primary)
 
-                    Text(representative.address.string)
+                    Text(verbatim: representative.address.string)
                         .style(.smallMono, foreground: .secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)

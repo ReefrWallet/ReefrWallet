@@ -50,7 +50,7 @@ private extension KeyStoreDetailsView {
                             .scaledToFit()
                             .frame(width: isPhone ? 28 : 20, height: isPhone ? 28 : 20)
 
-                        Text(row.account.name)
+                        Text(verbatim: row.account.name)
                             .style(isPhone ? .large : .medium, foreground: .primary)
 
                         Spacer()

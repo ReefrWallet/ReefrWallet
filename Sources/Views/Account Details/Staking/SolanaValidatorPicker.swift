@@ -83,7 +83,7 @@ private extension SolanaValidatorPicker {
                 logo(validator)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(validator.name ?? validator.voteAddress.shortened(prefix: 6, suffix: 4))
+                    Text(verbatim: validator.name ?? validator.voteAddress.shortened(prefix: 6, suffix: 4))
                         .style(isPhone ? .large : .medium, foreground: .primary)
 
                     if let commission = validator.commission {
@@ -122,7 +122,7 @@ private extension SolanaValidatorPicker {
         return AsyncImage(url: validator.imageURL) { image in
             image.resizable().scaledToFill()
         } placeholder: {
-            Text(String((validator.name ?? "?").prefix(1)).uppercased())
+            Text(verbatim: String((validator.name ?? "?").prefix(1)).uppercased())
                 .style(.small, foreground: .secondary)
         }
         .frame(width: size, height: size)

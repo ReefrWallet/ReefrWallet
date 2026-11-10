@@ -27,10 +27,10 @@ struct BrowserDappDetailsView: View {
                     DappIconView(url: dapp.iconURL, size: 40)
 
                     VStack(alignment: .leading) {
-                        Text(dapp.name)
+                        Text(verbatim: dapp.name)
                             .style(.mediumHeader)
 
-                        Text(dapp.urlString)
+                        Text(verbatim: dapp.urlString)
                             .style(.small, foreground: .secondary)
                     }
 

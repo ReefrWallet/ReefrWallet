@@ -60,7 +60,7 @@ struct TransactionSheet<Parameters: View, Fees: View>: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(title)
+                    Text(verbatim: title)
                         .style(.headline)
                         .accessibilityIdentifier(accessibilityIds.title)
                 }
@@ -129,7 +129,7 @@ private extension TransactionSheet {
     }
 
     var header: some View {
-        Text(title)
+        Text(verbatim: title)
             .style(.largeHeader)
             .accessibilityIdentifier(accessibilityIds.title)
     }

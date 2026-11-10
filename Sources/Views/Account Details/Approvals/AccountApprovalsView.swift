@@ -87,14 +87,14 @@ private extension AccountApprovalsView {
 
     func rowContent(_ approval: TokenApproval) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(approval.token.symbol)
+            Text(verbatim: approval.token.symbol)
                 .style(.headline, foreground: .primary)
 
-            Text(approval.spender.shortened(prefix: 8, suffix: 6))
+            Text(verbatim: approval.spender.shortened(prefix: 8, suffix: 6))
                 .style(.mono, foreground: .secondary)
 
             LabeledContent {
-                Text(allowanceText(approval))
+                Text(verbatim: allowanceText(approval))
                     .style(.callout, foreground: approval.isUnlimited ? .red : .primary)
             } label: {
                 Text(.approvalsApprovedAmount)
@@ -102,7 +102,7 @@ private extension AccountApprovalsView {
             }
 
             LabeledContent {
-                Text(approvedAtText(approval))
+                Text(verbatim: approvedAtText(approval))
                     .style(.callout, foreground: .primary)
             } label: {
                 Text(.approvalsMyApprovalTime)
@@ -130,7 +130,7 @@ private extension AccountApprovalsView {
     @TableColumnBuilder<TokenApproval, Never>
     var approvalColumns: some TableColumnContent<TokenApproval, Never> {
         TableColumn(.approvalsAsset) { approval in
-            Text(approval.token.name)
+            Text(verbatim: approval.token.name)
                 .style(.medium, foreground: .primary)
                 .help(approval.token.address ?? "")
                 .onAppear { model.loadMore(near: approval.id) }
@@ -138,20 +138,20 @@ private extension AccountApprovalsView {
         .width(min: 90, ideal: 150)
 
         TableColumn(.approvalsApprovedAmount) { approval in
-            Text(allowanceText(approval))
+            Text(verbatim: allowanceText(approval))
                 .style(.medium, foreground: approval.isUnlimited ? .red : .primary)
         }
         .width(min: 100, ideal: 140)
 
         TableColumn(.approvalsApprovedSpender) { approval in
-            Text(approval.spender.shortened(prefix: 8, suffix: 6))
+            Text(verbatim: approval.spender.shortened(prefix: 8, suffix: 6))
                 .style(.mono, foreground: .secondary)
                 .help(approval.spender)
         }
         .width(min: 120, ideal: 180)
 
         TableColumn(.approvalsMyApprovalTime) { approval in
-            Text(approvedAtText(approval))
+            Text(verbatim: approvedAtText(approval))
                 .style(.medium, foreground: .secondary)
                 .help(approval.approvedAt?.formatted(date: .complete, time: .standard) ?? "")
         }

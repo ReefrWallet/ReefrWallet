@@ -59,7 +59,7 @@ struct AccountChoiceMenu: View {
             }
 
             ForEach(choices) { choice in
-                Text(choice.label).tag(Optional(choice))
+                Text(verbatim: choice.label).tag(Optional(choice))
             }
         }
     }

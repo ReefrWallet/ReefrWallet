@@ -20,23 +20,23 @@ struct AddressValue: View {
     var body: some View {
 #if os(macOS)
         VStack(alignment: .leading, spacing: 3) {
-            Text(address)
+            Text(verbatim: address)
                 .style(.medium, foreground: .primary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(address)
 
-            Text(subtitle)
+            Text(verbatim: subtitle)
                 .style(.small, foreground: .secondary)
         }
 #else
         VStack(alignment: .trailing, spacing: 4) {
-            Text(address)
+            Text(verbatim: address)
                 .style(.callout, foreground: .secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            Text(subtitle)
+            Text(verbatim: subtitle)
                 .style(.small, foreground: .secondary)
         }
 #endif
@@ -138,7 +138,7 @@ struct ScrollingMonoText: View {
     }
 
     private var label: some View {
-        Text(text)
+        Text(verbatim: text)
             .style(.smallMono)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -170,7 +170,7 @@ struct ParameterRow<Content: View>: View {
 #if os(macOS)
         // Penpot: 440 pt rows with a right-aligned label column ending at 188 pt.
         HStack(alignment: .firstTextBaseline, spacing: ParameterLayout.columnSpacing) {
-            Text(label)
+            Text(verbatim: label)
                 .style(.small, foreground: .secondary)
                 .multilineTextAlignment(.trailing)
                 .frame(width: ParameterLayout.labelWidth, alignment: .trailing)
@@ -182,7 +182,7 @@ struct ParameterRow<Content: View>: View {
         LabeledContent {
             content
         } label: {
-            Text(label)
+            Text(verbatim: label)
         }
 #endif
     }
@@ -245,14 +245,14 @@ struct ParameterSection<Content: View>: View {
 #if os(macOS)
         VStack(alignment: .leading, spacing: 12) {
             if let title {
-                Text(title)
+                Text(verbatim: title)
                     .style(.smallHeader, foreground: .secondary)
             }
 
             content
 
             if let footer {
-                Text(footer)
+                Text(verbatim: footer)
                     .style(.small, foreground: footerColor)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -262,11 +262,11 @@ struct ParameterSection<Content: View>: View {
             content
         } header: {
             if let title {
-                Text(title)
+                Text(verbatim: title)
             }
         } footer: {
             if let footer {
-                Text(footer)
+                Text(verbatim: footer)
                     .style(.small, foreground: footerColor)
             }
         }
@@ -285,7 +285,7 @@ struct ParameterValue: View {
     var body: some View {
 #if os(macOS)
         VStack(alignment: .leading, spacing: 2) {
-            Text(value)
+            Text(verbatim: value)
                 .style(.medium, foreground: .primary)
                 .lineLimit(lineLimit)
                 .truncationMode(.middle)
@@ -293,20 +293,20 @@ struct ParameterValue: View {
                 .help(value)
 
             if let subtitle, !subtitle.isEmpty {
-                Text(subtitle)
+                Text(verbatim: subtitle)
                     .style(.small, foreground: .secondary)
             }
         }
 #else
         VStack(alignment: .trailing, spacing: 2) {
-            Text(value)
+            Text(verbatim: value)
                 .lineLimit(lineLimit)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
                 .help(value)
 
             if let subtitle, !subtitle.isEmpty {
-                Text(subtitle)
+                Text(verbatim: subtitle)
                     .style(.small, foreground: .secondary)
             }
         }

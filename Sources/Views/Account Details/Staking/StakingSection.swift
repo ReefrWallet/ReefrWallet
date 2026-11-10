@@ -70,7 +70,7 @@ struct StakingSection: View {
             if note != nil || action != nil || secondaryAction != nil {
                 HStack {
                     if let note {
-                        Text(note)
+                        Text(verbatim: note)
                             .style(isPhone ? .caption : .small, foreground: .caution)
                             // Lines up with the title and the rows' text.
                             .padding(.leading, isPhone ? 0 : 12)
@@ -124,11 +124,11 @@ struct StakingSection: View {
 
     private func leading(_ row: StakingRow) -> some View {
         HStack(spacing: 12) {
-            Text(row.leading)
+            Text(verbatim: row.leading)
                 .fixedSize(horizontal: true, vertical: false)
 
             if let secondary = row.secondary {
-                Text(secondary)
+                Text(verbatim: secondary)
                     .lineLimit(1)
                     .style(foreground: .secondary)
             }
@@ -143,7 +143,7 @@ struct StakingSection: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(row.trailingColor)
         } else {
-            Text(row.trailing)
+            Text(verbatim: row.trailing)
                 .foregroundStyle(row.trailingColor)
         }
     }

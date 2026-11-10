@@ -374,7 +374,7 @@ extension AccountDetailsView: View {
                     Text(.accountDetailsFilteredBy)
                         .style(.smallHeader, foreground: .primary)
 
-                    Text(filterValue.summary(in: tab))
+                    Text(verbatim: filterValue.summary(in: tab))
                         .style(.small, foreground: .accentColor)
                         .lineLimit(1)
                 }
@@ -482,7 +482,7 @@ private extension AccountDetailsView {
     func header(_ balance: Balance?) -> some View {
         LazyVStack(alignment: .leading) {
             HStack {
-                Text(displayAddress)
+                Text(verbatim: displayAddress)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -497,15 +497,15 @@ private extension AccountDetailsView {
             .padding(.bottom, 1)
 
             HStack {
-                Text(account.blockchain.displayName)
+                Text(verbatim: account.blockchain.displayName)
 
                 if let derivationPath = account.derivationPath {
                     Text(verbatim: .dot)
-                    Text(derivationPath.string)
+                    Text(verbatim: derivationPath.string)
                 }
 
                 Text(verbatim: .dot)
-                Text(keyStore.name)
+                Text(verbatim: keyStore.name)
             }
             .lineLimit(1)
             .style(isPhone ? .caption : .small, foreground: .secondary)

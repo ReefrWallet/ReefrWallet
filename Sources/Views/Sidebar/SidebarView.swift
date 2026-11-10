@@ -123,7 +123,7 @@ extension SidebarView: View {
             .alert(.commonRequestFailed, isPresented: $deleteAccountErrorPresented) {
                 Button(.commonOk) {}
             } message: {
-                Text(deleteAccountError ?? "")
+                Text(verbatim: deleteAccountError ?? "")
             }
             .alert(.sidebarDeleteKeyStoreTitle, isPresented: $deleteKeyStoreAlertPresented) {
                 deleteKeyStoreAlertActions
@@ -611,12 +611,12 @@ private extension SidebarView {
                     }
                 }
         } else if isPhone {
-            Text(title)
+            Text(verbatim: title)
                 .style(.title, foreground: .phoneLabel)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else if sidebarSelection.wrappedValue == keyStore.id {
-            Text(title)
+            Text(verbatim: title)
                 .contextMenu {
                     try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
                 }
@@ -625,7 +625,7 @@ private extension SidebarView {
                     editingId = keyStore.id
                 }
         } else {
-            Text(title)
+            Text(verbatim: title)
                 .contextMenu {
                     try? makeKeyStoreContextMenu(KeyStore(model: keyStore))
                 }

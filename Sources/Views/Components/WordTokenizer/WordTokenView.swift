@@ -42,7 +42,7 @@ struct WordTokenView: View {
 private extension WordTokenView {
     var wordChip: some View {
         Button(action: onTap) {
-            Text(text.wrappedValue)
+            Text(verbatim: text.wrappedValue)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
         }

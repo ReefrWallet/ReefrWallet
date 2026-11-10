@@ -117,7 +117,7 @@ extension SolanaStakingSheet: View {
                 isErrorAlertPresented = false
             }
         } message: {
-            Text(error ?? String(localized: .transferUnknownError))
+            Text(verbatim: error ?? String(localized: .transferUnknownError))
         }
         .sheet(isPresented: $isPickerPresented) {
             SolanaValidatorPicker(validators: model.validators, selection: $validator)
@@ -187,7 +187,7 @@ private extension SolanaStakingSheet {
                 }
             } label: {
                 HStack {
-                    Text(validator?.name ?? validator?.voteAddress.shortened(prefix: 6, suffix: 4)
+                    Text(verbatim: validator?.name ?? validator?.voteAddress.shortened(prefix: 6, suffix: 4)
                         ?? String(localized: .solanaStakingSelectValidator))
 
                     Spacer()
@@ -253,16 +253,16 @@ private extension SolanaStakingSheet {
         )) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.name(of: position.account.delegation?.voter))
+                    Text(verbatim: model.name(of: position.account.delegation?.voter))
                         .style(isPhone ? .large : .medium, foreground: isEligible ? .primary : .secondary)
 
-                    Text(reason(position) ?? model.statusText(position))
+                    Text(verbatim: reason(position) ?? model.statusText(position))
                         .style(.small, foreground: .secondary)
                 }
 
                 Spacer()
 
-                Text(SolanaStakingFormat.sol(amount))
+                Text(verbatim: SolanaStakingFormat.sol(amount))
                     .style(.medium, foreground: isEligible ? .primary : .secondary)
             }
         }

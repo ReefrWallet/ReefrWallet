@@ -78,7 +78,7 @@ extension TronStakingSheet: View {
                 isErrorAlertPresented = false
             }
         } message: {
-            Text(error ?? String(localized: .transferUnknownError))
+            Text(verbatim: error ?? String(localized: .transferUnknownError))
         }
         .sheet(isPresented: $isPickerPresented) {
             TronRepresentativePicker(

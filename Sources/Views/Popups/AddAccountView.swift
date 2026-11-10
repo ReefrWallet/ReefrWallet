@@ -78,7 +78,7 @@ extension AddAccountView: View {
                 isAlertPresented = false
             }
         } message: {
-            Text(alertMessage(error))
+            Text(verbatim: alertMessage(error))
         }
         .task(
             id: PathKey(blockchain: pathBlockchain, keyScheme: selectedKeyScheme, scriptType: selectedBitcoinScriptType)
@@ -192,7 +192,7 @@ private extension AddAccountView {
                 } else if selectedBlockchain.hasKeySchemeChoice, !keyStore.isWatchOnly {
                     Picker(.addAccountKeyScheme, selection: $selectedKeyScheme) {
                         ForEach(Curve.allCases, id: \.self) { scheme in
-                            Text(scheme.description).tag(scheme)
+                            Text(verbatim: scheme.description).tag(scheme)
                         }
                     }
                 } else if case .bitcoin = selectedBlockchain, !keyStore.isWatchOnly {
@@ -208,7 +208,7 @@ private extension AddAccountView {
                     // edit-account flow for this yet.
                     Picker(.addAccountBackend, selection: $selectedBitcoinBackend) {
                         ForEach(BitcoinBackendKind.allCases, id: \.self) { backend in
-                            Text(backend.displayName).tag(backend)
+                            Text(verbatim: backend.displayName).tag(backend)
                         }
                     }
                     .accessibilityIdentifier("add-account-bitcoin-backend-picker")
@@ -273,7 +273,7 @@ private extension AddAccountView {
                 } else if selectedBlockchain.hasKeySchemeChoice, !keyStore.isWatchOnly {
                     Picker(.addAccountKeyScheme, selection: $selectedKeyScheme) {
                         ForEach(Curve.allCases, id: \.self) { scheme in
-                            Text(scheme.description).tag(scheme)
+                            Text(verbatim: scheme.description).tag(scheme)
                         }
                     }
                 } else if case .bitcoin = selectedBlockchain, !keyStore.isWatchOnly {
@@ -286,7 +286,7 @@ private extension AddAccountView {
                 if case .bitcoin = selectedBlockchain {
                     Picker(.addAccountBackend, selection: $selectedBitcoinBackend) {
                         ForEach(BitcoinBackendKind.allCases, id: \.self) { backend in
-                            Text(backend.displayName).tag(backend)
+                            Text(verbatim: backend.displayName).tag(backend)
                         }
                     }
                     .accessibilityIdentifier("add-account-bitcoin-backend-picker")
@@ -376,7 +376,7 @@ private extension AddAccountView {
                     .autocorrectionDisabled()
 
                 if !isEditing {
-                    Text(text.wrappedValue)
+                    Text(verbatim: text.wrappedValue)
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .foregroundStyle(isEnabled ? .primary : .secondary)
@@ -477,7 +477,7 @@ private extension AddAccountView {
         #else
         Picker(.addAccountBlockchain, selection: $selectedBlockchain) {
             ForEach(standardBlockchains, id: \.self) { blockchain in
-                Text(blockchain.name).tag(blockchain)
+                Text(verbatim: blockchain.name).tag(blockchain)
                     .disabled(!blockchain.isSupported(by: keyStore))
             }
 
@@ -485,7 +485,7 @@ private extension AddAccountView {
                 Divider()
 
                 ForEach(customEVMBlockchains, id: \.self) { blockchain in
-                    Text(blockchain.name).tag(blockchain)
+                    Text(verbatim: blockchain.name).tag(blockchain)
                         .disabled(!blockchain.isSupported(by: keyStore))
                 }
             }

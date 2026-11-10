@@ -11,7 +11,7 @@ struct TransactionRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(model.title)
+                    Text(verbatim: model.title)
                         .lineLimit(1)
                         .style(.headline, foreground: .primary)
 
@@ -34,7 +34,7 @@ struct TransactionRow: View {
                 TransactionAmountText(model: model, size: isPhone ? .large : .medium)
                     .lineLimit(1)
 
-                Text(model.subtitle)
+                Text(verbatim: model.subtitle)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .style(.callout, foreground: .secondary)

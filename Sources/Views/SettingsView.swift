@@ -37,7 +37,7 @@ struct SettingsView: View {
                     Text(.settingsSystemDefaultBrowser).tag("")
 
                     ForEach(PreferredBrowser.installedApps) { app in
-                        Text(app.name).tag(app.bundleId)
+                        Text(verbatim: app.name).tag(app.bundleId)
                     }
                 }
                 .accessibilityIdentifier("settings-preferred-browser-picker")

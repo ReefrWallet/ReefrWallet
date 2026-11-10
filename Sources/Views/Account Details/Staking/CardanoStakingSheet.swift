@@ -118,7 +118,7 @@ extension CardanoStakingSheet: View {
                 isErrorAlertPresented = false
             }
         } message: {
-            Text(error ?? String(localized: .transferUnknownError))
+            Text(verbatim: error ?? String(localized: .transferUnknownError))
         }
         .sheet(isPresented: $isPoolPickerPresented) {
             CardanoPoolPicker(account: model.account, selection: $pool)
@@ -220,7 +220,7 @@ private extension CardanoStakingSheet {
                 isPoolPickerPresented = true
             } label: {
                 HStack {
-                    Text(pool.map(Self.name) ?? String(localized: .cardanoStakingSelectPool))
+                    Text(verbatim: pool.map(Self.name) ?? String(localized: .cardanoStakingSelectPool))
 
                     Spacer()
 
@@ -238,7 +238,7 @@ private extension CardanoStakingSheet {
                 isDRepPickerPresented = true
             } label: {
                 HStack {
-                    Text(drep?.title ?? placeholder)
+                    Text(verbatim: drep?.title ?? placeholder)
 
                     Spacer()
 

@@ -26,7 +26,7 @@ struct ReceiveAddressRow: View {
                     .style(isPhone ? .headline : .medium, foreground: .secondary)
                     .frame(minWidth: isPhone ? 20 : 16, alignment: .trailing)
 
-                Text(address.address.shortened(prefix: 11, suffix: 7))
+                Text(verbatim: address.address.shortened(prefix: 11, suffix: 7))
                     .lineLimit(1)
                     .style(.phoneMono, foreground: .primary)
 
@@ -54,7 +54,7 @@ struct ReceiveAddressAmount: View {
     var body: some View {
         if let lovelace = address.lovelace, address.isUsed != nil {
             if address.isUsed == true || lovelace > 0 {
-                Text(formattedAda(lovelace))
+                Text(verbatim: formattedAda(lovelace))
                     .style(isPhone ? .large : .medium, foreground: .primary)
             } else {
                 Text(.addressesUnused)

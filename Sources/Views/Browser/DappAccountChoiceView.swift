@@ -78,7 +78,7 @@ private extension DappAccountChoiceView {
                 HStack(spacing: 12) {
                     DappIconView(url: iconURL, size: 40)
 
-                    Text(host)
+                    Text(verbatim: host)
                         .style(.headline, foreground: .primary)
                         .lineLimit(1)
                         .accessibilityIdentifier("dapp-request-title")
@@ -92,7 +92,7 @@ private extension DappAccountChoiceView {
                     LabeledContent {
                         menu(for: selection)
                     } label: {
-                        Text(selection.namespace.displayName)
+                        Text(verbatim: selection.namespace.displayName)
                             .style(.callout, foreground: .primary)
                     }
                 }

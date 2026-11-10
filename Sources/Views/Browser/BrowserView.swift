@@ -216,7 +216,7 @@ extension BrowserView: View {
             ) { _ in
                 Button(.commonOk) {}
             } message: { message in
-                Text(message)
+                Text(verbatim: message)
             }
     }
 }
@@ -262,7 +262,7 @@ private extension BrowserView {
     @ToolbarContentBuilder
     var addressField: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Text(addressText)
+            Text(verbatim: addressText)
                 .style(.small, foreground: .secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)

@@ -82,7 +82,7 @@ private struct BalanceRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
-                        Text(entry.displayName)
+                        Text(verbatim: entry.displayName)
                             .lineLimit(1)
                             .style(.headline, foreground: .primary)
 

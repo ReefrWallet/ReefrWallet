@@ -16,7 +16,7 @@ struct BrowserAccountSelector: View {
     let connected: [DappAccountChoice]
 
     var body: some View {
-        Text(label)
+        Text(verbatim: label)
             .style(.medium)
             .lineLimit(1)
             .frame(minWidth: 240, alignment: .leading)

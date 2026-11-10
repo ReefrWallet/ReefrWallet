@@ -79,7 +79,7 @@ struct AddReceiveAddressSheet: View {
         ) {
             Button(.commonOk) {}
         } message: {
-            Text(errorMessage ?? "")
+            Text(verbatim: errorMessage ?? "")
         }
     }
 

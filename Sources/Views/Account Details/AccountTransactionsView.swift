@@ -68,7 +68,7 @@ struct AccountTransactionsView: View {
             }
         }
         .statusBar(edge: .top) {
-            Text(transactionCountText)
+            Text(verbatim: transactionCountText)
                 .accessibilityIdentifier("account-transactions-count")
                 .accessibilityHidden(totalTransactionCount == nil)
                 .style(.mediumHeader, foreground: .primary)

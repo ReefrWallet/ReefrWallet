@@ -53,7 +53,7 @@ struct AccountAddressesView: View {
                 .width(min: 24, ideal: 32, max: 48)
 
                 TableColumn(.addressesAddress) { row in
-                    Text(row.address)
+                    Text(verbatim: row.address)
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .style(.mono, foreground: .primary)

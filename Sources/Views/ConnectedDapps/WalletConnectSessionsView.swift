@@ -57,7 +57,7 @@ struct WalletConnectSessionsView: View {
         .alert(.commonWalletconnect, isPresented: failureBinding, presenting: walletConnect.failureMessage) { _ in
             Button(.commonOk) {}
         } message: { message in
-            Text(message)
+            Text(verbatim: message)
         }
     }
 }
@@ -75,13 +75,13 @@ private extension WalletConnectSessionsView {
             DappIconView(url: session.iconURL, size: 32)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.name)
+                Text(verbatim: session.name)
                     .style(.medium)
 
-                Text(URL(string: session.url)?.host() ?? session.url)
+                Text(verbatim: URL(string: session.url)?.host() ?? session.url)
                     .style(.small, foreground: .secondary)
 
-                Text(chainSummary(session))
+                Text(verbatim: chainSummary(session))
                     .style(.caption, foreground: .secondary)
             }
 

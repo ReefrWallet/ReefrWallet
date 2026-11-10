@@ -109,7 +109,7 @@ extension SuiStakingSheet: View {
                 isErrorAlertPresented = false
             }
         } message: {
-            Text(error ?? String(localized: .transferUnknownError))
+            Text(verbatim: error ?? String(localized: .transferUnknownError))
         }
         .sheet(isPresented: $isPickerPresented) {
             SuiValidatorPicker(validators: model.validators, selection: $validator)
@@ -179,7 +179,7 @@ private extension SuiStakingSheet {
                 }
             } label: {
                 HStack {
-                    Text(validator?.name ?? String(localized: .suiStakingSelectValidator))
+                    Text(verbatim: validator?.name ?? String(localized: .suiStakingSelectValidator))
 
                     Spacer()
 
@@ -240,16 +240,16 @@ private extension SuiStakingSheet {
         )) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.name(of: position))
+                    Text(verbatim: model.name(of: position))
                         .style(isPhone ? .large : .medium, foreground: .primary)
 
-                    Text(SuiStakingModel.statusText(position))
+                    Text(verbatim: SuiStakingModel.statusText(position))
                         .style(.small, foreground: .secondary)
                 }
 
                 Spacer()
 
-                Text(SuiStakingFormat.sui(position.stake.principal))
+                Text(verbatim: SuiStakingFormat.sui(position.stake.principal))
                     .style(.medium, foreground: .primary)
             }
         }

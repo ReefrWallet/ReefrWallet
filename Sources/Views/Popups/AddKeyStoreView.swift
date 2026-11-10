@@ -70,7 +70,7 @@ struct AddKeyStoreView: View {
                 dismiss()
             }
         } message: {
-            Text(alertMessage(error))
+            Text(verbatim: alertMessage(error))
         }
     }
 }

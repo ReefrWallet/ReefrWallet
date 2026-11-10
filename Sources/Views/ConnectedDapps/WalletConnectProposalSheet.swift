@@ -34,7 +34,7 @@ struct WalletConnectProposalSheet: View {
                             .style(.headline, foreground: .primary)
                             .accessibilityIdentifier("walletconnect-proposal-title")
 
-                        Text(pending.proposal.url)
+                        Text(verbatim: pending.proposal.url)
                             .style(.caption, foreground: .secondary)
                     }
                 }
@@ -69,7 +69,7 @@ struct WalletConnectProposalSheet: View {
                         .style(.largeHeader)
                         .accessibilityIdentifier("walletconnect-proposal-title")
 
-                    Text(pending.proposal.url)
+                    Text(verbatim: pending.proposal.url)
                         .style(.small, foreground: .secondary)
                 }
             }
@@ -140,7 +140,7 @@ private extension WalletConnectProposalSheet {
                 } else {
                     Picker(.commonAccount, selection: selection(for: choice)) {
                         ForEach(choice.accounts) { account in
-                            Text(choice.label(for: account)).tag(Optional(account))
+                            Text(verbatim: choice.label(for: account)).tag(Optional(account))
                         }
                     }
                     .labelsHidden()

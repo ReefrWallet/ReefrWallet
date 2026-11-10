@@ -70,7 +70,7 @@ extension TransferView: View {
             }
         } message: {
             if let error {
-                Text(error)
+                Text(verbatim: error)
             } else {
                 Text(.transferUnknownError)
             }

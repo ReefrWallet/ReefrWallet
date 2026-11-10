@@ -54,7 +54,7 @@ struct KeyStoreAccountRow: View {
                 .scaledToFit()
                 .frame(width: 24, height: 24)
 
-            Text(account.name)
+            Text(verbatim: account.name)
                 .style(.large, foreground: .phoneLabel)
 
             Spacer()

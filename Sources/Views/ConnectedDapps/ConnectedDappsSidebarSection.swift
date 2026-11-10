@@ -81,7 +81,7 @@ struct ConnectedDappsSidebarSection: View {
 
                     DappIconView(url: dapp.iconURL)
 
-                    Text(dapp.name)
+                    Text(verbatim: dapp.name)
                         .style(foreground: isHighlighted(dapp) ? .white : .sidebarLabel)
                         .lineLimit(1)
                 }

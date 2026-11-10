@@ -45,7 +45,7 @@ struct SidebarAccountRow: View {
                 // present whenever not editing, regardless of selection —
                 // only the *behavior* branches on the live `isSelected()`
                 // read inside the handler.
-                Text(account.name)
+                Text(verbatim: account.name)
                     .style(foreground: isSelected() ? .white : .sidebarLabel)
                     .contentShape(Rectangle())
                     .onTapGesture {

@@ -112,11 +112,11 @@ private extension CardanoDRepPicker {
                 #endif
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(verbatim: title)
                         .style(isPhone ? .large : .medium, foreground: .primary)
 
                     if let subtitle {
-                        Text(subtitle)
+                        Text(verbatim: subtitle)
                             .style(.small, foreground: .secondary)
                     }
                 }

@@ -136,7 +136,7 @@ struct MainView: View {
         ) { _ in
             Button(.commonOk) {}
         } message: { message in
-            Text(message)
+            Text(verbatim: message)
         }
         .task {
             walletConnect.start()

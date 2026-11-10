@@ -84,7 +84,7 @@ struct HardwareKeyPromptHUD: View {
                 image.symbolEffect(.breathe)
             }
 
-            Text(prompt.message)
+            Text(verbatim: prompt.message)
                 .style(.hud, foreground: .primary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)

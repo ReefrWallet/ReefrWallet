@@ -102,7 +102,11 @@ private extension CardanoPoolPicker {
                 logo(pool)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(CardanoStakingModel.poolName(ticker: pool.ticker, name: pool.name, poolId: pool.poolId))
+                    Text(verbatim: CardanoStakingModel.poolName(
+                        ticker: pool.ticker,
+                        name: pool.name,
+                        poolId: pool.poolId
+                    ))
                         .style(isPhone ? .large : .medium, foreground: .primary)
 
                     Text(.cardanoStakingPoolTerms(
@@ -133,7 +137,7 @@ private extension CardanoPoolPicker {
     func logo(_ pool: CardanoPool) -> some View {
         let size: CGFloat = isPhone ? 28 : 24
 
-        return Text(String((pool.ticker ?? pool.name ?? "?").prefix(1)).uppercased())
+        return Text(verbatim: String((pool.ticker ?? pool.name ?? "?").prefix(1)).uppercased())
             .style(.small, foreground: .secondary)
             .frame(width: size, height: size)
             .background(Color.secondary.opacity(0.12))
