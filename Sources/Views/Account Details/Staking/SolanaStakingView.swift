@@ -153,7 +153,9 @@ private extension SolanaStakingView {
                     id: submission.signature,
                     leading: SolanaStakingModel.actionText(submission.action),
                     secondary: submission.signature.shortened(prefix: 4, suffix: 4),
-                    trailing: String(localized: isPhone ? .solanaStakingExplorerShort : .solanaStakingViewInExplorer),
+                    trailing: isPhone
+                        ? String(localized: .solanaStakingExplorerShort)
+                        : String(localized: .solanaStakingViewInExplorer),
                     trailingColor: .accentColor,
                     onTrailingTap: {
                         if let url = model.explorerURL(signature: submission.signature) {
@@ -162,9 +164,9 @@ private extension SolanaStakingView {
                     }
                 )
             ],
-            note: String(localized: submission.isPastValidity
-                ? .solanaStakingNoticeOutcomeUnknown
-                : .solanaStakingNoticeSubmitted),
+            note: submission.isPastValidity
+                ? String(localized: .solanaStakingNoticeOutcomeUnknown)
+                : String(localized: .solanaStakingNoticeSubmitted),
             action: .init(title: .solanaStakingCheckAgain, isProminent: true, perform: {
                 Task {
                     await model.checkAgain()

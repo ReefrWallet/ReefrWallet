@@ -103,7 +103,9 @@ private extension SuiStakingView {
                     id: submission.digest,
                     leading: SuiStakingModel.kindText(submission.kind),
                     secondary: submission.digest.shortened(prefix: 4, suffix: 4),
-                    trailing: String(localized: isPhone ? .solanaStakingExplorerShort : .solanaStakingViewInExplorer),
+                    trailing: isPhone
+                        ? String(localized: .solanaStakingExplorerShort)
+                        : String(localized: .solanaStakingViewInExplorer),
                     trailingColor: .accentColor,
                     onTrailingTap: {
                         if let url = model.explorerURL(digest: submission.digest) {
@@ -112,9 +114,9 @@ private extension SuiStakingView {
                     }
                 )
             ],
-            note: String(localized: model.isUnresolvedPastValidity
-                ? .solanaStakingNoticeOutcomeUnknown
-                : .solanaStakingNoticeSubmitted),
+            note: model.isUnresolvedPastValidity
+                ? String(localized: .solanaStakingNoticeOutcomeUnknown)
+                : String(localized: .solanaStakingNoticeSubmitted),
             action: .init(title: .solanaStakingCheckAgain, isProminent: true, perform: {
                 Task {
                     await model.checkAgain()

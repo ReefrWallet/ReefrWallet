@@ -156,8 +156,8 @@ extension TransactionService {
         switch keyStore.kind {
         case .local:
             try await beforeKeyAccess()
-            let entropy = try await keyStore.localEntropy(reason: "Authenticate to sign with your key")
-            return try await body(CardanoPKeySigner(entropy: entropy, network: network, path: derivationPath))
+            let root = try await keyStore.localCardanoRoot(reason: "Authenticate to sign with your key")
+            return try await body(CardanoPKeySigner(root: root, network: network, path: derivationPath))
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
                 throw ReefrError.invalidData
@@ -210,8 +210,8 @@ private extension TransactionService {
 
         switch keyStore.kind {
         case .local:
-            let rawKey = try await keyStore.localSeed(reason: "Authenticate to sign with your key")
-            return try makeLocalSigner(for: account, rawKey: rawKey, derivationPath: derivationPath)
+            let seed = try await keyStore.localSeed(reason: "Authenticate to sign with your key")
+            return try makeLocalSigner(for: account, seed: seed, derivationPath: derivationPath)
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
                 throw ReefrError.invalidData
@@ -233,9 +233,9 @@ private extension TransactionService {
 
         switch keyStore.kind {
         case .local:
-            let entropy = try await keyStore.localEntropy(reason: "Authenticate to sign with your key")
+            let root = try await keyStore.localCardanoRoot(reason: "Authenticate to sign with your key")
             let transaction = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: request)
-            return try transaction.signed(entropy: entropy, path: derivationPath)
+            return try transaction.signed(root: root, path: derivationPath)
         case .trezor:
             guard let deviceId = keyStore.deviceId else {
                 throw ReefrError.invalidData
@@ -362,11 +362,9 @@ private extension TransactionService {
 
     private func makeLocalSigner(
         for account: Account,
-        rawKey: Data,
+        seed: Seed,
         derivationPath: DerivationPath
     ) throws -> any Signer {
-        let seed = try Seed(rawBytes: rawKey)
-
         switch account.blockchain {
         case .aptos, .sui:
             return try makeChoosableCurveSigner(for: account, seed: seed, derivationPath: derivationPath)

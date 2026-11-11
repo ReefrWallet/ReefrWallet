@@ -18,6 +18,14 @@ struct KeyStore: Equatable, Hashable, Sendable {
         case watchOnly
     }
 
+    /// What a local key store's sealed secret is.
+    enum SecretKind: String, Codable {
+        /// BIP-39 entropy, with ``mnemonicWordlist``.
+        case bip39
+        /// A SLIP-39 master secret; the shares aren't kept.
+        case slip39
+    }
+
     let accounts: [Account]
     let deviceId: String?
     /// `nil` for newly-created keystores that haven't been persisted yet;
@@ -25,8 +33,10 @@ struct KeyStore: Equatable, Hashable, Sendable {
     var id: PersistentIdentifier?
     let kind: Kind
     let name: String
-    /// BIP-39 entropy sealed by ``KeyVault``.
+    /// The secret sealed by ``KeyVault``: BIP-39 entropy or a SLIP-39
+    /// master secret, per ``secretKind``.
     let sealedEntropy: Data?
+    let secretKind: SecretKind
     let mnemonicWordlist: Wordlist?
     /// Hardware model, e.g. `Safe 5`; `nil` for software key stores.
     let model: String?
@@ -41,6 +51,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
         mnemonicWordlist: Wordlist? = nil,
         model: String? = nil,
         sealedEntropy: Data? = nil,
+        secretKind: SecretKind = .bip39,
         transport: HardwareTransportKind?,
         vendor: HardwareVendor?
     ) {
@@ -52,6 +63,7 @@ struct KeyStore: Equatable, Hashable, Sendable {
         self.mnemonicWordlist = mnemonicWordlist
         self.model = model
         self.sealedEntropy = sealedEntropy
+        self.secretKind = secretKind
         self.transport = transport
         self.vendor = vendor
     }
@@ -86,6 +98,9 @@ final class KeyStoreModel {
     var rawKind: String
     /// BIP-39 entropy sealed by ``KeyVault`` (raw before ADR-046).
     var mnemonicEntropy: Data?
+    /// Serialized ``KeyStore/SecretKind``; `nil` (stores from before
+    /// SLIP-39) means BIP-39.
+    var rawSecretKind: String?
     /// Serialized BIP-39 wordlist used to reconstruct the conventional seed.
     var rawMnemonicWordlist: String?
     /// Hardware model, `nil` for software key store
@@ -107,12 +122,14 @@ final class KeyStoreModel {
         mnemonicEntropy: Data? = nil,
         mnemonicWordlist: Wordlist? = nil,
         model: String? = nil,
+        secretKind: KeyStore.SecretKind = .bip39,
         transport: HardwareTransportKind? = nil,
         vendor: HardwareVendor? = nil
     ) {
         self.accounts = []
         self.deviceId = deviceId
         self.name = name
+        self.rawSecretKind = secretKind == .bip39 ? nil : secretKind.rawValue
         self.mnemonicEntropy = mnemonicEntropy
         self.rawMnemonicWordlist = mnemonicWordlist?.storageIdentifier
         self.model = model
@@ -133,6 +150,17 @@ extension KeyStore {
         kind = Kind(rawValue: model.rawKind)!
         name = model.name
         sealedEntropy = model.mnemonicEntropy
+        // Only a missing tag means BIP-39; an unknown one is never guessed.
+        if let rawSecretKind = model.rawSecretKind {
+            guard let known = SecretKind(rawValue: rawSecretKind) else {
+                throw ReefrError.invalidData
+            }
+
+            secretKind = known
+        } else {
+            secretKind = .bip39
+        }
+
         mnemonicWordlist = model.rawMnemonicWordlist.flatMap(Wordlist.init(storageIdentifier:))
         self.model = model.model
 
@@ -170,6 +198,7 @@ extension KeyStoreModel {
             mnemonicEntropy: config.sealedEntropy,
             mnemonicWordlist: config.mnemonicWordlist,
             model: config.model,
+            secretKind: config.secretKind,
             transport: config.transport,
             vendor: config.vendor
         )
@@ -179,7 +208,8 @@ extension KeyStoreModel {
 // MARK: - KeyStore Helpers
 
 extension KeyStore {
-    /// Decrypts the BIP-39 entropy, asking the user to authenticate.
+    /// Decrypts the sealed secret (BIP-39 entropy or a SLIP-39 master
+    /// secret), asking the user to authenticate.
     func localEntropy(reason: String = "Authenticate to access your key") async throws -> Data {
         guard kind == .local, let sealedEntropy else {
             throw ReefrError.invalidData
@@ -188,12 +218,32 @@ extension KeyStore {
         return try await DI.injectOrFail(KeyVault.self).open(sealedEntropy, reason: reason)
     }
 
+    /// The recovery phrase; SLIP-39 key stores have none (the shares aren't kept).
     func localMnemonic(reason: String = "Authenticate to access your key") async throws -> Mnemonic {
-        try await Mnemonic.fromEntropy(localEntropy(reason: reason), wordlist: mnemonicWordlist ?? .english)
+        guard secretKind == .bip39 else {
+            throw ReefrError.notSupported
+        }
+
+        return try await Mnemonic.fromEntropy(localEntropy(reason: reason), wordlist: mnemonicWordlist ?? .english)
     }
 
-    func localSeed(reason: String = "Authenticate to access your key") async throws -> Data {
-        try await localMnemonic(reason: reason).toSeed().exportRaw()
+    func localSeed(reason: String = "Authenticate to access your key") async throws -> Seed {
+        switch secretKind {
+        case .bip39:
+            return try await localMnemonic(reason: reason).toSeed()
+        case .slip39:
+            return try await Seed(masterSecret: localEntropy(reason: reason))
+        }
+    }
+
+    /// The root Cardano keys derive from: Icarus for BIP-39, SLIP-23 for SLIP-39.
+    func localCardanoRoot(reason: String = "Authenticate to access your key") async throws -> CardanoRootSecret {
+        let secret = try await localEntropy(reason: reason)
+
+        switch secretKind {
+        case .bip39: return .bip39Entropy(secret)
+        case .slip39: return .slip39MasterSecret(secret)
+        }
     }
 
     var description: String {

@@ -242,7 +242,7 @@ private extension AddAccountView {
 
             if keyStore.isWatchOnly {
                 Section {
-                    TextField(String(localized: watchOnlyFieldTitle), text: $address)
+                    TextField(watchOnlyFieldTitle.string, text: $address)
                         .disabled(selectedNetwork == nil)
                         .padding(.vertical)
                         .accessibilityIdentifier("add-account-watch-address-field")

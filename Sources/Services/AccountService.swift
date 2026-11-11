@@ -168,19 +168,19 @@ final class AccountService {
             }
 
             if case let .cardano(network) = blockchain {
-                let entropy = try await keyStore.localEntropy(reason: "Authenticate to add an account")
+                let root = try await keyStore.localCardanoRoot(reason: "Authenticate to add an account")
 
                 address = try CardanoAccountDescriptor(
-                    entropy: entropy,
+                    root: root,
                     network: network,
                     path: path
                 ).string
             } else {
-                let rawKey = try await keyStore.localSeed(reason: "Authenticate to add an account")
+                let seed = try await keyStore.localSeed(reason: "Authenticate to add an account")
 
                 address = try makeLocalAddress(
                     blockchain: blockchain,
-                    rawKey: rawKey,
+                    seed: seed,
                     path: path,
                     signatureScheme: effectiveSignatureScheme,
                     bitcoinScriptType: bitcoinScriptType
@@ -401,7 +401,7 @@ private extension AccountService {
 
     func makeLocalAddress(
         blockchain: Blockchain,
-        rawKey: Data,
+        seed: Seed,
         path: DerivationPath,
         signatureScheme: Curve?,
         bitcoinScriptType: BitcoinScriptType? = nil
@@ -412,7 +412,7 @@ private extension AccountService {
         // flow the other chains use.
         if case let .bitcoin(network) = blockchain {
             return try makeLocalBitcoinAddress(
-                network: network, rawKey: rawKey, path: path, scriptType: bitcoinScriptType
+                network: network, seed: seed, path: path, scriptType: bitcoinScriptType
             )
         }
 
@@ -433,8 +433,6 @@ private extension AccountService {
         default:
             throw ReefrError.notImplemented
         }
-
-        let seed = try Seed(rawBytes: rawKey)
 
         let address: String
         switch blockchain {
@@ -468,7 +466,7 @@ private extension AccountService {
     /// that needs it (the client, the builder, the signer).
     func makeLocalBitcoinAddress(
         network: BitcoinNetwork,
-        rawKey: Data,
+        seed: Seed,
         path accountDerivationPath: DerivationPath,
         scriptType: BitcoinScriptType?
     ) throws -> String {
@@ -476,7 +474,6 @@ private extension AccountService {
             throw ReefrError.invalidData
         }
 
-        let seed = try Seed(rawBytes: rawKey)
         let masterKey = try seed.masterKey(curve: .secp256k1)
         let masterFingerprint = try BitcoinDescriptor.fingerprint(of: masterKey.publicKey)
 

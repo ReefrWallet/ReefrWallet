@@ -27,6 +27,38 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
+    func secretKindRoundTripsAndStoresWithoutOneReadAsBip39() async throws {
+        let service = try makeDatabaseService()
+
+        let slip39Id = try await service.insertKeyStore(KeyStore(
+            deviceId: nil,
+            kind: .local,
+            name: "Slip39",
+            sealedEntropy: Data(repeating: 2, count: 16),
+            secretKind: .slip39,
+            transport: nil,
+            vendor: nil
+        ))
+        let bip39Id = try await service.insertKeyStore(makeKeyStore(name: "Bip39"))
+
+        #expect(try await service.fetchKeyStore(id: slip39Id)?.secretKind == .slip39)
+        #expect(try await service.fetchKeyStore(id: bip39Id)?.secretKind == .bip39)
+    }
+
+    @Test
+    func aCancelledInsertSavesNothing() async throws {
+        let service = try makeDatabaseService()
+
+        let task = Task { () -> Bool in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return (try? await service.insertKeyStore(makeKeyStore(name: "Cancelled"))) != nil
+        }
+
+        #expect(await task.value == false)
+        #expect(try await service.keyStoreCount() == 0)
+    }
+
+    @Test
     func watchOnlyKeyStoreIsCreatedOnceAndThenFetched() async throws {
         let service = try makeDatabaseService()
 

@@ -174,7 +174,7 @@ private extension TronStakingSheet {
         note: LocalizedStringResource,
         @ViewBuilder rows: () -> some View
     ) -> some View {
-        ParameterSection(String(localized: title), footer: String(localized: note)) {
+        ParameterSection(title.string, footer: note.string) {
             rows()
         }
     }

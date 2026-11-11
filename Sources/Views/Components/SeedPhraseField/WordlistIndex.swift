@@ -17,7 +17,10 @@ struct WordlistIndex {
     let words: Set<String>
 
     init(wordlist: Wordlist) {
-        let words = wordlist.words
+        self.init(words: wordlist.words)
+    }
+
+    init(words: [String]) {
         self.words = Set(words)
         self.allowedCharacters = Set(words.joined())
     }

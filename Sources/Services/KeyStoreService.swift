@@ -1,3 +1,4 @@
+import SwiftData
 import WalletKit
 
 final class KeyStoreService {
@@ -8,18 +9,14 @@ final class KeyStoreService {
 
     @discardableResult @MainActor
     func addLocalKey(_ mnemonic: Mnemonic) async throws -> KeyStore? {
-        let keyStore = try KeyStore(
-            deviceId: nil,
-            kind: .local,
-            name: "Local Key",
-            mnemonicWordlist: mnemonic.wordlist,
-            sealedEntropy: keyVault.seal(mnemonic.entropy),
-            transport: nil,
-            vendor: nil
-        )
+        try await saveLocalKey(secret: mnemonic.entropy, kind: .bip39, wordlist: mnemonic.wordlist)
+    }
 
-        let keyStoreId = try await databaseService.insertKeyStore(keyStore)
-        return try await databaseService.fetchKeyStore(id: keyStoreId)
+    /// Saves a key store restored from SLIP-39 shares; only the master
+    /// secret is kept, sealed like BIP-39 entropy.
+    @discardableResult @MainActor
+    func addLocalKey(slip39MasterSecret: Data) async throws -> KeyStore? {
+        try await saveLocalKey(secret: slip39MasterSecret, kind: .slip39, wordlist: nil)
     }
 
     @MainActor
@@ -62,7 +59,37 @@ final class KeyStoreService {
         await accountService.disconnectDapps(from: accounts)
     }
 
-    func generateSeedPhrase() -> String {
-        Mnemonic.generate().phrase
+    func generateSeedPhrase(wordCount: MnemonicWordCount = .`12`) -> String {
+        Mnemonic.generate(wordCount: wordCount).phrase
+    }
+
+    /// Seals and inserts a local key store. A failed or cancelled insert
+    /// discards the vault key and nothing is saved. Once saved the key
+    /// store exists, so a failed re-fetch isn't an error: a retry could
+    /// otherwise save a duplicate.
+    @MainActor
+    private func saveLocalKey(secret: Data, kind: KeyStore.SecretKind, wordlist: Wordlist?) async throws -> KeyStore? {
+        let sealed = try keyVault.seal(secret)
+        let keyStore = KeyStore(
+            deviceId: nil,
+            kind: .local,
+            name: "Local Key",
+            mnemonicWordlist: wordlist,
+            sealedEntropy: sealed,
+            secretKind: kind,
+            transport: nil,
+            vendor: nil
+        )
+
+        let keyStoreId: PersistentIdentifier
+
+        do {
+            keyStoreId = try await databaseService.insertKeyStore(keyStore)
+        } catch {
+            keyVault.discard(sealed)
+            throw error
+        }
+
+        return try? await databaseService.fetchKeyStore(id: keyStoreId)
     }
 }

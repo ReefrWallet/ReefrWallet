@@ -203,7 +203,7 @@ struct TransactionCostRow: View {
     let value: String
 
     var body: some View {
-        ParameterRow(String(localized: label)) {
+        ParameterRow(label.string) {
             // Keep the value's height and baseline while the USD cost is unavailable.
             Text(verbatim: value.isEmpty ? "0" : value)
                 #if os(macOS)

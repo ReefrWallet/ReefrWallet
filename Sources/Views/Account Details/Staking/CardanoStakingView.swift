@@ -181,9 +181,9 @@ private extension CardanoStakingView {
             rows: [
                 StakingRow(
                     id: "workflow",
-                    leading: String(
-                        localized: isWithdraw ? .cardanoStakingActionWithdraw : .cardanoStakingActionStopStaking
-                    ),
+                    leading: isWithdraw
+                        ? String(localized: .cardanoStakingActionWithdraw)
+                        : String(localized: .cardanoStakingActionStopStaking),
                     secondary: stepText(workflow.phase),
                     trailing: isWithdraw ? CardanoStakingFormat.ada(model.rewards) : "",
                     trailingColor: .secondary
@@ -239,7 +239,9 @@ private extension CardanoStakingView {
                     id: submission.hash,
                     leading: String(localized: .cardanoStakingTransaction),
                     secondary: submission.hash.shortened(prefix: 4, suffix: 4),
-                    trailing: String(localized: isPhone ? .solanaStakingExplorerShort : .solanaStakingViewInExplorer),
+                    trailing: isPhone
+                        ? String(localized: .solanaStakingExplorerShort)
+                        : String(localized: .solanaStakingViewInExplorer),
                     trailingColor: .accentColor,
                     onTrailingTap: {
                         if let url = model.explorerURL(hash: submission.hash) {

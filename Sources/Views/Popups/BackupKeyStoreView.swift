@@ -27,6 +27,10 @@ struct BackupKeyStoreView: View {
     var body: some View {
         content
             .task {
+                guard keyStore.secretKind == .bip39 else {
+                    return
+                }
+
                 do {
                     let mnemonic = try await keyStore.localMnemonic(reason: "Authenticate to show your recovery phrase")
                     seedPhrase = mnemonic.phrase
@@ -46,7 +50,7 @@ private extension BackupKeyStoreView {
         if isIOS {
             Form {
                 Section {
-                    WordTokenizerView(phrase: $seedPhrase, columns: 3, readOnly: true)
+                    recoveryPhrase
                 } header: {
                     Text(.backupKeyStoreRecoveryPhraseTitle(keyStore.name))
                         .textCase(nil)
@@ -62,11 +66,24 @@ private extension BackupKeyStoreView {
                 Text(.backupKeyStoreRecoveryPhraseTitle(keyStore.name))
                     .style(.medium, foreground: .primary)
 
-                WordTokenizerView(phrase: $seedPhrase, columns: 4, readOnly: true)
+                recoveryPhrase
 
                 buttonsView
             }
             .padding()
+        }
+    }
+
+    @ViewBuilder
+    var recoveryPhrase: some View {
+        if keyStore.secretKind == .slip39 {
+            Text(
+                "Restored from SLIP-39 shares. Reefr doesn't keep the shares, "
+                    + "so there is no recovery phrase to show. Back up with your original shares."
+            )
+                .style(.medium, foreground: .secondary)
+        } else {
+            ReadOnlyPhraseView(phrase: seedPhrase, wordlist: .bip39(keyStore.mnemonicWordlist ?? .english))
         }
     }
 

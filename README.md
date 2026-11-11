@@ -29,7 +29,7 @@ Open source under the BSD 3-Clause license. Written in SwiftUI on [WalletKit](ht
 ## Features
 
 - Runs on macOS 15 or later and iOS 18 or later.
-- Local keys from BIP-39 recovery phrases. Each signature requires biometry or the device password.
+- Local keys from BIP-39 recovery phrases or SLIP-39 shares (generate a single share or restore one or more, with an optional passphrase). Each signature requires biometry or the device password.
 - Trezor over USB, on macOS only.
 - Watch-only addresses, including ENS names.
 - Built-in dapp browser and WalletConnect.
@@ -37,7 +37,7 @@ Open source under the BSD 3-Clause license. Written in SwiftUI on [WalletKit](ht
 
 ## Building
 
-Requires [mise](https://mise.jdx.dev) and [Tuist](https://tuist.dev) as well as Rust toolkit and [WalletKit dependencies](https://github.com/ReefrWallet/WalletKit#requirements).
+Requires [mise](https://mise.jdx.dev) and [Tuist](https://github.com/tuist/tuist) as well as Rust toolkit and [WalletKit dependencies](https://github.com/ReefrWallet/WalletKit#requirements).
 
 ```sh
 make workspace

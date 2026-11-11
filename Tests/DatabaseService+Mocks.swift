@@ -1,8 +1,13 @@
 import Foundation
+import SwiftData
 @testable import ReefrWallet
 import WalletKit
 
 extension DatabaseService {
+    func keyStoreCount() throws -> Int {
+        try modelContext.fetchCount(FetchDescriptor<KeyStoreModel>())
+    }
+
     /// Creates a local test keystore from a known mnemonic so every generated
     /// account can also sign transactions on the local node.
     func makeMockKeyStore(

@@ -84,7 +84,6 @@ extension TransactionRowModel {
     }
     .listStyle(.plain)
 }
-#endif
 
 #if os(macOS)
 #Preview("Table") {
@@ -93,4 +92,5 @@ extension TransactionRowModel {
         schema: TransactionRowPresenters.presenter(for: .evm(.ethereum(.mainnet))).schema
     )
 }
+#endif
 #endif

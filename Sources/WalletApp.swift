@@ -19,27 +19,29 @@ import WalletKit
 #endif
 
     init() {
+#if DEBUG
         processPreStartupOptions()
+#endif
         databaseService = DI.injectOrFail(DatabaseService.self)
         transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
 #if DEBUG
         accountService = DI.injectOrFail(AccountService.self)
         keyStoreService = DI.injectOrFail(KeyStoreService.self)
-#endif
         let accountService = accountService!
         let keyStoreService = keyStoreService!
+#endif
         let persistedDatabaseService = databaseService!
         let syncService = transactionSyncService!
         let tokenIdentityScheduler = DI.injectOrFail(TokenIdentityScheduler.self)
         let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
         Task {
+#if DEBUG
             await Self.processPostStartupOptions(
                 accountService: accountService,
                 databaseService: persistedDatabaseService,
                 keyStoreService: keyStoreService
             )
 
-#if DEBUG
             if !Self.commandLineFlag("--disable-price-updates") {
                 await tokenIdentityScheduler.start()
                 await tokenPriceScheduler.start()

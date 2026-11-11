@@ -189,8 +189,8 @@ private extension TronStakingView {
         let limit = usage.limit.formatted(.number)
 
         return StakingRow(
-            id: String(localized: name),
-            leading: String(localized: name),
+            id: name.string,
+            leading: name.string,
             trailing: "\(remaining) / \(limit)",
             progress: fraction
         )

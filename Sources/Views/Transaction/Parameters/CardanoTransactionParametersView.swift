@@ -48,7 +48,7 @@ extension CardanoTransactionParametersView {
     static func rows(for preview: CardanoTransactionPreview) -> [Row] {
         let transaction = preview.transaction
         let row = { (label: LocalizedStringResource, value: String) in
-            Row(label: String(localized: label), value: value)
+            Row(label: label.string, value: value)
         }
 
         var rows = [row(.commonSignsWith, keyNames(preview.signingPaths))]

@@ -109,7 +109,7 @@ private extension SettingsView {
                 Text(title)
             }
         } else {
-            TextField(String(localized: title), text: text)
+            TextField(title.string, text: text)
         }
     }
 }

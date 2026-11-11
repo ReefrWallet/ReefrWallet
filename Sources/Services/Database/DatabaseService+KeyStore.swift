@@ -34,7 +34,17 @@ extension DatabaseService {
     func insertKeyStore(_ keyStore: KeyStore) throws -> PersistentIdentifier {
         let model = KeyStoreModel(from: keyStore)
         modelContext.insert(model)
-        try modelContext.save()
+
+        // `save()` returning is the commit point; before it a cancelled or
+        // failed insert removes only this model.
+        do {
+            try Task.checkCancellation()
+            try modelContext.save()
+        } catch {
+            modelContext.delete(model)
+            throw error
+        }
+
         return model.persistentModelID
     }
 

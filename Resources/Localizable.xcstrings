@@ -613,7 +613,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate 12, 18 or 24 word seed phrase wallet\nstored locally on this computer"
+            "value" : "Generate a new BIP-39 or SLIP-39 recovery\nphrase stored locally on this computer"
           }
         }
       }
@@ -625,19 +625,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generate 12, 18 or 24 word seed phrase wallet stored locally on this iPhone"
+            "value" : "Generate a new BIP-39 or SLIP-39 recovery phrase stored locally on this iPhone"
           }
         }
       }
     },
-    "addKeyStore.newBip39Mnemonic" : {
+    "addKeyStore.newMnemonic" : {
       "comment" : "AddKeyStoreView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New BIP-39 Mnemonic"
+            "value" : "New Mnemonic"
           }
         }
       }
@@ -661,7 +661,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Restore local seed phrase wallet\nfrom a 12, 18 or 24 word backup"
+            "value" : "Restore a local wallet from a BIP-39\nrecovery phrase or a SLIP-39 share"
           }
         }
       }
@@ -673,7 +673,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Restore local seed phrase wallet from a 12, 18 or 24 word backup"
+            "value" : "Restore a local wallet from a BIP-39 recovery phrase or a SLIP-39 share"
           }
         }
       }
@@ -3584,6 +3584,9 @@
           }
         }
       }
+    },
+    "Only printable ASCII characters (letters, digits, symbols, space) are supported." : {
+
     },
     "qrScanner.cameraUnavailable" : {
       "comment" : "QRScannerView",
@@ -7992,6 +7995,9 @@
     },
     "wc:…" : {
       "comment" : "ConnectAppSheet"
+    },
+    "Words" : {
+
     }
   },
   "version" : "1.3"

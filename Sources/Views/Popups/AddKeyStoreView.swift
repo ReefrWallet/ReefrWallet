@@ -18,8 +18,9 @@ struct AddKeyStoreView: View {
     }
 
     enum ViewState: Equatable {
-        case newKey
         case chooseAction
+        case newKey
+        case newKeyType
         case restore
     }
 
@@ -32,7 +33,11 @@ struct AddKeyStoreView: View {
     @State private var error: Swift.Error?
     @State private var isAlertPresented = false
     @State private var isBackButtonDisabled = false
+    @State private var generatedSlip39: Slip39GeneratedShare?
     @State private var isNextButtonDisabled = true
+    @State private var newKeyType = RestoreBackupModel.BackupType.bip39
+    @State private var newKeyWordCount = 12
+    @State private var restore = RestoreBackupModel()
     @State private var seedPhrase = ""
     @State private var selectedOption: UUID?
     @State private var viewState: ViewState = .chooseAction
@@ -47,6 +52,8 @@ struct AddKeyStoreView: View {
 
     var body: some View {
         layout
+        .interactiveDismissDisabled(restore.isRestoring)
+        .onDisappear { restore.cancel() }
         .onChange(of: selectedOption) { _, newValue in
             switch newValue {
             case Options.connectTrezor:
@@ -87,10 +94,12 @@ private extension AddKeyStoreView {
                 switch viewState {
                 case .newKey:
                     generatedKeyView
+                case .newKeyType:
+                    newKeyTypeView
                 case .chooseAction:
                     chooseKeyTypeView
                 case .restore:
-                    editableKeyView
+                    RestoreBackupView(model: restore)
                 }
 
                 buttonsView
@@ -107,7 +116,7 @@ private extension AddKeyStoreView {
                 Section {
                     phoneOption(
                         Options.generateNewKey,
-                        title: .addKeyStoreNewBip39Mnemonic,
+                        title: .addKeyStoreNewMnemonic,
                         detail: .addKeyStoreLocalKeyDescriptionPhone
                     )
 
@@ -123,19 +132,30 @@ private extension AddKeyStoreView {
                     generatedKeyView
                 }
 
+            case .newKeyType:
+                Section {
+                    newKeyTypeView
+                }
+
             case .restore:
                 Section {
-                    editableKeyView
+                    RestoreBackupView(model: restore)
+                }
+
+                if restore.step == .shares {
+                    Section {
+                        Button("Start Over") { restore.startOver() }
+                    }
                 }
             }
         }
         .phoneSheet(
             .sidebarAddKeyStore,
             cancelTitle: backButtonLabel,
-            isCancelDisabled: isBackButtonDisabled,
+            isCancelDisabled: isBackButtonDisabled || restore.isPersisting,
             onCancel: onBackButtonPressed,
             confirmTitle: nextButtonLabel,
-            isConfirmEnabled: !isNextButtonDisabled,
+            isConfirmEnabled: !isNextDisabled,
             onConfirm: onNextButtonPressed
         )
     }
@@ -167,6 +187,10 @@ private extension AddKeyStoreView {
 
     var buttonsView: some View {
         HStack {
+            if viewState == .restore, restore.step == .shares {
+                Button("Start Over") { restore.startOver() }
+            }
+
             Spacer()
 
             Button {
@@ -176,7 +200,7 @@ private extension AddKeyStoreView {
             }
             .focusable(viewState == .chooseAction)
             .focusEffectDisabled()
-            .disabled(isBackButtonDisabled)
+            .disabled(isBackButtonDisabled || restore.isPersisting)
 
             Button {
                 onNextButtonPressed()
@@ -185,7 +209,7 @@ private extension AddKeyStoreView {
             }
             .focused($focus, equals: .next)
             .keyboardShortcut(.defaultAction)
-            .disabled(isNextButtonDisabled)
+            .disabled(isNextDisabled)
         }
     }
 
@@ -201,7 +225,7 @@ private extension AddKeyStoreView {
                 .tag(Options.connectTrezor)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(.addKeyStoreNewBip39Mnemonic)
+                    Text(.addKeyStoreNewMnemonic)
                         .style(.medium, foreground: .primary)
                     Text(.addKeyStoreLocalKeyDescription)
                         .style(.small, foreground: .secondary)
@@ -222,21 +246,34 @@ private extension AddKeyStoreView {
         }
     }
 
-    var editableKeyView: some View {
-        WordTokenizerView(
-            phrase: $seedPhrase,
-            columns: isIOS ? 3 : 4
-        )
-            .onChange(of: seedPhrase, initial: true) { _, newValue in
-                validateSeedPhrase(newValue)
+    @ViewBuilder
+    var newKeyTypeView: some View {
+        if isIOS {
+            // Separate Form rows, so each control takes its own taps.
+            BackupTypeControls(type: $newKeyType, wordCount: $newKeyWordCount)
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                BackupTypeControls(type: $newKeyType, wordCount: $newKeyWordCount)
             }
+        }
     }
 
+    @ViewBuilder
     var generatedKeyView: some View {
-        WordTokenizerView(phrase: $seedPhrase, columns: isIOS ? 3 : 4, readOnly: true)
-            .onChange(of: seedPhrase, initial: true) { _, newValue in
-                validateSeedPhrase(newValue)
+        VStack(alignment: .leading, spacing: 8) {
+            ReadOnlyPhraseView(phrase: seedPhrase, wordlist: generatedSlip39 == nil ? .bip39(.english) : .slip39)
+
+            if generatedSlip39 != nil {
+                Text(
+                    "Write down these words and keep them safe. "
+                        + "Reefr doesn't keep the share and can't show it again."
+                )
+                .style(.small, foreground: .secondary)
             }
+        }
+        .onChange(of: seedPhrase, initial: true) { _, newValue in
+            validateSeedPhrase(newValue)
+        }
     }
 }
 
@@ -247,7 +284,7 @@ extension AddKeyStoreView {
         switch viewState {
         case .chooseAction:
             .commonCancel
-        case .newKey, .restore:
+        case .newKey, .newKeyType, .restore:
             .commonBack
         }
     }
@@ -256,8 +293,19 @@ extension AddKeyStoreView {
         switch viewState {
         case .newKey:
             .commonDone
-        case .chooseAction, .restore:
+        case .chooseAction, .newKeyType:
             .commonNext
+        case .restore:
+            restore.step == .shares && !restore.sharesCombine ? LocalizedStringResource("Add Share")
+                : restore.nextRestores ? LocalizedStringResource("Restore") : .commonNext
+        }
+    }
+
+    var isNextDisabled: Bool {
+        switch viewState {
+        case .newKeyType: false
+        case .restore: !restore.isNextEnabled
+        case .chooseAction, .newKey: isNextButtonDisabled
         }
     }
 
@@ -274,12 +322,77 @@ extension AddKeyStoreView {
         }
     }
 
+    /// A fresh restore flow that saves the key store and closes the sheet.
+    func makeRestoreModel() -> RestoreBackupModel {
+        let model = RestoreBackupModel()
+        model.save = { secret in
+            switch secret {
+            case let .bip39(mnemonic): try await keyStoreService.addLocalKey(mnemonic)
+            case let .slip39(masterSecret): try await keyStoreService.addLocalKey(slip39MasterSecret: masterSecret)
+            }
+        }
+
+        model.didSave = { dismiss() }
+        return model
+    }
+
     func onBackButtonPressed() {
         switch viewState {
         case .chooseAction:
             dismiss()
-        case .newKey, .restore:
+        case .newKey:
+            generatedSlip39 = nil
+            viewState = .newKeyType
+        case .newKeyType:
             viewState = .chooseAction
+        case .restore:
+            if !restore.back() {
+                viewState = .chooseAction
+            }
+        }
+    }
+
+    @MainActor
+    func choose(_ option: UUID) async {
+        switch option {
+        case Options.connectTrezor:
+            do {
+                try await keyStoreService.connectTrezor()
+                dismiss()
+            } catch {
+                self.error = error
+                isAlertPresented = true
+            }
+
+        case Options.generateNewKey:
+            viewState = .newKeyType
+        case Options.restoreFromBackup:
+            restore = makeRestoreModel()
+            viewState = .restore
+        default:
+            preconditionFailure("Unknown option selected: \(option)")
+        }
+    }
+
+    /// Generates the phrase picked on the type step and shows it.
+    @MainActor
+    func generateMnemonic() {
+        switch newKeyType {
+        case .bip39:
+            generatedSlip39 = nil
+            let wordCount = MnemonicWordCount(rawValue: UInt32(newKeyWordCount)) ?? .`12`
+            seedPhrase = keyStoreService.generateSeedPhrase(wordCount: wordCount)
+            viewState = .newKey
+        case .slip39:
+            do {
+                let generated = try Slip39.generateSingleShare(strength: newKeyWordCount == 33 ? .bits256 : .bits128)
+                generatedSlip39 = generated
+                seedPhrase = generated.mnemonic
+                viewState = .newKey
+            } catch {
+                self.error = error
+                isAlertPresented = true
+            }
         }
     }
 
@@ -290,44 +403,39 @@ extension AddKeyStoreView {
                 preconditionFailure("No option selected")
             }
 
-            Task {
-                switch selectedOption {
-                case Options.connectTrezor:
-                    do {
-                        try await keyStoreService.connectTrezor()
-                        dismiss()
-                    } catch {
-                        self.error = error
-                        isAlertPresented = true
-                    }
+            Task { await choose(selectedOption) }
 
-                case Options.generateNewKey:
-                    seedPhrase = keyStoreService.generateSeedPhrase()
-                    viewState = .newKey
-                case Options.restoreFromBackup:
-                    seedPhrase = ""
-                    viewState = .restore
-                default:
-                    preconditionFailure("Unknown option selected: \(selectedOption)")
-                }
-            }
+        case .newKeyType:
+            generateMnemonic()
 
-        case .newKey, .restore:
+        case .newKey:
             Task {
                 do {
-                    let mnemonic = try Mnemonic.fromPhrase(seedPhrase)
-                    try await keyStoreService.addLocalKey(mnemonic)
+                    if let generatedSlip39 {
+                        try await keyStoreService.addLocalKey(slip39MasterSecret: generatedSlip39.masterSecret)
+                    } else {
+                        try await keyStoreService.addLocalKey(Mnemonic.fromPhrase(seedPhrase))
+                    }
+
                     dismiss()
                 } catch {
                     self.error = error
                     isAlertPresented = true
                 }
             }
+
+        case .restore:
+            Task { await restore.next() }
         }
     }
 
     @MainActor
     func validateSeedPhrase(_ seedPhrase: String) {
+        guard generatedSlip39 == nil else {
+            isNextButtonDisabled = false
+            return
+        }
+
         do {
             _ = try Mnemonic.fromPhrase(seedPhrase)
             isNextButtonDisabled = false
