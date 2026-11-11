@@ -4,6 +4,17 @@ import PackageDescription
 #if TUIST
     import ProjectDescription
 
+    // Release builds of swift-atomics and swift-nio crash at launch (null deref in `ManagedAtomic` and
+    // `NIOSingletons`) unless both are compiled at -Onone in single-file mode. See ADR-067.
+    let unoptimizedTargets = [
+        "Atomics", "NIO", "NIOConcurrencyHelpers", "NIOCore", "NIOEmbedded", "NIOHPACK", "NIOHTTP1",
+        "NIOHTTP2", "NIOPosix", "NIOTLS", "_NIOBase64", "_NIODataStructures"
+    ]
+    let unoptimizedSettings: Settings = .settings(base: [
+        "SWIFT_COMPILATION_MODE": "singlefile",
+        "SWIFT_OPTIMIZATION_LEVEL": "-Onone"
+    ])
+
     let packageSettings = PackageSettings(
         baseSettings: .settings(base: [
             "ENABLE_MODULE_VERIFIER": true,
@@ -12,7 +23,8 @@ import PackageDescription
             "MACOSX_DEPLOYMENT_TARGET": "15.0",
             "OTHER_LIBTOOLFLAGS": "-no_warning_for_no_symbols",
             "WATCHOS_DEPLOYMENT_TARGET": "9.0"
-        ])
+        ]),
+        targetSettings: Dictionary(uniqueKeysWithValues: unoptimizedTargets.map { ($0, unoptimizedSettings) })
     )
 #endif
 
