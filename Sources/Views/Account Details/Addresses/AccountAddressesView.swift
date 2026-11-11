@@ -26,7 +26,7 @@ struct AccountAddressesView: View {
         self.account = account
 
         _models = Query(
-            filter: #Predicate<ReceiveAddressModel> { $0.account.id == accountId },
+            filter: #Predicate<ReceiveAddressModel> { $0.account.persistentModelID == accountId },
             sort: [SortDescriptor(\.index)]
         )
     }

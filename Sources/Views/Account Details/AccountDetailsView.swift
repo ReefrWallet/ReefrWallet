@@ -66,7 +66,7 @@ struct AccountDetailsView {
         self.keyStore = keyStore
 
         _approvals = State(initialValue: AccountApprovalsModel(account))
-        _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.id == accountId })
+        _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.persistentModelID == accountId })
         _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
     }
 }

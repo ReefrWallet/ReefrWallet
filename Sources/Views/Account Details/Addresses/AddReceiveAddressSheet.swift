@@ -27,7 +27,7 @@ struct AddReceiveAddressSheet: View {
 
         self.account = account
 
-        _models = Query(filter: #Predicate<ReceiveAddressModel> { $0.account.id == accountId })
+        _models = Query(filter: #Predicate<ReceiveAddressModel> { $0.account.persistentModelID == accountId })
     }
 
     var body: some View {
