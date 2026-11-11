@@ -29,11 +29,12 @@ Open source under the BSD 3-Clause license. Written in SwiftUI on [WalletKit](ht
 ## Features
 
 - Runs on macOS 15 or later and iOS 18 or later.
-- Local keys from BIP-39 recovery phrases or SLIP-39 shares (generate a single share or restore one or more, with an optional passphrase). Each signature requires biometry or the device password.
+- Local keys from BIP-39 recovery phrases or SLIP-39 shares. Stored keys are protected with biometry or password.
 - Trezor over USB, on macOS only.
 - Watch-only addresses, including ENS names.
+- Native staking on Cardano, Solana, Sui and Tron.
 - Built-in dapp browser and WalletConnect.
-- No account or Reefr servers. Custom RPC endpoints and optional API keys.
+- No account, KYC or Reefr servers. Custom RPC endpoints and optional API keys.
 
 ## Building
 

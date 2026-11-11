@@ -21,6 +21,10 @@ extension DatabaseService {
         try modelContext.save()
     }
 
+    func approvalCount(account: Account) throws -> Int {
+        try modelContext.fetchCount(approvalDescriptor(for: account))
+    }
+
     func fetchApprovals(account: Account) throws -> [TokenApproval] {
         try modelContext.fetch(approvalDescriptor(for: account)).map(TokenApproval.init(model:))
     }

@@ -18,11 +18,12 @@ struct AccountApprovalsView: View {
 
     var body: some View {
         let approvals = model.visibleApprovals(matching: searchText)
+        let countText = model.countText(visible: approvals.count, isSearching: !searchText.isEmpty)
 
         #if os(iOS)
         let showsCount = model.pages.isLoaded
 
-        AccountCountLabel(text: showsCount ? String(localized: .approvalsApprovalCount(approvals.count)) : "")
+        AccountCountLabel(text: showsCount ? countText : "")
             .accessibilityHidden(!showsCount)
             .task { await model.observeApprovals() }
             .task(id: isSearching && model.pages.isLoaded) {
@@ -45,7 +46,7 @@ struct AccountApprovalsView: View {
         #else
         content(approvals)
             .statusBar(edge: .top) {
-                Text(.approvalsApprovalCount(approvals.count))
+                Text(verbatim: countText)
                     .style(.mediumHeader, foreground: .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
@@ -182,6 +183,7 @@ private extension AccountApprovalsView {
 @Observable
 final class AccountApprovalsModel {
     var selection: Set<TokenApproval.ID> = []
+    private(set) var totalCount: Int?
 
     let pages = AccountPages<TokenApproval>()
 
@@ -201,6 +203,11 @@ final class AccountApprovalsModel {
         default:
             false
         }
+    }
+
+    /// The stored total, not just the loaded pages; a search shows the matches found so far.
+    func countText(visible: Int, isSearching: Bool) -> String {
+        String(localized: .approvalsApprovalCount(isSearching ? visible : totalCount ?? visible))
     }
 
     func visibleApprovals(matching searchText: String) -> [TokenApproval] {
@@ -229,7 +236,14 @@ final class AccountApprovalsModel {
     }
 
     func observeApprovals() async {
-        await databaseService.modelContainer.observeSaves(affecting: ["ApprovalModel", "TokenModel"]) {
+        let account = account
+        let container = databaseService.modelContainer
+
+        await container.observeSaves(affecting: ["ApprovalModel", "TokenModel"]) {
+            totalCount = try await container.readSnapshot { reader in
+                try await reader.approvalCount(account: account)
+            }
+
             try await pages.refresh(using: fetchPage)
         }
     }

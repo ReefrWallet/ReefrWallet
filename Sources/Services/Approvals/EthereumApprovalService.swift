@@ -92,7 +92,9 @@ final class EthereumApprovalService: @unchecked Sendable {
             )
         }
 
-        let updates = await liveApprovals(candidates, account: account, client: client, owner: owner)
+        printVerbose("Approvals \(account.name): \(candidates.count) candidates, checking allowances")
+
+        let updates = try await liveApprovals(candidates, account: account, client: client, owner: owner)
 
         printVerbose("Approvals \(account.name): from block \(from), \(candidates.count) candidates, \(updates.count) active")
 
@@ -212,55 +214,62 @@ private extension EthereumApprovalService {
         account: Account,
         client: EthereumRPCClient,
         owner: EthereumAddress
-    ) async -> [ApprovalUpdate] {
-        var updates: [ApprovalUpdate] = []
-        var tokens: [String: Token] = [:]
+    ) async throws -> [ApprovalUpdate] {
+        let parsed: [(candidate: ApprovalCandidate, pair: (token: EthereumAddress, spender: EthereumAddress))] =
+            candidates.values.compactMap { candidate in
+                guard let token = try? EthereumAddress(string: candidate.token),
+                      let spender = try? EthereumAddress(string: candidate.spender) else {
+                    return nil
+                }
 
-        for candidate in candidates.values {
-            guard let token = try? EthereumAddress(string: candidate.token),
-                  let spender = try? EthereumAddress(string: candidate.spender) else {
-                continue
+                return (candidate, (token, spender))
             }
 
-            let data = EthereumABI.encodeCall(
-                selector: EthereumABI.selector("allowance(address,address)"),
-                parameters: [.address(owner), .address(spender)]
-            )
+        let allowances = try await client.erc20Allowances(pairs: parsed.map(\.pair), owner: owner)
 
-            guard let word = try? await EthereumABI.words(client.call(to: token, data: data)).first else {
-                continue
-            }
-
-            let allowance = EthereumABI.decodeUInt256(word)
-
-            guard allowance > 0 else {
-                continue
-            }
-
-            if tokens[candidate.token] == nil {
-                tokens[candidate.token] = try? await resolveToken(candidate.token, account: account, client: client)
-            }
-
-            guard let token = tokens[candidate.token] else {
-                continue
-            }
-
-            updates.append(ApprovalUpdate(
-                allowance: allowance, approvedAt: candidate.approvedAt, spender: candidate.spender, token: token
-            ))
+        let active = zip(parsed, allowances).compactMap { item, allowance in
+            allowance.flatMap { $0 > 0 ? (item.candidate, $0) : nil }
         }
 
-        return updates
+        let tokens = try await resolveTokens(Set(active.map(\.0.token)), account: account, client: client)
+
+        return active.compactMap { candidate, allowance in
+            tokens[candidate.token].map {
+                ApprovalUpdate(
+                    allowance: allowance, approvedAt: candidate.approvedAt, spender: candidate.spender, token: $0
+                )
+            }
+        }
     }
 
-    func resolveToken(_ address: String, account: Account, client: EthereumRPCClient) async throws -> Token {
-        if let stored = try await databaseService.fetchToken(tokenAddress: address, blockchain: account.blockchain) {
-            return stored
+    /// Stored tokens, plus the rest read in one batched metadata request; undecodable ones are omitted.
+    func resolveTokens(
+        _ addresses: Set<String>,
+        account: Account,
+        client: EthereumRPCClient
+    ) async throws -> [String: Token] {
+        var tokens: [String: Token] = [:]
+        var missing: [(address: String, parsed: EthereumAddress)] = []
+
+        for address in addresses {
+            let stored = try await databaseService.fetchToken(tokenAddress: address, blockchain: account.blockchain)
+
+            if let stored {
+                tokens[address] = stored
+            } else if let parsed = try? EthereumAddress(string: address) {
+                missing.append((address, parsed))
+            }
         }
 
-        let info = try await client.getTokenInfo(address)
+        let infos = try await client.erc20TokenInfos(tokens: missing.map(\.parsed))
 
-        return Token(address: address, blockchain: account.blockchain, tokenInfo: info)
+        for (item, info) in zip(missing, infos) {
+            if let info {
+                tokens[item.address] = Token(address: item.address, blockchain: account.blockchain, tokenInfo: info)
+            }
+        }
+
+        return tokens
     }
 }
 
@@ -318,6 +327,8 @@ private extension EthereumApprovalService {
                 )
             )
 
+            printVerbose("Approvals logs \(owner): page \(page) from block \(start), \(logs.count) logs")
+
             for log in logs.compactMap(ApprovalLog.init) {
                 if let existing = latest[log.id], log < existing {
                     continue
@@ -355,6 +366,8 @@ private extension EthereumApprovalService {
                 await RateGateRegistry.shared.reportSuccess(origin: Self.origin, provider: .etherscan)
                 return try response.result()
             }
+
+            printVerbose("Approvals logs: rate limited, attempt \(attempt)")
 
             await RateGateRegistry.shared.penalize(
                 origin: Self.origin,

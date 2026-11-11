@@ -358,6 +358,30 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
+    func approvalCountCoversEveryStoredApprovalNotJustOnePage() async throws {
+        let service = try makeDatabaseService()
+        let keyStoreId = try await service.insertKeyStore(makeKeyStore())
+        let keyStore = makeKeyStore(id: keyStoreId)
+        var account = makeAccount(keyStoreId: keyStoreId, blockchain: .evm(.ethereum(.mainnet)))
+        account.id = try await service.insertAccount(account, keyStore: keyStore)
+        let spender = "0x0000000000000000000000000000000000000003"
+        try await service.replaceApprovals(
+            account: account,
+            updates: (1...45).map {
+                ApprovalUpdate(
+                    allowance: 1,
+                    approvedAt: nil,
+                    spender: spender,
+                    token: makeToken(address: String(format: "0x%040x", $0))
+                )
+            }
+        )
+
+        #expect(try await service.approvalCount(account: account) == 45)
+        #expect(try await service.fetchApprovalPage(account: account, offset: 0, limit: 40).rows.count == 40)
+    }
+
+    @Test
     func transactionPagesContinuePastFormerDisplayLimit() async throws {
         let service = try makeDatabaseService()
         let keyStore = try await service.watchOnlyKeyStore()
