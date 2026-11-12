@@ -35,12 +35,14 @@ extension DappWebView.Coordinator: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Swift.Error) {
+        Logger.verbose("Dapp web view: navigation failed: \(error)")
         controller.updateNavigationState()
     }
 
     func webView(
         _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Swift.Error
     ) {
+        Logger.verbose("Dapp web view: provisional navigation failed: \(error)")
         controller.updateNavigationState()
     }
 
@@ -53,6 +55,7 @@ extension DappWebView.Coordinator: WKNavigationDelegate {
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        Logger.verbose("Dapp web view: web content process terminated")
         controller.webContentProcessDidTerminate()
     }
 
@@ -64,19 +67,61 @@ extension DappWebView.Coordinator: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        let target = navigationAction.request.url
+        Logger.verbose("Dapp web view: navigation \(navigationAction.navigationType.rawValue) → \(target?.absoluteString ?? "nil")")
+
         guard
             navigationAction.navigationType == .linkActivated,
-            let url = navigationAction.request.url,
+            let url = target,
             !controller.isWithinDappDomain(url)
         else {
             decisionHandler(.allow)
             return
         }
 
+        Logger.verbose("Dapp web view: opening cross-domain link externally: \(url)")
         controller.openExternally(url)
         decisionHandler(.cancel)
     }
 }
+
+#if DEBUG
+/// Forwards the page's uncaught errors, unhandled rejections and
+/// `console.error` calls to the log — dapps often swallow a failed request.
+extension DappWebView.Coordinator: WKScriptMessageHandler {
+    static let pageLogHandlerName = "reefrPageLog"
+
+    static let pageLogScript = """
+    (() => {
+        const post = window.webkit.messageHandlers.\(pageLogHandlerName);
+        const send = (kind, detail) => post.postMessage({ kind, detail: String(detail) });
+        const describe = (value) => value instanceof Error
+            ? `${value.name}: ${value.message}`
+            : (typeof value === 'string' ? value : JSON.stringify(value));
+        window.addEventListener('error', (event) => {
+            send('error', `${event.message} (${event.filename}:${event.lineno})`);
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+            send('unhandledrejection', describe(event.reason));
+        });
+        const original = console.error.bind(console);
+        console.error = (...args) => {
+            send('console.error', args.map(describe).join(' '));
+            original(...args);
+        };
+    })();
+    """
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any] else {
+            return
+        }
+
+        let text = "\(body["detail"] ?? "")"
+        Logger.verbose("Dapp page \(body["kind"] ?? "log"): \(text.prefix(800))")
+    }
+}
+#endif
 
 extension DappWebView.Coordinator: WKUIDelegate {
     /// `target="_blank"`/`window.open` links have no window to open
@@ -90,12 +135,15 @@ extension DappWebView.Coordinator: WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         guard let url = navigationAction.request.url else {
+            Logger.verbose("Dapp web view: window.open without a URL ignored")
             return nil
         }
 
         if controller.isWithinDappDomain(url) {
+            Logger.verbose("Dapp web view: window.open loaded in place: \(url)")
             webView.load(navigationAction.request)
         } else {
+            Logger.verbose("Dapp web view: window.open opened externally: \(url)")
             controller.openExternally(url)
         }
 
@@ -110,6 +158,14 @@ private extension DappWebView {
         for script in DappScripts.userScripts(for: DappNamespace.allCases) {
             configuration.userContentController.addUserScript(script)
         }
+
+        #if DEBUG
+        configuration.userContentController.addUserScript(
+            WKUserScript(source: Coordinator.pageLogScript, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        )
+
+        configuration.userContentController.add(coordinator, name: Coordinator.pageLogHandlerName)
+        #endif
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         #if os(macOS)
