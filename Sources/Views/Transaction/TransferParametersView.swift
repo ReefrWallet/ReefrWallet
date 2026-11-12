@@ -28,6 +28,8 @@ struct TransferParametersView {
 
     let nativeFeeReserve: BigUInt?
 
+    /// Why the form can't proceed yet; `nil` when it can.
+    @Binding var issue: String?
     @Binding var parameters: TransferParameters?
     /// The selected token, even while the rest of the form is invalid.
     @Binding var token: Token
@@ -43,11 +45,13 @@ struct TransferParametersView {
     init(
         balance: Balance,
         nativeFeeReserve: BigUInt?,
+        issue: Binding<String?>,
         parameters: Binding<TransferParameters?>,
         token: Binding<Token>
     ) {
         account = balance.account
         self.nativeFeeReserve = nativeFeeReserve
+        _issue = issue
         _parameters = parameters
         _token = token
 
@@ -89,6 +93,9 @@ extension TransferParametersView: View {
         }
         .onChange(of: validatedParameters, initial: true) { _, newValue in
             parameters = newValue
+        }
+        .onChange(of: validationIssue, initial: true) { _, newValue in
+            issue = newValue
         }
     }
 }
@@ -190,7 +197,7 @@ private extension TransferParametersView {
     /// Non-nil only when the recipient address and amount both validate for the
     /// selected token — the signal that the transfer can proceed.
     var validatedParameters: TransferParameters? {
-        guard let selectedBalance, validateAddress(), validateAmount(selectedBalance) else {
+        guard let selectedBalance, validationIssue == nil else {
             return nil
         }
 
@@ -200,6 +207,15 @@ private extension TransferParametersView {
             decimalAmount: decimalAmountText,
             recipient: receiverText
         )
+    }
+
+    /// What keeps the amount and receiver from validating, if anything.
+    var validationIssue: String? {
+        guard let selectedBalance else {
+            return nil
+        }
+
+        return amountIssue(selectedBalance) ?? addressIssue
     }
 
     /// The receiver field's placeholder, e.g. "0x…" or "bc1…".
@@ -241,7 +257,7 @@ private extension TransferParametersView {
     /// Exhaustive over `Blockchain` on purpose: a `default` that rejects
     /// everything silently disables the whole form for any chain missing a
     /// case here, so a newly supported chain must fail to compile instead.
-    func validateAddress() -> Bool {
+    var addressIssue: String? {
         do {
             switch account.blockchain {
             case .aptos:
@@ -260,19 +276,19 @@ private extension TransferParametersView {
                 _ = try TronAddress(string: receiverText)
             }
 
-            return true
+            return nil
         } catch {
-            return false
+            return String(localized: .transferParametersIssueReceiverInvalid)
         }
     }
 
-    func validateAmount(_ balance: Balance) -> Bool {
-        guard
-            let amount = Decimal(string: decimalAmountText),
-            amount > 0,
-            balance.decimalAmount >= amount
-        else {
-            return false
+    func amountIssue(_ balance: Balance) -> String? {
+        guard let amount = Decimal(string: decimalAmountText), amount > 0 else {
+            return String(localized: .transferParametersIssueAmountInvalid)
+        }
+
+        guard balance.decimalAmount >= amount else {
+            return String(localized: .transferParametersIssueAmountExceedsBalance)
         }
 
         // Reject amounts that don't map exactly to a positive base-unit integer.
@@ -289,13 +305,13 @@ private extension TransferParametersView {
         )
 
         guard scaled == scaled.rounding(accordingToBehavior: handler) else {
-            return false
+            return String(localized: .transferParametersIssueAmountPrecision)
         }
 
-        guard !isCardanoNativeAsset else {
-            return UInt64(cardanoRecipientLovelaceText) != nil
+        guard !isCardanoNativeAsset || UInt64(cardanoRecipientLovelaceText) != nil else {
+            return String(localized: .transferParametersIssueRecipientLovelaceInvalid)
         }
 
-        return true
+        return nil
     }
 }

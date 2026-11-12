@@ -13,7 +13,7 @@ final class Logger {
     static let shared = Logger()
 
     /// Whether verbose messages are logged: pass `--verbose` on the command line.
-    private static let isVerbose = CommandLine.arguments.contains("--verbose")
+    static let isVerbose = CommandLine.arguments.contains("--verbose")
 
     private init() {
         let console = ConsoleDestination()

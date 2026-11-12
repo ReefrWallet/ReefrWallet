@@ -271,7 +271,7 @@ private extension TransactionFeesView {
         case .cardano where cardanoStaking != nil:
             warning ?? String(localized: .cardanoStakingFeesNote)
         case .cardano:
-            String(localized: .transactionFeesFeeSizeNote)
+            warning ?? String(localized: .transactionFeesFeeSizeNote)
         case .solana where isSolanaStaking:
             warning ?? String(localized: .solanaStakingNoteFees)
         case .sui where isSuiStaking:
@@ -299,7 +299,7 @@ private extension TransactionFeesView {
         case .cardano where cardanoStaking != nil:
             warning == nil ? .secondary : .caution
         case .cardano:
-            .secondary
+            warning == nil ? .secondary : .caution
         case .solana where isSolanaStaking, .sui where isSuiStaking, .tron:
             warning == nil ? .secondary : .caution
         default:

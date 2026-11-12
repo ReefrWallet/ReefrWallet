@@ -85,6 +85,7 @@ final class DappBridge: NSObject {
     /// (e.g. `wallet_switchEthereumChain` or granting a `.connect`).
     func dispatch(namespaceRaw: String, method: String, params: JSONValue, origin: String) async -> DispatchOutcome {
         guard let namespace = DappNamespace(rawValue: namespaceRaw), let provider = providers[namespace] else {
+            Logger.verbose("Dapp bridge: no provider for namespace \(namespaceRaw)")
             return .transportError("reefr: unknown namespace \(namespaceRaw)")
         }
 
@@ -300,6 +301,18 @@ final class DappBridge: NSObject {
     }
 }
 
+// MARK: - Logging
+
+private extension DappBridge {
+    static let summaryLimit = 600
+
+    /// The value as JSON, cut to ``summaryLimit`` characters for the log.
+    static func summary(_ value: JSONValue) -> String {
+        let json = (try? value.asJSONString()) ?? "<unencodable>"
+        return json.count > summaryLimit ? "\(json.prefix(summaryLimit))…(\(json.count) chars)" : json
+    }
+}
+
 // MARK: - WKScriptMessageHandlerWithReply
 
 extension DappBridge: WKScriptMessageHandlerWithReply {
@@ -309,6 +322,11 @@ extension DappBridge: WKScriptMessageHandlerWithReply {
         replyHandler: @escaping @MainActor @Sendable (Any?, String?) -> Void
     ) {
         guard message.frameInfo.isMainFrame else {
+            let origin = message.frameInfo.securityOrigin
+            Logger.verbose(
+                "Dapp bridge: dropped subframe message from \(origin.protocol)://\(origin.host): \(message.body)"
+            )
+
             replyHandler(nil, "reefr: messages are only accepted from the main frame")
             return
         }
@@ -318,6 +336,7 @@ extension DappBridge: WKScriptMessageHandlerWithReply {
             let namespaceRaw = body["namespace"] as? String,
             let method = body["method"] as? String
         else {
+            Logger.verbose("Dapp bridge: malformed request: \(message.body)")
             replyHandler(nil, "reefr: malformed request")
             return
         }
@@ -326,13 +345,23 @@ extension DappBridge: WKScriptMessageHandlerWithReply {
         let origin = message.frameInfo.securityOrigin
         let originString = "\(origin.protocol)://\(origin.host):\(origin.port)"
 
+        let requestId = UUID().uuidString.prefix(4)
+        Logger.verbose("Dapp bridge [\(requestId)] ← \(namespaceRaw).\(method) \(originString) \(Self.summary(params))")
+
         Task {
-            switch await dispatch(namespaceRaw: namespaceRaw, method: method, params: params, origin: originString) {
+            let outcome = await dispatch(
+                namespaceRaw: namespaceRaw, method: method, params: params, origin: originString
+            )
+
+            switch outcome {
             case let .success(value):
+                Logger.verbose("Dapp bridge [\(requestId)] → \(method) ok \(Self.summary(value))")
                 replyHandler(["ok": true, "value": value.anyValue], nil)
             case let .transportError(message):
+                Logger.verbose("Dapp bridge [\(requestId)] → \(method) transport error: \(message)")
                 replyHandler(nil, message)
             case let .providerError(wireError):
+                Logger.verbose("Dapp bridge [\(requestId)] → \(method) provider error \(Self.summary(wireError))")
                 replyHandler(["ok": false, "error": wireError.anyValue], nil)
             }
         }

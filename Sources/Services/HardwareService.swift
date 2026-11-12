@@ -42,6 +42,14 @@ final class HardwareService {
     private static let maxReconnectAttempts = 3
     private static let retryDelay = Duration.seconds(1)
 
+    init() {
+        guard Logger.isVerbose else {
+            return
+        }
+
+        HardwareLogging.setHandler { Logger.verbose("Hardware: \($0)") }
+    }
+
     /// Scans for connected hardware keys.
     ///
     /// - Parameters:

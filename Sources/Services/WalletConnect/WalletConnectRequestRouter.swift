@@ -56,8 +56,14 @@ struct WalletConnectRequestRouter {
             // The proposal approval is the user's consent to this account.
             await session.replaceActiveAccount(account)
             guard await session.grantPermission(namespace, origin: origin, account: account) else {
+                let details = await session.diagnostics(namespace)
+                Logger.verbose("WC route: grant refused for \(account.address) at \(origin); \(details)")
+
                 throw DappError.unauthorized
             }
+
+            let granted = await session.diagnostics(namespace)
+            Logger.verbose("WC route: granted; \(granted)")
 
             let context = DappRequestContext(
                 origin: origin, session: session, approving: approving, signingService: signingService
@@ -75,7 +81,7 @@ struct WalletConnectRequestRouter {
 
             return .success(try JSONEncoder().encode(response))
         } catch let error as DappError {
-            Logger.verbose("WC route: DappError \(error)")
+            Logger.verbose("WC route: DappError \(error) for \(method) on \(chainId), account \(account.address)")
             return .failure(Self.rpcError(error))
         } catch {
             Logger.verbose("WC route: error \(error)")

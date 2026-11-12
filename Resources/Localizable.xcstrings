@@ -3390,6 +3390,30 @@
         }
       }
     },
+    "ethereumDapp.chainIdNotFound" : {
+      "comment" : "EthereumDappProvider",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ asked to switch to chain ID %2$lld, but this wallet has no account on it. Add an account for that network and try again."
+          }
+        }
+      }
+    },
+    "ethereumDapp.chainNotFound" : {
+      "comment" : "EthereumDappProvider",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ asked to switch to %2$@, but this wallet has no account on it. Add an account for that network and try again."
+          }
+        }
+      }
+    },
     "ethereumTransactionParameters.contractCreation" : {
       "comment" : "EthereumTransactionParametersView",
       "extractionState" : "manual",
@@ -6747,6 +6771,18 @@
         }
       }
     },
+    "transfer.estimateFailed" : {
+      "comment" : "TransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not estimate the fees: %@"
+          }
+        }
+      }
+    },
     "transfer.preparingTransaction" : {
       "comment" : "TransferView",
       "extractionState" : "manual",
@@ -6815,6 +6851,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fill from Address Book"
+          }
+        }
+      }
+    },
+    "transferParameters.issueAmountExceedsBalance" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The amount exceeds your balance."
+          }
+        }
+      }
+    },
+    "transferParameters.issueAmountInvalid" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an amount greater than zero."
+          }
+        }
+      }
+    },
+    "transferParameters.issueAmountPrecision" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The amount has more decimal places than this token supports."
+          }
+        }
+      }
+    },
+    "transferParameters.issueReceiverInvalid" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a valid receiver address."
+          }
+        }
+      }
+    },
+    "transferParameters.issueRecipientLovelaceInvalid" : {
+      "comment" : "TransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the recipient ADA amount in lovelace."
           }
         }
       }
