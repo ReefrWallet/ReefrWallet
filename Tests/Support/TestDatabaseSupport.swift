@@ -54,9 +54,9 @@ func makeWatchOnlyKeyStore(
 /// actually sign, unlike the watch-only keystores elsewhere in this file.
 func makeLocalKeyStore(
     databaseService: DatabaseService,
-    name: String = "Anvil Local Test Key Store"
+    name: String = "Anvil Local Test Key Store",
+    mnemonic: Mnemonic = Mnemonic.generate(wordCount: .`12`)
 ) async throws -> KeyStore {
-    let mnemonic = Mnemonic.generate(wordCount: .`12`)
     let keyStoreId = try await databaseService.insertKeyStore(KeyStore(
         deviceId: nil,
         kind: .local,

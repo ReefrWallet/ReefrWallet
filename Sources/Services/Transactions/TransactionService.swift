@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  TransactionService.swift
 //  Reefr Wallet
@@ -16,6 +17,7 @@ import WalletKit
 final class TransactionService: @unchecked Sendable {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
+    private lazy var tonSendService = TonSendService(databaseService: databaseService)
     private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
     private let databaseService: DatabaseService
 
@@ -55,10 +57,15 @@ final class TransactionService: @unchecked Sendable {
             options.append(.cardanoRecipientLovelace(lovelace))
         }
 
+        if case .ton = blockchain {
+            try await tonSendService.ensureCanSend(account: account)
+        }
+
         let builder = try clientProvider.makeTransactionBuilder(
             blockchain: blockchain,
             rpcURL: account.rpcURLOverride,
-            backend: account.bitcoinBackend
+            backend: account.bitcoinBackend,
+            publicKey: account.publicKey
         )
 
         return try await builder.buildTransfer(
@@ -97,6 +104,10 @@ final class TransactionService: @unchecked Sendable {
     ///   - account: The sending account.
     /// - Returns: The transaction hash (Ethereum) or digest (Sui).
     func sendTransaction(_ txRequest: Data, _ txSignature: Data, account: Account) async throws -> String {
+        if case .ton = account.blockchain {
+            return try await tonSendService.send(txRequest, signature: txSignature, account: account)
+        }
+
         let client = try clientProvider.makeClient(
             blockchain: account.blockchain,
             rpcURL: account.rpcURLOverride,
@@ -408,6 +419,10 @@ private extension TransactionService {
                 privateKey: privateKey,
                 derivationPath: derivationPath
             )
+
+        case let .ton(network):
+            let key = try seed.masterKey(curve: .ed25519).derive(derivationPath).privateKey()
+            return try TonPKeySigner(network: network, privateKey: key, derivationPath: derivationPath)
 
         case .cardano:
             // Cardano local signing is handled directly in

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import WalletKit
 
@@ -35,6 +36,8 @@ enum TransactionRowPresenters {
             SolanaTransactionRowPresenter()
         case .sui:
             SuiTransactionRowPresenter()
+        case .ton:
+            TonTransactionRowPresenter()
         case .tron:
             TronTransactionRowPresenter()
         }
@@ -158,6 +161,30 @@ struct SolanaTransactionRowPresenter: TransactionRowPresenter {
             account: account,
             direction: .signedAmounts,
             blockLabel: transaction.blockHeight.map { String(localized: .commonSlotNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
+        )
+    }
+}
+
+/// TON rows are signed per transaction; the block column is the account's logical time.
+struct TonTransactionRowPresenter: TransactionRowPresenter {
+    let schema = TransactionTableSchema(
+        amountTitle: String(localized: .commonAmount),
+        blockTitle: String(localized: .transactionRowBlock),
+        feeTitle: String(localized: .transactionFeesNetworkFee),
+        fromTitle: String(localized: .transactionRowSender),
+        hashTitle: String(localized: .transactionRowHash),
+        methodTitle: String(localized: .commonType),
+        showsDirection: true,
+        toTitle: nil
+    )
+
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .ownedAddresses,
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowBlockNumber(String($0))) }
                 ?? String(localized: .transactionRowPending)
         )
     }

@@ -181,6 +181,11 @@ private extension WalletApp {
                         creationFlag: "--create-sui-accounts"
                     ),
                     TestAccountConfiguration(
+                        blockchain: .ton(.testnet),
+                        rpcURL: nil,
+                        creationFlag: "--create-ton-accounts"
+                    ),
+                    TestAccountConfiguration(
                         blockchain: .tron(.testnet),
                         rpcURL: commandLineURL(after: "--tron-rpc-url"),
                         creationFlag: "--create-tron-accounts"

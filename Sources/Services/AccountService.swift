@@ -71,6 +71,8 @@ final class AccountService {
                 _ = try TronAddress(string: address)
             case .solana:
                 _ = try SolanaAddress(string: address)
+            case let .ton(network):
+                try TonAddress(string: address).validate(for: network)
             case let .cardano(network):
                 _ = try CardanoAccountDescriptor(string: "cardano:\(network.storageIdentifier):\(address)")
             case let .bitcoin(network):
@@ -160,6 +162,7 @@ final class AccountService {
         }
 
         let address: String
+        var publicKey: Data?
 
         switch keyStore.kind {
         case .local:
@@ -185,6 +188,10 @@ final class AccountService {
                     signatureScheme: effectiveSignatureScheme,
                     bitcoinScriptType: bitcoinScriptType
                 )
+
+                if case .ton = blockchain {
+                    publicKey = try seed.masterKey(curve: .ed25519).derive(path).privateKey().publicKey.rawBytes
+                }
             }
 
         case .trezor:
@@ -264,6 +271,7 @@ final class AccountService {
             derivationPath: path,
             keyStoreId: keyStoreId,
             name: accountName,
+            publicKey: publicKey,
             rpcURLOverride: rpcURLOverride,
             signatureScheme: effectiveSignatureScheme,
             bitcoinBackend: bitcoinBackend
@@ -422,7 +430,7 @@ private extension AccountService {
             curve = .secp256k1
         case .tron:
             curve = .secp256k1
-        case .solana:
+        case .solana, .ton:
             curve = .ed25519
         case .aptos, .sui:
             guard let signatureScheme else {
@@ -452,6 +460,9 @@ private extension AccountService {
         case .sui:
             let publicKey = try seed.masterKey(curve: curve).derive(path).privateKey().publicKey
             address = try SuiAddress(publicKey: publicKey, curve: curve).string
+        case let .ton(network):
+            let publicKey = try seed.masterKey(curve: curve).derive(path).privateKey().publicKey
+            address = try TonAddress(publicKey: publicKey, network: network).string
         default:
             throw ReefrError.notImplemented
         }
@@ -505,7 +516,7 @@ private extension AccountService {
             }
 
             return .secp256k1
-        case .solana:
+        case .solana, .ton:
             guard signatureScheme == nil || signatureScheme == .ed25519 else {
                 throw ReefrError.invalidData
             }

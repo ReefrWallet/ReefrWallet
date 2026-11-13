@@ -89,6 +89,16 @@ extension DatabaseService {
         )
     }
 
+    /// The account's transactions still in the broadcast state, whose payload may hold a pending send.
+    func fetchBroadcastTransactions(accountId: PersistentIdentifier) throws -> [WalletTransaction] {
+        let status = BlockchainTransactionStatus.broadcast.rawValue
+        let predicate = #Predicate<WalletTransactionModel> {
+            $0.account.persistentModelID == accountId && $0.status == status
+        }
+
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate)).map(WalletTransaction.init(model:))
+    }
+
     func transactionCount(accountId: PersistentIdentifier) throws -> Int {
         try modelContext.fetchCount(FetchDescriptor(predicate: transactionPredicate(accountId: accountId)))
     }

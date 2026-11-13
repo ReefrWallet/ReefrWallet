@@ -24,6 +24,7 @@ extension Blockchain {
         case let .evm(chain): chain.logoImageName
         case .solana: "solToken16"
         case .sui: "suiToken16"
+        case .ton: "gramToken16"
         case .tron: "trxToken16"
         }
     }
@@ -42,6 +43,7 @@ extension Blockchain {
         case let .evm(chain): chain.networkImageName
         case .solana: "solanaNetwork16"
         case .sui: "suiNetwork16"
+        case .ton: "tonNetwork16"
         case .tron: "tronNetwork16"
         }
     }

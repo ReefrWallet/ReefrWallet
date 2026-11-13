@@ -40,6 +40,8 @@ struct BlockchainClientProvider: Sendable {
         case .solana:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return SolanaRPCClient(endpoint: endpoint, session: urlSession)
+        case let .ton(network):
+            return TonClient(network: network, apiKey: tonCenterAPIKey(), session: urlSession)
         }
     }
 
@@ -53,7 +55,8 @@ struct BlockchainClientProvider: Sendable {
     func makeTransactionBuilder(
         blockchain: Blockchain,
         rpcURL: URL? = nil,
-        backend: BitcoinBackendKind? = nil
+        backend: BitcoinBackendKind? = nil,
+        publicKey: Data? = nil
     ) throws -> any BlockchainTransactionBuilderProtocol {
         switch blockchain {
         case .aptos:
@@ -77,6 +80,14 @@ struct BlockchainClientProvider: Sendable {
         case .solana:
             let endpoint = rpcURL ?? blockchain.rpcURL
             return SolanaTransactionBuilder(client: SolanaRPCClient(endpoint: endpoint))
+        case let .ton(network):
+            // A V5R1 wallet's deployment needs the key; accounts without one (watch-only) can't send.
+            guard let publicKey else {
+                throw ReefrError.notSupported
+            }
+
+            let client = TonClient(network: network, apiKey: tonCenterAPIKey(), session: urlSession)
+            return TonTransactionBuilder(client: client, publicKey: publicKey)
         }
     }
 
@@ -115,6 +126,20 @@ struct BlockchainClientProvider: Sendable {
         }
 
         return host == domain || host.hasSuffix(".\(domain)")
+    }
+
+    private func tonCenterAPIKey() -> String? {
+        let setting = UserDefaults.standard
+            .string(forKey: "TonCenterAPIKey")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let setting, !setting.isEmpty {
+            return setting
+        }
+
+        return ProcessInfo.processInfo
+            .environment["TONCENTER_API_KEY"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func aptosAPIKey() -> String? {

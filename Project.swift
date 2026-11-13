@@ -16,6 +16,7 @@ private let testEnvironmentVariables: [String: EnvironmentVariable] = {
         "COINGECKO_API_KEY",
         "ETHERSCAN_API_KEY",
         "REEFR_TESTNET_MNEMONIC",
+        "TONCENTER_API_KEY",
         "TRONGRID_API_KEY"
     ]
 
@@ -137,6 +138,7 @@ private let iosUITestExclusions: [String] = [
     "SolanaStakingUITests.swift",
     "SuiForwardSyncUITests.swift",
     "SuiTransactionHistoryUITests.swift",
+    "TonTestnetTransferUITests.swift",
     "TronTRXTransferUITests.swift",
     "TronUSDTTransferUITests.swift",
     "UniswapConnectionUITests.swift",

@@ -282,6 +282,10 @@ private extension TransactionSyncService {
                 await enqueueFullRefresh(account: account)
             }
 
+            if case .ton = account.blockchain {
+                await DI.inject(TonSendService.self)?.reconcile(account: account)
+            }
+
             // Standard HTTP JSON-RPC nodes are not guaranteed to expose
             // WebSocket pub-sub. Space fallback polls across accounts so a
             // quiet wallet does not wake every client and SwiftData at once.
