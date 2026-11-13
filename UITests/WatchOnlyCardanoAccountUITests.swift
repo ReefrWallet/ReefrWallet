@@ -14,8 +14,9 @@ final class WatchOnlyCardanoAccountUITests: XCTestCase {
 
     private var app: XCUIApplication!
 
-    override func setUp() {
+    override func setUpWithError() throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = ["--test"]

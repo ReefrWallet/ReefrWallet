@@ -14,6 +14,7 @@ final class DappConnectionUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         fixtureServer = try await LocalDappServer.start(html: multiChainFixtureHTML)
 

@@ -17,6 +17,7 @@ final class DappBrowserUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         anvilNode = try await EthereumNode.start()
         fixtureServer = try await LocalDappServer.start(html: ethereumFixtureHTML)

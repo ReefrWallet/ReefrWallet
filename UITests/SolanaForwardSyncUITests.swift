@@ -15,6 +15,7 @@ final class SolanaForwardSyncUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         solanaNode = try await SolanaNode.start()
 

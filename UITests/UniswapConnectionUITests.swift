@@ -13,6 +13,7 @@ final class UniswapConnectionUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         do {
             // swiftlint:disable:next force_unwrapping

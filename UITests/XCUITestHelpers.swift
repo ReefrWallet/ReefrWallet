@@ -1,3 +1,6 @@
+#if os(macOS)
+import Carbon
+#endif
 import XCTest
 
 extension XCUIApplication {
@@ -15,8 +18,15 @@ extension XCUIApplication {
     /// Adds `url` as a sidebar dApp (or selects the existing one) and opens
     /// it in a Browser window.
     func openDappInBrowser(_ url: String, timeout: TimeInterval = 10) {
+        // The add button only appears while the section header is hovered.
+        let header = descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Connected dApps"))
+            .firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: timeout), "Expected the sidebar's Connected dApps header.")
+        header.hover()
+
         let addButton = descendant(withIdentifier: "sidebar-add-dapp-button")
-        XCTAssertTrue(addButton.waitForExistence(timeout: timeout), "Expected the sidebar's Add dApp button.")
+        XCTAssertTrue(addButton.waitForExistence(timeout: 5), "Expected the sidebar's Add dApp button.")
         // The section header merges into one element with the button's
         // identifier, so click the trailing "+" rather than the center.
         addButton.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
@@ -65,5 +75,29 @@ extension XCUIElement {
         }
 
         return value as? String ?? ""
+    }
+}
+
+extension XCTestCase {
+    /// Under a non-Latin input source (e.g. Russian) `typeText` holds ⌘ to
+    /// reach Latin keys, so text arrives as shortcuts. Fail at once instead
+    /// of timing out.
+    func requireASCIIKeyboardLayout() throws {
+#if os(macOS)
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              let isASCII = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsASCIICapable) else {
+            return
+        }
+
+        guard !CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(isASCII).takeUnretainedValue()) else {
+            return
+        }
+
+        let name = TISGetInputSourceProperty(source, kTISPropertyLocalizedName)
+            .map { Unmanaged<CFString>.fromOpaque($0).takeUnretainedValue() as String } ?? "current"
+        throw NSError(domain: "KeyboardLayout", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "The \(name) input source can't type Latin text; switch to ABC."
+        ])
+#endif
     }
 }

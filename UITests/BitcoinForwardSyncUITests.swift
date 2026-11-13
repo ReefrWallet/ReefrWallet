@@ -17,6 +17,7 @@ final class BitcoinForwardSyncUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         bitcoinNode = try await BitcoinNode.start()
 
