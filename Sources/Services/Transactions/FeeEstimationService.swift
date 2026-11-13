@@ -14,7 +14,7 @@ import WalletKit
 /// contexts already (like every other service in `Sources/Services`); needed
 /// here only because ``EthereumDappProvider`` (`Sendable`) stores one.
 final class FeeEstimationService: @unchecked Sendable {
-    private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
+    lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
 
     /// Estimates network fees for a transfer of `token` from `account` to
     /// `recipient`, using each chain's own fee API.
@@ -51,6 +51,9 @@ final class FeeEstimationService: @unchecked Sendable {
 
         case .sui:
             return try await estimateSuiFees(token: token, amount: amount, recipient: recipient, account: account)
+
+        case .ton:
+            return try await estimateTonFees(token: token, amount: amount, recipient: recipient, account: account)
 
         case .tron:
             return await estimateTronFees(token: token, amount: amount, recipient: recipient, account: account)

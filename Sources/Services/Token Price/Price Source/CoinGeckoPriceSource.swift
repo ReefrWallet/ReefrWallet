@@ -181,6 +181,7 @@ extension CoinGeckoPriceSource {
 
         case .solana: "solana"
         case .sui: "sui"
+        case .ton: "the-open-network"
         case .tron: "tron"
         }
     }
@@ -209,6 +210,7 @@ extension CoinGeckoPriceSource {
 
         case .solana: "solana"
         case .sui: "sui"
+        case .ton: "the-open-network"
         case .tron: "tron"
         }
     }

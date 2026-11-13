@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  TransactionFeesView.swift
 //  Reefr Wallet
@@ -71,6 +72,8 @@ extension TransactionFeesView: View {
                 solanaFeesForm
             case .sui:
                 suiFeesForm
+            case .ton:
+                tonFeesForm
             case .tron:
                 tronFeesForm
             }
@@ -160,6 +163,12 @@ private extension TransactionFeesView {
             field(String(localized: .transactionFeesGasBudget), text: $suiGasBudget)
         }
 
+        TransactionCostRow(value: transactionCost)
+    }
+
+    @ViewBuilder
+    var tonFeesForm: some View {
+        ParameterRow(String(localized: .transactionFeesNetworkFee), value: estimatedFees?.nativeFeeReserve ?? "")
         TransactionCostRow(value: transactionCost)
     }
 
@@ -420,6 +429,10 @@ private extension TransactionFeesView {
             }
 
             return Fees(suiGasBudget: suiGasBudget, suiGasPrice: gasPrice)
+
+        case .ton:
+            // Nothing to edit: pass the estimate through so its fee stays with it.
+            return estimatedFees
 
         case .tron:
             guard estimatedFees != nil else {

@@ -225,6 +225,7 @@ private extension TransferParametersView {
         case .bitcoin: "bc1…"
         case .cardano: "addr1…"
         case .solana: "Address"
+        case .ton: "UQ…"
         case .tron: "T…"
         }
     }
@@ -272,6 +273,8 @@ private extension TransferParametersView {
                 _ = try SolanaAddress(string: receiverText)
             case .sui:
                 _ = try SuiAddress(string: receiverText)
+            case let .ton(network):
+                try TonAddress(string: receiverText).validate(for: network)
             case .tron:
                 _ = try TronAddress(string: receiverText)
             }

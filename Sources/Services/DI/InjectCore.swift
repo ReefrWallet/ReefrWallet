@@ -152,6 +152,10 @@ extension ServiceContainer {
             TokenPriceService()
         }
 
+        register(TonSendService.self) {
+            TonSendService()
+        }
+
         register(TransactionService.self) {
             TransactionService()
         }
