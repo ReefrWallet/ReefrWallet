@@ -8,8 +8,9 @@ final class WatchOnlyTronAccountUITests: XCTestCase {
     private let address = "TLKxBRw8TgeRYanFaML1D4LeVrv2HND22c"
     private var app: XCUIApplication!
 
-    override func setUp() {
+    override func setUpWithError() throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = ["--test"]

@@ -24,6 +24,7 @@ final class SeedPhraseFieldMacUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         app = XCUIApplication(bundleIdentifier: "xyz.reefr.wallet")
         app.launchArguments = ["--test"]

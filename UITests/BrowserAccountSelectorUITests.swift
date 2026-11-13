@@ -26,6 +26,7 @@ final class BrowserAccountSelectorUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
         executionTimeAllowance = 60
 
         anvilNode = try await EthereumNode.start()
@@ -73,8 +74,9 @@ final class BrowserAccountSelectorUITests: XCTestCase {
 
         let selector = browserWindow.firstDescendant(withIdentifier: "browser-account-selector")
         XCTAssertTrue(selector.waitForExistence(timeout: 10))
+        // `isHittable` only means visible on screen, so check the element isn't a control.
         XCTAssertFalse(
-            selector.isHittable,
+            [.button, .comboBox, .menuButton, .popUpButton].contains(selector.elementType),
             "The capsule must not be interactive; accounts change from the dapp's settings."
         )
 

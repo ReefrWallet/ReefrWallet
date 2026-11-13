@@ -17,6 +17,7 @@ final class SuiForwardSyncUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         suiNode = try await SuiNode.start()
 

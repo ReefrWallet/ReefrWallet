@@ -18,6 +18,7 @@ final class TronTRXTransferUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         let environment = ProcessInfo.processInfo.environment
         let mnemonic = environment["REEFR_TESTNET_MNEMONIC"] ?? ""

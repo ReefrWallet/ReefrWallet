@@ -16,6 +16,7 @@ final class EthereumForwardSyncUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        try requireASCIIKeyboardLayout()
 
         anvilNode = try await EthereumNode.start()
 
