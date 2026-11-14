@@ -560,6 +560,11 @@ private extension TransactionSyncService {
         // scanned once the range's last page is in.
         if let head = page.head, track == .descending || page.reachedBoundary {
             state.currentHead = max(state.currentHead ?? 0, head)
+        } else if page.head == nil, track == .descending, page.reachedBoundary, state.currentHead == nil,
+                  case .ton = account.blockchain {
+            // A TON account with no history has no head. Logical times start above zero, so scan forward
+            // from there and the first deposit is picked up.
+            state.currentHead = 0
         }
 
         state.lastError = nil

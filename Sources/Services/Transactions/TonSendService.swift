@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftData
 import WalletKit
 
 /// A mutex for async code: unlike an actor, it holds across `await`s.
@@ -36,10 +37,15 @@ private actor SendLock {
 ///
 /// The signed message is stored as a broadcast placeholder (its identifier is the message's normalized hash,
 /// the one history reports) before it is submitted, so it survives a restart. Another send is refused while
-/// an earlier one may still be processed.
+/// an earlier one may still be processed, and a request signed for a `seqno` the wallet has since used is
+/// refused.
 final class TonSendService: @unchecked Sendable {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private let databaseService: DatabaseService
+    /// Where each account's next delivery pass starts; guarded by ``lock``.
+    private var deliveryOffsets: [PersistentIdentifier: Int] = [:]
+    /// Open deliveries checked per pass, rotating through all of them, so a long history doesn't flood the indexer.
+    private static let deliveriesPerPass = 10
     /// Shared, so every instance serializes sends against the same `seqno`.
     private static let lock = SendLock()
     private var lock: SendLock { Self.lock }
@@ -68,6 +74,12 @@ final class TonSendService: @unchecked Sendable {
         let client = try client(for: account)
 
         try await resolve(account, throwing: true)
+
+        // Requests are built and signed outside the lock, so two can carry the same `seqno`. Only one may go out.
+        guard try await client.seqno(TonAddress(string: envelope.sender)) == envelope.seqno else {
+            throw TonSendError.staleRequest
+        }
+
         try await databaseService.saveTransactions([placeholder(for: envelope, pending: pending)], for: account)
 
         do {
@@ -98,9 +110,63 @@ final class TonSendService: @unchecked Sendable {
         } catch {
             printError("\(account.name): \(error)")
         }
+
+        await trackDeliveries(account)
     }
 
     // MARK: Private
+
+    /// A confirmed sender transaction only proves the wallet emitted the message. Checks the recipient's side of
+    /// sends still open, however old, apart from the history cursor, and stores the outcome once it is final.
+    private func trackDeliveries(_ account: Account) async {
+        guard let accountId = account.id, let client = try? client(for: account) else {
+            return
+        }
+
+        do {
+            let all = try await databaseService.fetchUndecidedDeliveries(accountId: accountId)
+            let offset = deliveryOffsets[accountId] ?? 0
+            deliveryOffsets[accountId] = offset + Self.deliveriesPerPass
+
+            await Self.settle(
+                Self.rotating(all, from: offset, count: Self.deliveriesPerPass),
+                lookup: { try await client.deliveryStatus(ofOutgoingMessage: $0) },
+                record: { try await databaseService.recordDelivery(stableId: $0, outcome: $1) },
+                onFailure: { printError("\(account.name): delivery check: \($0)") }
+            )
+        } catch {
+            printError("\(account.name): delivery check: \(error)")
+        }
+    }
+
+    /// Looks up each send and stores a final outcome. A failure on one send doesn't stop the rest.
+    static func settle(
+        _ sends: [(stableId: String, reference: TonDeliveryReference)],
+        lookup: (String) async throws -> TonDeliveryStatus,
+        record: (String, TonDeliveryReference.Outcome) async throws -> Void,
+        onFailure: (any Error) -> Void
+    ) async {
+        for (stableId, reference) in sends {
+            do {
+                switch try await lookup(reference.outMessageHash) {
+                case .bounced, .failed: try await record(stableId, .failed)
+                case .delivered: try await record(stableId, .delivered)
+                case .pending: continue
+                }
+            } catch {
+                onFailure(error)
+            }
+        }
+    }
+
+    /// Up to `count` items starting at `offset`, wrapping around, so successive passes cover every open send.
+    static func rotating<Element>(_ items: [Element], from offset: Int, count: Int) -> [Element] {
+        guard !items.isEmpty else {
+            return []
+        }
+
+        return (0 ..< min(count, items.count)).map { items[(offset + $0) % items.count] }
+    }
 
     private func client(for account: Account) throws -> TonClient {
         guard let client = try clientProvider.makeClient(

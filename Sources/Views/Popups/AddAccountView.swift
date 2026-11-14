@@ -783,10 +783,10 @@ private extension Blockchain {
     }
 
     /// Whether accounts on this chain can be created on `keyStore`.
-    /// Trezor firmware has no Aptos or Sui support.
+    /// Trezor firmware has no Aptos, Sui or TON support.
     func isSupported(by keyStore: KeyStore) -> Bool {
         switch (keyStore.kind, self) {
-        case (.trezor, .aptos), (.trezor, .sui): false
+        case (.trezor, .aptos), (.trezor, .sui), (.trezor, .ton): false
         default: true
         }
     }
