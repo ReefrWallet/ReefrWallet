@@ -94,8 +94,8 @@ struct MainView: View {
                             .environment(\.sidebarSelection, $sidebarSelection)
                     }
 
-                case let .backUpKeyStore(keyStore):
-                    BackupKeyStoreView(keyStore: keyStore)
+                case let .backUpKeyStore(keyStore, phrase):
+                    BackupKeyStoreView(keyStore: keyStore, phrase: phrase)
 
                 case let .browser(url):
 #if os(iOS)

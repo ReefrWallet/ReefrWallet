@@ -30,9 +30,12 @@ extension DatabaseService {
             .map(KeyStore.init(model:))
     }
 
+    /// Inserts `keyStore`, numbering its name (`Local Key (#2)`) if another key store has it.
     @discardableResult
     func insertKeyStore(_ keyStore: KeyStore) throws -> PersistentIdentifier {
+        let names = try Set(modelContext.fetch(FetchDescriptor<KeyStoreModel>()).map(\.name))
         let model = KeyStoreModel(from: keyStore)
+        model.name = Self.uniqueName(keyStore.name, existing: names)
         modelContext.insert(model)
 
         // `save()` returning is the commit point; before it a cancelled or
@@ -73,6 +76,16 @@ extension DatabaseService {
         try modelContext.save()
     }
 
+    static func uniqueName(_ name: String, existing: Set<String>) -> String {
+        guard existing.contains(name) else {
+            return name
+        }
+
+        return (2...).lazy
+            .map { String(localized: .keyStoreNumberedName(name, $0)) }
+            .first { !existing.contains($0) } ?? name
+    }
+
     func usdValue(keyStoreId: PersistentIdentifier) throws -> Decimal {
         guard let keyStoreModel = try modelContext.fetch(FetchDescriptor<KeyStoreModel>())
             .first(where: { $0.persistentModelID == keyStoreId }) else {
@@ -90,7 +103,7 @@ extension DatabaseService {
             return try KeyStore(model: model)
         }
 
-        let model = KeyStoreModel(.watchOnly, name: "Watch-Only")
+        let model = KeyStoreModel(.watchOnly, name: String(localized: .keyStoreWatchOnlyName))
         modelContext.insert(model)
         try modelContext.save()
 

@@ -1170,6 +1170,18 @@
         }
       }
     },
+    "backupKeyStore.authenticationReason" : {
+      "comment" : "BackupKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authenticate to show your recovery phrase"
+          }
+        }
+      }
+    },
     "backupKeyStore.recoveryPhrase" : {
       "comment" : "BackupKeyStoreView",
       "extractionState" : "manual",
@@ -1190,6 +1202,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recovery Phrase for \"%@\""
+          }
+        }
+      }
+    },
+    "backupKeyStore.slip39Message" : {
+      "comment" : "BackupKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restored from SLIP-39 shares. Reefr doesn't keep the shares, so there is no recovery phrase to show. Back up with your original shares."
           }
         }
       }
@@ -3390,6 +3414,54 @@
         }
       }
     },
+    "deleteKeyStore.authenticationReason" : {
+      "comment" : "DeleteKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authenticate to delete \"%@\""
+          }
+        }
+      }
+    },
+    "deleteKeyStore.backupConfirmation" : {
+      "comment" : "DeleteKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I have backed up this key. I understand that without the backup, this wallet and its funds are lost forever."
+          }
+        }
+      }
+    },
+    "deleteKeyStore.hardwareMessage" : {
+      "comment" : "DeleteKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"%@\" and its accounts will be removed from Reefr. Your keys stay on the hardware wallet, so you can reconnect it at any time."
+          }
+        }
+      }
+    },
+    "deleteKeyStore.localMessage" : {
+      "comment" : "DeleteKeyStoreView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"%@\" and its accounts will be permanently deleted from this device. Without a backup, the wallet can't be restored."
+          }
+        }
+      }
+    },
     "ethereumTransactionParameters.contractCreation" : {
       "comment" : "EthereumTransactionParametersView",
       "extractionState" : "manual",
@@ -3524,6 +3596,42 @@
     },
     "https://app.example.com" : {
 
+    },
+    "keyStore.localName" : {
+      "comment" : "Default key store names",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local Key"
+          }
+        }
+      }
+    },
+    "keyStore.numberedName" : {
+      "comment" : "Default key store names",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (#%2$lld)"
+          }
+        }
+      }
+    },
+    "keyStore.watchOnlyName" : {
+      "comment" : "Default key store names",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch-Only"
+          }
+        }
+      }
     },
     "keyStoreDetails.accountCount" : {
       "comment" : "KeyStoreDetailsView",
@@ -4083,6 +4191,18 @@
         }
       }
     },
+    "sidebar.deleteAccountMessage" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"%1$@\" will be removed from \"%2$@\". Its funds stay on the blockchain, and you can add it back to this key store at any time."
+          }
+        }
+      }
+    },
     "sidebar.deleteAccountTitle" : {
       "comment" : "SidebarView",
       "extractionState" : "manual",
@@ -4115,6 +4235,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Confirm Delete Key Store"
+          }
+        }
+      }
+    },
+    "sidebar.deleteWatchOnlyAccountMessage" : {
+      "comment" : "SidebarView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"%@\" will be removed. You can add it again by its address at any time."
           }
         }
       }

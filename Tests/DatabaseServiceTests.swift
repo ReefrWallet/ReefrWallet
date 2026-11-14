@@ -27,6 +27,22 @@ struct DatabaseServiceTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
+    func duplicateKeyStoreNamesAreNumbered() async throws {
+        let service = try makeDatabaseService()
+        var names: [String] = []
+
+        for _ in 0..<3 {
+            let id = try await service.insertKeyStore(makeKeyStore(name: "Local Key"))
+            try await names.append(#require(service.fetchKeyStore(id: id)).name)
+        }
+
+        let otherId = try await service.insertKeyStore(makeKeyStore(name: "Trezor Safe 3"))
+
+        #expect(names == ["Local Key", "Local Key (#2)", "Local Key (#3)"])
+        #expect(try await service.fetchKeyStore(id: otherId)?.name == "Trezor Safe 3")
+    }
+
+    @Test
     func secretKindRoundTripsAndStoresWithoutOneReadAsBip39() async throws {
         let service = try makeDatabaseService()
 

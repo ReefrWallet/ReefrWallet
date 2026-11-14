@@ -73,7 +73,7 @@ final class KeyStoreService {
         let keyStore = KeyStore(
             deviceId: nil,
             kind: .local,
-            name: "Local Key",
+            name: String(localized: .keyStoreLocalName),
             mnemonicWordlist: wordlist,
             sealedEntropy: sealed,
             secretKind: kind,

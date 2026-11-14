@@ -18,7 +18,7 @@ enum PresentedSheet: Identifiable {
     case addBrowserDapp
     case addKeyStore
     case addWatchOnlyAccount
-    case backUpKeyStore(KeyStore)
+    case backUpKeyStore(KeyStore, phrase: String)
     case browser(URL)
     case settings
 
@@ -33,7 +33,7 @@ enum PresentedSheet: Identifiable {
             "addKeyStore"
         case .addWatchOnlyAccount:
             "addWatchOnlyAccount"
-        case let .backUpKeyStore(keyStore):
+        case let .backUpKeyStore(keyStore, _):
             "backUpKeyStore-\(keyStore.hashValue)"
         case let .browser(url):
             "browser-\(url.absoluteString)"
@@ -75,7 +75,6 @@ struct SidebarView {
     @State private var deleteAccountErrorPresented = false
     @State private var deletingAccount: Account?
 
-    @State private var deleteKeyStoreAlertPresented = false
     @State private var deletingKeyStore: KeyStore?
 
     @State private var editingId: PersistentIdentifier?
@@ -119,14 +118,20 @@ extension SidebarView: View {
         styledList
             .alert(.sidebarDeleteAccountTitle, isPresented: $deleteAccountAlertPresented) {
                 deleteAccountAlertActions
+            } message: {
+                deleteAccountAlertMessage
             }
             .alert(.commonRequestFailed, isPresented: $deleteAccountErrorPresented) {
                 Button(.commonOk) {}
             } message: {
                 Text(verbatim: deleteAccountError ?? "")
             }
-            .alert(.sidebarDeleteKeyStoreTitle, isPresented: $deleteKeyStoreAlertPresented) {
-                deleteKeyStoreAlertActions
+            .sheet(isPresented: isDeleteKeyStoreSheetPresented) {
+                if let deletingKeyStore {
+                    DeleteKeyStoreView(keyStore: deletingKeyStore) {
+                        deleteKeyStore(deletingKeyStore)
+                    }
+                }
             }
     }
 
@@ -273,6 +278,18 @@ extension SidebarView: View {
         }
     }
 
+    @ViewBuilder
+    private var deleteAccountAlertMessage: some View {
+        if let deletingAccount,
+           let keyStore = keyStores.first(where: { $0.id == deletingAccount.keyStoreId }) {
+            Text(
+                keyStore.isWatchOnly
+                    ? .sidebarDeleteWatchOnlyAccountMessage(deletingAccount.name)
+                    : .sidebarDeleteAccountMessage(deletingAccount.name, keyStore.name)
+            )
+        }
+    }
+
     @MainActor
     private func deleteAccount(_ account: Account) async {
         guard !isDeletingAccount, let accountId = account.id else {
@@ -298,29 +315,28 @@ extension SidebarView: View {
         }
     }
 
-    @ViewBuilder
-    private var deleteKeyStoreAlertActions: some View {
-        Button(.sidebarDelete) {
-            if let deletingKeyStore {
-                sidebarSelection.wrappedValue = nil
+    private func deleteKeyStore(_ keyStore: KeyStore) {
+        sidebarSelection.wrappedValue = nil
 
-                Task {
-                    do {
-                        try await keyStoreService.deleteKeyStore(deletingKeyStore)
-                    } catch {
-                        printError("\(deletingKeyStore.name): \(error)")
-                    }
+        Task {
+            do {
+                try await keyStoreService.deleteKeyStore(keyStore)
+            } catch {
+                printError("\(keyStore.name): \(error)")
+            }
+        }
+    }
+
+    private var isDeleteKeyStoreSheetPresented: Binding<Bool> {
+        let deletingKeyStore = $deletingKeyStore
+        return Binding(
+            get: { deletingKeyStore.wrappedValue != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deletingKeyStore.wrappedValue = nil
                 }
             }
-
-            self.deletingKeyStore = nil
-            deleteKeyStoreAlertPresented = false
-        }
-
-        Button(.commonCancel) {
-            deletingKeyStore = nil
-            deleteKeyStoreAlertPresented = false
-        }
+        )
     }
 }
 
@@ -494,7 +510,6 @@ private extension SidebarView {
 
         Button(role: .destructive) {
             deletingKeyStore = keyStore
-            deleteKeyStoreAlertPresented = true
         } label: {
             Label(.sidebarDeleteItem(keyStore.name), systemImage: "trash")
         }
@@ -502,7 +517,7 @@ private extension SidebarView {
         Divider()
 
         Button {
-            presentSheet?(.backUpKeyStore(keyStore))
+            backUpKeyStore(keyStore)
         } label: {
             Label(.sidebarBackUpKeyStore(keyStore.name), systemImage: "externaldrive.badge.timemachine")
         }
@@ -589,7 +604,6 @@ private extension SidebarView {
                 EditModeButton(kind: .remove, accessibilityLabel: .commonRemove) {
                     if let keyStore = try? KeyStore(model: keyStore) {
                         deletingKeyStore = keyStore
-                        deleteKeyStoreAlertPresented = true
                     }
                 }
             }
@@ -734,6 +748,21 @@ extension SidebarView {
             do {
                 let watchOnlyKeyStore = try await databaseService.watchOnlyKeyStore()
                 presentSheet?(.addAccount(watchOnlyKeyStore))
+            } catch {
+                printError(error)
+            }
+        }
+    }
+
+    /// Authenticates first so the sheet only appears after approval.
+    func backUpKeyStore(_ keyStore: KeyStore) {
+        Task {
+            do {
+                let reason = String(localized: .backupKeyStoreAuthenticationReason)
+                let phrase = keyStore.secretKind == .bip39
+                    ? try await keyStore.localMnemonic(reason: reason).phrase
+                    : ""
+                presentSheet?(.backUpKeyStore(keyStore, phrase: phrase))
             } catch {
                 printError(error)
             }

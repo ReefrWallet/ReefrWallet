@@ -12,6 +12,7 @@ extension View {
         onCancel: @escaping () -> Void,
         confirmTitle: LocalizedStringResource? = nil,
         confirmId: String? = nil,
+        confirmRole: ButtonRole? = nil,
         isConfirmEnabled: Bool = true,
         onConfirm: @escaping () -> Void = {}
     ) -> some View {
@@ -29,7 +30,8 @@ extension View {
 
                     if let confirmTitle {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(confirmTitle, action: onConfirm)
+                            Button(confirmTitle, role: confirmRole, action: onConfirm)
+                                .tint(confirmRole == .destructive ? .red : nil)
                                 .disabled(!isConfirmEnabled)
                                 .accessibilityIdentifier(confirmId ?? "")
                         }
