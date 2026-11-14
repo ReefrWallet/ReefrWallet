@@ -44,6 +44,7 @@ private let walletInfoPlist: [String: Plist.Value] = Project.commonInfoPlist.mer
         ])
     ]),
     "NSCameraUsageDescription": "Reefr Wallet uses the camera to scan WalletConnect QR codes.",
+    "NSFaceIDUsageDescription": "Reefr Wallet uses Face ID to unlock your local keys.",
     "UIApplicationSceneManifest": .dictionary(["UIApplicationSupportsMultipleScenes": true]),
     "UILaunchStoryboardName": "LaunchScreen",
     "UISupportedInterfaceOrientations~ipad": .array([

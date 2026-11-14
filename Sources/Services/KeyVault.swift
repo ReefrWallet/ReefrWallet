@@ -26,7 +26,7 @@ protocol KeyVault: Sendable {
 // MARK: - KeychainKeyVault
 
 /// AES-GCM with a random per-secret key stored in the keychain behind
-/// `.userPresence` (biometry or device password). Blob layout:
+/// `.userPresence` (Face ID, Touch ID or device password). Blob layout:
 /// `version (1) | key id (16) | AES-GCM combined (nonce, ciphertext, tag)`.
 struct KeychainKeyVault: KeyVault {
     private static let service = "xyz.reefr.wallet.keystore"
@@ -51,6 +51,15 @@ struct KeychainKeyVault: KeyVault {
         return try await Task.detached {
             let context = LAContext()
             context.localizedReason = reason
+
+            // Prompt explicitly: the keychain would also prompt for `.userPresence`
+            // on a device, but the simulator doesn't enforce it. The evaluated
+            // context is reused for the read below, so there is one prompt.
+            do {
+                try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+            } catch {
+                throw ReefrError.authenticationFailed
+            }
 
             var query = Self.query(keyId: keyId)
             query[kSecReturnData as String] = true
