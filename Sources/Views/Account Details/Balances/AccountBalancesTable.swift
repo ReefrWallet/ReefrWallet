@@ -120,6 +120,14 @@ private extension AccountBalancesTable {
                 case .hiddenBalancesTitle:
                     Text(verbatim: entry.displayName)
                         .style(.smallHeader, foreground: .secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation {
+                                isHiddenBalancesExpanded.toggle()
+                            }
+                        }
+                        .accessibilityAddTraits(.isButton)
                         .accessibilityIdentifier("balances-table-hidden-disclosure-row")
 
                 case .none:
