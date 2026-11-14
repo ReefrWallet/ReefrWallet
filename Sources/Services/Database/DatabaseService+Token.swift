@@ -237,6 +237,12 @@ extension DatabaseService {
         try modelContext.save()
     }
 
+    /// Pins `token` to the hidden or visible balances on every account.
+    func setTokenHidden(_ token: Token, isHidden: Bool) throws {
+        try tokenModel(for: token).isHiddenOverride = isHidden
+        try modelContext.save()
+    }
+
     func updateTokenPrices(_ tokens: [Token]) throws {
         for token in tokens {
             try updateTokenPrice(token, shouldSaveContext: false)

@@ -23,6 +23,8 @@ struct Token: Hashable, Sendable {
     var identityRetryAt: Date?
     var imageURL: URL?
     var isHidden: Bool
+    /// The user's choice to hide the token; `nil` leaves it to `TokenModel.isHidden`'s rule.
+    var isHiddenOverride: Bool?
     var isIncludedInBalance: Bool?
     let isNativeToken: Bool
     /// Whether an identity source has confirmed this contract is a real asset; never reset to `false`.
@@ -96,6 +98,7 @@ final class TokenModel {
     var hasPriceFetchError = false
     var identityRetryAt: Date?
     var imageURL: URL?
+    var isHiddenOverride: Bool?
     var isIncludedInBalance: Bool?
     var isNativeToken: Bool
     var isWhitelisted: Bool?
@@ -158,6 +161,7 @@ extension Token {
         identityRetryAt = model.identityRetryAt
         imageURL = model.imageURL
         isHidden = model.isHidden
+        isHiddenOverride = model.isHiddenOverride
         isIncludedInBalance = model.isIncludedInBalance
         isNativeToken = model.isNativeToken
         isWhitelisted = model.isWhitelisted == true
@@ -245,9 +249,13 @@ extension Token {
 }
 
 extension TokenModel {
-    /// Unidentified or unpriced non-native tokens: listed apart and left out of totals.
+    /// Unidentified or unpriced non-native tokens, unless the user decided: listed apart and left out of totals.
     var isHidden: Bool {
-        !isNativeToken && (isWhitelisted != true || usdPrice == nil)
+        guard !isNativeToken else {
+            return false
+        }
+
+        return isHiddenOverride ?? (isWhitelisted != true || usdPrice == nil)
     }
 }
 

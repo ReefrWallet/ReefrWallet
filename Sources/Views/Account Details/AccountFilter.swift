@@ -45,7 +45,7 @@ struct AccountFilter: Codable, Equatable {
     /// `true` when the filter changes what `tab` lists.
     func isActive(in tab: AccountTab) -> Bool {
         switch tab {
-        case .addresses, .approvals, .staking: false
+        case .addresses, .approvals, .staking, .tokens: false
         case .balances: hideZeroBalances || hideUnknownTokens
         case .transactions: toMyAccounts || fromMyAccounts
         }
@@ -54,7 +54,7 @@ struct AccountFilter: Codable, Equatable {
     /// Criteria applied when the filter button is switched on with nothing selected.
     mutating func enableDefaults(in tab: AccountTab) {
         switch tab {
-        case .addresses, .approvals, .staking: break
+        case .addresses, .approvals, .staking, .tokens: break
         case .balances: hideZeroBalances = true
         case .transactions: toMyAccounts = true
         }
@@ -62,7 +62,7 @@ struct AccountFilter: Codable, Equatable {
 
     mutating func reset(in tab: AccountTab) {
         switch tab {
-        case .addresses, .approvals, .staking:
+        case .addresses, .approvals, .staking, .tokens:
             break
         case .balances:
             hideZeroBalances = false

@@ -29,6 +29,7 @@ struct AccountDetailsView {
     @State private var balanceSort: [BalanceListSort] = []
     #endif
     @State private var isAddAddressPresented = false
+    @State private var isAddTokenPresented = false
     @State private var isCopyWalletAddressButtonActive = false
     @State private var isFiltersPresented = false
     @State private var isNativeBalanceLoaded = false
@@ -109,6 +110,10 @@ extension AccountDetailsView: View {
             AddReceiveAddressSheet(account)
                 .sheetZoom(from: Self.addAddressSourceId, namespace: sheetNamespace)
         }
+        .sheet(isPresented: $isAddTokenPresented) {
+            AddTokenSheet(account)
+                .sheetZoom(from: Self.addTokenSourceId, namespace: sheetNamespace)
+        }
         .modifier(AccountStakingSheets(model: staking))
         #if os(iOS)
         .task(id: searchesBalances && balancePages.isLoaded) {
@@ -167,6 +172,14 @@ extension AccountDetailsView: View {
                     .tag(AccountTab.approvals)
                 }
 
+                if account.blockchain.supportsCustomTokens {
+                    AccountTokensView(account)
+                        .tabItem {
+                            Label(.accountDetailsTokens, systemImage: AccountTab.tokens.systemImage)
+                        }
+                        .tag(AccountTab.tokens)
+                }
+
                 if let staking {
                     AccountStakingView(model: staking)
                         .tabItem {
@@ -181,7 +194,7 @@ extension AccountDetailsView: View {
             .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                if tab != .staking, tab != .addresses {
+                if tab != .staking, tab != .addresses, tab != .tokens {
                     bottomBar
                 }
             }
@@ -235,6 +248,9 @@ extension AccountDetailsView: View {
                 AccountStakingView(model: staking)
             }
 
+        case .tokens:
+            AccountTokensView(account)
+
         case .transactions:
             AccountTransactionsView(
                 account,
@@ -260,6 +276,16 @@ extension AccountDetailsView: View {
                 }
                 .sheetSource(Self.addAddressSourceId)
                 .accessibilityIdentifier("account-add-address-button")
+
+            case .tokens:
+                Button {
+                    isSearchFocused = false
+                    isAddTokenPresented = true
+                } label: {
+                    Label(.tokensAddToken, systemImage: "plus")
+                }
+                .sheetSource(Self.addTokenSourceId)
+                .accessibilityIdentifier("account-add-token-button")
 
             case .approvals where canSign && approvals.isSupported:
                 let selectedApprovals = approvals.visibleApprovals(matching: searchText).filter {
@@ -617,6 +643,7 @@ private extension AccountDetailsView {
     #endif
 
     static let addAddressSourceId = "account-add-address"
+    static let addTokenSourceId = "account-add-token"
     static let filterGlassId = "filter"
     static let filtersSourceId = "account-filters"
     static let searchGlassId = "search"
@@ -642,6 +669,10 @@ private extension AccountDetailsView {
 
         if account.blockchain.supportsApprovals {
             tabs.append(.approvals)
+        }
+
+        if account.blockchain.supportsCustomTokens {
+            tabs.append(.tokens)
         }
 
         if account.blockchain.supportsStaking {

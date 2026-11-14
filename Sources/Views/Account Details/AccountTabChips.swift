@@ -13,6 +13,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
     case approvals
     case balances
     case staking
+    case tokens
     case transactions
 
     var id: String { rawValue }
@@ -23,6 +24,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
         case .approvals: "checkmark.shield"
         case .balances: "chart.pie"
         case .staking: "lock"
+        case .tokens: "circle.hexagongrid"
         case .transactions: "arrow.left.arrow.right"
         }
     }
@@ -33,6 +35,7 @@ enum AccountTab: String, CaseIterable, Identifiable {
         case .approvals: .accountDetailsApprovals
         case .balances: .accountDetailsBalances
         case .staking: .accountDetailsStaking
+        case .tokens: .accountDetailsTokens
         case .transactions: .accountDetailsTransactions
         }
     }

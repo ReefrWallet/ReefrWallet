@@ -6015,6 +6015,114 @@
         }
       }
     },
+    "tokens.add" : {
+      "comment" : "AddTokenSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "tokens.address" : {
+      "comment" : "AccountTokensView table column",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        }
+      }
+    },
+    "tokens.addToken" : {
+      "comment" : "AddTokenSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Token"
+          }
+        }
+      }
+    },
+    "tokens.addTokenFootnote" : {
+      "comment" : "AddTokenSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balances are checked only for tokens the wallet knows about. If a balance is missing, add the token’s contract address. The token is added for all accounts on this network."
+          }
+        }
+      }
+    },
+    "tokens.contractAddress" : {
+      "comment" : "AddTokenSheet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contract Address"
+          }
+        }
+      }
+    },
+    "tokens.hidden" : {
+      "comment" : "AccountTokensView table column",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden"
+          }
+        }
+      }
+    },
+    "tokens.name" : {
+      "comment" : "AccountTokensView table column",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "tokens.symbol" : {
+      "comment" : "AccountTokensView table column",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbol"
+          }
+        }
+      }
+    },
+    "tokens.tokenCount" : {
+      "comment" : "AccountTokensView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Tokens"
+          }
+        }
+      }
+    },
     "transaction.estimateFees" : {
       "comment" : "TransactionSheet",
       "extractionState" : "manual",
