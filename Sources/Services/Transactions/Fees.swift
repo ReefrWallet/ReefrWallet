@@ -45,6 +45,13 @@ struct Fees: Equatable {
     /// gas reserved from a native-asset send's spendable maximum.
     let nativeFeeReserve: String?
 
+    /// What a TON Jetton transfer costs once its excess Gram has come back; `nil` when it can't be estimated.
+    /// ``nativeFeeReserve`` is then the larger amount that must be held to send it.
+    let tonNetCost: String?
+
+    /// The Gram, in nanograms, a TON Jetton transfer attaches, sized by emulation; `nil` for the builder's default.
+    let tonAttachment: String?
+
     init(
         aptosGasUnitPrice: String? = nil,
         aptosMaxGasAmount: String? = nil,
@@ -59,6 +66,8 @@ struct Fees: Equatable {
         solanaPriorityFee: String? = nil,
         suiGasBudget: String? = nil,
         suiGasPrice: String? = nil,
+        tonAttachment: String? = nil,
+        tonNetCost: String? = nil,
         tronFee: TronFeeEstimate? = nil,
         tronFeeLimit: String? = nil
     ) {
@@ -75,6 +84,8 @@ struct Fees: Equatable {
         self.solanaPriorityFee = solanaPriorityFee
         self.suiGasBudget = suiGasBudget
         self.suiGasPrice = suiGasPrice
+        self.tonAttachment = tonAttachment
+        self.tonNetCost = tonNetCost
         self.tronFee = tronFee
         self.tronFeeLimit = tronFeeLimit
     }
@@ -87,4 +98,30 @@ struct CardanoStakingFeeLines: Equatable {
     let deposit: BigUInt
     /// Refund and withdrawn rewards: what the account receives.
     let refund: BigUInt
+}
+
+extension Fees {
+    /// The Gram quoted for the actual message replaces the TON builder's fixed reserve, and the attachment emulation
+    /// found sufficient replaces its default.
+    func tonBuilderOptions() throws -> [BlockchainTransactionBuilderOptions] {
+        var options: [BlockchainTransactionBuilderOptions] = []
+
+        if let nativeFeeReserve, !nativeFeeReserve.isEmpty {
+            guard let required = BigUInt(nativeFeeReserve) else {
+                throw ReefrError.invalidData
+            }
+
+            options.append(.tonRequiredGram(required))
+        }
+
+        if let tonAttachment, !tonAttachment.isEmpty {
+            guard let attachment = BigUInt(tonAttachment) else {
+                throw ReefrError.invalidData
+            }
+
+            options.append(.tonJettonAttachment(attachment))
+        }
+
+        return options
+    }
 }

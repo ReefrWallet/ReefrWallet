@@ -324,6 +324,8 @@ private extension TransactionService {
             }
 
             return [.solanaPriorityFee(microLamportsPerComputeUnit: price, computeUnitLimit: limit)]
+        case .ton:
+            return try fees.tonBuilderOptions()
         default:
             return []
         }
