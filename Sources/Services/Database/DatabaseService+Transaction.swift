@@ -231,6 +231,7 @@ extension DatabaseService {
             }
 
             transactionIndex[transaction.stableId] = model
+            Self.dropReplacedLocalEffects(of: model, by: transaction.effects, in: modelContext)
 
             for effect in transaction.effects {
                 let effectModel: WalletTransactionEffectModel
@@ -404,10 +405,11 @@ extension DatabaseService {
         try modelContext.save()
 
         for (stableId, model) in survivors {
+            let previous = model.stableId
             model.stableId = stableId
 
             for effect in model.effects {
-                effect.stableId = "\(stableId)|\(effect.effectIndex)|\(effect.kind)"
+                effect.stableId = Self.reparentedEffectId(effect, from: previous, to: stableId)
             }
         }
 

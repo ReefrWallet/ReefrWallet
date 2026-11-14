@@ -20,6 +20,10 @@ struct WalletTransactionSyncState: Equatable, Sendable {
     /// that backfill existed read `0` and get one resumable pass (ADR-065).
     var tokenBackfillVersion: Int
     var tokenBackfillCursor: Data?
+    /// TON Jetton history is read apart from the owner wallet's (ADR-071). Progress of its backward scan.
+    var jettonBackfillCursor: Data?
+    /// Its watermark and any forward scan in progress, once the backfill is done.
+    var jettonForwardState: Data?
 
     init(accountId: PersistentIdentifier) {
         self.accountId = accountId
@@ -32,6 +36,8 @@ struct WalletTransactionSyncState: Equatable, Sendable {
         lastError = nil
         tokenBackfillVersion = 0
         tokenBackfillCursor = nil
+        jettonBackfillCursor = nil
+        jettonForwardState = nil
     }
 
     init(model: WalletTransactionSyncStateModel) {
@@ -45,6 +51,8 @@ struct WalletTransactionSyncState: Equatable, Sendable {
         lastError = model.lastError
         tokenBackfillVersion = model.tokenBackfillVersion
         tokenBackfillCursor = model.tokenBackfillCursor
+        jettonBackfillCursor = model.jettonBackfillCursor
+        jettonForwardState = model.jettonForwardState
     }
 }
 
@@ -60,6 +68,8 @@ final class WalletTransactionSyncStateModel {
     var lastError: String?
     var tokenBackfillVersion: Int = 0
     var tokenBackfillCursor: Data?
+    var jettonBackfillCursor: Data?
+    var jettonForwardState: Data?
 
     @Relationship(deleteRule: .noAction)
     var account: AccountModel
@@ -75,6 +85,8 @@ final class WalletTransactionSyncStateModel {
         lastError = state.lastError
         tokenBackfillVersion = state.tokenBackfillVersion
         tokenBackfillCursor = state.tokenBackfillCursor
+        jettonBackfillCursor = state.jettonBackfillCursor
+        jettonForwardState = state.jettonForwardState
         self.account = account
     }
 }

@@ -20,7 +20,7 @@ struct WalletTransactionEffect: Identifiable, Sendable {
 
     init(transactionId: String, effect: BlockchainTransactionEffect) {
         id = nil
-        stableId = "\(transactionId)|\(effect.index)|\(effect.kind.rawValue)"
+        stableId = "\(transactionId)|\(effect.index)|\(effect.kind.rawValue)" + (effect.key.map { "|\($0)" } ?? "")
         index = effect.index
         kind = effect.kind
         assetIdentifier = effect.assetIdentifier

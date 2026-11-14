@@ -75,4 +75,82 @@ extension DatabaseService {
 
         return try? payload.decoded()
     }
+
+    /// The TON Jetton scan's stored progress; both are `nil` for an account not scanned yet.
+    func fetchJettonSyncProgress(accountId: PersistentIdentifier) throws -> (backfill: Data?, forward: Data?) {
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
+        let state = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first?.transactionSyncState
+        return (state?.jettonBackfillCursor, state?.jettonForwardState)
+    }
+
+    /// Stores the Jetton scan's progress together with the entries it read, touching no other sync field so
+    /// the owner wallet's own scan keeps its progress.
+    func saveJettonSync(
+        _ transactions: [BlockchainTransaction],
+        for account: Account,
+        backfill: Data?,
+        forward: Data?
+    ) throws {
+        try saveTransactions(transactions, for: account)
+
+        guard let accountId = account.id else {
+            throw ReefrError.invalidData
+        }
+
+        let predicate = #Predicate<AccountModel> { $0.persistentModelID == accountId }
+
+        guard let accountModel = try modelContext.fetch(FetchDescriptor(predicate: predicate)).first else {
+            throw ReefrError.notFound
+        }
+
+        let model: WalletTransactionSyncStateModel
+
+        if let existing = accountModel.transactionSyncState {
+            model = existing
+        } else {
+            model = WalletTransactionSyncStateModel(
+                account: accountModel,
+                state: WalletTransactionSyncState(accountId: accountId)
+            )
+
+            accountModel.transactionSyncState = model
+            modelContext.insert(model)
+        }
+
+        model.jettonBackfillCursor = backfill
+        model.jettonForwardState = forward
+        try modelContext.save()
+    }
+}
+
+extension DatabaseService {
+    /// A send's local effect carries its payload plus a `|local` suffix; the history effect with the same payload
+    /// replaces it, so one payment never shows twice.
+    static func dropReplacedLocalEffects(
+        of model: WalletTransactionModel,
+        by incoming: [WalletTransactionEffect],
+        in context: ModelContext
+    ) {
+        let stable = Set(incoming.map(\.stableId))
+        let keys = Set(incoming.compactMap { $0.rawPayload.flatMap { String(data: $0, encoding: .utf8) } })
+
+        for existing in model.effects where !stable.contains(existing.stableId) {
+            guard let text = existing.rawPayload.flatMap({ String(data: $0, encoding: .utf8) }),
+                  text.hasSuffix("|local"),
+                  keys.contains(String(text.dropLast("|local".count)))
+            else {
+                continue
+            }
+
+            context.delete(existing)
+        }
+    }
+
+    /// An effect's id under a new parent id. Keeps the suffix (index, kind, key), so effects that differ only by
+    /// key stay apart.
+    static func reparentedEffectId(_ effect: WalletTransactionEffectModel, from old: String, to new: String) -> String {
+        effect.stableId.hasPrefix(old + "|")
+            ? new + effect.stableId.dropFirst(old.count)
+            : "\(new)|\(effect.effectIndex)|\(effect.kind)"
+    }
 }
