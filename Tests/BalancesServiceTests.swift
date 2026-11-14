@@ -2,6 +2,7 @@ import BigInt
 import Foundation
 import SwiftData
 import Testing
+import WalletKit
 import WalletKitTesting
 @testable import ReefrWallet
 
@@ -227,5 +228,65 @@ private extension BalancesServiceTests {
                 usdPrice: nil
             )
         ]
+    }
+
+    @Test func aFailedOnChainReadLeavesThatTokenOutSoItsStoredBalanceStays() async {
+        struct Offline: Error {}
+
+        let read = await BalancesService.readOnChain(["a", "b", "c"]) {
+            switch $0 {
+            case "a": 0
+            case "b": throw Offline()
+            default: 7
+            }
+        }
+
+        #expect(read == ["a": 0, "c": 7])
+    }
+
+    @Test func tonAddressesAreComparedByWorkchainAndHashNotByTheirText() throws {
+        let hash = Data(repeating: 9, count: 32)
+        let bounceable = try TonAddress(workchain: 0, hash: hash, isBounceable: true, isTestOnly: true).string
+        let plain = try TonAddress(workchain: 0, hash: hash, isBounceable: false, isTestOnly: true).string
+        let other = try TonAddress(workchain: -1, hash: hash, isBounceable: true, isTestOnly: true).string
+
+        #expect(bounceable != plain)
+        #expect(BalancesService.tonIdentity(bounceable) == BalancesService.tonIdentity(plain))
+        #expect(BalancesService.tonIdentity(bounceable) != BalancesService.tonIdentity(other))
+    }
+
+    @Test func aHeldTokenOmittedOrListedAsZeroIsVerifiedBeforeItsBalanceChanges() throws {
+        let hash = { (byte: UInt8) in Data(repeating: byte, count: 32) }
+        func address(_ byte: UInt8, bounceable: Bool = true) throws -> String {
+            try TonAddress(workchain: 0, hash: hash(byte), isBounceable: bounceable, isTestOnly: true).string
+        }
+
+        let omitted = try address(1)
+        let listedZero = try address(2)
+        let listedFunded = try address(3)
+        let wasZero = try address(4)
+        let listed: [String: BigUInt] = [
+            try #require(BalancesService.tonIdentity(listedZero)): 0,
+            try #require(BalancesService.tonIdentity(listedFunded)): 5
+        ]
+
+        // The snapshot may encode a master differently from the stored row.
+        let aliased = try address(2, bounceable: false)
+        let suspects = BalancesService.unprovenHoldings(
+            [(omitted, 9), (aliased, 9), (listedFunded, 9), (wasZero, 0)],
+            listed: listed
+        )
+
+        #expect(suspects == [omitted, aliased])
+    }
+
+    @Test func aTonMasterInAnotherEncodingIsTheSameStoredToken() throws {
+        let hash = Data(repeating: 9, count: 32)
+        let bounceable = try TonAddress(workchain: 0, hash: hash, isBounceable: true).string
+        let plain = try TonAddress(workchain: 0, hash: hash, isBounceable: false).string
+
+        #expect(DatabaseService.isSameToken(bounceable, plain, .ton(.testnet)))
+        #expect(!DatabaseService.isSameToken("0xAb", "0xab", .evm(.ethereum(.mainnet))))
+        #expect(DatabaseService.isSameToken("0xab", "0xab", .evm(.ethereum(.mainnet))))
     }
 }

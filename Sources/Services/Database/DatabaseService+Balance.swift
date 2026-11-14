@@ -276,6 +276,16 @@ extension DatabaseService {
         return results.map(\.persistentModelID)
     }
 
+    /// Token addresses match exactly, except on TON where one master has several encodings (raw, friendly, flags).
+    static func isSameToken(_ lhs: String?, _ rhs: String?, _ blockchain: Blockchain) -> Bool {
+        guard case .ton = blockchain, let lhs, let rhs else {
+            return lhs == rhs
+        }
+
+        let identity = BalancesService.tonIdentity(lhs)
+        return lhs == rhs || (identity != nil && identity == BalancesService.tonIdentity(rhs))
+    }
+
     func updateBalances(account: Account, updates: [Balance]) throws {
         guard let accountId = account.id else {
             throw ReefrError.invalidData
@@ -291,7 +301,9 @@ extension DatabaseService {
         for update in updates {
             let token: Token
 
-            if let existing = tokens.first(where: { $0.address == update.token.address }) {
+            if let existing = tokens.first(where: {
+                Self.isSameToken($0.address, update.token.address, account.blockchain)
+            }) {
                 token = existing
             } else {
                 // Not inserted here — `saveBalances` below creates the row as part of its
@@ -301,7 +313,9 @@ extension DatabaseService {
                 token = update.token
             }
 
-            if let index = balances.firstIndex(where: { $0.token.address == update.token.address }) {
+            if let index = balances.firstIndex(where: {
+                Self.isSameToken($0.token.address, update.token.address, account.blockchain)
+            }) {
                 balances[index] = Balance(
                     account: account,
                     amount: update.amount,
