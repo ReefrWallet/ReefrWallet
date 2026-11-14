@@ -7,7 +7,8 @@ struct CoinGeckoListingProvider: TokenListingProvider {
     /// The asset platforms `CoinGeckoPriceSource.assetPlatform(for:)` maps to; others are dropped on download.
     static let supportedPlatforms: Set<String> = [
         "aptos", "arbitrum-one", "avalanche", "base", "binance-smart-chain", "cardano", "ethereum", "hyperevm",
-        "mantle", "monad", "optimistic-ethereum", "polygon-pos", "robinhood", "solana", "sui", "tron", "unichain"
+        "mantle", "monad", "optimistic-ethereum", "polygon-pos", "robinhood", "solana", "sui", "the-open-network",
+        "tron", "unichain"
     ]
 
     let apiKey: @Sendable () -> String?
@@ -61,6 +62,11 @@ struct CoinGeckoListingProvider: TokenListingProvider {
             throw BlockchainClientError.invalidResponse(reason: "HTTP status \(status)")
         }
 
+        return try Self.entries(from: data)
+    }
+
+    /// The listing entries of a `/coins/list?include_platform=true` response on supported platforms.
+    static func entries(from data: Data) throws -> [TokenListingEntry] {
         // Plain decoder: the app's `decoded()` converts snake case, which would rewrite platform ids.
         let coins = try JSONDecoder().decode([Coin].self, from: data)
 

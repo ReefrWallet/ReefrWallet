@@ -47,6 +47,25 @@ struct TokenPriceServiceTests {
         }
     }
 
+    @Test func aProviderOutageIsNotHiddenByALaterOrdinaryFailure() async {
+        let outage = MoyaError.statusCode(Response(statusCode: 503, data: Data()))
+        let node = BlockchainClientError.serverError(status: 503)
+
+        for first in [outage as any Swift.Error, node] {
+            let service = TokenPriceService(sources: [
+                StubPriceSource(error: first),
+                StubPriceSource(id: "other", error: StubError.failed)
+            ])
+
+            do {
+                _ = try await service.usdPrice(testToken, rpcURL: testRPCURL)
+                Issue.record("expected a failure")
+            } catch {
+                #expect(error.isProviderWide)
+            }
+        }
+    }
+
     @Test func triesTheLastSuccessfulSourceFirst() async throws {
         let service = TokenPriceService(sources: [
             StubPriceSource(id: "first", price: 1),
@@ -226,18 +245,18 @@ struct TokenPriceServiceTests {
 
 private struct StubPriceSource: PriceSource {
     let id: String
-    let shouldThrow: Bool
+    let error: (any Swift.Error)?
     let value: Decimal?
 
-    init(id: String = "stub", shouldThrow: Bool = false, price: Decimal? = nil) {
+    init(id: String = "stub", error: (any Swift.Error)? = nil, shouldThrow: Bool = false, price: Decimal? = nil) {
         self.id = id
-        self.shouldThrow = shouldThrow
+        self.error = error ?? (shouldThrow ? StubError.failed : nil)
         value = price
     }
 
     func usdPrice(_ token: Token, rpcURL: URL) async throws -> Decimal? {
-        if shouldThrow {
-            throw StubError.failed
+        if let error {
+            throw error
         }
 
         return value
