@@ -12,33 +12,15 @@ import WalletKit
 // MARK: - BackupKeyStoreView
 
 /// Shows an existing local key store's recovery phrase, read-only, for
-/// backup purposes.
+/// backup purposes. The caller authenticates and passes the phrase in.
 struct BackupKeyStoreView: View {
     let keyStore: KeyStore
+    let phrase: String
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var seedPhrase = ""
-
-    init(keyStore: KeyStore) {
-        self.keyStore = keyStore
-    }
-
     var body: some View {
         content
-            .task {
-                guard keyStore.secretKind == .bip39 else {
-                    return
-                }
-
-                do {
-                    let mnemonic = try await keyStore.localMnemonic(reason: "Authenticate to show your recovery phrase")
-                    seedPhrase = mnemonic.phrase
-                } catch {
-                    printError(error)
-                    dismiss()
-                }
-            }
     }
 }
 
@@ -77,13 +59,10 @@ private extension BackupKeyStoreView {
     @ViewBuilder
     var recoveryPhrase: some View {
         if keyStore.secretKind == .slip39 {
-            Text(
-                "Restored from SLIP-39 shares. Reefr doesn't keep the shares, "
-                    + "so there is no recovery phrase to show. Back up with your original shares."
-            )
+            Text(.backupKeyStoreSlip39Message)
                 .style(.medium, foreground: .secondary)
         } else {
-            ReadOnlyPhraseView(phrase: seedPhrase, wordlist: .bip39(keyStore.mnemonicWordlist ?? .english))
+            ReadOnlyPhraseView(phrase: phrase, wordlist: .bip39(keyStore.mnemonicWordlist ?? .english))
         }
     }
 
@@ -115,7 +94,7 @@ private let previewKeyStore = KeyStore(
 )
 
 #Preview {
-    BackupKeyStoreView(keyStore: previewKeyStore)
+    BackupKeyStoreView(keyStore: previewKeyStore, phrase: Mnemonic.generate(wordCount: .`24`).phrase)
 }
 
 #endif

@@ -32,6 +32,7 @@
 - Omit `return` in one-liners wherever possible.
 - Use `whateverId`, not `whateverID` when naming identifier properties.
 - Use `.asJSONString()`/`.encoded()`/`.decoded()` from Codable+Extensions.swift for JSON (de-)serialization.
+- Add strings that face the user should go to Localizable.xcstrings.
 
 ## Design
 - Use the Penpot MCP server of the local Penpot instance (http://localhost:9001, MCP at http://localhost:4401/mcp), not design.penpot.app.
