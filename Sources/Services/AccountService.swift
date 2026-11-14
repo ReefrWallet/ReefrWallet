@@ -199,6 +199,11 @@ final class AccountService {
                 throw ReefrError.invalidData
             }
 
+            // Trezor has no TON app: reject before connecting to the device.
+            if case .ton = blockchain {
+                throw ReefrError.notSupported
+            }
+
             address = try await hardwareService.session(showsWait: true) {
                 let device = try await hardwareService.connect(.trezor, deviceId: deviceId)
                 return try await makeTrezorAddress(

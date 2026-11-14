@@ -214,8 +214,13 @@ extension DatabaseService {
                 model.transactionIndex = transaction.transactionIndex
                 model.sender = transaction.sender
                 model.recipient = transaction.recipient
-                model.status = transaction.status.rawValue
-                model.rawPayload = transaction.rawPayload
+                let kept = Self.preservingDelivery(
+                    incoming: (transaction.status, transaction.rawPayload),
+                    existing: (model.status, model.rawPayload)
+                )
+
+                model.status = kept.status.rawValue
+                model.rawPayload = kept.payload
                 // Sources differ in richness. Preserve labels when a source omits them.
                 model.counterpartyName = transaction.counterpartyName ?? model.counterpartyName
                 model.fee = transaction.fee ?? model.fee
