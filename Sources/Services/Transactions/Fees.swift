@@ -125,3 +125,14 @@ extension Fees {
         return options
     }
 }
+
+extension Fees {
+    /// Nanograms as Gram for display; empty when there is no amount.
+    static func formattedGram(_ nanograms: String?, symbol: String) -> String {
+        guard let nanograms, let amount = BigUInt(nanograms) else {
+            return ""
+        }
+
+        return (Decimal(amount) / Decimal(1_000_000_000)).formatted(symbol: symbol)
+    }
+}

@@ -114,4 +114,29 @@ struct TonFeeEstimationTests {
         #expect(attachment == 100_000_000)
         #expect(try Fees().tonBuilderOptions().isEmpty)
     }
+
+    @Test func gramIsShownInWholeUnitsAndAnAbsentAmountIsBlank() {
+        // Whole units, not nanograms; the separator follows the locale.
+        let shown = Fees.formattedGram("50616123", symbol: "GRAM")
+        #expect(shown.hasSuffix("GRAM"))
+        #expect(shown.filter(\.isNumber) == "0050616")
+        #expect(Fees.formattedGram(nil, symbol: "GRAM").isEmpty)
+        #expect(Fees.formattedGram("not a number", symbol: "GRAM").isEmpty)
+    }
+
+    @Test func aWalletHoldingLessGramThanQuotedCannotSend() throws {
+        let fees = Fees(nativeFeeReserve: "50616123")
+
+        #expect(throws: TonSendError.insufficientGram(required: 50_616_123, available: 50_000_000)) {
+            try FeeEstimationService.ensureGram(for: fees, balance: 50_000_000)
+        }
+
+        try FeeEstimationService.ensureGram(for: fees, balance: 50_616_123)
+        try FeeEstimationService.ensureGram(for: Fees(), balance: 0)
+    }
+
+    @Test func theShortfallNamesBothAmountsInWholeGram() {
+        let message = TonSendError.insufficientGram(required: 50_616_123, available: 50_000_000).errorDescription
+        #expect(message == "Not enough Gram: sending needs 0.050616123 GRAM and the account holds 0.05 GRAM.")
+    }
 }

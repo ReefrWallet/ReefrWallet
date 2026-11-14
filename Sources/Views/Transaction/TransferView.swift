@@ -43,7 +43,7 @@ extension TransferView: View {
     var body: some View {
         TransactionSheet(
             title: String(localized: .commonSend),
-            confirmTitle: String(localized: .commonNext),
+            confirmTitle: String(localized: .commonSend),
             isConfirmEnabled: isNextButtonEnabled,
             isEstimateFeesEnabled: parameters != nil,
             isProcessing: progress != nil,
@@ -64,6 +64,7 @@ extension TransferView: View {
                 blockchain: account.blockchain,
                 estimatedFees: estimatedFees,
                 isTronFeeLimitEnabled: !token.isNativeToken,
+                isTonJettonTransfer: !token.isNativeToken,
                 warning: issue ?? feeEstimationError,
                 fees: $fees
             )

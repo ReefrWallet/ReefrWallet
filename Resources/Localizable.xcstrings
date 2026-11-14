@@ -6387,6 +6387,18 @@
         }
       }
     },
+    "transactionFees.gramRequired" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gram required"
+          }
+        }
+      }
+    },
     "transactionFees.gwei" : {
       "comment" : "TransactionFeesView",
       "extractionState" : "manual",
@@ -6467,6 +6479,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Priority fee (µLamports/CU)"
+          }
+        }
+      }
+    },
+    "transactionFees.tonJettonNote" : {
+      "comment" : "TransactionFeesView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Part of the Gram is attached to carry the token. What isn’t used returns to you."
           }
         }
       }

@@ -45,10 +45,26 @@ extension FeeEstimationService {
             return Fees(nativeFeeReserve: String(try await client.estimateFee(try await build([])).total))
         }
 
-        return try await Self.jettonFees(
+        let fees = try await Self.jettonFees(
             build: { try await build([.tonJettonAttachment($0)]) },
             quote: { try await client.quote($0) }
         )
+
+        // Shown beside the fee rows and keeps Send disabled; the builder checks again when the transfer is built.
+        if let balance = try? await client.getNativeBalance(client.makeAddress(account.address)) {
+            try Self.ensureGram(for: fees, balance: balance)
+        }
+
+        return fees
+    }
+
+    /// Throws ``TonSendError/insufficientGram(required:available:)`` when `balance` is below the quoted requirement.
+    static func ensureGram(for fees: Fees, balance: BigUInt) throws {
+        guard let required = fees.nativeFeeReserve.flatMap({ BigUInt($0) }), balance < required else {
+            return
+        }
+
+        throw TonSendError.insufficientGram(required: required, available: balance)
     }
 
     /// Tries the attachments in turn and keeps the first whose emulation credits the recipient, with the Gram that
