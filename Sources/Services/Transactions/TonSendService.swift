@@ -130,7 +130,7 @@ final class TonSendService: @unchecked Sendable {
 
             await Self.settle(
                 Self.rotating(all, from: offset, count: Self.deliveriesPerPass),
-                lookup: { try await client.deliveryStatus(ofOutgoingMessage: $0) },
+                lookup: { try await Self.deliveryStatus(of: $0, client: client) },
                 record: { try await databaseService.recordDelivery(stableId: $0, outcome: $1) },
                 onFailure: { printError("\(account.name): delivery check: \($0)") }
             )
@@ -142,13 +142,13 @@ final class TonSendService: @unchecked Sendable {
     /// Looks up each send and stores a final outcome. A failure on one send doesn't stop the rest.
     static func settle(
         _ sends: [(stableId: String, reference: TonDeliveryReference)],
-        lookup: (String) async throws -> TonDeliveryStatus,
+        lookup: (TonDeliveryReference) async throws -> TonDeliveryStatus,
         record: (String, TonDeliveryReference.Outcome) async throws -> Void,
         onFailure: (any Error) -> Void
     ) async {
         for (stableId, reference) in sends {
             do {
-                switch try await lookup(reference.outMessageHash) {
+                switch try await lookup(reference) {
                 case .bounced, .failed: try await record(stableId, .failed)
                 case .delivered: try await record(stableId, .delivered)
                 case .pending: continue
@@ -156,6 +156,25 @@ final class TonSendService: @unchecked Sendable {
             } catch {
                 onFailure(error)
             }
+        }
+    }
+
+    /// A Jetton request is judged by its whole trace, since its first message only reaches the sender's Jetton
+    /// wallet; anything else by the recipient's transaction.
+    private static func deliveryStatus(of reference: TonDeliveryReference, client: TonClient) async throws
+        -> TonDeliveryStatus {
+        guard reference.isJettonRequest == true else {
+            return try await client.deliveryStatus(ofOutgoingMessage: reference.outMessageHash)
+        }
+
+        switch try await client.jettonDelivery(
+            ofRequest: reference.requestHash,
+            transfer: reference.jetton,
+            firstHopMessage: reference.outMessageHash
+        ) {
+        case .delivered: return .delivered
+        case .failed: return .failed
+        case .pending: return .pending
         }
     }
 
@@ -219,11 +238,12 @@ final class TonSendService: @unchecked Sendable {
         BlockchainTransaction(
             identifier: pending.normalizedHash,
             sender: envelope.sender,
-            recipient: envelope.recipient,
+            recipient: envelope.jetton?.recipient ?? envelope.recipient,
             status: .broadcast,
             rawPayload: try JSONEncoder().encode(pending),
             effects: [
-                BlockchainTransactionEffect(
+                // A Jetton send's payment is the token; the Gram only carries it.
+                envelope.jetton?.placeholderEffect(sender: envelope.sender) ?? BlockchainTransactionEffect(
                     index: 0,
                     kind: .nativeTransfer,
                     amount: envelope.value,

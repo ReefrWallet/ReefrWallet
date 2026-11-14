@@ -84,8 +84,8 @@ struct TonDeliveryPersistenceTests {
 
         await TonSendService.settle(
             sends,
-            lookup: { hash in
-                switch hash {
+            lookup: { reference in
+                switch reference.outMessageHash {
                 case "a": throw Offline()
                 case "b": return .delivered
                 default: return .bounced
@@ -238,5 +238,100 @@ struct TonDeliveryPersistenceTests {
         #expect(stored.flatMap(\.effects).count == 2)
         #expect(Set(stored.flatMap(\.effects).map(\.stableId)).count == 2)
         #expect(stored.flatMap(\.effects).allSatisfy { $0.stableId.hasPrefix(current + "|") })
+    }
+
+    private func jettonSend(status: BlockchainTransactionStatus = .unconfirmed) throws -> BlockchainTransaction {
+        let reference = TonDeliveryReference(outMessageHash: "out", isJettonRequest: true, requestHash: "req")
+        return BlockchainTransaction(
+            identifier: "req",
+            timestamp: .now.addingTimeInterval(-60),
+            status: status,
+            rawPayload: try reference.encoded()
+        )
+    }
+
+    private let transfer = TonJettonTransfer(
+        amount: "10",
+        master: "kMaster",
+        queryId: 5,
+        recipient: "r",
+        senderWallet: "w"
+    )
+
+    @Test func theSendRecordsIntentSurvivesTheRequestEntryReplacingIt() async throws {
+        let databaseService = try makeDatabaseService()
+        let account = try await makeAccount(databaseService)
+        let accountId = try #require(account.id)
+        let pending = TonPendingSend(
+            normalizedHash: "req", sender: "s", seqno: 1, signedMessage: Data([1]), validUntil: 2, jetton: transfer
+        )
+
+        let placeholder = BlockchainTransaction(
+            identifier: "req",
+            status: .broadcast,
+            rawPayload: try JSONEncoder().encode(pending),
+            effects: [transfer.placeholderEffect(sender: "s")]
+        )
+
+        try await databaseService.saveTransactions([placeholder], for: account)
+        try await databaseService.saveTransactions([try jettonSend()], for: account)
+
+        let open = try #require(try await databaseService.fetchUndecidedDeliveries(accountId: accountId).first)
+        #expect(open.reference.jetton == transfer)
+        #expect(open.reference.requestHash == "req")
+
+        // Replaying the sender's history keeps it, and the row stays pending while the delivery is open.
+        try await databaseService.saveTransactions([try jettonSend()], for: account)
+        let again = try #require(try await databaseService.fetchUndecidedDeliveries(accountId: accountId).first)
+        #expect(again.reference.jetton == transfer)
+        let row = try #require(try await databaseService.fetchTransactions(accountId: accountId).first)
+        #expect(row.status == .unconfirmed)
+    }
+
+    @Test func aDeliveredJettonRequestBecomesConfirmedAndStaysSoWhenReplayed() async throws {
+        let databaseService = try makeDatabaseService()
+        let account = try await makeAccount(databaseService)
+        let accountId = try #require(account.id)
+        try await databaseService.saveTransactions([try jettonSend()], for: account)
+
+        let open = try #require(try await databaseService.fetchUndecidedDeliveries(accountId: accountId).first)
+        try await databaseService.recordDelivery(stableId: open.stableId, outcome: .delivered)
+        try await databaseService.saveTransactions([try jettonSend()], for: account)
+
+        let row = try #require(try await databaseService.fetchTransactions(accountId: accountId).first)
+        #expect(row.status == .confirmed)
+        #expect(try await databaseService.fetchUndecidedDeliveries(accountId: accountId).isEmpty)
+    }
+
+    @Test func aRestoredRequestRebuildsItsIntentFromItsOneTokenEffect() async throws {
+        let databaseService = try makeDatabaseService()
+        let account = try await makeAccount(databaseService)
+        let accountId = try #require(account.id)
+        let send = try jettonSend()
+
+        let restored = BlockchainTransaction(
+            identifier: send.identifier,
+            status: .unconfirmed,
+            rawPayload: send.rawPayload,
+            effects: [transfer.placeholderEffect(sender: "s")]
+        )
+
+        try await databaseService.saveTransactions([restored], for: account)
+        let open = try #require(try await databaseService.fetchUndecidedDeliveries(accountId: accountId).first)
+        #expect(open.reference.jetton?.queryId == 5)
+        #expect(open.reference.jetton?.amount == "10")
+        #expect(open.reference.jetton?.senderWallet == "")
+    }
+
+    @Test func aRestoredRefusedSendWithNoTokenEffectIsStillCheckedByItsFirstHop() async throws {
+        let databaseService = try makeDatabaseService()
+        let account = try await makeAccount(databaseService)
+        let accountId = try #require(account.id)
+        try await databaseService.saveTransactions([try jettonSend()], for: account)
+
+        // No token effect to rebuild the intent from, yet the row is open and carries the first-hop hash.
+        let open = try #require(try await databaseService.fetchUndecidedDeliveries(accountId: accountId).first)
+        #expect(open.reference.jetton == nil)
+        #expect(open.reference.outMessageHash == "out")
     }
 }

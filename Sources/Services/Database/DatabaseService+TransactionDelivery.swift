@@ -13,17 +13,24 @@ extension DatabaseService {
     func fetchUndecidedDeliveries(
         accountId: PersistentIdentifier
     ) throws -> [(stableId: String, reference: TonDeliveryReference)] {
-        let status = BlockchainTransactionStatus.confirmed.rawValue
+        // A Jetton request stays unconfirmed until its trace credits the recipient.
+        let confirmed = BlockchainTransactionStatus.confirmed.rawValue
+        let unconfirmed = BlockchainTransactionStatus.unconfirmed.rawValue
         let predicate = #Predicate<WalletTransactionModel> {
-            $0.account.persistentModelID == accountId && $0.status == status && $0.rawPayload != nil
+            $0.account.persistentModelID == accountId && ($0.status == confirmed || $0.status == unconfirmed)
+                && $0.rawPayload != nil
         }
 
         return try modelContext.fetch(FetchDescriptor(predicate: predicate))
             .sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
             .compactMap { model -> (stableId: String, reference: TonDeliveryReference)? in
-                guard let reference = Self.deliveryReference(model.rawPayload), reference.outcome == nil
+                guard var reference = Self.deliveryReference(model.rawPayload), reference.outcome == nil
                 else {
                     return nil
+                }
+
+                if reference.isJettonRequest == true {
+                    Self.attachJetton(of: model, to: &reference)
                 }
 
                 return (model.stableId, reference)
@@ -44,9 +51,7 @@ extension DatabaseService {
         reference.outcome = outcome
         model.rawPayload = try reference.encoded()
 
-        if outcome == .failed {
-            model.status = BlockchainTransactionStatus.failed.rawValue
-        }
+        model.status = (outcome == .failed ? BlockchainTransactionStatus.failed : .confirmed).rawValue
 
         try modelContext.save()
     }
@@ -57,6 +62,8 @@ extension DatabaseService {
         incoming: (status: BlockchainTransactionStatus, payload: Data?),
         existing: (status: String, payload: Data?)
     ) -> (status: BlockchainTransactionStatus, payload: Data?) {
+        let incoming = carryingJettonIntent(incoming, from: existing.payload)
+
         guard let kept = deliveryReference(existing.payload),
               let outcome = kept.outcome,
               let fresh = deliveryReference(incoming.payload),
@@ -65,7 +72,59 @@ extension DatabaseService {
             return incoming
         }
 
-        return (outcome == .failed ? .failed : incoming.status, existing.payload)
+        return (outcome == .failed ? .failed : outcome == .delivered ? .confirmed : incoming.status, existing.payload)
+    }
+
+    /// The history entry of a Jetton request replaces the send record, which holds the transfer's intent; the
+    /// delivery reference takes it over.
+    private static func carryingJettonIntent(
+        _ incoming: (status: BlockchainTransactionStatus, payload: Data?),
+        from existing: Data?
+    ) -> (status: BlockchainTransactionStatus, payload: Data?) {
+        guard var fresh = deliveryReference(incoming.payload), fresh.isJettonRequest == true, fresh.jetton == nil,
+              let existing
+        else {
+            return incoming
+        }
+
+        let pending: TonPendingSend? = try? existing.decoded()
+        let reference: TonDeliveryReference? = try? existing.decoded()
+
+        guard let intent = pending?.jetton ?? reference?.jetton else {
+            return incoming
+        }
+
+        fresh.jetton = intent
+        return (incoming.status, (try? fresh.encoded()) ?? incoming.payload)
+    }
+
+    /// Rebuilds the transfer of an entry that has no stored intent (restored from history) from its one token effect
+    /// (`query:<id>[|local]`). Without the sender's Jetton wallet; unclear with several candidates.
+    private static func attachJetton(of model: WalletTransactionModel, to reference: inout TonDeliveryReference) {
+        guard reference.jetton == nil else {
+            return
+        }
+
+        let candidates = model.effects.filter {
+            $0.kind == BlockchainTransactionEffect.Kind.tokenTransfer.rawValue
+                && $0.rawPayload.flatMap { String(data: $0, encoding: .utf8) }?.hasPrefix("query:") == true
+        }
+
+        guard candidates.count == 1, let effect = candidates.first,
+              let text = effect.rawPayload.flatMap({ String(data: $0, encoding: .utf8) }),
+              let queryId = UInt64(text.dropFirst("query:".count).prefix { $0 != "|" }),
+              let master = effect.assetIdentifier, let amount = effect.amount, let recipient = effect.recipient
+        else {
+            return
+        }
+
+        reference.jetton = TonJettonTransfer(
+            amount: amount,
+            master: master,
+            queryId: queryId,
+            recipient: recipient,
+            senderWallet: ""
+        )
     }
 
     private static func deliveryReference(_ payload: Data?) -> TonDeliveryReference? {
