@@ -122,38 +122,38 @@ final class FeeEstimationService: @unchecked Sendable {
 
 private extension FeeEstimationService {
     /// What a Tron transfer costs after the account's bandwidth and energy, from the transaction
-    /// the node builds for it. Without an estimate (node unreachable) only the fee limit is returned.
+    /// the node builds for it. When that fails (node unreachable, an address the node refuses) only the fee limit is
+    /// returned, with the failure as the estimate's warning.
     func estimateTronFees(token: Token, amount: BigUInt, recipient: String, account: Account) async -> Fees {
         let feeLimit = token.isNativeToken ? nil : "100000000"
+        let startedAt = Date()
 
-        guard
-            let client = try? clientProvider.tronClient(for: account),
-            let sender = try? TronAddress(string: account.address),
-            let receiver = try? TronAddress(string: recipient),
-            let unsigned = try? await TronTransactionBuilder(client: client).buildTransfer(
-                sender: sender,
-                recipient: receiver,
+        do {
+            let client = try clientProvider.tronClient(for: account)
+            let unsigned = try await TronTransactionBuilder(client: client).buildTransfer(
+                sender: TronAddress(string: account.address),
+                recipient: TronAddress(string: recipient),
                 amount: amount,
                 token: token.isNativeToken ? nil : token.address,
                 options: []
-            ),
-            let transaction = try? TronRawTransaction(envelope: unsigned)
-        else {
-            return Fees(tronFeeLimit: feeLimit)
+            )
+
+            let fee = try await client.estimateFee(for: TronRawTransaction(envelope: unsigned))
+
+            if let resources = fee.resources {
+                await DI.inject(TronStakingPositionLoader.self)?
+                    .record(resources: resources, startedAt: startedAt, account: account)
+            }
+
+            return Fees(nativeFeeReserve: String(fee.burnedSun), tronFee: fee, tronFeeLimit: feeLimit)
+        } catch {
+            printError("Tron fee estimate failed: \(error)")
+
+            return Fees(
+                estimateWarning: String(localized: .transferEstimateFailed(error.localizedDescription)),
+                tronFeeLimit: feeLimit
+            )
         }
-
-        let startedAt = Date()
-
-        guard let fee = try? await client.estimateFee(for: transaction) else {
-            return Fees(tronFeeLimit: feeLimit)
-        }
-
-        if let resources = fee.resources {
-            await DI.inject(TronStakingPositionLoader.self)?
-                .record(resources: resources, startedAt: startedAt, account: account)
-        }
-
-        return Fees(nativeFeeReserve: String(fee.burnedSun), tronFee: fee, tronFeeLimit: feeLimit)
     }
 
     /// Builds (and so simulates) the transfer, then reads back the gas the

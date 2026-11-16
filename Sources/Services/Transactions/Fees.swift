@@ -52,6 +52,9 @@ struct Fees: Equatable {
     /// The Gram, in nanograms, a TON Jetton transfer attaches, sized by emulation; `nil` for the builder's default.
     let tonAttachment: String?
 
+    /// Why the estimate fell short of what was asked for (the TON emulation failed), shown under the fees.
+    let estimateWarning: String?
+
     init(
         aptosGasUnitPrice: String? = nil,
         aptosMaxGasAmount: String? = nil,
@@ -61,6 +64,7 @@ struct Fees: Equatable {
         ethereumGasPrice: String? = nil,
         ethereumMaxFee: String? = nil,
         ethereumMaxPriorityFee: String? = nil,
+        estimateWarning: String? = nil,
         nativeFeeReserve: String? = nil,
         solanaComputeUnitLimit: String? = nil,
         solanaPriorityFee: String? = nil,
@@ -75,6 +79,7 @@ struct Fees: Equatable {
         self.aptosMaxGasAmount = aptosMaxGasAmount
         self.bitcoinFeeRate = bitcoinFeeRate
         self.cardanoRecipientLovelace = cardanoRecipientLovelace
+        self.estimateWarning = estimateWarning
         self.ethereumBaseFee = ethereumBaseFee
         self.ethereumGasPrice = ethereumGasPrice
         self.ethereumMaxFee = ethereumMaxFee

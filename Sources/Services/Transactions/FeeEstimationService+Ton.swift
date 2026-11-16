@@ -101,8 +101,11 @@ extension FeeEstimationService {
                 }
 
                 printError("TON emulation unavailable, using the fixed budget: \(error)")
-                return Fees(nativeFeeReserve: String(TonTransactionBuilder.defaultJettonAttachment
-                        + TonTransactionBuilder.jettonFeeReserve))
+                return Fees(
+                    estimateWarning: String(localized: .transferEstimateFailed(error.localizedDescription)),
+                    nativeFeeReserve: String(TonTransactionBuilder.defaultJettonAttachment
+                        + TonTransactionBuilder.jettonFeeReserve)
+                )
             }
         }
 

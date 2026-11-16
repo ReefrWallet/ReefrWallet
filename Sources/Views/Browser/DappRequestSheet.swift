@@ -23,6 +23,8 @@ struct DappRequestSheet: View {
 
     @State private var editedFees: Fees?
     @State private var feeEstimationTask: Task<Void, Never>?
+    /// Why Estimate Fees failed, shown under the fees.
+    @State private var reestimateError: String?
     /// Ethereum fees re-fetched with Estimate Fees, replacing the request's.
     @State private var reestimatedFees: Fees?
 
@@ -188,9 +190,9 @@ private extension DappRequestSheet {
                     blockchain: account.blockchain,
                     estimatedFees: reestimatedFees ?? preview.fees,
                     // Not in Penpot: the user should know the site picked these values.
-                    warning: call.hasDappFeeOverrides && reestimatedFees == nil
+                    warning: reestimateError ?? (call.hasDappFeeOverrides && reestimatedFees == nil
                         ? String(localized: .dappRequestDappFeeWarning)
-                        : nil,
+                        : nil),
                     fees: $editedFees
                 )
             }
@@ -237,6 +239,7 @@ private extension DappRequestSheet {
         }
 
         feeEstimationTask?.cancel()
+        reestimateError = nil
         feeEstimationTask = Task {
             do {
                 let service = DI.injectOrFail(FeeEstimationService.self)
@@ -260,6 +263,10 @@ private extension DappRequestSheet {
                 )
             } catch {
                 printError(error)
+
+                if !Task.isCancelled {
+                    reestimateError = String(localized: .transferEstimateFailed(error.localizedDescription))
+                }
             }
         }
     }

@@ -67,6 +67,8 @@ struct TonFeeEstimationTests {
         #expect(fees.nativeFeeReserve == String(BigUInt(50_000_000) + TonTransactionBuilder.jettonFeeReserve))
         #expect(fees.tonNetCost == nil)
         #expect(fees.tonAttachment == nil)
+        // The failure is shown under the fees, not only logged.
+        #expect(fees.estimateWarning != nil)
     }
 
     @Test func aTimeoutAfterARefusedAttachmentDoesNotRestoreIt() async {

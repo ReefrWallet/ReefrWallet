@@ -27,6 +27,14 @@ final class Logger {
         console.minLevel = .verbose
         console.asynchronously = false
         SwiftyBeaver.addDestination(console)
+
+        // UI tests can't see the app's console: `--log-path <file>` also writes the log there.
+        if let index = CommandLine.arguments.firstIndex(of: "--log-path"), index + 1 < CommandLine.arguments.count {
+            let file = FileDestination(logFileURL: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
+            file.format = console.format
+            file.minLevel = .verbose
+            SwiftyBeaver.addDestination(file)
+        }
     }
 
     static func trace(

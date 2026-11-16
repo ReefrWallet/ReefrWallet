@@ -139,6 +139,7 @@ private let iosUITestExclusions: [String] = [
     "SolanaStakingUITests.swift",
     "SuiForwardSyncUITests.swift",
     "SuiTransactionHistoryUITests.swift",
+    "TonTestnetJettonUITests.swift",
     "TonTestnetTransferUITests.swift",
     "TronTRXTransferUITests.swift",
     "TronUSDTTransferUITests.swift",

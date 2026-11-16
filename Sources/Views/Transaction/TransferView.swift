@@ -65,7 +65,7 @@ extension TransferView: View {
                 estimatedFees: estimatedFees,
                 isTronFeeLimitEnabled: !token.isNativeToken,
                 isTonJettonTransfer: !token.isNativeToken,
-                warning: issue ?? feeEstimationError,
+                warning: issue ?? feeEstimationError ?? estimatedFees?.estimateWarning,
                 fees: $fees
             )
         }

@@ -339,7 +339,7 @@ private extension TransactionFeesView {
             warning == nil ? .secondary : .caution
         case .cardano:
             warning == nil ? .secondary : .caution
-        case .solana where isSolanaStaking, .sui where isSuiStaking, .tron:
+        case .solana where isSolanaStaking, .sui where isSuiStaking, .ton where isTonJetton, .tron:
             warning == nil ? .secondary : .caution
         default:
             .caution

@@ -3,20 +3,21 @@ import XCTest
 import WalletKitTesting
 
 /// Sends a Jetton (RTJ, 6 decimals) on the TON testnet from "Testnet #1" to "Testnet #2" through the Send UI and
-/// checks both RTJ balances and both transaction lists, then returns it when the recipient holds enough Gram.
+/// checks both RTJ balances and both transaction lists.
 ///
 /// Uses `REEFR_TESTNET_MNEMONIC`; account 0 (m/44'/607'/0') needs RTJ (master
 /// `kQDDqfCUyXigJ0xBa5m482BBZd56ebMnSIO2OLZVsqtpjF31`) and about 0.25 testnet GRAM for the attachment and fees.
 @MainActor
 final class TonTestnetJettonUITests: XCTestCase {
-    private let sentAmount = "1"
-    /// What the recipient must hold to pay for returning the Jetton.
-    private let returnGram = 0.15
+    private static let locale = Locale(identifier: "en_US")
+    /// Random per run (1.000 to 1.500), so this run's transfers stand out from any earlier one.
+    private let sent = Decimal(Int.random(in: 1000 ... 1500)) / 1000
 
     private var app: XCUIApplication!
     private var recipientAddress = ""
     private var senderAddress = ""
     private var storeDirectory: URL!
+    private var logPath: URL { storeDirectory.appending(path: "app.log") }
 
     override func setUp() async throws {
         continueAfterFailure = false
@@ -43,7 +44,11 @@ final class TonTestnetJettonUITests: XCTestCase {
             "--test",
             "--store-path", storeDirectory.appending(path: "keystore.sqlite").path,
             "--mnemonic", mnemonic,
-            "--create-ton-accounts"
+            "--create-ton-accounts",
+            "--log-path", logPath.path,
+            // Pin the formats, so the numbers on screen read the same here as in the app.
+            "-AppleLocale", Self.locale.identifier,
+            "-AppleLanguages", "(en)"
         ]
     }
 
@@ -61,43 +66,43 @@ final class TonTestnetJettonUITests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
-        openAccount("Testnet #2")
-        selectTab("Token Balances")
-        let recipientBefore = balance("RTJ", timeout: 20) { _ in true } ?? 0
-        let recipientGram = balance("GRAM", timeout: 20) { _ in true } ?? 0
+        // Baselines are read once the account's balances have loaded, and the rows already in its history noted.
+        let recipientBefore = try baseline(account: "Testnet #2")
+        let recipientRows = transactionIds(account: "Testnet #2")
+        let senderBefore = try baseline(account: "Testnet #1")
+        let senderRows = transactionIds(account: "Testnet #1")
+        XCTAssertGreaterThanOrEqual(senderBefore.rtj, 1, "Account 0 needs at least 1 RTJ.")
 
-        openAccount("Testnet #1")
         selectTab("Token Balances")
-        let senderBefore = try XCTUnwrap(
-            balance("RTJ", timeout: 90) { $0 >= 1 },
-            "Account 0 needs at least 1 RTJ. Rows shown: \(visibleBalanceIds())"
+        send(symbol: "RTJ", amount: "\(sent)", to: recipientAddress)
+
+        let senderAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == senderBefore.rtj - sent }
+        XCTAssertEqual(senderAfter, senderBefore.rtj - sent, "Expected the sender's RTJ to drop by exactly \(sent); now \(shownRTJ()).")
+        selectTab("Transactions")
+        XCTAssertTrue(
+            waitForNewTransaction(
+                excluding: senderRows,
+                amount: -sent,
+                counterparty: (prefix: "transaction-to-", address: recipientAddress),
+                timeout: 180
+            ),
+            "Expected a new confirmed -\(sent) RTJ transfer to the recipient in the sender's list. \(describeRows(excluding: senderRows))\n\(appLog())"
         )
 
-        send(symbol: "RTJ", amount: sentAmount, to: recipientAddress)
-
-        let senderAfter = balance("RTJ", timeout: 180, refreshing: true) { $0 <= senderBefore - 1 }
-        XCTAssertNotNil(senderAfter, "Expected the sender's RTJ balance to drop by \(sentAmount).")
-        selectTab("Transactions")
-        XCTAssertTrue(waitForTransaction(timeout: 120), "Expected the transfer in the sender's list.")
-
         openAccount("Testnet #2")
         selectTab("Token Balances")
-        let recipientAfter = balance("RTJ", timeout: 180, refreshing: true) { $0 >= recipientBefore + 1 }
-        XCTAssertNotNil(recipientAfter, "Expected the recipient's RTJ balance to grow.")
+        let recipientAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == recipientBefore.rtj + sent }
+        XCTAssertEqual(recipientAfter, recipientBefore.rtj + sent, "Expected the recipient's RTJ to grow by exactly \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
-        XCTAssertTrue(waitForTransaction(timeout: 120), "Expected the transfer in the recipient's list.")
-
-        guard recipientGram >= returnGram else {
-            return
-        }
-
-        selectTab("Token Balances")
-        send(symbol: "RTJ", amount: sentAmount, to: senderAddress)
-
-        openAccount("Testnet #1")
-        selectTab("Token Balances")
-        let returned = balance("RTJ", timeout: 180, refreshing: true) { $0 > (senderAfter ?? 0) }
-        XCTAssertNotNil(returned, "Expected the returned RTJ to reach the sender.")
+        XCTAssertTrue(
+            waitForNewTransaction(
+                excluding: recipientRows,
+                amount: sent,
+                counterparty: (prefix: "transaction-from-", address: senderAddress),
+                timeout: 180
+            ),
+            "Expected a new confirmed \(sent) RTJ transfer from the sender in the recipient's list. \(describeRows(excluding: recipientRows))"
+        )
     }
 }
 
@@ -115,6 +120,7 @@ private extension TonTestnetJettonUITests {
         amountField.click()
         amountField.typeKey("a", modifierFlags: .command)
         amountField.typeText(amount)
+        XCTAssertEqual(Self.number(amountField.text), Decimal(string: amount), "The amount field shows \(amountField.text).")
 
         let receiverField = app.firstDescendant(withIdentifier: "transfer-receiver-field")
         XCTAssertTrue(receiverField.waitForExistence(timeout: 5))
@@ -147,19 +153,13 @@ private extension TonTestnetJettonUITests {
     }
 
     func visibleTexts() -> [String] {
-        app.staticTexts.allElementsBoundByIndex.map(\.text).filter { !$0.isEmpty }
+        let labels = app.descendants(matching: .any).allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
+        return Array(Set(labels)).sorted().prefix(60).map { $0 }
     }
 
-    func visibleBalanceIds() -> [String] {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "balance-"))
-            .allElementsBoundByIndex
-            .map(\.identifier)
-    }
-
-    func openAccount(_ name: String) {
+    func openAccount(_ name: String, line: UInt = #line) {
         let account = app.firstDescendant(withIdentifier: "sidebar-account-label-\(name)")
-        XCTAssertTrue(account.waitForExistence(timeout: 20))
+        XCTAssertTrue(account.waitForExistence(timeout: 60), "Expected \(name) in the sidebar.", line: line)
         account.click()
     }
 
@@ -172,13 +172,35 @@ private extension TonTestnetJettonUITests {
         tab.click()
     }
 
+    func shownRTJ() -> String {
+        waitForBalance("RTJ", timeout: 5) { _ in true }.map { "\($0)" } ?? "none"
+    }
+
+    /// RTJ and GRAM held by `account` once its balances have loaded; an absent RTJ row then means zero.
+    func baseline(account: String) throws -> (gram: Decimal, rtj: Decimal) {
+        openAccount(account)
+        selectTab("Token Balances")
+
+        let gram = try XCTUnwrap(waitForBalance("GRAM", timeout: 90) { _ in true }, "Balances of \(account) didn't load.")
+
+        // Refresh once more so a Jetton found by the scan is in before an absent row is taken as zero.
+        let update = app.firstDescendant(withIdentifier: "sidebar-update-button")
+
+        if update.exists, update.isEnabled {
+            update.click()
+        }
+
+        Thread.sleep(forTimeInterval: 10)
+        return (gram, waitForBalance("RTJ", timeout: 5) { _ in true } ?? 0)
+    }
+
     /// Polls `symbol`'s balance row, pressing Update between reads when `refreshing`.
-    func balance(
+    func waitForBalance(
         _ symbol: String,
         timeout: TimeInterval,
         refreshing: Bool = false,
-        where condition: (Double) -> Bool
-    ) -> Double? {
+        where condition: (Decimal) -> Bool
+    ) -> Decimal? {
         let deadline = Date.now.addingTimeInterval(timeout)
 
         repeat {
@@ -201,18 +223,82 @@ private extension TonTestnetJettonUITests {
         return nil
     }
 
-    /// Whether the open list has a row for the sent amount.
-    func waitForTransaction(timeout: TimeInterval) -> Bool {
+    /// The ids of the rows the account's Transactions tab lists now.
+    func transactionIds(account: String) -> Set<String> {
+        openAccount(account)
+        selectTab("Transactions")
+        Thread.sleep(forTimeInterval: 3)
+        let ids = currentTransactionIds()
+        selectTab("Token Balances")
+        return ids
+    }
+
+    /// A row's marker text; empty when the row doesn't publish it (yet).
+    func markerText(_ identifier: String) -> String {
+        let element = app.firstDescendant(withIdentifier: identifier)
+        return element.exists ? element.text : ""
+    }
+
+    /// What the app logged about TON; the runner can't write elsewhere, so a failure carries it.
+    func appLog() -> String {
+        guard let log = try? String(contentsOf: logPath, encoding: .utf8) else {
+            return "no app log at \(logPath.path)"
+        }
+
+        return log.split(separator: "\n")
+            .filter { $0.contains("TON") || $0.contains("Jetton") || $0.contains("elivery") || $0.contains("ERROR") }
+            .suffix(30).map { String($0.prefix(350)) }.joined(separator: "\n")
+    }
+
+    func describeRows(excluding known: Set<String>) -> [String] {
+        currentTransactionIds().subtracting(known).map { id in
+            ["amount", "status", "from", "to"]
+                .map { "\($0)=\(markerText("transaction-\($0)-\(id)"))" }
+                .joined(separator: " ")
+        }
+    }
+
+    func currentTransactionIds() -> Set<String> {
+        let prefix = "transaction-amount-"
+
+        return Set(
+            app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier BEGINSWITH %@", prefix))
+                .allElementsBoundByIndex
+                .map { String($0.identifier.dropFirst(prefix.count)) }
+        )
+    }
+
+    /// Whether the open list has a row that wasn't there before, confirmed, for exactly `amount` RTJ and with
+    /// `counterparty` on the given side.
+    func waitForNewTransaction(
+        excluding known: Set<String>,
+        amount: Decimal,
+        counterparty: (prefix: String, address: String),
+        timeout: TimeInterval
+    ) -> Bool {
+        let expectedAmount = "\(amount.formatted(.number.locale(Self.locale))) RTJ"
+        let expectedAddress = try? TonAddress(string: counterparty.address)
         let deadline = Date.now.addingTimeInterval(timeout)
 
         while Date.now < deadline {
-            let found = app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@", "transaction-amount-"))
-                .allElementsBoundByIndex
-                .contains { $0.text.contains("RTJ") && $0.text.contains(sentAmount) }
+            for id in currentTransactionIds().subtracting(known) {
+                guard markerText("transaction-amount-" + id) == expectedAmount,
+                      markerText("transaction-status-" + id) == "Confirmed",
+                      let shown = try? TonAddress(string: markerText(counterparty.prefix + id)),
+                      shown == expectedAddress
+                else {
+                    continue
+                }
 
-            if found {
                 return true
+            }
+
+            // Delivery of a Jetton is checked on each refresh; the row stays unconfirmed until it is known.
+            let update = app.firstDescendant(withIdentifier: "sidebar-update-button")
+
+            if update.exists, update.isEnabled {
+                update.click()
             }
 
             Thread.sleep(forTimeInterval: 3)
@@ -221,8 +307,10 @@ private extension TonTestnetJettonUITests {
         return false
     }
 
-    static func number(_ text: String) -> Double? {
-        Double(text.filter { $0.isNumber || $0 == "." || $0 == "," }.replacingOccurrences(of: ",", with: "."))
+    /// A number as the app shows it ("1,235" is one thousand two hundred thirty-five).
+    static func number(_ text: String) -> Decimal? {
+        let kept = text.filter { $0.isNumber || $0 == "." || $0 == "-" }
+        return Decimal(string: kept, locale: Locale(identifier: "en_US"))
     }
 }
 
