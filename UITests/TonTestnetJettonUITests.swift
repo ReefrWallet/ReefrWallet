@@ -76,7 +76,7 @@ final class TonTestnetJettonUITests: XCTestCase {
         let recipientRows = loadedTransactionIds(account: "Testnet #2")
         let senderRows = loadedTransactionIds(account: "Testnet #1")
         XCTAssertNotNil(
-            waitForBalance("RTJ", timeout: 90) { $0 == self.senderRTJ },
+            waitForBalance("RTJ", timeout: 45) { $0 == senderRTJ },
             "The sender's RTJ row should show \(senderRTJ); now \(shownRTJ())."
         )
 
@@ -84,7 +84,7 @@ final class TonTestnetJettonUITests: XCTestCase {
         send(symbol: "RTJ", amount: "\(sent)", to: recipientAddress)
 
         let senderExpected = senderRTJ - sent
-        let senderAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == senderExpected }
+        let senderAfter = waitForBalance("RTJ", timeout: 60, refreshing: true) { $0 == senderExpected }
         XCTAssertEqual(senderAfter, senderExpected, "Expected the sender's RTJ to drop by \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
         XCTAssertTrue(
@@ -92,7 +92,7 @@ final class TonTestnetJettonUITests: XCTestCase {
                 excluding: senderRows,
                 amount: -sent,
                 counterparty: (prefix: "transaction-to-", address: recipientAddress),
-                timeout: 180
+                timeout: 60
             ),
             "Expected a new confirmed -\(sent) RTJ transfer to the recipient in the sender's list. \(describeRows(excluding: senderRows))\n\(appLog())"
         )
@@ -100,7 +100,7 @@ final class TonTestnetJettonUITests: XCTestCase {
         openAccount("Testnet #2")
         selectTab("Token Balances")
         let recipientExpected = recipientRTJ + sent
-        let recipientAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == recipientExpected }
+        let recipientAfter = waitForBalance("RTJ", timeout: 60, refreshing: true) { $0 == recipientExpected }
         XCTAssertEqual(recipientAfter, recipientExpected, "Expected the recipient's RTJ to grow by \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
         XCTAssertTrue(
@@ -108,7 +108,7 @@ final class TonTestnetJettonUITests: XCTestCase {
                 excluding: recipientRows,
                 amount: sent,
                 counterparty: (prefix: "transaction-from-", address: senderAddress),
-                timeout: 180
+                timeout: 60
             ),
             "Expected a new confirmed \(sent) RTJ transfer from the sender in the recipient's list. \(describeRows(excluding: recipientRows))"
         )
@@ -168,7 +168,7 @@ private extension TonTestnetJettonUITests {
 
     func openAccount(_ name: String, line: UInt = #line) {
         let account = app.firstDescendant(withIdentifier: "sidebar-account-label-\(name)")
-        XCTAssertTrue(account.waitForExistence(timeout: 60), "Expected \(name) in the sidebar.", line: line)
+        XCTAssertTrue(account.waitForExistence(timeout: 20), "Expected \(name) in the sidebar.", line: line)
         account.click()
     }
 
@@ -196,7 +196,7 @@ private extension TonTestnetJettonUITests {
     func loadedTransactionIds(account: String) -> Set<String> {
         openAccount(account)
         selectTab("Token Balances")
-        XCTAssertNotNil(waitForBalance("GRAM", timeout: 90) { _ in true }, "Balances of \(account) didn't load.")
+        XCTAssertNotNil(waitForBalance("GRAM", timeout: 45) { _ in true }, "Balances of \(account) didn't load.")
         return transactionIds(account: account)
     }
 
