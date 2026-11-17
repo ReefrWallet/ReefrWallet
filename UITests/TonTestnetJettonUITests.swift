@@ -76,14 +76,14 @@ final class TonTestnetJettonUITests: XCTestCase {
         let recipientRows = loadedTransactionIds(account: "Testnet #2")
         let senderRows = loadedTransactionIds(account: "Testnet #1")
         XCTAssertNotNil(
-            waitForBalance("RTJ", timeout: 90) { $0 == self.shown(senderRTJ) },
-            "The sender's RTJ row should show \(shown(senderRTJ)); now \(shownRTJ())."
+            waitForBalance("RTJ", timeout: 90) { $0 == self.senderRTJ },
+            "The sender's RTJ row should show \(senderRTJ); now \(shownRTJ())."
         )
 
         selectTab("Token Balances")
         send(symbol: "RTJ", amount: "\(sent)", to: recipientAddress)
 
-        let senderExpected = shown(senderRTJ - sent)
+        let senderExpected = senderRTJ - sent
         let senderAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == senderExpected }
         XCTAssertEqual(senderAfter, senderExpected, "Expected the sender's RTJ to drop by \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
@@ -99,7 +99,7 @@ final class TonTestnetJettonUITests: XCTestCase {
 
         openAccount("Testnet #2")
         selectTab("Token Balances")
-        let recipientExpected = shown(recipientRTJ + sent)
+        let recipientExpected = recipientRTJ + sent
         let recipientAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == recipientExpected }
         XCTAssertEqual(recipientAfter, recipientExpected, "Expected the recipient's RTJ to grow by \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
@@ -190,14 +190,6 @@ private extension TonTestnetJettonUITests {
         let client = TonClient(network: .testnet, apiKey: ProcessInfo.processInfo.environment["TONCENTER_API_KEY"])
         let raw = try await client.getBalance(client.makeAddress(address), token: Self.master)
         return Decimal(sign: .plus, exponent: -6, significand: Decimal(string: raw.description) ?? 0)
-    }
-
-    /// An amount as the app shows it: three decimals at most.
-    func shown(_ amount: Decimal) -> Decimal {
-        var value = amount
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &value, 3, .plain)
-        return rounded
     }
 
     /// Opens `account`, waits for its balances to load, and returns the ids of its history rows.
