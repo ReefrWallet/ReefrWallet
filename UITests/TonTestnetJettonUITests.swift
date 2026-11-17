@@ -144,7 +144,7 @@ private extension TonTestnetJettonUITests {
         let sheetTitle = app.firstDescendant(withIdentifier: "transfer-sheet-title")
         XCTAssertTrue(
             sheetTitle.waitUntilGone(timeout: 30),
-            "Expected the Send sheet to dismiss after broadcast. Showing: \(visibleTexts())"
+            "Expected the Send sheet to dismiss after broadcast. \(dialogState()) \(appLog())"
         )
     }
 
@@ -159,11 +159,6 @@ private extension TonTestnetJettonUITests {
         if triangle.exists, !triangle.isExpanded {
             triangle.click()
         }
-    }
-
-    func visibleTexts() -> [String] {
-        let labels = app.descendants(matching: .any).allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
-        return Array(Set(labels)).sorted().prefix(60).map { $0 }
     }
 
     func openAccount(_ name: String, line: UInt = #line) {
@@ -243,6 +238,13 @@ private extension TonTestnetJettonUITests {
     func markerText(_ identifier: String) -> String {
         let element = app.firstDescendant(withIdentifier: identifier)
         return element.exists ? element.text : ""
+    }
+
+    /// Whether an error alert is up, and the fee footer, when the Send sheet doesn't close.
+    func dialogState() -> String {
+        let alert = app.alerts.firstMatch
+        let footer = app.firstDescendant(withIdentifier: "transfer-fees-footer")
+        return "alert: \(alert.exists ? alert.label : "none"); footer: \(footer.exists ? footer.text : "none")"
     }
 
     /// What the app logged about TON; the runner can't write elsewhere, so a failure carries it.

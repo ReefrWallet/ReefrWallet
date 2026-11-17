@@ -42,8 +42,9 @@ private actor SendLock {
 final class TonSendService: @unchecked Sendable {
     private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private let databaseService: DatabaseService
-    /// Where each account's next delivery pass starts; guarded by ``lock``.
+    /// Where each account's next delivery pass starts; guarded by `offsetsLock`.
     private var deliveryOffsets: [PersistentIdentifier: Int] = [:]
+    private let offsetsLock = NSLock()
     /// Open deliveries checked per pass, rotating through all of them, so a long history doesn't flood the indexer.
     private static let deliveriesPerPass = 10
     /// Shared, so every instance serializes sends against the same `seqno`.
@@ -103,7 +104,6 @@ final class TonSendService: @unchecked Sendable {
     /// Settles stored sends: resends current ones, drops those that can no longer be processed.
     func reconcile(account: Account) async {
         await lock.acquire()
-        defer { Task { await lock.release() } }
 
         do {
             try await resolve(account, throwing: false)
@@ -111,6 +111,9 @@ final class TonSendService: @unchecked Sendable {
             printError("\(account.name): \(error)")
         }
 
+        await lock.release()
+
+        // Only reads and stores recipient outcomes, so it must not hold up a send waiting for the lock.
         await trackDeliveries(account)
     }
 
@@ -125,8 +128,11 @@ final class TonSendService: @unchecked Sendable {
 
         do {
             let all = try await databaseService.fetchUndecidedDeliveries(accountId: accountId)
-            let offset = deliveryOffsets[accountId] ?? 0
-            deliveryOffsets[accountId] = offset + Self.deliveriesPerPass
+            let offset = offsetsLock.withLock {
+                let offset = deliveryOffsets[accountId] ?? 0
+                deliveryOffsets[accountId] = offset + Self.deliveriesPerPass
+                return offset
+            }
 
             await Self.settle(
                 Self.rotating(all, from: offset, count: Self.deliveriesPerPass),
