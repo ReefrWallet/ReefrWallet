@@ -10,6 +10,7 @@ import WalletKitTesting
 @MainActor
 final class TonTestnetJettonUITests: XCTestCase {
     private static let locale = Locale(identifier: "en_US")
+    private static let master = "kQDDqfCUyXigJ0xBa5m482BBZd56ebMnSIO2OLZVsqtpjF31"
     /// Random per run (1.000 to 1.500), so this run's transfers stand out from any earlier one.
     private let sent = Decimal(Int.random(in: 1000 ... 1500)) / 1000
 
@@ -61,23 +62,30 @@ final class TonTestnetJettonUITests: XCTestCase {
         }
     }
 
-    func testSendsAJettonBetweenAccounts() throws {
+    func testSendsAJettonBetweenAccounts() async throws {
         app.launch()
         app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
-        // Baselines are read once the account's balances have loaded, and the rows already in its history noted.
-        let recipientBefore = try baseline(account: "Testnet #2")
-        let recipientRows = transactionIds(account: "Testnet #2")
-        let senderBefore = try baseline(account: "Testnet #1")
-        let senderRows = transactionIds(account: "Testnet #1")
-        XCTAssertGreaterThanOrEqual(senderBefore.rtj, 1, "Account 0 needs at least 1 RTJ.")
+        // The starting balances come from the chain, for this master, never from a row that may not have loaded.
+        let recipientRTJ = try await chainRTJ(of: recipientAddress)
+        let senderRTJ = try await chainRTJ(of: senderAddress)
+        XCTAssertGreaterThanOrEqual(senderRTJ, sent, "Account 0 needs at least \(sent) RTJ, it holds \(senderRTJ).")
+
+        // The rows already in each account's history are noted once its balances have loaded.
+        let recipientRows = loadedTransactionIds(account: "Testnet #2")
+        let senderRows = loadedTransactionIds(account: "Testnet #1")
+        XCTAssertNotNil(
+            waitForBalance("RTJ", timeout: 90) { $0 == self.shown(senderRTJ) },
+            "The sender's RTJ row should show \(shown(senderRTJ)); now \(shownRTJ())."
+        )
 
         selectTab("Token Balances")
         send(symbol: "RTJ", amount: "\(sent)", to: recipientAddress)
 
-        let senderAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == senderBefore.rtj - sent }
-        XCTAssertEqual(senderAfter, senderBefore.rtj - sent, "Expected the sender's RTJ to drop by exactly \(sent); now \(shownRTJ()).")
+        let senderExpected = shown(senderRTJ - sent)
+        let senderAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == senderExpected }
+        XCTAssertEqual(senderAfter, senderExpected, "Expected the sender's RTJ to drop by \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
         XCTAssertTrue(
             waitForNewTransaction(
@@ -91,8 +99,9 @@ final class TonTestnetJettonUITests: XCTestCase {
 
         openAccount("Testnet #2")
         selectTab("Token Balances")
-        let recipientAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == recipientBefore.rtj + sent }
-        XCTAssertEqual(recipientAfter, recipientBefore.rtj + sent, "Expected the recipient's RTJ to grow by exactly \(sent); now \(shownRTJ()).")
+        let recipientExpected = shown(recipientRTJ + sent)
+        let recipientAfter = waitForBalance("RTJ", timeout: 180, refreshing: true) { $0 == recipientExpected }
+        XCTAssertEqual(recipientAfter, recipientExpected, "Expected the recipient's RTJ to grow by \(sent); now \(shownRTJ()).")
         selectTab("Transactions")
         XCTAssertTrue(
             waitForNewTransaction(
@@ -176,22 +185,27 @@ private extension TonTestnetJettonUITests {
         waitForBalance("RTJ", timeout: 5) { _ in true }.map { "\($0)" } ?? "none"
     }
 
-    /// RTJ and GRAM held by `account` once its balances have loaded; an absent RTJ row then means zero.
-    func baseline(account: String) throws -> (gram: Decimal, rtj: Decimal) {
+    /// RTJ `address` holds on chain, the same source the app reads.
+    func chainRTJ(of address: String) async throws -> Decimal {
+        let client = TonClient(network: .testnet, apiKey: ProcessInfo.processInfo.environment["TONCENTER_API_KEY"])
+        let raw = try await client.getBalance(client.makeAddress(address), token: Self.master)
+        return Decimal(sign: .plus, exponent: -6, significand: Decimal(string: raw.description) ?? 0)
+    }
+
+    /// An amount as the app shows it: three decimals at most.
+    func shown(_ amount: Decimal) -> Decimal {
+        var value = amount
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &value, 3, .plain)
+        return rounded
+    }
+
+    /// Opens `account`, waits for its balances to load, and returns the ids of its history rows.
+    func loadedTransactionIds(account: String) -> Set<String> {
         openAccount(account)
         selectTab("Token Balances")
-
-        let gram = try XCTUnwrap(waitForBalance("GRAM", timeout: 90) { _ in true }, "Balances of \(account) didn't load.")
-
-        // Refresh once more so a Jetton found by the scan is in before an absent row is taken as zero.
-        let update = app.firstDescendant(withIdentifier: "sidebar-update-button")
-
-        if update.exists, update.isEnabled {
-            update.click()
-        }
-
-        Thread.sleep(forTimeInterval: 10)
-        return (gram, waitForBalance("RTJ", timeout: 5) { _ in true } ?? 0)
+        XCTAssertNotNil(waitForBalance("GRAM", timeout: 90) { _ in true }, "Balances of \(account) didn't load.")
+        return transactionIds(account: account)
     }
 
     /// Polls `symbol`'s balance row, pressing Update between reads when `refreshing`.

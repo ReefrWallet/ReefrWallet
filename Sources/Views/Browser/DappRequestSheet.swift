@@ -190,9 +190,7 @@ private extension DappRequestSheet {
                     blockchain: account.blockchain,
                     estimatedFees: reestimatedFees ?? preview.fees,
                     // Not in Penpot: the user should know the site picked these values.
-                    warning: reestimateError ?? (call.hasDappFeeOverrides && reestimatedFees == nil
-                        ? String(localized: .dappRequestDappFeeWarning)
-                        : nil),
+                    warning: ethereumWarning(for: call),
                     fees: $editedFees
                 )
             }
@@ -221,6 +219,16 @@ private extension DappRequestSheet {
                 )
             }
         }
+    }
+
+    /// The site's fee note and, if Estimate Fees failed, why; both apply while the site's values are in use.
+    func ethereumWarning(for call: EthereumCallPreview) -> String? {
+        let siteSet = call.hasDappFeeOverrides && reestimatedFees == nil
+            ? String(localized: .dappRequestDappFeeWarning)
+            : nil
+
+        let messages = [reestimateError, siteSet].compactMap { $0 }
+        return messages.isEmpty ? nil : messages.joined(separator: "\n")
     }
 
     var siteRow: some View {
