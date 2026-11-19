@@ -283,8 +283,9 @@ private extension TransactionSyncService {
             }
 
             if case .ton = account.blockchain {
-                await DI.inject(TonSendService.self)?.reconcile(account: account)
+                // Incoming tokens first: checking old sends' deliveries takes a lookup each.
                 await syncTonJettons(account: account, client: client)
+                await DI.inject(TonSendService.self)?.reconcile(account: account)
             }
 
             // Standard HTTP JSON-RPC nodes are not guaranteed to expose

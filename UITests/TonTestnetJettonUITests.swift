@@ -22,6 +22,7 @@ final class TonTestnetJettonUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        executionTimeAllowance = 300
 
         let mnemonic = ProcessInfo.processInfo.environment["REEFR_TESTNET_MNEMONIC"] ?? ""
         try XCTSkipIf(mnemonic.isEmpty, "Set REEFR_TESTNET_MNEMONIC to send on the TON testnet.")
@@ -68,54 +69,66 @@ final class TonTestnetJettonUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
 
         // The starting balances come from the chain, for this master, never from a row that may not have loaded.
-        let recipientRTJ = try await chainRTJ(of: recipientAddress)
-        let senderRTJ = try await chainRTJ(of: senderAddress)
+        let (recipientRTJ, senderRTJ) = try await phase("chain balances") {
+            (try await chainRTJ(of: recipientAddress), try await chainRTJ(of: senderAddress))
+        }
+
         XCTAssertGreaterThanOrEqual(senderRTJ, sent, "Account 0 needs at least \(sent) RTJ, it holds \(senderRTJ).")
 
-        // The rows already in each account's history are noted once its balances have loaded.
-        let recipientRows = loadedTransactionIds(account: "Testnet #2")
-        let senderRows = loadedTransactionIds(account: "Testnet #1")
-        XCTAssertNotNil(
-            waitForBalance("RTJ", timeout: 45) { $0 == senderRTJ },
-            "The sender's RTJ row should show \(senderRTJ); now \(shownRTJ())."
-        )
+        // Rows already showing this amount (an earlier run drew it too) are noted once balances have loaded.
+        let recipientRows = phase("recipient baseline") { loadedRows(account: "Testnet #2", amount: sent) }
+        let senderRows = phase("sender baseline") { loadedRows(account: "Testnet #1", amount: -sent) }
+
+        phase("sender balance shown") {
+            XCTAssertNotNil(
+                waitForBalance("RTJ", timeout: 45) { $0 == senderRTJ },
+                "The sender's RTJ row should show \(senderRTJ); now \(shownRTJ())."
+            )
+        }
 
         selectTab("Token Balances")
-        send(symbol: "RTJ", amount: "\(sent)", to: recipientAddress)
+        phase("send") { send(symbol: "RTJ", amount: "\(sent)", to: recipientAddress) }
 
-        let senderExpected = senderRTJ - sent
-        let senderAfter = waitForBalance("RTJ", timeout: 60, refreshing: true) { $0 == senderExpected }
-        XCTAssertEqual(senderAfter, senderExpected, "Expected the sender's RTJ to drop by \(sent); now \(shownRTJ()).")
-        selectTab("Transactions")
-        XCTAssertTrue(
-            waitForNewTransaction(
-                excluding: senderRows,
-                amount: -sent,
-                counterparty: (prefix: "transaction-to-", address: recipientAddress),
-                timeout: 60
-            ),
-            "Expected a new confirmed -\(sent) RTJ transfer to the recipient in the sender's list. \(describeRows(excluding: senderRows))\n\(appLog())"
+        verify(
+            side: "sender", balance: senderRTJ - sent, excluding: senderRows,
+            row: (amount: -sent, counterparty: (prefix: "transaction-to-", address: recipientAddress))
         )
 
         openAccount("Testnet #2")
         selectTab("Token Balances")
-        let recipientExpected = recipientRTJ + sent
-        let recipientAfter = waitForBalance("RTJ", timeout: 60, refreshing: true) { $0 == recipientExpected }
-        XCTAssertEqual(recipientAfter, recipientExpected, "Expected the recipient's RTJ to grow by \(sent); now \(shownRTJ()).")
-        selectTab("Transactions")
-        XCTAssertTrue(
-            waitForNewTransaction(
-                excluding: recipientRows,
-                amount: sent,
-                counterparty: (prefix: "transaction-from-", address: senderAddress),
-                timeout: 60
-            ),
-            "Expected a new confirmed \(sent) RTJ transfer from the sender in the recipient's list. \(describeRows(excluding: recipientRows))"
+
+        verify(
+            side: "recipient", balance: recipientRTJ + sent, excluding: recipientRows,
+            row: (amount: sent, counterparty: (prefix: "transaction-from-", address: senderAddress))
         )
     }
 }
 
 private extension TonTestnetJettonUITests {
+    /// The account's RTJ balance reaches `balance`, and its list gets a confirmed row for the transfer.
+    func verify(
+        side: String,
+        balance: Decimal,
+        excluding rows: Set<String>,
+        row: (amount: Decimal, counterparty: (prefix: String, address: String))
+    ) {
+        let shown = phase("\(side) balance settles") {
+            waitForBalance("RTJ", timeout: 60, refreshing: true) { $0 == balance }
+        }
+
+        XCTAssertEqual(shown, balance, "Expected the \(side)'s RTJ to reach \(balance); now \(shownRTJ()).")
+        selectTab("Transactions")
+
+        let confirmed = phase("\(side) row confirms") {
+            waitForNewTransaction(excluding: rows, amount: row.amount, counterparty: row.counterparty, timeout: 60)
+        }
+
+        XCTAssertTrue(
+            confirmed,
+            "Expected a new confirmed \(row.amount) RTJ row for the \(side). \(describeRows(amount: row.amount))\n\(appLog())"
+        )
+    }
+
     /// Sends `symbol` from the open account; expects its Token Balances tab to be showing.
     func send(symbol: String, amount: String, to address: String) {
         app.firstDescendant(withIdentifier: "balance-amount-\(symbol)").click()
@@ -183,16 +196,50 @@ private extension TonTestnetJettonUITests {
     /// RTJ `address` holds on chain, the same source the app reads.
     func chainRTJ(of address: String) async throws -> Decimal {
         let client = TonClient(network: .testnet, apiKey: ProcessInfo.processInfo.environment["TONCENTER_API_KEY"])
-        let raw = try await client.getBalance(client.makeAddress(address), token: Self.master)
-        return Decimal(sign: .plus, exponent: -6, significand: Decimal(string: raw.description) ?? 0)
+        // Without a key toncenter allows about one request a second.
+        for _ in 0 ..< 8 {
+            do {
+                let raw = try await client.getBalance(client.makeAddress(address), token: Self.master)
+                return Decimal(sign: .plus, exponent: -6, significand: Decimal(string: raw.description) ?? 0)
+            } catch BlockchainClientError.quotaExceeded {
+                try await Task.sleep(for: .seconds(2))
+            }
+        }
+
+        throw BlockchainClientError.quotaExceeded(code: 429, message: "toncenter rate limit", retryAfter: nil)
     }
 
-    /// Opens `account`, waits for its balances to load, and returns the ids of its history rows.
-    func loadedTransactionIds(account: String) -> Set<String> {
+    /// Opens `account`, waits for its balances to load, and returns the ids of its rows showing `amount`.
+    func loadedRows(account: String, amount: Decimal) -> Set<String> {
         openAccount(account)
         selectTab("Token Balances")
         XCTAssertNotNil(waitForBalance("GRAM", timeout: 45) { _ in true }, "Balances of \(account) didn't load.")
-        return transactionIds(account: account)
+        selectTab("Transactions")
+        Thread.sleep(forTimeInterval: 3)
+        let ids = rowIds(amount: amount)
+        selectTab("Token Balances")
+        return ids
+    }
+
+    /// Runs `body`, printing how long it took; a step over a minute fails.
+    @discardableResult
+    func phase<T>(_ name: String, _ body: () throws -> T) rethrows -> T {
+        let start = Date.now
+        defer { report(name, since: start) }
+        return try body()
+    }
+
+    @discardableResult
+    func phase<T>(_ name: String, _ body: () async throws -> T) async rethrows -> T {
+        let start = Date.now
+        defer { report(name, since: start) }
+        return try await body()
+    }
+
+    func report(_ name: String, since start: Date) {
+        let seconds = Date.now.timeIntervalSince(start)
+        NSLog("TIMING %@: %.1fs", name, seconds)
+        XCTAssertLessThanOrEqual(seconds, 75, "\(name) took \(Int(seconds))s; steps are capped at one minute.")
     }
 
     /// Polls `symbol`'s balance row, pressing Update between reads when `refreshing`.
@@ -224,16 +271,6 @@ private extension TonTestnetJettonUITests {
         return nil
     }
 
-    /// The ids of the rows the account's Transactions tab lists now.
-    func transactionIds(account: String) -> Set<String> {
-        openAccount(account)
-        selectTab("Transactions")
-        Thread.sleep(forTimeInterval: 3)
-        let ids = currentTransactionIds()
-        selectTab("Token Balances")
-        return ids
-    }
-
     /// A row's marker text; empty when the row doesn't publish it (yet).
     func markerText(_ identifier: String) -> String {
         let element = app.firstDescendant(withIdentifier: identifier)
@@ -258,41 +295,47 @@ private extension TonTestnetJettonUITests {
             .suffix(30).map { String($0.prefix(350)) }.joined(separator: "\n")
     }
 
-    func describeRows(excluding known: Set<String>) -> [String] {
-        currentTransactionIds().subtracting(known).map { id in
+    func describeRows(amount: Decimal) -> [String] {
+        rowIds(amount: amount).map { id in
             ["amount", "status", "from", "to"]
                 .map { "\($0)=\(markerText("transaction-\($0)-\(id)"))" }
                 .joined(separator: " ")
         }
     }
 
-    func currentTransactionIds() -> Set<String> {
+    /// The ids of the listed rows showing exactly `amount`; the app's search does the matching, not one query per row.
+    func rowIds(amount: Decimal) -> Set<String> {
         let prefix = "transaction-amount-"
+        let text = "\(amount.formatted(.number.locale(Self.locale))) RTJ"
 
         return Set(
             app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@", prefix))
+                .matching(NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND (label == %@ OR value == %@)", prefix, text, text
+                ))
                 .allElementsBoundByIndex
                 .map { String($0.identifier.dropFirst(prefix.count)) }
         )
     }
 
     /// Whether the open list has a row that wasn't there before, confirmed, for exactly `amount` RTJ and with
-    /// `counterparty` on the given side.
+    /// `counterparty` on the given side. Gives up at `timeout`, scan included.
     func waitForNewTransaction(
         excluding known: Set<String>,
         amount: Decimal,
         counterparty: (prefix: String, address: String),
         timeout: TimeInterval
     ) -> Bool {
-        let expectedAmount = "\(amount.formatted(.number.locale(Self.locale))) RTJ"
         let expectedAddress = try? TonAddress(string: counterparty.address)
         let deadline = Date.now.addingTimeInterval(timeout)
 
         while Date.now < deadline {
-            for id in currentTransactionIds().subtracting(known) {
-                guard markerText("transaction-amount-" + id) == expectedAmount,
-                      markerText("transaction-status-" + id) == "Confirmed",
+            for id in rowIds(amount: amount).subtracting(known) {
+                guard Date.now < deadline else {
+                    return false
+                }
+
+                guard markerText("transaction-status-" + id) == "Confirmed",
                       let shown = try? TonAddress(string: markerText(counterparty.prefix + id)),
                       shown == expectedAddress
                 else {

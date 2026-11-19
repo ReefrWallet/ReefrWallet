@@ -47,6 +47,7 @@ final class TonSendService: @unchecked Sendable {
     private let offsetsLock = NSLock()
     /// Open deliveries checked per pass, rotating through all of them, so a long history doesn't flood the indexer.
     private static let deliveriesPerPass = 10
+    private static let recentDeliveries = 3
     /// Shared, so every instance serializes sends against the same `seqno`.
     private static let lock = SendLock()
     private var lock: SendLock { Self.lock }
@@ -134,9 +135,16 @@ final class TonSendService: @unchecked Sendable {
                 return offset
             }
 
+            let batch = Self.deliveryBatch(all, offset: offset)
+            printInfo("\(account.name): delivery check of \(batch.count) of \(all.count) open sends")
+
             await Self.settle(
-                Self.rotating(all, from: offset, count: Self.deliveriesPerPass),
-                lookup: { try await Self.deliveryStatus(of: $0, client: client) },
+                batch,
+                lookup: {
+                    let status = try await Self.deliveryStatus(of: $0, client: client)
+                    printInfo("\(account.name): delivery of \($0.outMessageHash) is \(status)")
+                    return status
+                },
                 record: { try await databaseService.recordDelivery(stableId: $0, outcome: $1) },
                 onFailure: { printError("\(account.name): delivery check: \($0)") }
             )
@@ -182,6 +190,13 @@ final class TonSendService: @unchecked Sendable {
         case .failed: return .failed
         case .pending: return .pending
         }
+    }
+
+    /// The newest sends, which a user is waiting on, every pass; older ones take turns in the remaining places.
+    static func deliveryBatch<Element>(_ sends: [Element], offset: Int) -> [Element] {
+        let older = Array(sends.dropFirst(recentDeliveries))
+        return Array(sends.prefix(recentDeliveries))
+            + rotating(older, from: offset, count: deliveriesPerPass - recentDeliveries)
     }
 
     /// Up to `count` items starting at `offset`, wrapping around, so successive passes cover every open send.

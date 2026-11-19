@@ -75,6 +75,20 @@ struct TonDeliveryPersistenceTests {
         #expect(TonSendService.rotating([1, 2], from: 5, count: 10) == [2, 1])
     }
 
+    @Test func theNewestSendsAreCheckedOnEveryPass() {
+        let open = Array(0 ..< 58)
+        var seen = Set<Int>()
+
+        for pass in 0 ..< 9 {
+            let batch = TonSendService.deliveryBatch(open, offset: pass * 7)
+            #expect(batch.count == 10)
+            #expect(Array(batch.prefix(3)) == [0, 1, 2])
+            seen.formUnion(batch)
+        }
+
+        #expect(seen == Set(open))
+    }
+
     @Test func aFailingLookupDoesNotStopTheOtherSends() async {
         struct Offline: Error {}
 
