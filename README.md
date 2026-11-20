@@ -47,15 +47,5 @@ make workspace
 
 Then open `ReefrWallet.xcworkspace` in Xcode to build and run the app.
 
-To work on WalletKit too, clone it anywhere and point Tuist at it. This needs
-[WalletKit's development requirements](https://github.com/ReefrWallet/WalletKit#development):
-
-```sh
-export TUIST_WALLETKIT_PATH=/path/to/WalletKit
-make walletkit workspace
-```
-
-Unset the variable and run `make workspace` again to return to the release.
-
 On macOS the app statically links libusb (LGPL-2.1) through WalletKit. See
 [WalletKit's libusb notes](https://github.com/ReefrWallet/WalletKit#libusb) and `Resources/Licenses/`.
