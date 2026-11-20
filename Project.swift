@@ -72,12 +72,8 @@ private let wallet: Target = .target(
         "com.apple.security.application-groups": .array([.string("group.xyz.reefr.wallet")])
     ]),
     scripts: [
-        .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml Sources",
-            name: "SwiftLint",
-            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "Sources/**/*.swift"],
-            basedOnDependencyAnalysis: false
-        )
+        .trustMise,
+        .swiftLint("Sources")
     ],
     dependencies: [
         .external(name: "Moya"),
@@ -111,12 +107,8 @@ private let iosTests: Target = .target(
     resources: ["TestVectors/**/*"],
     buildableFolders: [.folder("Tests", exceptions: .exceptions([.exception(excluded: iosTestExclusions)]))],
     scripts: [
-        .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml Tests",
-            name: "SwiftLint",
-            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "Tests/**/*.swift"],
-            basedOnDependencyAnalysis: false
-        )
+        .trustMise,
+        .swiftLint("Tests")
     ],
     dependencies: [
         .target(name: "ReefrWallet")
@@ -157,12 +149,8 @@ private let iosUITests: Target = .target(
     resources: ["TestVectors/**/*"],
     buildableFolders: [.folder("UITests", exceptions: .exceptions([.exception(excluded: iosUITestExclusions)]))],
     scripts: [
-        .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml UITests",
-            name: "SwiftLint",
-            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "UITests/**/*.swift"],
-            basedOnDependencyAnalysis: false
-        )
+        .trustMise,
+        .swiftLint("UITests")
     ],
     dependencies: [
         .target(name: "ReefrWallet"),
@@ -188,12 +176,8 @@ private let macOSTests: Target = .target(
     resources: ["TestVectors/**/*"],
     buildableFolders: ["Tests"],
     scripts: [
-        .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml Tests",
-            name: "SwiftLint",
-            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "Tests/**/*.swift"],
-            basedOnDependencyAnalysis: false
-        )
+        .trustMise,
+        .swiftLint("Tests")
     ],
     dependencies: [
         .target(name: "ReefrWallet"),
@@ -215,12 +199,8 @@ private let macOSUITests: Target = .target(
         "com.apple.security.network.server": .boolean(true)
     ]),
     scripts: [
-        .post(
-            script: "$HOME/.local/bin/mise x swiftlint -- swiftlint --quiet --no-cache --config .swiftlint.yml UITests",
-            name: "SwiftLint",
-            inputPaths: [".mise.toml", "mise.toml", ".swiftlint.yml", "UITests/**/*.swift"],
-            basedOnDependencyAnalysis: false
-        )
+        .trustMise,
+        .swiftLint("UITests")
     ],
     dependencies: [
         .target(name: "ReefrWallet"),
