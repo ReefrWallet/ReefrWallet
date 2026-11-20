@@ -21,98 +21,30 @@ struct DappAccountChoiceView: View {
     @State private var picked: [DappNamespace: DappAccountChoice?] = [:]
 
     var body: some View {
-        if isIOS {
-            phoneBody
-        } else {
-            macBody
+        DappConnectionRequestView(
+            iconURL: iconURL,
+            ids: .init(approve: "dapp-approve-button", reject: "dapp-reject-button", title: "dapp-request-title"),
+            isApproveEnabled: isApproveEnabled,
+            name: host,
+            onApprove: approve,
+            onReject: onReject,
+            url: site,
+            rows: {
+                ParameterSection(footer: String(localized: .dappAccountChoiceConnectNote)) {
+                    ForEach(selections) { selection in
+                        ParameterRow(selection.namespace.displayName) {
+                            menu(for: selection)
+                        }
+                    }
+                }
         }
+        )
     }
 }
 
 // MARK: - Subviews
 
 private extension DappAccountChoiceView {
-    var macBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(.commonConnectRequest)
-                .style(.largeHeader)
-                .accessibilityIdentifier("dapp-request-title")
-
-            ParameterSection {
-                ParameterRow(String(localized: .commonSite), value: site)
-
-                ForEach(selections) { selection in
-                    ParameterRow(selection.namespace.displayName) {
-                        menu(for: selection)
-                    }
-                }
-            }
-
-            Text(.dappAccountChoiceConnectNote)
-                .style(.small, foreground: .secondary)
-                .padding(.top, 4)
-
-            HStack {
-                Spacer()
-
-                Button(.commonReject, action: onReject)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier("dapp-reject-button")
-
-                Button(.commonApprove, action: approve)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isApproveEnabled)
-                    .accessibilityIdentifier("dapp-approve-button")
-            }
-        }
-        .padding(20)
-#if os(macOS)
-        .frame(width: 480)
-#endif
-    }
-
-    /// Penpot: `Sheet / WalletConnect Proposal` on `Screens / iPhone`.
-    var phoneBody: some View {
-        Form {
-            Section {
-                HStack(spacing: 12) {
-                    DappIconView(url: iconURL, size: 40)
-
-                    Text(verbatim: host)
-                        .style(.headline, foreground: .primary)
-                        .lineLimit(1)
-                        .accessibilityIdentifier("dapp-request-title")
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-            }
-
-            Section {
-                ForEach(selections) { selection in
-                    LabeledContent {
-                        menu(for: selection)
-                    } label: {
-                        Text(verbatim: selection.namespace.displayName)
-                            .style(.callout, foreground: .primary)
-                    }
-                }
-            } header: {
-                Text(.dappAccountChoiceAccounts)
-            }
-        }
-        .phoneSheet(
-            .commonConnectRequest,
-            cancelTitle: .commonReject,
-            cancelId: "dapp-reject-button",
-            onCancel: onReject,
-            confirmTitle: .commonConnect,
-            confirmId: "dapp-approve-button",
-            isConfirmEnabled: isApproveEnabled,
-            onConfirm: approve
-        )
-        .presentationDetents([.medium, .large])
-    }
-
     func menu(for selection: DappAccountSelection) -> some View {
         AccountChoiceMenu(
             choices: selection.choices,

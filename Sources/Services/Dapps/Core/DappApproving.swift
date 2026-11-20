@@ -38,7 +38,8 @@ struct DappAccountChoice: Identifiable, Hashable, Sendable {
     let account: Account
     let keyStoreName: String
 
-    var id: String { account.address }
+    /// The account itself: EVM chains share one address, so it can't identify a choice.
+    var id: Account { account }
 
     /// The address shown to people: Cardano accounts are stored as descriptors.
     var displayAddress: String {
