@@ -237,15 +237,21 @@ final class DappBridge: NSObject {
         var result = ConnectResult()
         var selections: [DappAccountSelection] = []
 
+        // A dapp can't declare its chains up front, so offer mainnet accounts,
+        // or all of them when there is no mainnet one.
+        let activeAccount = await session.activeAccount
+
         for namespace in namespaces {
-            let choices = await accounts?.choices(for: namespace) ?? []
+            let all = await accounts?.choices(for: namespace) ?? []
+            let mainnet = all.filter(\.account.blockchain.isMainnet)
+            let choices = mainnet.isEmpty ? all : mainnet
             guard !choices.isEmpty else {
                 result.unavailable.insert(namespace)
                 continue
             }
 
             let offered = Set(choices.map(\.account.address))
-            let preferred = [await session.activeAccount?.address, await session.grantedAddress(namespace)]
+            let preferred = [activeAccount?.address, await session.grantedAddress(namespace)]
                 .compactMap { $0 }
                 .first(where: offered.contains)
 

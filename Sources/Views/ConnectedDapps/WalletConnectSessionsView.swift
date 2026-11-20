@@ -78,8 +78,12 @@ private extension WalletConnectSessionsView {
                 Text(verbatim: session.name)
                     .style(.medium)
 
-                Text(verbatim: URL(string: session.url)?.host() ?? session.url)
-                    .style(.small, foreground: .secondary)
+                HStack(spacing: 4) {
+                    Text(verbatim: URL(string: session.url)?.host() ?? session.url)
+                        .style(.small, foreground: .secondary)
+
+                    openButton(session)
+                }
 
                 Text(verbatim: chainSummary(session))
                     .style(.caption, foreground: .secondary)
@@ -90,18 +94,6 @@ private extension WalletConnectSessionsView {
             Text(.walletConnectSessionsExpiresOn(session.expiry.formatted(date: .abbreviated, time: .omitted)))
                 .style(.caption, foreground: .secondary)
 
-            if let url = URL(string: session.url) {
-                Button {
-                    PreferredBrowser.open(url)
-                } label: {
-                    Label(.commonOpenInBrowser, systemImage: "safari")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.borderless)
-                .help(.commonOpenInBrowser)
-                .accessibilityIdentifier("walletconnect-open-in-browser-button")
-            }
-
             Button(.walletConnectSessionsDisconnect, role: .destructive) {
                 Task { await walletConnect.disconnect(topic: session.topic) }
             }
@@ -109,9 +101,26 @@ private extension WalletConnectSessionsView {
         }
     }
 
+    @ViewBuilder
+    func openButton(_ session: WalletConnectSessionInfo) -> some View {
+        if let url = URL(string: session.url) {
+            Button {
+                PreferredBrowser.open(url)
+            } label: {
+                Label(.commonOpenInBrowser, systemImage: "safari")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help(.commonOpenInBrowser)
+            .accessibilityIdentifier("walletconnect-open-in-browser-button")
+        }
+    }
+
     func chainSummary(_ session: WalletConnectSessionInfo) -> String {
         session.accounts
-            .compactMap { WalletConnectChain.blockchain(caip2: $0.chain)?.displayName }
+            .compactMap { WalletConnectChain.blockchain(caip2: $0.chain) }
+            .filter { !$0.isCustomEVM }
+            .map(\.name)
             .joined(separator: ", ")
     }
 }

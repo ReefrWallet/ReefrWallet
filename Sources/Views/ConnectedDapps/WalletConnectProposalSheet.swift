@@ -16,146 +16,56 @@ struct WalletConnectProposalSheet: View {
     private let walletConnect = DI.injectOrFail(WalletConnectService.self)
 
     var body: some View {
-        if isIOS {
-            phoneBody
-        } else {
-            macBody
-        }
-    }
-
-    private var phoneBody: some View {
-        Form {
-            Section {
-                HStack(spacing: 12) {
-                    DappIconView(url: pending.proposal.iconURL, size: 40)
-
-                    VStack(alignment: .leading) {
-                        Text(.walletConnectProposalTitle(pending.proposal.name))
-                            .style(.headline, foreground: .primary)
-                            .accessibilityIdentifier("walletconnect-proposal-title")
-
-                        Text(verbatim: pending.proposal.url)
-                            .style(.caption, foreground: .secondary)
+        DappConnectionRequestView(
+            iconURL: pending.proposal.iconURL,
+            ids: .init(
+                approve: "walletconnect-proposal-approve",
+                reject: "walletconnect-proposal-reject",
+                title: "walletconnect-proposal-title"
+            ),
+            name: pending.proposal.name,
+            onApprove: { Task { await walletConnect.approveProposal(selection: pending) } },
+            onReject: { Task { await walletConnect.rejectProposal() } },
+            url: pending.proposal.url,
+            verification: pending.proposal.verification,
+            rows: {
+                ForEach(pending.choices) { choice in
+                    ParameterSection(footer: String(localized: .walletConnectProposalBlockchains(chainNames(choice)))) {
+                        ParameterRow(displayName(choice)) {
+                            accountPicker(choice)
+                        }
                     }
                 }
-
-                verificationBanner
-            }
-
-            ForEach(pending.choices) { choice in
-                Section {
-                    makeChoiceSection(choice)
-                }
-            }
         }
-        .phoneSheet(
-            .commonConnect,
-            cancelTitle: .commonReject,
-            cancelId: "walletconnect-proposal-reject",
-            onCancel: { Task { await walletConnect.rejectProposal() } },
-            confirmTitle: .commonConnect,
-            confirmId: "walletconnect-proposal-approve",
-            onConfirm: { Task { await walletConnect.approveProposal(selection: pending) } }
         )
-    }
-
-    private var macBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                DappIconView(url: pending.proposal.iconURL, size: 40)
-
-                VStack(alignment: .leading) {
-                    Text(.walletConnectProposalTitle(pending.proposal.name))
-                        .style(.largeHeader)
-                        .accessibilityIdentifier("walletconnect-proposal-title")
-
-                    Text(verbatim: pending.proposal.url)
-                        .style(.small, foreground: .secondary)
-                }
-            }
-
-            verificationBanner
-
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(pending.choices) { choice in
-                        makeChoiceSection(choice)
-                    }
-                }
-            }
-
-            HStack {
-                Spacer()
-
-                Button(.commonReject) {
-                    Task { await walletConnect.rejectProposal() }
-                }
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("walletconnect-proposal-reject")
-
-                Button(.commonConnect) {
-                    Task { await walletConnect.approveProposal(selection: pending) }
-                }
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("walletconnect-proposal-approve")
-            }
-        }
-        .padding()
-        .frame(minWidth: 420, minHeight: 320)
     }
 }
 
 private extension WalletConnectProposalSheet {
     @ViewBuilder
-    var verificationBanner: some View {
-        switch pending.proposal.verification {
-        case .valid:
-            Label(.walletConnectProposalDomainVerified, systemImage: "checkmark.seal.fill")
-                .style(.small, foreground: .green)
-        case .invalid:
-            Label(.walletConnectProposalDomainMismatch, systemImage: "exclamationmark.triangle.fill")
-                .style(.small, foreground: .orange)
-        case .unknown:
-            Label(.walletConnectProposalDomainUnverified, systemImage: "questionmark.circle")
+    func accountPicker(_ choice: WalletConnectNamespaceChoice) -> some View {
+        if choice.accounts.isEmpty {
+            Text(.walletConnectProposalNoAccount)
                 .style(.small, foreground: .secondary)
-        case .scam:
-            Label(.walletConnectProposalDomainMalicious, systemImage: "xmark.octagon.fill")
-                .style(.small, foreground: .red)
+        } else {
+            Picker(.commonAccount, selection: selection(for: choice)) {
+                ForEach(choice.accounts) { account in
+                    Text(verbatim: choice.label(for: account)).tag(Optional(account))
+                }
+            }
+            .labelsHidden()
         }
     }
 
-    func makeChoiceSection(_ choice: WalletConnectNamespaceChoice) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(.walletConnectProposalDefaultAccount)
-                    .style(.medium)
-
-                Spacer()
-
-                if choice.accounts.isEmpty {
-                    Text(.walletConnectProposalNoAccount)
-                        .style(.small, foreground: .secondary)
-                } else {
-                    Picker(.commonAccount, selection: selection(for: choice)) {
-                        ForEach(choice.accounts) { account in
-                            Text(verbatim: choice.label(for: account)).tag(Optional(account))
-                        }
-                    }
-                    .labelsHidden()
-                    .fixedSize()
-                }
-            }
-
-            Text(.walletConnectProposalBlockchains(chainNames(choice)))
-                .style(.small, foreground: .secondary)
-        }
+    /// The chain family's name, e.g. "Ethereum" for `eip155`.
+    func displayName(_ choice: WalletConnectNamespaceChoice) -> String {
+        choice.chains.first.flatMap { DappNamespace.namespace(for: $0.blockchain)?.displayName } ?? choice.namespace
     }
 
     func chainNames(_ choice: WalletConnectNamespaceChoice) -> String {
         choice.chains
-            .map { $0.blockchain.displayName.replacingOccurrences(of: " Mainnet", with: "") }
+            .filter { !$0.blockchain.isCustomEVM }
+            .map(\.blockchain.name)
             .joined(separator: ", ")
     }
 

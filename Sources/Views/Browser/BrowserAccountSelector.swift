@@ -43,7 +43,7 @@ struct BrowserAccountSelector: View {
             return connected[0].label
         default:
             let chains = connected
-                .map { $0.account.blockchain.displayName.replacingOccurrences(of: " Mainnet", with: "") }
+                .map(\.account.blockchain.name)
                 .joined(separator: ", ")
 
             return String(localized: .browserAccountSelectorAccountsOnChains(connected.count, chains))
