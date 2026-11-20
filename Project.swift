@@ -82,7 +82,7 @@ private let wallet: Target = .target(
         .external(name: "Moya"),
         .external(name: "WalletConnect"),
         .external(name: "SwiftyBeaver"),
-        .project(target: "WalletKit", path: "WalletKit")
+        .external(name: "WalletKit")
     ]
 )
 
@@ -194,7 +194,7 @@ private let macOSTests: Target = .target(
     ],
     dependencies: [
         .target(name: "ReefrWallet"),
-        .project(target: "WalletKitTesting", path: "WalletKit")
+        .external(name: "WalletKitTesting")
     ],
     environmentVariables: testEnvironmentVariables
 )
@@ -221,7 +221,7 @@ private let macOSUITests: Target = .target(
     ],
     dependencies: [
         .target(name: "ReefrWallet"),
-        .project(target: "WalletKitTesting", path: "WalletKit"),
+        .external(name: "WalletKitTesting"),
         .external(name: "BigInt"),
         .external(name: "GRPCCore"),
         .external(name: "GRPCNIOTransportHTTP2Posix"),
@@ -259,12 +259,6 @@ private let walletScheme: Scheme = .scheme(
 
 // MARK: - Project
 
-private let libUsbPathFlag = if FileManager.default.fileExists(atPath: "/usr/local/opt/libusb/lib") {
-    "-L/usr/local/opt/libusb/lib"
-} else {
-    "-L/opt/homebrew/opt/libusb/lib"
-}
-
 let project = Project(
     name: "ReefrWallet",
     organizationName: Project.organizationName,
@@ -274,8 +268,6 @@ let project = Project(
         "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": true,
         "ENABLE_MODULE_VERIFIER": true,
         "ENABLE_USER_SCRIPT_SANDBOXING": true,
-        "OTHER_LDFLAGS[sdk=iphone*]": ["-lc++"],
-        "OTHER_LDFLAGS[sdk=macosx*]": ["-lc++", libUsbPathFlag, "-lusb-1.0"],
         "REGISTER_APP_GROUPS": true,
         "STRING_CATALOG_GENERATE_SYMBOLS": true
     ]),

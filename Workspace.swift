@@ -11,7 +11,7 @@ private let workspaceName = "ReefrWallet"
 
 let workspace =  Workspace(
     name: workspaceName,
-    projects: [".", "WalletKit"],
+    projects: ["."],
     schemes: [
         .scheme(name: "\(workspaceName)-Workspace", hidden: true),
         .scheme(name: "Generate Project", hidden: false)

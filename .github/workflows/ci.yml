@@ -7,24 +7,12 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   build:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@v6
-      with:
-        submodules: recursive
-
-    - uses: dtolnay/rust-toolchain@stable
-
-    - name: Install macOS build dependencies
-      run: |
-        brew install libusb pkg-config protobuf protoc-gen-grpc-swift swift-protobuf
-        protoc --version
 
     - name: Setup mise
       uses: jdx/mise-action@v2

@@ -8,15 +8,13 @@ NPM_FLAGS := --ignore-scripts --no-audit --no-fund
 	
 all: test
 
-# Keeps the generated project and the WalletKit xcframework.
+# Keeps the generated project.
 clean:
 	@mise x tuist -- tuist clean
 
-# Also drops the project and rebuilds WalletKit from scratch.
+# Also drops the project.
 distclean: clean
-	$(MAKE) -C WalletKit distclean
 	@rm -rf Derived *.xcodeproj *.xcworkspace
-	@rm -rf WalletKit/Derived WalletKit/*.xcodeproj WalletKit/*.xcworkspace
 
 test: ReefrWallet.xcworkspace
 	@echo "==> Running Swift tests"
@@ -41,11 +39,12 @@ vendor-js-upgrade:
 versions:
 	Scripts/make_versions.sh
 
-# Forces a WalletKit rebuild; `workspace` only builds it when missing.
+# Builds the local WalletKit checkout at TUIST_WALLETKIT_PATH (see Tuist/Package.swift).
 walletkit:
-	$(MAKE) -C WalletKit spm
+	@test -n "$(TUIST_WALLETKIT_PATH)" || { echo "Set TUIST_WALLETKIT_PATH to a WalletKit checkout"; exit 1; }
+	$(MAKE) -C "$(TUIST_WALLETKIT_PATH)" spm
 
-workspace: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Frameworks/WalletKit.xcframework
+workspace: Tuist/ProjectDescriptionHelpers/Project+Version.swift
 	@echo "==> Generating Xcode project"
 	@mise x tuist -- tuist install
 	@mise x tuist -- tuist generate --no-open
@@ -53,6 +52,3 @@ workspace: Tuist/ProjectDescriptionHelpers/Project+Version.swift WalletKit/Frame
 ReefrWallet.xcworkspace: workspace
 
 Tuist/ProjectDescriptionHelpers/Project+Version.swift: versions
-
-WalletKit/Frameworks/WalletKit.xcframework:
-	$(MAKE) walletkit

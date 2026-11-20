@@ -1,5 +1,5 @@
 {
-  "originHash" : "ca00bb47959bdc7743d9b6a240876988cfda088d00f806ef9111167a456964c4",
+  "originHash" : "a01b848edf49ad1c8e8f4e661219a91e30614bc2bb4cca15319efb1ac4e19860",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -79,7 +79,7 @@
       "location" : "https://github.com/kervich/reown-swift",
       "state" : {
         "branch" : "reefr/macos-walletkit",
-        "revision" : "c40153752efc03bb9dcaa1a8b85ff28d67bc1cee"
+        "revision" : "3e281c18585fda0e5fc8edace8526556e7208c7a"
       }
     },
     {
@@ -177,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log",
       "state" : {
-        "revision" : "e3da04078777e6a1b72ce19981fbd6539b0847d8",
-        "version" : "1.17.0"
+        "revision" : "c7413d967b97aae67c46452bf7645bdb7b200e8e",
+        "version" : "1.17.2"
       }
     },
     {
@@ -296,6 +296,15 @@
       "state" : {
         "revision" : "4293df51d3500b8e876ca4bf0d7548adf097569a",
         "version" : "1.1.2"
+      }
+    },
+    {
+      "identity" : "walletkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ReefrWallet/WalletKit",
+      "state" : {
+        "revision" : "adc4de68659526c8f63ec12acebdee5ddd151f38",
+        "version" : "0.7.0"
       }
     },
     {

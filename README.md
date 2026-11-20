@@ -38,10 +38,24 @@ Open source under the BSD 3-Clause license. Written in SwiftUI on [WalletKit](ht
 
 ## Building
 
-Requires [mise](https://mise.jdx.dev) and [Tuist](https://github.com/tuist/tuist) as well as Rust toolkit and [WalletKit dependencies](https://github.com/ReefrWallet/WalletKit#requirements).
+Requires [mise](https://mise.jdx.dev) and [Tuist](https://github.com/tuist/tuist). [WalletKit](https://github.com/ReefrWallet/WalletKit)
+comes from its GitHub release with a prebuilt Rust core, so no Rust toolchain is needed.
 
 ```sh
 make workspace
 ```
 
 Then open `ReefrWallet.xcworkspace` in Xcode to build and run the app.
+
+To work on WalletKit too, clone it anywhere and point Tuist at it. This needs
+[WalletKit's development requirements](https://github.com/ReefrWallet/WalletKit#development):
+
+```sh
+export TUIST_WALLETKIT_PATH=/path/to/WalletKit
+make walletkit workspace
+```
+
+Unset the variable and run `make workspace` again to return to the release.
+
+On macOS the app statically links libusb (LGPL-2.1) through WalletKit. See
+[WalletKit's libusb notes](https://github.com/ReefrWallet/WalletKit#libusb) and `Resources/Licenses/`.

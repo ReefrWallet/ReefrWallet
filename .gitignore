@@ -70,10 +70,8 @@ Derived/
 Tuist/.build
 
 ### Built artifacts ###
-WalletKit/Rust/target
-WalletKit/.build
-WalletKit/Frameworks
-WalletKit/Sources/Generated
+# Optional local WalletKit checkout (TUIST_WALLETKIT_PATH)
+/WalletKit/
 Tuist/ProjectDescriptionHelpers/Project+Version.swift
 .codebase-memory
 /Temp/

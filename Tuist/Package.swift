@@ -25,8 +25,20 @@ import PackageDescription
             "WATCHOS_DEPLOYMENT_TARGET": "9.0"
         ]),
         targetSettings: Dictionary(uniqueKeysWithValues: unoptimizedTargets.map { ($0, unoptimizedSettings) })
+            // WalletKitTesting imports XCTest.
+            .merging(["WalletKitTesting": .settings(base: ["ENABLE_TESTING_SEARCH_PATHS": "YES"])]) { $1 }
     )
 #endif
+
+// WalletKit: the prebuilt release by default. To build against a local checkout,
+// `export TUIST_WALLETKIT_PATH=/path/to/WalletKit`, then `make walletkit workspace`.
+private let walletKitPath = Context.environment["TUIST_WALLETKIT_PATH"] ?? ""
+
+let walletKit: PackageDescription.Package.Dependency = if !walletKitPath.isEmpty {
+    .package(path: walletKitPath)
+} else {
+    .package(url: "https://github.com/ReefrWallet/WalletKit", exact: "0.7.0")
+}
 
 let package = Package(
     name: "ReefrWallet",
@@ -42,6 +54,7 @@ let package = Package(
         .package(url: "https://github.com/grpc/grpc-swift-2", from: "2.4.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport", from: "2.9.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf", from: "2.4.0"),
-        .package(url: "https://github.com/kervich/reown-swift", branch: "reefr/macos-walletkit")
+        .package(url: "https://github.com/kervich/reown-swift", branch: "reefr/macos-walletkit"),
+        walletKit
     ]
 )
