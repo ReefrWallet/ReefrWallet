@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import WalletKit
 
@@ -35,6 +36,8 @@ enum TransactionRowPresenters {
             SolanaTransactionRowPresenter()
         case .sui:
             SuiTransactionRowPresenter()
+        case .ton:
+            TonTransactionRowPresenter()
         case .tron:
             TronTransactionRowPresenter()
         }
@@ -163,6 +166,30 @@ struct SolanaTransactionRowPresenter: TransactionRowPresenter {
     }
 }
 
+/// TON rows are signed per transaction; the block column is the account's logical time.
+struct TonTransactionRowPresenter: TransactionRowPresenter {
+    let schema = TransactionTableSchema(
+        amountTitle: String(localized: .commonAmount),
+        blockTitle: String(localized: .transactionRowBlock),
+        feeTitle: String(localized: .transactionFeesNetworkFee),
+        fromTitle: String(localized: .transactionRowSender),
+        hashTitle: String(localized: .transactionRowHash),
+        methodTitle: String(localized: .commonType),
+        showsDirection: true,
+        toTitle: nil
+    )
+
+    func makeRowModel(_ transaction: WalletTransaction, account: Account) -> TransactionRowModel {
+        TransactionRowModel(
+            transaction: transaction,
+            account: account,
+            direction: .ownedAddresses,
+            blockLabel: transaction.blockHeight.map { String(localized: .transactionRowBlockNumber(String($0))) }
+                ?? String(localized: .transactionRowPending)
+        )
+    }
+}
+
 struct SuiTransactionRowPresenter: TransactionRowPresenter {
     let schema = TransactionTableSchema(
         amountTitle: String(localized: .commonAmount),
@@ -236,7 +263,7 @@ private extension TransactionRowModel {
         )
 
         let nativeToken = account.blockchain.nativeToken
-        let isOwnRecipient = recipient?.caseInsensitiveCompare(account.address) == .orderedSame
+        let isOwnRecipient = isOwnAddress(recipient, account.address)
         let otherParty = Self.otherParty(
             effects: effects,
             recipient: recipient,
@@ -297,7 +324,7 @@ private extension TransactionRowModel {
             return nil
         }
 
-        return address.caseInsensitiveCompare(account.address) == .orderedSame ? account.name : address.shortened()
+        return isOwnAddress(address, account.address) ? account.name : address.shortened()
     }
 
     /// The address on the other side of the transaction, if any.
@@ -308,7 +335,7 @@ private extension TransactionRowModel {
         accountAddress: String
     ) -> String? {
         let isOther = { (address: String?) in
-            address.map { $0.caseInsensitiveCompare(accountAddress) != .orderedSame } ?? false
+            address.map { !isOwnAddress($0, accountAddress) } ?? false
         }
 
         if isOther(sender) {
@@ -370,15 +397,15 @@ private extension TransactionRowModel {
         // even when that first effect alone looks like a self-transfer.
         let touchesOtherAddress = effects.contains { effect in
             let senderIsOther = effect.sender
-                .map { $0.caseInsensitiveCompare(accountAddress) != .orderedSame } ?? false
+                .map { !isOwnAddress($0, accountAddress) } ?? false
             let recipientIsOther = effect.recipient
-                .map { $0.caseInsensitiveCompare(accountAddress) != .orderedSame } ?? false
+                .map { !isOwnAddress($0, accountAddress) } ?? false
             return senderIsOther || recipientIsOther
         }
 
         if !touchesOtherAddress,
-           sender?.caseInsensitiveCompare(accountAddress) == .orderedSame,
-           recipient?.caseInsensitiveCompare(accountAddress) == .orderedSame {
+           isOwnAddress(sender, accountAddress),
+           isOwnAddress(recipient, accountAddress) {
             return .selfTransfer
         }
 
@@ -459,8 +486,8 @@ private extension TransactionRowEffect {
         case .signedAmounts:
             return amount
         case .addresses, .ownedAddresses:
-            let isSender = effect.sender?.caseInsensitiveCompare(accountAddress) == .orderedSame
-            let isRecipient = effect.recipient?.caseInsensitiveCompare(accountAddress) == .orderedSame
+            let isSender = isOwnAddress(effect.sender, accountAddress)
+            let isRecipient = isOwnAddress(effect.recipient, accountAddress)
 
             switch (isSender, isRecipient) {
             case (true, false):
@@ -484,4 +511,18 @@ private extension Decimal {
     func scaled(by decimals: UInt8) -> Decimal {
         self * Decimal(sign: .plus, exponent: -Int(decimals), significand: 1)
     }
+}
+
+/// Whether `address` is the account's own. TON addresses are compared by workchain and hash, since one account has
+/// several textual forms (raw, bounceable, test-only) and indexers differ in case; others by case-insensitive text.
+private func isOwnAddress(_ address: String?, _ accountAddress: String) -> Bool {
+    guard let address else {
+        return false
+    }
+
+    if let lhs = try? TonAddress(string: address), let rhs = try? TonAddress(string: accountAddress) {
+        return lhs.workchain == rhs.workchain && lhs.hash == rhs.hash
+    }
+
+    return address.caseInsensitiveCompare(accountAddress) == .orderedSame
 }

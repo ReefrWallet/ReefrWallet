@@ -19,6 +19,8 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
     let derivationPath: DerivationPath?
     let keyStoreId: PersistentIdentifier
     let name: String
+    /// The raw public key, kept where the address is a hash of it and a first send needs it (TON).
+    let publicKey: Data?
     let rpcURLOverride: URL?
     let signatureScheme: Curve?
     /// Which indexing backend a Bitcoin account talks to. `nil` means the
@@ -33,6 +35,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         derivationPath: DerivationPath?,
         keyStoreId: PersistentIdentifier,
         name: String,
+        publicKey: Data? = nil,
         rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
         bitcoinBackend: BitcoinBackendKind? = nil
@@ -44,6 +47,7 @@ struct Account: Equatable, Hashable, Identifiable, Sendable {
         self.derivationPath = derivationPath
         self.keyStoreId = keyStoreId
         self.name = name
+        self.publicKey = publicKey
         self.rpcURLOverride = rpcURLOverride
         self.signatureScheme = signatureScheme
         self.bitcoinBackend = bitcoinBackend
@@ -57,6 +61,7 @@ final class AccountModel {
     var address: String
     var derivationPath: String?
     var name: String
+    var publicKey: Data?
     var rpcURLOverride: String?
     var signatureScheme: String?
     var bitcoinBackend: String?
@@ -96,6 +101,7 @@ final class AccountModel {
         derivationPath: String? = nil,
         keyStore: KeyStoreModel,
         name: String,
+        publicKey: Data? = nil,
         rpcURLOverride: URL? = nil,
         signatureScheme: Curve? = nil,
         bitcoinBackend: BitcoinBackendKind? = nil
@@ -113,6 +119,7 @@ final class AccountModel {
         self.derivationPath = derivationPath
         self.keyStore = keyStore
         self.name = name
+        self.publicKey = publicKey
         self.rpcURLOverride = rpcURLOverride?.absoluteString
         self.signatureScheme = signatureScheme?.rawValue
         self.bitcoinBackend = bitcoinBackend?.rawValue
@@ -129,6 +136,7 @@ extension Account {
         derivationPath = try model.derivationPath.map { try DerivationPath(string: $0) }
         keyStoreId = model.keyStore.id
         name = model.name
+        publicKey = model.publicKey
 
         if let signatureScheme = model.signatureScheme {
             self.signatureScheme = Curve(rawValue: signatureScheme)
@@ -158,6 +166,7 @@ extension AccountModel {
             derivationPath: account.derivationPath?.string,
             keyStore: keyStore,
             name: account.name,
+            publicKey: account.publicKey,
             rpcURLOverride: account.rpcURLOverride,
             signatureScheme: account.signatureScheme,
             bitcoinBackend: account.bitcoinBackend

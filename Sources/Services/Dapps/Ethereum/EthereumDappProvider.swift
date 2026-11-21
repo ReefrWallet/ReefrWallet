@@ -237,10 +237,16 @@ private extension EthereumDappProvider {
             await context.session.isPermitted(.ethereum),
             let account = await context.session.selectedAccount(.ethereum)
         else {
+            let details = await context.session.diagnostics(.ethereum)
+            Logger.verbose("Eth unauthorized: not permitted, requested \(addressString); \(details)")
+
             throw .unauthorized
         }
 
         guard account.address.caseInsensitiveCompare(addressString) == .orderedSame else {
+            let details = await context.session.diagnostics(.ethereum)
+            Logger.verbose("Eth unauthorized: requested \(addressString) != selected \(account.address); \(details)")
+
             throw .unauthorized
         }
 
@@ -291,6 +297,8 @@ private extension EthereumDappProvider {
         // browser to a sibling account — otherwise any page could switch
         // the active chain/account without ever requesting access.
         guard await context.session.isPermitted(.ethereum) else {
+            let details = await context.session.diagnostics(.ethereum)
+            Logger.verbose("Eth switch unauthorized: \(details)")
             throw .unauthorized
         }
 
@@ -309,6 +317,13 @@ private extension EthereumDappProvider {
         }
 
         guard let sibling = siblings.first(where: { $0.derivationPath == currentAccount.derivationPath }) else {
+            // Dapps often swallow the 4902, so tell the user what happened.
+            let message = target.isCustomEVM
+                ? String(localized: .ethereumDappChainIdNotFound(context.origin, Int(targetChainId)))
+                : String(localized: .ethereumDappChainNotFound(context.origin, target.displayName))
+
+            await context.approving.reportFailure(message)
+
             throw .chainNotFound
         }
 

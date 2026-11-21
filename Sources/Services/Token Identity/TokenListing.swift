@@ -22,8 +22,13 @@ protocol TokenListingProvider: Sendable {
 
 /// A downloaded listing indexed by platform and normalized address.
 struct TokenListing: Codable, Sendable {
+    /// Bumped when the platforms a listing covers change, so a listing cached before that is not trusted as fresh
+    /// (it would report the new platforms' tokens as unlisted).
+    static let currentVersion = 2
+
     let entries: [String: [String: String]]
     let fetchedAt: Date
+    let version: Int
 
     init(entries: [TokenListingEntry], fetchedAt: Date) {
         var index: [String: [String: String]] = [:]
@@ -35,6 +40,15 @@ struct TokenListing: Codable, Sendable {
 
         self.entries = index
         self.fetchedAt = fetchedAt
+        version = Self.currentVersion
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        entries = try container.decode([String: [String: String]].self, forKey: .entries)
+        fetchedAt = try container.decode(Date.self, forKey: .fetchedAt)
+        // A file cached before versions existed is the oldest.
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
     }
 
     func externalId(platform: String, address: String) -> String? {
@@ -45,16 +59,31 @@ struct TokenListing: Codable, Sendable {
 /// Address forms that name the same contract.
 enum TokenAddress {
     /// EVM addresses are case-insensitive, Move coin types compare in canonical form, and base58
-    /// addresses (Solana, Tron) and Cardano asset ids are compared exactly.
+    /// addresses (Solana, Tron) and Cardano asset ids are compared exactly. A TON address is
+    /// case-sensitive base64 in friendly form, with flags that don't name another contract: it is
+    /// compared by workchain and hash, whether given friendly or raw.
     static func normalized(_ address: String, platform: String) -> String {
         switch platform {
         case "sui", "aptos":
             (try? MoveTypeTag.canonicalCoinType(address)) ?? address.lowercased()
+        case "the-open-network":
+            tonIdentity(address) ?? address
         case "solana", "tron", "cardano":
             address
         default:
             address.lowercased()
         }
+    }
+}
+
+extension TokenAddress {
+    /// `workchain:hash` of a TON address in any encoding; `nil` if it doesn't parse.
+    static func tonIdentity(_ address: String) -> String? {
+        guard let parsed = try? TonAddress(string: address) else {
+            return nil
+        }
+
+        return "\(parsed.workchain):\(parsed.hash.map { String(format: "%02x", $0) }.joined())"
     }
 }
 
@@ -143,7 +172,9 @@ actor CachedTokenListing {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
-        listing = try? decoder.decode(TokenListing.self, from: data)
+        listing = (try? decoder.decode(TokenListing.self, from: data)).flatMap {
+            $0.version == TokenListing.currentVersion ? $0 : nil
+        }
     }
 
     private func save(_ listing: TokenListing) {
@@ -178,7 +209,7 @@ struct ListingIdentitySource: TokenIdentitySource {
     let provider: any TokenListingProvider
 
     var configurationVersion: String {
-        "listing-1"
+        "listing-2"
     }
 
     var id: String {

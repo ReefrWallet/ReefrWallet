@@ -1,5 +1,6 @@
 import Alamofire
 import Foundation
+import Moya
 import Testing
 import WalletKit
 @testable import ReefrWallet
@@ -100,6 +101,18 @@ struct TokenPriceSchedulerTests {
         isRateLimited.value = false
         let later = Date.now.addingTimeInterval(TokenPriceScheduler.failureRetryInterval + 1)
         #expect(await fixture.scheduler.updateDueTokens(now: later) == TokenPriceScheduler.idleDelay)
+    }
+
+    @Test func aProviderOutageKeepsTokensDueAndBacksOff() async throws {
+        let fixture = try await Fixture(source: ScriptedPriceSource { _ in
+            throw MoyaError.statusCode(Response(statusCode: 503, data: Data()))
+        })
+
+        #expect(await fixture.scheduler.updateDueTokens() == TokenPriceScheduler.minRateLimitBackoff)
+
+        let tokens = try await fixture.tokens()
+        #expect(tokens.allSatisfy { !$0.hasPriceFetchError })
+        #expect(try await fixture.dueAddresses(after: 0).count == 2)
     }
 }
 

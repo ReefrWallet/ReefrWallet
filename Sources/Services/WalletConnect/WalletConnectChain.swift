@@ -73,7 +73,7 @@ enum WalletConnectChain {
             network == .mainnet ? "sui:mainnet" : "sui:testnet"
         case let .tron(network):
             network == .mainnet ? "tron:0x2b6653dc" : "tron:0xcd8690dc"
-        case .bitcoin, .cardano:
+        case .bitcoin, .cardano, .ton:
             nil
         }
     }

@@ -340,6 +340,11 @@ final class WalletConnectService {
     }
 
     private func result(for request: WalletConnectRequest) async -> Result<Data, WalletConnectRPCError> {
+        Logger.verbose(
+            "WC request: \(request.method) topic \(request.topic.prefix(8)) chain \(request.chainId) "
+                + "verification: \(request.verification)"
+        )
+
         guard request.verification != .scam else {
             Logger.verbose("WC request refused: verification is scam")
             return .failure(WalletConnectRequestRouter.rpcError(.unauthorized))
@@ -356,9 +361,12 @@ final class WalletConnectService {
                         && WalletConnectChain.dappNamespace(caip2: request.chainId)?.matches($0.blockchain) == true
                 })
         else {
+            let session = sessions.first(where: { $0.topic == request.topic })
+            let approvedChains = session?.accounts.map { "\($0.chain)=\($0.address)" } ?? []
             Logger.verbose(
-                "WC request unauthorized: no session/account for topic \(request.topic.prefix(8)) chain \(request.chainId); "
-                    + "sessions: \(sessions.count)"
+                "WC request unauthorized: \(request.method) topic \(request.topic.prefix(8)) "
+                    + "chain \(request.chainId); session found: \(session != nil), "
+                    + "approved: \(approvedChains), sessions: \(sessions.count)"
             )
 
             return .failure(WalletConnectRequestRouter.rpcError(.unauthorized))

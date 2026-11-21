@@ -90,7 +90,8 @@ actor TokenPriceScheduler {
                 updatedTokens.append(token)
                 printVerbose("\(request.description): \(price.usdPrice) USD from \(price.sourceId)")
             case let .failure(error):
-                guard !error.isRateLimited else {
+                // A provider outage says nothing about the token: leave it due and back off.
+                guard !error.isProviderWide else {
                     isRateLimited = true
                     continue
                 }
@@ -121,7 +122,7 @@ private extension TokenPriceScheduler {
     func nextRateLimitBackoff() -> Duration {
         let backoff = rateLimitBackoff.map { min($0 * 2, Self.maxRateLimitBackoff) } ?? Self.minRateLimitBackoff
         rateLimitBackoff = backoff
-        printWarning("Price sources rate-limited, pausing price updates for \(backoff)")
+        printWarning("Price sources rate-limited or failing, pausing price updates for \(backoff)")
         return backoff
     }
 

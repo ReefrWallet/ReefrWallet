@@ -282,6 +282,12 @@ private extension TransactionSyncService {
                 await enqueueFullRefresh(account: account)
             }
 
+            if case .ton = account.blockchain {
+                // Incoming tokens first: checking old sends' deliveries takes a lookup each.
+                await syncTonJettons(account: account, client: client)
+                await DI.inject(TonSendService.self)?.reconcile(account: account)
+            }
+
             // Standard HTTP JSON-RPC nodes are not guaranteed to expose
             // WebSocket pub-sub. Space fallback polls across accounts so a
             // quiet wallet does not wake every client and SwiftData at once.
@@ -556,6 +562,11 @@ private extension TransactionSyncService {
         // scanned once the range's last page is in.
         if let head = page.head, track == .descending || page.reachedBoundary {
             state.currentHead = max(state.currentHead ?? 0, head)
+        } else if page.head == nil, track == .descending, page.reachedBoundary, state.currentHead == nil,
+                  case .ton = account.blockchain {
+            // A TON account with no history has no head. Logical times start above zero, so scan forward
+            // from there and the first deposit is picked up.
+            state.currentHead = 0
         }
 
         state.lastError = nil
@@ -592,6 +603,48 @@ private extension TransactionSyncService {
             try await databaseService.saveTransactionSyncState(state)
         } catch {
             printError("\(account.name): \(error)")
+        }
+    }
+
+    /// One bounded pass of the account's Jetton history (ADR-071): read, store with its progress, then discover
+    /// tokens and refresh the balances it touched.
+    func syncTonJettons(account: Account, client: any BlockchainClientProtocol) async {
+        guard !Task.isCancelled, let accountId = account.id, let ton = client as? TonClient,
+              let owner = try? ton.makeAddress(account.address)
+        else {
+            return
+        }
+
+        do {
+            let progress = try await databaseService.fetchJettonSyncProgress(accountId: accountId)
+            let scanner = TonJettonScanner { ascending, startLt, endLt, limit, cursor in
+                try await ton.jettonActions(
+                    of: owner,
+                    ascending: ascending,
+                    startLt: startLt,
+                    endLt: endLt,
+                    limit: limit,
+                    cursor: cursor
+                )
+            }
+
+            let step = try await scanner.step(
+                backfill: try progress.backfill.map { try $0.decoded() },
+                forward: try progress.forward.map { try $0.decoded() }
+            )
+
+            let entries = step.actions.map { $0.transaction(owner: owner) }
+            try await processTokenTransfers(entries, account: account, client: client)
+            try await databaseService.saveJettonSync(
+                entries,
+                for: account,
+                backfill: try step.backfill?.encoded(),
+                forward: try step.forward?.encoded()
+            )
+
+            await refreshBalances(account: account, transactions: entries)
+        } catch {
+            printError("\(account.name): Jetton history: \(error)")
         }
     }
 

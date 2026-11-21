@@ -23,6 +23,8 @@ struct DappRequestSheet: View {
 
     @State private var editedFees: Fees?
     @State private var feeEstimationTask: Task<Void, Never>?
+    /// Why Estimate Fees failed, shown under the fees.
+    @State private var reestimateError: String?
     /// Ethereum fees re-fetched with Estimate Fees, replacing the request's.
     @State private var reestimatedFees: Fees?
 
@@ -188,9 +190,7 @@ private extension DappRequestSheet {
                     blockchain: account.blockchain,
                     estimatedFees: reestimatedFees ?? preview.fees,
                     // Not in Penpot: the user should know the site picked these values.
-                    warning: call.hasDappFeeOverrides && reestimatedFees == nil
-                        ? String(localized: .dappRequestDappFeeWarning)
-                        : nil,
+                    warning: ethereumWarning(for: call),
                     fees: $editedFees
                 )
             }
@@ -221,6 +221,16 @@ private extension DappRequestSheet {
         }
     }
 
+    /// The site's fee note and, if Estimate Fees failed, why; both apply while the site's values are in use.
+    func ethereumWarning(for call: EthereumCallPreview) -> String? {
+        let siteSet = call.hasDappFeeOverrides && reestimatedFees == nil
+            ? String(localized: .dappRequestDappFeeWarning)
+            : nil
+
+        let messages = [reestimateError, siteSet].compactMap { $0 }
+        return messages.isEmpty ? nil : messages.joined(separator: "\n")
+    }
+
     var siteRow: some View {
         ParameterRow(String(localized: .commonSite), value: site)
     }
@@ -237,6 +247,7 @@ private extension DappRequestSheet {
         }
 
         feeEstimationTask?.cancel()
+        reestimateError = nil
         feeEstimationTask = Task {
             do {
                 let service = DI.injectOrFail(FeeEstimationService.self)
@@ -260,6 +271,10 @@ private extension DappRequestSheet {
                 )
             } catch {
                 printError(error)
+
+                if !Task.isCancelled {
+                    reestimateError = String(localized: .transferEstimateFailed(error.localizedDescription))
+                }
             }
         }
     }

@@ -351,7 +351,8 @@ struct SolanaStakingSubmitTests {
 
     @Test(arguments: [
         BlockchainClientError.transportError(reason: "timed out"),
-        BlockchainClientError.invalidResponse(reason: "502")
+        BlockchainClientError.invalidResponse(reason: "502"),
+        BlockchainClientError.serverError(status: 503)
     ])
     func anAmbiguousSendIsFollowedAndRecordedForHistory(error: BlockchainClientError) async throws {
         let setup = try await setup()

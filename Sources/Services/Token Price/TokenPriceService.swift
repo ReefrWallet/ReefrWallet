@@ -117,7 +117,7 @@ final class TokenPriceService: @unchecked Sendable {
 private extension TokenPriceService {
     /// One resolution pass: the statuses it started from, and what it learned.
     struct Pass {
-        /// The most telling error per request: rate limits, then other transient errors, then misses.
+        /// The most telling error per request: provider-wide failures, then other transient errors, then misses.
         var errors: [Int: any Swift.Error] = [:]
         var results: [TokenSourceResult] = []
         let statuses: [[TokenSourceStatus]]
@@ -139,7 +139,7 @@ private extension TokenPriceService {
         }
 
         private static func rank(_ error: any Swift.Error) -> Int {
-            if error.isRateLimited {
+            if error.isProviderWide {
                 3
             } else if error.isSourceUnavailable || error is NoQuote {
                 1

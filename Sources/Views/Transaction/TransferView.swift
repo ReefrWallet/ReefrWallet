@@ -17,9 +17,12 @@ struct TransferView {
 
     @State private var error: String?
     @State private var estimatedFees: Fees?
+    @State private var feeEstimationError: String?
     @State private var feeEstimationTask: Task<Void, Never>?
     @State private var fees: Fees?
     @State private var isErrorAlertPresented = false
+    /// Why the transfer form can't proceed, from ``TransferParametersView``.
+    @State private var issue: String?
     @State private var parameters: TransferParameters?
     /// The send in flight, shown in the prompt popup; `nil` when idle.
     @State private var progress: TransactionProgress?
@@ -40,7 +43,7 @@ extension TransferView: View {
     var body: some View {
         TransactionSheet(
             title: String(localized: .commonSend),
-            confirmTitle: String(localized: .commonNext),
+            confirmTitle: String(localized: .commonSend),
             isConfirmEnabled: isNextButtonEnabled,
             isEstimateFeesEnabled: parameters != nil,
             isProcessing: progress != nil,
@@ -52,6 +55,7 @@ extension TransferView: View {
             TransferParametersView(
                 balance: initialBalance,
                 nativeFeeReserve: nativeFeeReserve,
+                issue: $issue,
                 parameters: $parameters,
                 token: $token
             )
@@ -60,6 +64,8 @@ extension TransferView: View {
                 blockchain: account.blockchain,
                 estimatedFees: estimatedFees,
                 isTronFeeLimitEnabled: !token.isNativeToken,
+                isTonJettonTransfer: !token.isNativeToken,
+                warning: issue ?? feeEstimationError ?? estimatedFees?.estimateWarning,
                 fees: $fees
             )
         }
@@ -94,6 +100,7 @@ private extension TransferView {
         }
 
         feeEstimationTask?.cancel()
+        feeEstimationError = nil
         feeEstimationTask = Task {
             await estimateFees(for: parameters)
         }
@@ -158,6 +165,10 @@ private extension TransferView {
         } catch {
             printError(error)
             estimatedFees = nil
+
+            if !Task.isCancelled, self.parameters == parameters {
+                feeEstimationError = String(localized: .transferEstimateFailed(error.localizedDescription))
+            }
         }
     }
 
@@ -168,6 +179,7 @@ private extension TransferView {
         feeEstimationTask?.cancel()
         feeEstimationTask = nil
         estimatedFees = nil
+        feeEstimationError = nil
 
         guard let parameters else {
             return

@@ -23,6 +23,7 @@ polygon
 robinhood
 solana
 sui
+ton
 tron
 unichain
 "
@@ -40,6 +41,7 @@ BASE=network:base:fit
 BNB
 BTC
 ETH
+GRAM
 HOOD=network:robinhood
 HYPE=network:hyper-evm
 MNT

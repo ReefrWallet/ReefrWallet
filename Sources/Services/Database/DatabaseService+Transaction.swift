@@ -89,6 +89,16 @@ extension DatabaseService {
         )
     }
 
+    /// The account's transactions still in the broadcast state, whose payload may hold a pending send.
+    func fetchBroadcastTransactions(accountId: PersistentIdentifier) throws -> [WalletTransaction] {
+        let status = BlockchainTransactionStatus.broadcast.rawValue
+        let predicate = #Predicate<WalletTransactionModel> {
+            $0.account.persistentModelID == accountId && $0.status == status
+        }
+
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate)).map(WalletTransaction.init(model:))
+    }
+
     func transactionCount(accountId: PersistentIdentifier) throws -> Int {
         try modelContext.fetchCount(FetchDescriptor(predicate: transactionPredicate(accountId: accountId)))
     }
@@ -204,8 +214,13 @@ extension DatabaseService {
                 model.transactionIndex = transaction.transactionIndex
                 model.sender = transaction.sender
                 model.recipient = transaction.recipient
-                model.status = transaction.status.rawValue
-                model.rawPayload = transaction.rawPayload
+                let kept = Self.preservingDelivery(
+                    incoming: (transaction.status, transaction.rawPayload),
+                    existing: (model.status, model.rawPayload)
+                )
+
+                model.status = kept.status.rawValue
+                model.rawPayload = kept.payload
                 // Sources differ in richness. Preserve labels when a source omits them.
                 model.counterpartyName = transaction.counterpartyName ?? model.counterpartyName
                 model.fee = transaction.fee ?? model.fee
@@ -216,6 +231,7 @@ extension DatabaseService {
             }
 
             transactionIndex[transaction.stableId] = model
+            Self.dropReplacedLocalEffects(of: model, by: transaction.effects, in: modelContext)
 
             for effect in transaction.effects {
                 let effectModel: WalletTransactionEffectModel
@@ -389,10 +405,11 @@ extension DatabaseService {
         try modelContext.save()
 
         for (stableId, model) in survivors {
+            let previous = model.stableId
             model.stableId = stableId
 
             for effect in model.effects {
-                effect.stableId = "\(stableId)|\(effect.effectIndex)|\(effect.kind)"
+                effect.stableId = Self.reparentedEffectId(effect, from: previous, to: stableId)
             }
         }
 

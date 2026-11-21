@@ -150,6 +150,14 @@ actor DappSession {
         return true
     }
 
+    /// A one-line dump of the origin, selected account and grants, for logs.
+    func diagnostics(_ namespace: DappNamespace) -> String {
+        let grants = permissions.filter { $0.namespace == namespace }.map { "\($0.origin)=\($0.accountAddress)" }
+        return "origin: \(origin), active: \(activeAccount?.address ?? "nil"), "
+            + "selected(\(namespace.rawValue)): \(selectedAccount(namespace)?.address ?? "nil"), "
+            + "permitted: \(isPermitted(namespace)), grants: \(grants.sorted())"
+    }
+
     /// Re-checks, just before key material is touched, that the request a
     /// user approved still belongs to the same site and account and that the
     /// permission is intact. Navigation or an account switch can happen while
@@ -157,11 +165,16 @@ actor DappSession {
     /// that.
     func authorize(_ namespace: DappNamespace, origin approvedOrigin: String, account: Account) throws(DappError) {
         guard approvedOrigin == origin, selectedAccount(namespace) == account else {
+            Logger.verbose(
+                "Dapp authorize: disconnected, approved \(approvedOrigin) \(account.address); \(diagnostics(namespace))"
+            )
+
             throw .disconnected
         }
 
         let permission = Permission(origin: origin, namespace: namespace, accountAddress: account.address)
         guard permissions.contains(permission) else {
+            Logger.verbose("Dapp authorize: no grant for \(account.address); \(diagnostics(namespace))")
             throw .unauthorized
         }
     }

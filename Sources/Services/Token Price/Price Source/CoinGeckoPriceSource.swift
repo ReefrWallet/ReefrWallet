@@ -64,40 +64,37 @@ struct CoinGeckoPriceSource: PriceSource {
             case let .native(coinGeckoId):
                 natives[coinGeckoId, default: []].append(index)
             case let .token(platform, address):
-                contracts[platform, default: [:]][address, default: []].append(index)
+                contracts[platform, default: [:]][Self.requestAddress(address, platform: platform), default: []]
+                    .append(index)
             case nil:
                 printVerbose("CoinGecko skipped: no identifier for \(token.symbol) (non-mainnet or unmapped chain)")
             }
         }
 
-        for ids in Self.batches(of: natives.keys.sorted()) {
-            printVerbose("CoinGecko request: \(ids.count) native assets")
+        // A failure of the whole provider (a rate limit, an outage) ends the pass: assets not yet asked about get it
+        // without another request.
+        var halt: PriceOutcome?
 
-            let outcome = await fetch {
-                try await provider.value.request(.nativePrice(apiKey: apiKey, baseURL: baseURL, coinGeckoIds: ids))
-            }
-
-            for id in ids {
-                store(outcome, key: id, indices: natives[id] ?? [], coinGeckoId: id, in: &results)
-            }
-        }
+        await priceNatives(natives, apiKey: apiKey, halt: &halt, in: &results)
 
         for (platform, indices) in contracts.sorted(by: { $0.key < $1.key }) {
-            for addresses in Self.batches(of: indices.keys.sorted()) {
-                printVerbose("CoinGecko request: \(addresses.count) \(platform) tokens")
+            let batches = Self.batches(of: indices.keys.sorted())
+            printVerbose("CoinGecko request: \(indices.count) \(platform) tokens")
 
-                let outcome = await fetch {
+            let outcomes = await Self.tokenOutcomes(forBatches: batches, platform: platform, halt: &halt) { asked in
+                await fetch {
                     try await provider.value.request(.tokenPrice(
-                        addresses: addresses,
+                        addresses: asked,
                         apiKey: apiKey,
                         baseURL: baseURL,
                         platform: platform
                     ))
                 }
+            }
 
-                for address in addresses {
-                    store(outcome, key: address, indices: indices[address] ?? [], coinGeckoId: nil, in: &results)
-                }
+            for (address, outcome) in outcomes {
+                let at = indices[address] ?? []
+                store(outcome, key: address, indices: at, coinGeckoId: nil, platform: platform, in: &results)
             }
         }
 
@@ -106,6 +103,34 @@ struct CoinGeckoPriceSource: PriceSource {
 }
 
 extension CoinGeckoPriceSource {
+    /// Prices the native assets, a batch per request, unless `halt` is set.
+    func priceNatives(
+        _ natives: [String: [Int]],
+        apiKey: String,
+        halt: inout PriceOutcome?,
+        in results: inout [Result<CoinGeckoPrice?, any Swift.Error>]
+    ) async {
+        for ids in Self.batches(of: natives.keys.sorted()) {
+            printVerbose("CoinGecko request: \(ids.count) native assets")
+
+            let outcome: PriceOutcome
+
+            if let halted = halt {
+                outcome = halted
+            } else {
+                outcome = await fetch {
+                    try await provider.value.request(.nativePrice(apiKey: apiKey, baseURL: baseURL, coinGeckoIds: ids))
+                }
+
+                halt = Self.halting(outcome)
+            }
+
+            for id in ids {
+                store(outcome, key: id, indices: natives[id] ?? [], coinGeckoId: id, in: &results)
+            }
+        }
+    }
+
     /// Assets per request, keeping query strings well under URL length limits.
     static let maxBatchSize = 50
 
@@ -181,6 +206,7 @@ extension CoinGeckoPriceSource {
 
         case .solana: "solana"
         case .sui: "sui"
+        case .ton: "the-open-network"
         case .tron: "tron"
         }
     }
@@ -209,6 +235,7 @@ extension CoinGeckoPriceSource {
 
         case .solana: "solana"
         case .sui: "sui"
+        case .ton: "the-open-network"
         case .tron: "tron"
         }
     }
@@ -219,11 +246,12 @@ extension CoinGeckoPriceSource {
         key: String,
         indices: [Int],
         coinGeckoId: String?,
+        platform: String? = nil,
         in results: inout [Result<CoinGeckoPrice?, any Swift.Error>]
     ) {
         let result: Result<CoinGeckoPrice?, any Swift.Error> = outcome.flatMap { response in
             guard let usdPrice = response.first(where: {
-                $0.key.caseInsensitiveCompare(key) == .orderedSame
+                Self.isSameContract($0.key, key, platform: platform)
             })?.value["usd"] else {
                 return .failure(NoQuote())
             }
@@ -234,6 +262,100 @@ extension CoinGeckoPriceSource {
         for index in indices {
             results[index] = result
         }
+    }
+
+    typealias PriceOutcome = Result<[String: [String: Decimal]], any Swift.Error>
+
+    /// `outcome` when it is a failure of the whole provider, which no further request would survive.
+    static func halting(_ outcome: PriceOutcome) -> PriceOutcome? {
+        if case let .failure(error) = outcome, error.isProviderWide {
+            return outcome
+        }
+
+        return nil
+    }
+
+    /// The outcome per address of asking for `batches` in turn. Once `halt` is set, by this pass or an earlier one,
+    /// no request is made and the rest carry it.
+    static func tokenOutcomes(
+        forBatches batches: [[String]],
+        platform: String,
+        halt: inout PriceOutcome?,
+        request: ([String]) async -> PriceOutcome
+    ) async -> [(String, PriceOutcome)] {
+        var all: [(String, PriceOutcome)] = []
+
+        for addresses in batches {
+            if let halted = halt {
+                all += addresses.map { ($0, halted) }
+                continue
+            }
+
+            let outcomes = await tokenOutcomes(addresses, platform: platform, request: request)
+            halt = outcomes.lazy.compactMap { halting($0.1) }.first
+            all += outcomes
+        }
+
+        return all
+    }
+
+    /// The outcome per address of asking for `addresses`. A TON batch that CoinGecko rejects for its size (a plan may
+    /// accept one contract per request) is asked again one master at a time; any other failure, an authentication
+    /// error or an outage included, is not retried per master. Retrying stops at the first failure of the whole
+    /// provider.
+    static func tokenOutcomes(
+        _ addresses: [String],
+        platform: String,
+        request: ([String]) async -> PriceOutcome
+    ) async -> [(String, PriceOutcome)] {
+        let batch = await request(addresses)
+
+        guard platform == "the-open-network", addresses.count > 1, case let .failure(error) = batch,
+              error.isBatchSizeRejection
+        else {
+            return addresses.map { ($0, batch) }
+        }
+
+        var singles: [(String, PriceOutcome)] = []
+        var stopped: PriceOutcome?
+
+        for address in addresses {
+            if let stopped {
+                singles.append((address, stopped))
+                continue
+            }
+
+            let outcome = await request([address])
+            singles.append((address, outcome))
+            stopped = halting(outcome)
+        }
+
+        return singles
+    }
+
+    /// What to ask CoinGecko for. One TON master has several encodings, so aliases collapse into the form CoinGecko
+    /// lists (mainnet, bounceable); other platforms are asked as given.
+    static func requestAddress(_ address: String, platform: String) -> String {
+        guard platform == "the-open-network", let parsed = try? TonAddress(string: address) else {
+            return address
+        }
+
+        let canonical = try? TonAddress(workchain: parsed.workchain, hash: parsed.hash, isBounceable: true)
+        return canonical?.string ?? address
+    }
+
+    /// Whether `response` names the contract that was asked for: by parsed identity on TON, where friendly
+    /// addresses are case-sensitive and may come back in another encoding, else ignoring case.
+    static func isSameContract(_ response: String, _ asked: String, platform: String?) -> Bool {
+        guard platform == "the-open-network" else {
+            return response.caseInsensitiveCompare(asked) == .orderedSame
+        }
+
+        guard let lhs = TokenAddress.tonIdentity(response), let rhs = TokenAddress.tonIdentity(asked) else {
+            return response == asked
+        }
+
+        return lhs == rhs
     }
 
     func resolvedPrice(_ usdPrice: Decimal, coinGeckoId: String?) throws -> CoinGeckoPrice {

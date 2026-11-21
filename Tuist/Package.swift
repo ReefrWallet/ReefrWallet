@@ -37,7 +37,7 @@ private let walletKitPath = Context.environment["TUIST_WALLETKIT_PATH"] ?? ""
 let walletKit: PackageDescription.Package.Dependency = if !walletKitPath.isEmpty {
     .package(path: walletKitPath)
 } else {
-    .package(url: "https://github.com/ReefrWallet/WalletKit", exact: "0.7.0")
+    .package(url: "https://github.com/ReefrWallet/WalletKit", exact: "0.8.0")
 }
 
 let package = Package(

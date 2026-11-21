@@ -79,7 +79,12 @@ actor BalancesService {
         if let cardano = client as? CardanoClient {
             try await updateCardanoBalances(account, client: cardano)
         } else if client.isSupported(.allBalances) {
-            let balances = try await fetchAllBalances(client: client, account: account)
+            var balances = try await fetchAllBalances(client: client, account: account)
+
+            if client is TonClient {
+                balances = try await reconcileTonSnapshot(client: client, account: account, snapshot: balances)
+            }
+
             try await databaseService.updateBalances(account: account, updates: balances)
         } else {
             let storedTokens = try await databaseService.fetchTokens(account: account)
@@ -351,6 +356,50 @@ private extension BalancesService {
         }
 
         return balances
+    }
+
+    /// A complete snapshot only discovers holdings, and a zero or an absence in it is not proof. For a token held
+    /// before (non-zero stored balance) that the snapshot omits or lists as zero, the snapshot's entry is dropped and
+    /// the balance read on-chain replaces the stored one, zero included. When the read fails the stored balance stays.
+    func reconcileTonSnapshot(
+        client: any BlockchainClientProtocol,
+        account: Account,
+        snapshot: [Balance]
+    ) async throws -> [Balance] {
+        guard let accountId = account.id else {
+            throw ReefrError.invalidData
+        }
+
+        let listed = Dictionary(
+            snapshot.compactMap { balance in
+                balance.token.address.flatMap(Self.tonIdentity).map { ($0, balance.amount) }
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        let stored = try await databaseService.fetchBalances(accountId: accountId)
+        let held = stored.compactMap { balance -> (address: String, amount: BigUInt)? in
+            balance.token.address.map { ($0, balance.amount) }
+        }
+
+        let suspect = Self.unprovenHoldings(held, listed: listed)
+        let read = await Self.readOnChain(suspect) {
+            try await client.getBalance(account.address, token: $0)
+        }
+
+        // An entry whose read failed is dropped as well: the indexer's zero must not overwrite the stored balance.
+        let dropped = Set(suspect.compactMap(Self.tonIdentity))
+        var result = snapshot.filter { balance in
+            balance.token.address.flatMap(Self.tonIdentity).map { !dropped.contains($0) } ?? true
+        }
+
+        for balance in stored {
+            if let address = balance.token.address, let amount = read[address] {
+                result.append(try await makeBalance(account: account, amount: amount, token: balance.token))
+            }
+        }
+
+        return result
     }
 
     func fetchNativeBalance(

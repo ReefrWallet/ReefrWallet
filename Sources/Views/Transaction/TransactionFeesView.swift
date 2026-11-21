@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  TransactionFeesView.swift
 //  Reefr Wallet
@@ -23,6 +24,9 @@ struct TransactionFeesView {
     var isEditable = true
     /// `false` for TRX transfers and staking, which don't call a contract and so have no fee limit.
     var isTronFeeLimitEnabled = true
+    /// A token (Jetton) transfer on TON: the Gram it must hold is not its fee, which is what is left after the
+    /// excess returns, when that could be estimated.
+    var isTonJettonTransfer = false
     /// The Penpot `Fees` `Solana Staking` variant: the total instead of its compute budget.
     var isSolanaStaking = false
     /// The `Sui Staking` variant: the fee after the storage rebate, which can't be edited.
@@ -71,6 +75,8 @@ extension TransactionFeesView: View {
                 solanaFeesForm
             case .sui:
                 suiFeesForm
+            case .ton:
+                tonFeesForm
             case .tron:
                 tronFeesForm
             }
@@ -161,6 +167,37 @@ private extension TransactionFeesView {
         }
 
         TransactionCostRow(value: transactionCost)
+    }
+
+    @ViewBuilder
+    var tonFeesForm: some View {
+        if isTonJetton {
+            // A Jetton transfer attaches Gram that mostly returns: what must be held to send it is always shown, and
+            // what it costs only when the emulation could tell.
+            if let net = estimatedFees?.tonNetCost {
+                ParameterRow(String(localized: .transactionFeesNetworkFee), value: gram(net))
+            }
+
+            ParameterRow(String(localized: .transactionFeesGramRequired), value: gram(estimatedFees?.nativeFeeReserve))
+        } else {
+            ParameterRow(String(localized: .transactionFeesNetworkFee), value: gram(estimatedFees?.nativeFeeReserve))
+        }
+
+        TransactionCostRow(value: transactionCost)
+    }
+
+    /// Only a token transfer on TON; the flag alone is true for every chain's token transfers.
+    var isTonJetton: Bool {
+        guard case .ton = blockchain else {
+            return false
+        }
+
+        return isTonJettonTransfer
+    }
+
+    /// Nanograms as Gram; empty when there is no amount.
+    func gram(_ nanograms: String?) -> String {
+        Fees.formattedGram(nanograms, symbol: blockchain.nativeToken.symbol)
     }
 
     /// Every Tron transaction (transfers, dapp requests, staking) shows what it uses and whether
@@ -271,13 +308,15 @@ private extension TransactionFeesView {
         case .cardano where cardanoStaking != nil:
             warning ?? String(localized: .cardanoStakingFeesNote)
         case .cardano:
-            String(localized: .transactionFeesFeeSizeNote)
+            warning ?? String(localized: .transactionFeesFeeSizeNote)
         case .solana where isSolanaStaking:
             warning ?? String(localized: .solanaStakingNoteFees)
         case .sui where isSuiStaking:
             warning ?? String(localized: .suiStakingNoteFees)
         case .tron:
             tronFooter
+        case .ton where isTonJetton:
+            warning ?? String(localized: .transactionFeesTonJettonNote)
         default:
             warning
         }
@@ -299,8 +338,8 @@ private extension TransactionFeesView {
         case .cardano where cardanoStaking != nil:
             warning == nil ? .secondary : .caution
         case .cardano:
-            .secondary
-        case .solana where isSolanaStaking, .sui where isSuiStaking, .tron:
+            warning == nil ? .secondary : .caution
+        case .solana where isSolanaStaking, .sui where isSuiStaking, .ton where isTonJetton, .tron:
             warning == nil ? .secondary : .caution
         default:
             .caution
@@ -336,8 +375,10 @@ private extension TransactionFeesView {
     /// formatted USD string. Empty when the estimate or price isn't available
     /// yet (for example, when no configured price source supports the chain).
     var transactionCost: String {
-        let nativeFeeReserve = ethereumGasLimit == nil
-            ? estimatedFees?.nativeFeeReserve : validatedFees?.nativeFeeReserve
+        // A Jetton transfer costs what is left after its excess Gram returns, not the Gram it must hold.
+        let nativeFeeReserve = isTonJetton
+            ? estimatedFees?.tonNetCost
+            : (ethereumGasLimit == nil ? estimatedFees?.nativeFeeReserve : validatedFees?.nativeFeeReserve)
         guard
             let nativeFeeReserve,
             let feeAmount = BigUInt(nativeFeeReserve),
@@ -420,6 +461,10 @@ private extension TransactionFeesView {
             }
 
             return Fees(suiGasBudget: suiGasBudget, suiGasPrice: gasPrice)
+
+        case .ton:
+            // Nothing to edit: pass the estimate through so its fee stays with it.
+            return estimatedFees
 
         case .tron:
             guard estimatedFees != nil else {
