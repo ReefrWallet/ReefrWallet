@@ -22,6 +22,8 @@ struct AccountDetailsView {
     @State private var balancePages = AccountPages<Balance>()
     @State private var hiddenBalancePages = AccountPages<Balance>()
     @State private var nativeBalance: Balance?
+    @State private var nftTransfer: NFT?
+    @State private var nfts: AccountNFTsModel
     @State private var revokeReview: ApprovalRevokeReview?
     #if os(iOS)
     @State private var balanceSort = [BalanceListSort(field: .value, ascending: false)]
@@ -67,6 +69,7 @@ struct AccountDetailsView {
         self.keyStore = keyStore
 
         _approvals = State(initialValue: AccountApprovalsModel(account))
+        _nfts = State(initialValue: AccountNFTsModel(account))
         _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.persistentModelID == accountId })
         _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
     }
@@ -102,6 +105,10 @@ extension AccountDetailsView: View {
                 TransferView(balance: selected)
                     .sheetZoom(from: Self.sendSourceId, namespace: sheetNamespace)
             }
+        }
+        .sheet(item: $nftTransfer) { nft in
+            NFTTransferView(account: account, nft: nft)
+                .sheetZoom(from: Self.sendNFTSourceId, namespace: sheetNamespace)
         }
         .sheet(item: $revokeReview) { review in
             ApprovalRevokeSheet(account: account, isHardware: keyStore.isHardware, model: approvals, review: review)
@@ -172,6 +179,18 @@ extension AccountDetailsView: View {
                     .tag(AccountTab.approvals)
                 }
 
+                if account.blockchain.supportsNFTs {
+                    VStack(spacing: 0) {
+                        if tab == .nfts {
+                            AccountNFTsView(model: nfts, keyStore: keyStore) { nftTransfer = $0 }
+                        }
+                    }
+                    .tabItem {
+                        Label(.accountDetailsNfts, systemImage: AccountTab.nfts.systemImage)
+                    }
+                    .tag(AccountTab.nfts)
+                }
+
                 if account.blockchain.supportsCustomTokens {
                     AccountTokensView(account)
                         .tabItem {
@@ -194,7 +213,7 @@ extension AccountDetailsView: View {
             .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                if tab != .staking, tab != .addresses, tab != .tokens {
+                if tab != .staking, tab != .addresses, tab != .tokens, tab != .nfts {
                     bottomBar
                 }
             }
@@ -242,6 +261,9 @@ extension AccountDetailsView: View {
 
         case .balances:
             balanceContent
+
+        case .nfts:
+            AccountNFTsView(model: nfts, keyStore: keyStore, searchText: searchText) { nftTransfer = $0 }
 
         case .staking:
             if let staking {
@@ -301,25 +323,48 @@ extension AccountDetailsView: View {
                 .disabled(selectedApprovals.isEmpty)
                 .accessibilityIdentifier("approvals-revoke-selected-button")
 
+            case .nfts where canSign:
+                sendNFTButton
+
             case .staking where canSign:
                 if let staking {
                     AccountStakingToolbarActions(model: staking)
                 }
 
             case .balances where canSign:
-                Button {
-                    isSearchFocused = false
-                    isTransactionSheetPresented = true
-                } label: {
-                    Label(.commonSend, systemImage: "paperplane")
-                }
-                .disabled(!canSend(selected))
-                .sheetSource(Self.sendSourceId)
-                .accessibilityIdentifier("account-send-button")
-            case .approvals, .balances, .staking, .transactions:
+                sendBalanceButton(selected)
+            case .approvals, .balances, .nfts, .staking, .transactions:
                 EmptyView()
             }
         }
+    }
+
+    private func sendBalanceButton(_ selected: Balance?) -> some View {
+        Button {
+            isSearchFocused = false
+            isTransactionSheetPresented = true
+        } label: {
+            Label(.commonSend, systemImage: "paperplane")
+        }
+        .disabled(!canSend(selected))
+        .sheetSource(Self.sendSourceId)
+        .accessibilityIdentifier("account-send-button")
+    }
+
+    /// Sends the selected NFT; its help explains why it's disabled.
+    private var sendNFTButton: some View {
+        let selected = nfts.selected
+        let reason = selected?.sendBlockReason(keyStore: keyStore, blockchain: account.blockchain)
+
+        return Button {
+            nftTransfer = selected
+        } label: {
+            Label(.commonSend, systemImage: "paperplane")
+        }
+        .disabled(selected == nil || reason != nil)
+        .help(reason.map { String(localized: $0) } ?? "")
+        .sheetSource(Self.sendNFTSourceId)
+        .accessibilityIdentifier("account-send-nft-button")
     }
 
     #if os(iOS)
@@ -647,6 +692,7 @@ private extension AccountDetailsView {
     static let filterGlassId = "filter"
     static let filtersSourceId = "account-filters"
     static let searchGlassId = "search"
+    static let sendNFTSourceId = "account-send-nft"
     static let sendSourceId = "account-send"
 
     var filter: Binding<AccountFilter> {
@@ -669,6 +715,10 @@ private extension AccountDetailsView {
 
         if account.blockchain.supportsApprovals {
             tabs.append(.approvals)
+        }
+
+        if account.blockchain.supportsNFTs {
+            tabs.append(.nfts)
         }
 
         if account.blockchain.supportsCustomTokens {

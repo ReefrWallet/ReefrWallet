@@ -37,6 +37,10 @@ extension ServiceContainer {
                         BlockchainModel.self,
                         ConnectedDappModel.self,
                         KeyStoreModel.self,
+                        NFTModel.self,
+                        NFTPendingSendModel.self,
+                        NFTScanModel.self,
+                        NFTTransferEventModel.self,
                         ReceiveAddressModel.self,
                         TokenModel.self,
                         TokenSourceStatusModel.self,
@@ -114,6 +118,10 @@ extension ServiceContainer {
 
         register(CardanoStakingService.self) {
             CardanoStakingService()
+        }
+
+        register(NFTService.self) {
+            NFTService()
         }
 
         register(SolanaStakingPositionLoader.self) {

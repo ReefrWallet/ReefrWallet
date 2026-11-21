@@ -32,7 +32,7 @@ enum AccountRefresh {
         }
     }
 
-    /// Refreshes balances and approvals of `accounts`, then nudges the identity and price schedulers.
+    /// Refreshes balances and approvals of `accounts`, queues their NFT scans, then nudges the identity and price schedulers.
     /// Returns when everything is done.
     static func run(_ accounts: [Account]) async {
         let balancesService = DI.injectOrFail(BalancesService.self)
@@ -53,6 +53,8 @@ enum AccountRefresh {
             } catch {
                 printError("\(account.name) approvals: \(error)")
             }
+
+            DI.injectOrFail(NFTService.self).enqueueRefresh(account)
         }
 
         // Identities and prices refresh on their own schedule; just skip the current idle wait.

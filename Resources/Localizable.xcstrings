@@ -174,6 +174,18 @@
         }
       }
     },
+    "accountDetails.nfts" : {
+      "comment" : "AccountTab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NFTs"
+          }
+        }
+      }
+    },
     "accountDetails.pillFromMe" : {
       "comment" : "Filter pill",
       "extractionState" : "manual",
@@ -3719,6 +3731,312 @@
     },
     "Only printable ASCII characters (letters, digits, symbols, space) are supported." : {
 
+    },
+    "nftTransfer.confirming" : {
+      "comment" : "NFTTransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirming transaction"
+          }
+        }
+      }
+    },
+    "nftTransfer.failed" : {
+      "comment" : "NFTTransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transfer failed on chain. The NFT wasn’t sent."
+          }
+        }
+      }
+    },
+    "nftTransfer.nft" : {
+      "comment" : "NFTTransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NFT"
+          }
+        }
+      }
+    },
+    "nftTransfer.owned" : {
+      "comment" : "NFTTransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Owned: %@"
+          }
+        }
+      }
+    },
+    "nftTransfer.quantity" : {
+      "comment" : "NFTTransferParametersView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quantity"
+          }
+        }
+      }
+    },
+    "nftTransfer.title" : {
+      "comment" : "NFTTransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send NFT"
+          }
+        }
+      }
+    },
+    "nftTransfer.unconfirmed" : {
+      "comment" : "NFTTransferView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transfer was sent but isn’t confirmed yet. The NFT stays locked until it is."
+          }
+        }
+      }
+    },
+    "nfts.collection" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collection"
+          }
+        }
+      }
+    },
+    "nfts.forget" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget"
+          }
+        }
+      }
+    },
+    "nfts.forgetMessage" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transaction may still land. Sending the NFT again could fail or send nothing."
+          }
+        }
+      }
+    },
+    "nfts.forgetTitle" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget the unconfirmed send?"
+          }
+        }
+      }
+    },
+    "nfts.forgetUnconfirmedSend" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget Unconfirmed Send…"
+          }
+        }
+      }
+    },
+    "nfts.keyStoreUnsupported" : {
+      "comment" : "NFT+Sending",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This key store can’t sign transactions on this network."
+          }
+        }
+      }
+    },
+    "nfts.name" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "nfts.nftCount" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld NFT"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld NFTs"
+                }
+              },
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No NFTs"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "nfts.noNfts" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No NFTs"
+          }
+        }
+      }
+    },
+    "nfts.noSource" : {
+      "comment" : "AccountNFTsView, WalletKitNFTSource",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No NFT source covers this network. Add an Etherscan API key in Settings to list NFTs."
+          }
+        }
+      }
+    },
+    "nfts.notTransferable" : {
+      "comment" : "NFT+Sending",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This NFT can’t be transferred."
+          }
+        }
+      }
+    },
+    "nfts.status" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "nfts.suiCaption" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objects with display metadata"
+          }
+        }
+      }
+    },
+    "nfts.tokenId" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token ID"
+          }
+        }
+      }
+    },
+    "nfts.unconfirmedSend" : {
+      "comment" : "AccountNFTsView, NFT+Sending",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unconfirmed send"
+          }
+        }
+      }
+    },
+    "nfts.waitingForIndex" : {
+      "comment" : "AccountNFTsView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for %@ to index the transfer"
+          }
+        }
+      }
+    },
+    "nfts.watchOnly" : {
+      "comment" : "NFT+Sending",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch-only accounts can’t send."
+          }
+        }
+      }
     },
     "qrScanner.cameraUnavailable" : {
       "comment" : "QRScannerView",

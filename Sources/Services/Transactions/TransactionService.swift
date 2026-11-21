@@ -15,7 +15,7 @@ import WalletKit
 /// contexts already (like every other service in `Sources/Services`); needed
 /// here only because ``EthereumDappProvider`` (`Sendable`) stores one.
 final class TransactionService: @unchecked Sendable {
-    private lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
+    lazy var clientProvider = DI.injectOrFail(BlockchainClientProvider.self)
     private lazy var hardwareService = DI.injectOrFail(HardwareService.self)
     private lazy var tonSendService = TonSendService(databaseService: databaseService)
     private lazy var transactionSyncService = DI.injectOrFail(TransactionSyncService.self)
@@ -271,7 +271,10 @@ private extension TransactionService {
             throw ReefrError.notSupported
         }
     }
+}
 
+// Internal: `TransactionService+NFT` builds with the same fee overrides.
+extension TransactionService {
     /// Builds the ``BlockchainTransactionBuilderOptions`` array that conveys
     /// the user's fee overrides to the transaction builder.
     ///

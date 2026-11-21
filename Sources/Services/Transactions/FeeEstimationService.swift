@@ -307,3 +307,141 @@ private extension FeeEstimationService {
         )
     }
 }
+
+// MARK: - NFTs
+
+extension FeeEstimationService {
+    /// Estimates network fees for sending `quantity` of `nft` by building
+    /// (and so simulating) the transfer on each chain.
+    func estimateNFTFees(
+        nft: NFTReference,
+        quantity: BigUInt,
+        cardanoRecipientLovelace: String? = nil,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        switch account.blockchain {
+        case .aptos:
+            return try await estimateAptosNFTFees(nft: nft, recipient: recipient, account: account)
+        case .cardano:
+            return try await estimateCardanoNFTFees(
+                nft: nft,
+                quantity: quantity,
+                recipientLovelace: cardanoRecipientLovelace,
+                recipient: recipient,
+                account: account
+            )
+
+        case .evm:
+            let data = try EthereumTransactionBuilder.nftTransferData(
+                from: EthereumAddress(string: account.address),
+                to: EthereumAddress(string: recipient),
+                nft: nft,
+                quantity: quantity
+            )
+
+            return try await estimateFees(
+                to: EthereumTransactionBuilder.nftContract(nft),
+                value: 0,
+                data: data,
+                account: account
+            )
+
+        case .solana:
+            return try await estimateSolanaNFTFees(nft: nft, recipient: recipient, account: account)
+        case .sui:
+            return try await estimateSuiNFTFees(nft: nft, recipient: recipient, account: account)
+        case .bitcoin, .ton, .tron:
+            throw BlockchainTransactionBuilderError.unsupportedNFT(reason: "\(account.blockchain) has no NFTs")
+        }
+    }
+}
+
+private extension FeeEstimationService {
+    func estimateAptosNFTFees(nft: NFTReference, recipient: String, account: Account) async throws -> Fees {
+        let client = try clientProvider.aptosClient(for: account)
+        let transaction = try await AptosTransactionBuilder(client: client).buildNFTTransfer(
+            sender: account.address,
+            recipient: recipient,
+            nft: nft,
+            quantity: 1,
+            options: []
+        )
+
+        let gas = try AptosRawTransaction.gasParameters(of: transaction)
+
+        return Fees(
+            aptosGasUnitPrice: String(gas.gasUnitPrice),
+            aptosMaxGasAmount: String(gas.maxGasAmount),
+            nativeFeeReserve: String(try AptosRawTransaction.maxFee(of: transaction))
+        )
+    }
+
+    func estimateCardanoNFTFees(
+        nft: NFTReference,
+        quantity: BigUInt,
+        recipientLovelace: String?,
+        recipient: String,
+        account: Account
+    ) async throws -> Fees {
+        guard let recipientLovelace, let lovelace = UInt64(recipientLovelace) else {
+            throw ReefrError.invalidData
+        }
+
+        let builder = try clientProvider.makeTransactionBuilder(
+            blockchain: account.blockchain,
+            rpcURL: account.rpcURLOverride
+        )
+
+        guard let builder = builder as? any NFTTransactionBuilding else {
+            throw ReefrError.invalidData
+        }
+
+        let transaction = try await builder.buildNFTTransfer(
+            sender: account.address,
+            recipient: recipient,
+            nft: nft,
+            quantity: quantity,
+            options: [.cardanoRecipientLovelace(lovelace)]
+        )
+
+        let unsigned = try JSONDecoder().decode(CardanoUnsignedTransaction.self, from: transaction)
+        return Fees(cardanoRecipientLovelace: recipientLovelace, nativeFeeReserve: unsigned.fee)
+    }
+
+    func estimateSolanaNFTFees(nft: NFTReference, recipient: String, account: Account) async throws -> Fees {
+        let client = try clientProvider.solanaClient(for: account)
+        let envelope = try await SolanaTransactionBuilder(client: client).buildNFTTransfer(
+            sender: account.address,
+            recipient: recipient,
+            nft: nft,
+            quantity: 1,
+            options: []
+        )
+
+        let estimate = try await client.estimateFee(transaction: envelope)
+
+        return Fees(
+            nativeFeeReserve: String(estimate.fee),
+            solanaComputeUnitLimit: estimate.computeUnitLimit.map(String.init),
+            solanaPriorityFee: String(estimate.computeUnitPrice)
+        )
+    }
+
+    func estimateSuiNFTFees(nft: NFTReference, recipient: String, account: Account) async throws -> Fees {
+        let client = try clientProvider.suiClient(for: account)
+
+        async let gasPrice = client.referenceGasPrice()
+        let bcs = try await SuiTransactionBuilder(client: client).buildNFTTransfer(
+            sender: account.address,
+            recipient: recipient,
+            nft: nft,
+            quantity: 1,
+            options: []
+        )
+
+        let grossCost = String(try await client.gasCostSummary(transactionData: bcs).grossCost)
+
+        return Fees(nativeFeeReserve: grossCost, suiGasBudget: grossCost, suiGasPrice: String(try await gasPrice))
+    }
+}

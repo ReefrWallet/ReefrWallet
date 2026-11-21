@@ -3,6 +3,14 @@ import Moya
 import WalletKit
 
 struct BlockscoutTransactionHistorySource: TransactionHistorySource {
+    /// API base URLs by EVM chain id.
+    static let defaultAPIBaseURLs = [
+        UInt64(1): URL(string: "https://eth.blockscout.com/api/v2")!,
+        UInt64(42161): URL(string: "https://arbitrum.blockscout.com/api/v2")!,
+        UInt64(421614): URL(string: "https://arbitrum-sepolia.blockscout.com/api/v2")!,
+        UInt64(11155111): URL(string: "https://eth-sepolia.blockscout.com/api/v2")!
+    ]
+
     private static let maxForwardPages = 20
 
     private let apiBaseURLs: [UInt64: URL]
@@ -14,14 +22,7 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
 
     init(apiBaseURLs: [UInt64: URL] = [:], sessionConfiguration: URLSessionConfiguration = .default) {
         self.sessionConfiguration = sessionConfiguration
-        let defaultAPIBaseURLs = [
-            UInt64(1): URL(string: "https://eth.blockscout.com/api/v2")!,
-            UInt64(42161): URL(string: "https://arbitrum.blockscout.com/api/v2")!,
-            UInt64(421614): URL(string: "https://arbitrum-sepolia.blockscout.com/api/v2")!,
-            UInt64(11155111): URL(string: "https://eth-sepolia.blockscout.com/api/v2")!
-        ]
-
-        self.apiBaseURLs = defaultAPIBaseURLs.merging(apiBaseURLs) { _, customURL in
+        self.apiBaseURLs = Self.defaultAPIBaseURLs.merging(apiBaseURLs) { _, customURL in
             customURL
         }
     }
@@ -227,7 +228,9 @@ private extension BlockscoutTransactionHistorySource {
             configuration: sessionConfiguration
         )
     }
+}
 
+extension BlockscoutTransactionHistorySource {
     static func origin(of url: URL) -> String {
         var components = URLComponents()
         components.scheme = url.scheme
@@ -314,7 +317,7 @@ private struct BlockscoutFee: Codable {
     let value: String?
 }
 
-private struct BlockscoutListResponse<Item: Decodable>: Decodable {
+struct BlockscoutListResponse<Item: Decodable>: Decodable {
     let items: [Item]
     let nextPageParams: BlockscoutPageParameters?
 
@@ -339,7 +342,7 @@ private struct BlockscoutListResponse<Item: Decodable>: Decodable {
     }
 }
 
-private struct BlockscoutListItem<Item: Decodable>: Decodable {
+struct BlockscoutListItem<Item: Decodable>: Decodable {
     /// `nil` for a pending item.
     let value: Item?
 
