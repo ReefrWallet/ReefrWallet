@@ -1,5 +1,5 @@
 {
-  "originHash" : "a50b0da79dddeff5534f0f084bc206c1a138f741ef627cb9e2f83964e517739c",
+  "originHash" : "b90a701c700257d24684b3d1b9eb9dfe9bb16fd39489a9ad8c76ca84a5304e85",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -303,8 +303,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ReefrWallet/WalletKit",
       "state" : {
-        "revision" : "9d6480383e0ea46bb54fbe5819a88885946b96d2",
-        "version" : "0.8.0"
+        "revision" : "c2f949f1e9574f7f2f8a0c53a2f129abd3082b8c",
+        "version" : "0.9.0"
       }
     },
     {

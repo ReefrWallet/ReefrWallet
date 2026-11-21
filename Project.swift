@@ -125,6 +125,7 @@ private let iosUITestExclusions: [String] = [
     "DappConnectionUITests.swift",
     "EthereumForwardSyncUITests.swift",
     "LocalDappServer.swift",
+    "NFTSendUITests.swift",
     "RelaunchBalanceSyncUITests.swift",
     "SeedPhraseFieldMacUITests.swift",
     "SolanaForwardSyncUITests.swift",

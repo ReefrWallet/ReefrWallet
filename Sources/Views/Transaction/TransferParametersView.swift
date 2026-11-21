@@ -218,16 +218,8 @@ private extension TransferParametersView {
         return amountIssue(selectedBalance) ?? addressIssue
     }
 
-    /// The receiver field's placeholder, e.g. "0x…" or "bc1…".
     var receiverPrompt: String {
-        switch account.blockchain {
-        case .aptos, .evm, .sui: "0x…"
-        case .bitcoin: "bc1…"
-        case .cardano: "addr1…"
-        case .solana: "Address"
-        case .ton: "UQ…"
-        case .tron: "T…"
-        }
+        account.blockchain.recipientPrompt
     }
 
     var maxSendableAmount: String {
@@ -255,34 +247,12 @@ private extension TransferParametersView {
         return !(selectedBalance?.token.isNativeToken ?? true)
     }
 
-    /// Exhaustive over `Blockchain` on purpose: a `default` that rejects
-    /// everything silently disables the whole form for any chain missing a
-    /// case here, so a newly supported chain must fail to compile instead.
     var addressIssue: String? {
-        do {
-            switch account.blockchain {
-            case .aptos:
-                _ = try AptosAddress(string: receiverText)
-            case let .bitcoin(network):
-                _ = try BitcoinDescriptor(address: receiverText, network: network)
-            case let .cardano(network):
-                _ = try CardanoAddress(string: receiverText, network: network)
-            case .evm:
-                _ = try EthereumAddress(string: receiverText)
-            case .solana:
-                _ = try SolanaAddress(string: receiverText)
-            case .sui:
-                _ = try SuiAddress(string: receiverText)
-            case let .ton(network):
-                try TonAddress(string: receiverText).validate(for: network)
-            case .tron:
-                _ = try TronAddress(string: receiverText)
-            }
-
-            return nil
-        } catch {
+        guard account.blockchain.isValidRecipient(receiverText) else {
             return String(localized: .transferParametersIssueReceiverInvalid)
         }
+
+        return nil
     }
 
     func amountIssue(_ balance: Balance) -> String? {

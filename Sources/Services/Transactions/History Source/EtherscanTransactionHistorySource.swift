@@ -14,7 +14,8 @@ struct EtherscanTransactionHistorySource: TransactionHistorySource {
 
     private let baseURL = URL(string: "https://api.etherscan.io/v2/api")!
     private let provider: MoyaProvider<EtherscanAPI>
-    private let supportedChainIds: Set<UInt64> = [1, 56, 97, 42161, 421614, 11155111]
+    static let supportedChainIds: Set<UInt64> = [1, 56, 97, 42161, 421614, 11155111]
+    private let supportedChainIds = Self.supportedChainIds
     private let userDefaults: UserDefaults
 
     var providesForwardHistory: Bool {

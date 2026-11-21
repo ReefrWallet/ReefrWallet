@@ -11,6 +11,7 @@ import SwiftUI
 /// The stages of a send, shown in the prompt popup while a ``TransactionSheet`` is processing.
 enum TransactionProgress {
     case complete
+    case confirming
     case preparing
     case sending
     case signing
@@ -19,6 +20,8 @@ enum TransactionProgress {
         switch self {
         case .complete:
             .complete(String(localized: .commonComplete))
+        case .confirming:
+            .progress(String(localized: .nftTransferConfirming))
         case .preparing:
             .progress(String(localized: .transferPreparingTransaction))
         case .sending:

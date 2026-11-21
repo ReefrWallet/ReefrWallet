@@ -80,6 +80,18 @@ final class AccountModel {
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
 
+    @Relationship(deleteRule: .cascade, inverse: \NFTModel.account)
+    var nfts: [NFTModel] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \NFTPendingSendModel.account)
+    var nftPendingSends: [NFTPendingSendModel] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \NFTScanModel.account)
+    var nftScans: [NFTScanModel] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \NFTTransferEventModel.account)
+    var nftTransferEvents: [NFTTransferEventModel] = []
+
     @Relationship(deleteRule: .cascade, inverse: \StakingModel.account)
     var staking: StakingModel?
 
