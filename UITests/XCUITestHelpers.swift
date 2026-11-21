@@ -4,13 +4,34 @@ import Carbon
 import XCTest
 
 extension XCUIApplication {
-    /// Waits for the unknown-token (hidden) balance rows.
+    /// Expands the hidden-balances section if needed, then waits for its rows.
     ///
-    /// The balances list shows every token by default, so there is nothing to expand;
-    /// a live backfill keeps rewriting balances, so just wait for the rows.
+    /// On Mac the section starts collapsed under its title row; on iPhone hidden
+    /// rows are listed inline. A live backfill keeps rewriting balances, so the
+    /// title is waited for before expanding.
     func expandHiddenBalances(timeout: TimeInterval = 10) {
         let hiddenRows = descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "balance-row-hidden-"))
+
+        #if os(macOS)
+        let title = descendant(withIdentifier: "balances-table-hidden-disclosure-row")
+
+        if !hiddenRows.firstMatch.exists, title.waitForExistence(timeout: timeout) {
+            let triangle = outlines
+                .matching(NSPredicate(format: "identifier == %@", "account-balances-content"))
+                .firstMatch
+                .descendants(matching: .disclosureTriangle)
+                .firstMatch
+
+            if triangle.exists {
+                if !triangle.isExpanded {
+                    triangle.click()
+                }
+            } else {
+                title.click()
+            }
+        }
+        #endif
 
         XCTAssertTrue(hiddenRows.firstMatch.waitForExistence(timeout: timeout), "Expected hidden balance rows.")
     }
