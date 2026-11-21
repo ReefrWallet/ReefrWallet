@@ -6,6 +6,8 @@ struct BlockscoutTransactionHistorySource: TransactionHistorySource {
     /// API base URLs by EVM chain id.
     static let defaultAPIBaseURLs = [
         UInt64(1): URL(string: "https://eth.blockscout.com/api/v2")!,
+        UInt64(10): URL(string: "https://explorer.optimism.io/api/v2")!,
+        UInt64(130): URL(string: "https://unichain.blockscout.com/api/v2")!,
         UInt64(42161): URL(string: "https://arbitrum.blockscout.com/api/v2")!,
         UInt64(421614): URL(string: "https://arbitrum-sepolia.blockscout.com/api/v2")!,
         UInt64(11155111): URL(string: "https://eth-sepolia.blockscout.com/api/v2")!

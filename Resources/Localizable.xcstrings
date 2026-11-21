@@ -102,6 +102,18 @@
         }
       }
     },
+    "accountDetails.defi" : {
+      "comment" : "AccountTab",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DeFi"
+          }
+        }
+      }
+    },
     "accountDetails.enableFilter" : {
       "comment" : "AccountFiltersView",
       "extractionState" : "manual",
@@ -3434,6 +3446,288 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign Typed Data"
+          }
+        }
+      }
+    },
+    "defi.noPositions" : {
+      "comment" : "AccountDefiView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No DeFi Positions"
+          }
+        }
+      }
+    },
+    "defi.partlyUnpriced" : {
+      "comment" : "AccountDefiView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld position is partly unpriced"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld positions are partly unpriced"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "defi.positionCount" : {
+      "comment" : "AccountDefiView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "zero" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No positions"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld position"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld positions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.apr" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APR"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.aprHelp" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lifetime fees since mint at current prices, annualized against current deposits. Estimate; includes previous owners' fees."
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.claimable" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claimable %@"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.claimableHelp" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawn principal and credited fees, collectable together. Not split into fees."
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.created" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Created"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.distribution" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distribution"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.fees" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fees"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.historyUnavailable" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position history isn't available from this network's node"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.inRange" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In range"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.lifetimeFees" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lifetime fees: %@"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.loadingHistory" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading position history…"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.outOfRange" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out of range"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.pool" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pool"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.position" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.title" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uniswap V3"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.value" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.withdrawn" : {
+      "comment" : "UniswapV3Section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawn"
+          }
+        }
+      }
+    },
+    "defi.unpricedTokens" : {
+      "comment" : "AccountDefiView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No USD price for %@"
           }
         }
       }

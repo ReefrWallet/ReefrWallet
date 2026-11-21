@@ -36,6 +36,7 @@ extension ServiceContainer {
                         BalanceModel.self,
                         BlockchainModel.self,
                         ConnectedDappModel.self,
+                        DefiPositionModel.self,
                         KeyStoreModel.self,
                         NFTModel.self,
                         NFTPendingSendModel.self,
@@ -94,6 +95,10 @@ extension ServiceContainer {
             }
 
             return databaseService
+        }
+
+        register(DefiScheduler.self) {
+            DefiScheduler()
         }
 
         register(EthereumApprovalService.self) {

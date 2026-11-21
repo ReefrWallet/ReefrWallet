@@ -23,6 +23,7 @@ struct AccountDetailsView {
     @State private var hiddenBalancePages = AccountPages<Balance>()
     @State private var nativeBalance: Balance?
     @State private var nftTransfer: NFT?
+    @State private var defi: AccountDefiModel
     @State private var nfts: AccountNFTsModel
     @State private var revokeReview: ApprovalRevokeReview?
     #if os(iOS)
@@ -69,6 +70,7 @@ struct AccountDetailsView {
         self.keyStore = keyStore
 
         _approvals = State(initialValue: AccountApprovalsModel(account))
+        _defi = State(initialValue: AccountDefiModel(account))
         _nfts = State(initialValue: AccountNFTsModel(account))
         _stakingRows = Query(filter: #Predicate<StakingModel> { $0.account.persistentModelID == accountId })
         _staking = State(initialValue: AccountStakingModel.make(account: account, keyStore: keyStore))
@@ -89,6 +91,11 @@ extension AccountDetailsView: View {
 
         .task(id: tab == .balances ? balanceSort : nil) {
             await observeBalances()
+        }
+
+        // Runs off-tab too: it decides whether the DeFi tab is shown.
+        .task {
+            await defi.observe()
         }
 
         // Resource patches change the row in place too; `revision` tells every applied write.
@@ -191,6 +198,18 @@ extension AccountDetailsView: View {
                     .tag(AccountTab.nfts)
                 }
 
+                if defi.isEligible {
+                    VStack(spacing: 0) {
+                        if tab == .defi {
+                            AccountDefiView(model: defi)
+                        }
+                    }
+                    .tabItem {
+                        Label(.accountDetailsDefi, systemImage: AccountTab.defi.systemImage)
+                    }
+                    .tag(AccountTab.defi)
+                }
+
                 if account.blockchain.supportsCustomTokens {
                     AccountTokensView(account)
                         .tabItem {
@@ -213,7 +232,7 @@ extension AccountDetailsView: View {
             .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                if tab != .staking, tab != .addresses, tab != .tokens, tab != .nfts {
+                if tab != .staking, tab != .addresses, tab != .tokens, tab != .nfts, tab != .defi {
                     bottomBar
                 }
             }
@@ -261,6 +280,9 @@ extension AccountDetailsView: View {
 
         case .balances:
             balanceContent
+
+        case .defi:
+            AccountDefiView(model: defi)
 
         case .nfts:
             AccountNFTsView(model: nfts, keyStore: keyStore, searchText: searchText) { nftTransfer = $0 }
@@ -333,7 +355,7 @@ extension AccountDetailsView: View {
 
             case .balances where canSign:
                 sendBalanceButton(selected)
-            case .approvals, .balances, .nfts, .staking, .transactions:
+            case .approvals, .balances, .defi, .nfts, .staking, .transactions:
                 EmptyView()
             }
         }
@@ -719,6 +741,10 @@ private extension AccountDetailsView {
 
         if account.blockchain.supportsNFTs {
             tabs.append(.nfts)
+        }
+
+        if defi.isEligible {
+            tabs.append(.defi)
         }
 
         if account.blockchain.supportsCustomTokens {

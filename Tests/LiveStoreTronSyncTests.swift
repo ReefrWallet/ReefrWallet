@@ -98,6 +98,7 @@ struct LiveStoreTronSyncTests {
             for: AccountModel.self,
             ApprovalModel.self,
             ApprovalScanModel.self,
+            DefiPositionModel.self,
             NFTModel.self,
             NFTPendingSendModel.self,
             NFTScanModel.self,

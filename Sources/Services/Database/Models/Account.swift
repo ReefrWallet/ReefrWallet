@@ -80,6 +80,9 @@ final class AccountModel {
     @Relationship(deleteRule: .cascade, inverse: \BalanceModel.account)
     var balances: [BalanceModel]
 
+    @Relationship(deleteRule: .cascade, inverse: \DefiPositionModel.account)
+    var defiPositions: [DefiPositionModel] = []
+
     @Relationship(deleteRule: .cascade, inverse: \NFTModel.account)
     var nfts: [NFTModel] = []
 
@@ -219,8 +222,11 @@ extension AccountModel {
     /// property, so call sites don't treat it as a cheap accessor — calling
     /// it once per balance in the account (instead of once per account)
     /// turns an O(N) sum into an O(N²) fault storm.
+    /// Visible balances, staked funds and the priced parts of DeFi positions.
     func usdValue() -> Decimal {
-        balances.reduce(into: staking?.stakedUSDValue ?? 0) { partialResult, balance in
+        let defi = defiPositions.compactMap(\.usdValue).reduce(0, +)
+
+        return balances.reduce(into: (staking?.stakedUSDValue ?? 0) + defi) { partialResult, balance in
             // Unidentified tokens keep any stale price but don't count.
             if !balance.token.isHidden {
                 partialResult += balance.usdValue

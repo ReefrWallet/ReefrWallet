@@ -716,7 +716,7 @@ private extension SidebarView {
 extension SidebarView {
 #if os(macOS)
     private func observeAccountValues() async {
-        let entities = ["AccountModel", "BalanceModel", "StakingModel", "TokenModel"]
+        let entities = ["AccountModel", "BalanceModel", "DefiPositionModel", "StakingModel", "TokenModel"]
         await databaseService.modelContainer.observeSaves(affecting: Set(entities)) {
             let values = try await databaseService.modelContainer.readSnapshot { reader in
                 try await reader.accountUSDValues()

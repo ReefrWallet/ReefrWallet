@@ -33,6 +33,7 @@ import WalletKit
         let persistedDatabaseService = databaseService!
         let syncService = transactionSyncService!
         let tokenIdentityScheduler = DI.injectOrFail(TokenIdentityScheduler.self)
+        let defiScheduler = DI.injectOrFail(DefiScheduler.self)
         let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
 
         // Not tied to a window: dApps must reach the app while none is open.
@@ -63,6 +64,7 @@ import WalletKit
             await tokenPriceScheduler.start()
 #endif
 
+            await defiScheduler.start()
             await syncService.startAll()
             await AccountRefresh.enqueueAllApprovals()
         }
