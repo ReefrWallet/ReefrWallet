@@ -1,5 +1,5 @@
 {
-  "originHash" : "a01b848edf49ad1c8e8f4e661219a91e30614bc2bb4cca15319efb1ac4e19860",
+  "originHash" : "a50b0da79dddeff5534f0f084bc206c1a138f741ef627cb9e2f83964e517739c",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto",
       "state" : {
-        "revision" : "f8fad2f95ad67b45f6340c0960e2396094d67e07",
-        "version" : "5.1.1"
+        "revision" : "3280a5f72874d2f73bf25551bbb64f524c76d834",
+        "version" : "5.1.2"
       }
     },
     {
@@ -303,8 +303,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ReefrWallet/WalletKit",
       "state" : {
-        "revision" : "adc4de68659526c8f63ec12acebdee5ddd151f38",
-        "version" : "0.7.0"
+        "revision" : "9d6480383e0ea46bb54fbe5819a88885946b96d2",
+        "version" : "0.8.0"
       }
     },
     {
