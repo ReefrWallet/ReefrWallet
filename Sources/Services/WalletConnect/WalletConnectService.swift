@@ -59,14 +59,25 @@ final class WalletConnectService {
     let approver: DappApprover
 
     var failureMessage: String?
+    /// Called when a proposal or request needs the user, to bring up the window presenting it.
+    @ObservationIgnored var onPrompt: (() -> Void)? {
+        didSet { approver.onPrompt = onPrompt }
+    }
+
     private(set) var pendingProposal: WalletConnectPendingProposal?
     private(set) var sessions: [WalletConnectSessionInfo] = []
 
     @ObservationIgnored private let client: any WalletConnectClient
     @ObservationIgnored private var dappSessions: [String: DappSession] = [:]
     @ObservationIgnored private let databaseService: DatabaseService
+    /// `"<topic>/<id>"` of requests being handled. Reown re-emits its oldest unanswered
+    /// request whenever another arrives, so one already on screen must not be handled twice.
+    @ObservationIgnored private var inFlightRequests: Set<String> = []
     @ObservationIgnored private var queuedProposals: [WalletConnectProposal] = []
     @ObservationIgnored private let router: WalletConnectRequestRouter
+    /// Answers Reown failed to send, resent when it re-emits the request. Until a request is
+    /// answered, Reown holds back every later one.
+    @ObservationIgnored private var undeliveredResults: [String: Result<Data, WalletConnectRPCError>] = [:]
 
     init(
         client: (any WalletConnectClient)? = nil,
@@ -89,7 +100,11 @@ final class WalletConnectService {
         }
 
         client.onRequest = { [weak self] request in
-            guard let self else {
+            guard
+                let self,
+                inFlightRequests.insert(Self.key(for: request)).inserted
+            else {
+                Logger.verbose("WC request skipped: already being handled, id: \(request.id)")
                 return
             }
 
@@ -212,6 +227,14 @@ final class WalletConnectService {
     // MARK: Private
 
     private func enqueue(_ proposal: WalletConnectProposal) {
+        guard
+            pendingProposal?.id != proposal.id,
+            !queuedProposals.contains(where: { $0.id == proposal.id })
+        else {
+            Logger.verbose("WC proposal skipped: already queued, id: \(proposal.id)")
+            return
+        }
+
         guard pendingProposal != nil else {
             Task { await present(proposal) }
             return
@@ -287,6 +310,7 @@ final class WalletConnectService {
         }
 
         pendingProposal = WalletConnectPendingProposal(choices: choices, proposal: proposal)
+        onPrompt?()
     }
 
     private func signingAccounts() async -> [Account] {
@@ -326,15 +350,29 @@ final class WalletConnectService {
         return created
     }
 
+    private static func key(for request: WalletConnectRequest) -> String {
+        "\(request.topic)/\(request.id)"
+    }
+
     private func handle(_ request: WalletConnectRequest) async {
-        Logger.verbose("WC handle start: \(request.method) id: \(request.id)")
-        let result = await result(for: request)
-        Logger.verbose("WC handle done: \(request.method) id: \(request.id) ok: \((try? result.get()) != nil)")
+        let key = Self.key(for: request)
+        defer { inFlightRequests.remove(key) }
+
+        let result: Result<Data, WalletConnectRPCError>
+        if let undelivered = undeliveredResults.removeValue(forKey: key) {
+            Logger.verbose("WC resending answer: \(request.method) id: \(request.id)")
+            result = undelivered
+        } else {
+            Logger.verbose("WC handle start: \(request.method) id: \(request.id)")
+            result = await self.result(for: request)
+            Logger.verbose("WC handle done: \(request.method) id: \(request.id) ok: \((try? result.get()) != nil)")
+        }
 
         do {
             try await client.respond(topic: request.topic, requestId: request.id, result: result)
         } catch {
             Logger.verbose("WC handle respond threw: \(error)")
+            undeliveredResults[key] = result
             failureMessage = String(localized: .walletConnectReplyFailed(error.localizedDescription))
         }
     }

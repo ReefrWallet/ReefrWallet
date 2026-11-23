@@ -138,13 +138,12 @@ struct MainView: View {
         } message: { message in
             Text(verbatim: message)
         }
-        .task {
-            walletConnect.start()
-        }
+        .mainWindowContent()
         .onOpenURL { url in
             sidebarSelection = connectedDapps.first { $0.kind == .walletConnect }?.id
             Task { await walletConnect.pair(uri: url.absoluteString) }
         }
+        .handlesExternalEvents(preferring: ["*"], allowing: ["*"]) // Else each link opens another window.
     }
 }
 

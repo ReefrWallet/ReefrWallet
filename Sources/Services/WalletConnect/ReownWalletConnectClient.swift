@@ -6,8 +6,8 @@
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
 //
 
-// The only file that imports Reown's SDK: its `Account` and `Blockchain`
-// names would clash with Reefr's own WalletKit types. Uses Reown's Sign
+// With `ReownRelaySocket.swift`, the only file that imports Reown's SDK: its
+// `Account` and `Blockchain` names would clash with Reefr's own WalletKit types. Uses Reown's Sign
 // SDK directly: `ReownWalletKit` needs Yttrium, which has no macOS slice.
 import Foundation
 
@@ -26,6 +26,10 @@ final class ReownWalletConnectClient: WalletConnectClient {
 
     private var cancellables: Set<AnyCancellable> = []
     private var isConfigured = false
+#if os(macOS)
+    private var isSocketConnected = false
+    private var reconnectTask: Task<Void, Never>?
+#endif
 
     func approve(proposalId: String, namespaces: [WalletConnectApprovedNamespace]) async throws {
         var sessionNamespaces: [String: SessionNamespace] = [:]
@@ -52,7 +56,7 @@ final class ReownWalletConnectClient: WalletConnectClient {
         Networking.configure(
             groupIdentifier: WalletConnectConfig.groupIdentifier,
             projectId: WalletConnectConfig.projectId,
-            socketFactory: URLSessionSocketFactory()
+            socketFactory: ReownRelaySocketFactory()
         )
 
         // Native-only redirect never throws (no universal link / link mode).
@@ -69,7 +73,14 @@ final class ReownWalletConnectClient: WalletConnectClient {
         Pair.configure(metadata: metadata)
         Sign.configure(crypto: UnsupportedCryptoProvider())
 
+        if Logger.isVerbose {
+            Networking.instance.setLogging(level: .debug)
+            Relay.instance.setLogging(level: .debug)
+            Sign.instance.setLogging(level: .debug)
+        }
+
         subscribe()
+        observeConnection()
     }
 
     func disconnect(topic: String) async throws {
@@ -146,23 +157,87 @@ private extension ReownWalletConnectClient {
         }
     }
 
-    // swiftlint:disable:next function_body_length
+    func emit(proposal: Session.Proposal, context: VerifyContext?) {
+        Logger.verbose("WC proposal: \(proposal.proposer.name) id: \(proposal.id)")
+
+        onProposal?(
+            WalletConnectProposal(
+                id: proposal.id,
+                iconURL: proposal.proposer.icons.first.flatMap { URL(string: $0) },
+                name: proposal.proposer.name,
+                optionalChains: Self.chains(proposal.optionalNamespaces),
+                requiredChains: Self.chains(proposal.requiredNamespaces),
+                url: proposal.proposer.url,
+                verification: Self.verification(context)
+            )
+        )
+    }
+
+    func emit(request: Request, context: VerifyContext?) {
+        guard
+            let id = (try? JSONEncoder().encode(request.id)).flatMap({ String(data: $0, encoding: .utf8) }),
+            let params = try? JSONEncoder().encode(request.params)
+        else {
+            // Reown holds back later requests until this one is answered.
+            Logger.verbose("WC request refused: id or params not encodable, method: \(request.method)")
+            Task {
+                try? await Sign.instance.respond(
+                    topic: request.topic,
+                    requestId: request.id,
+                    response: .error(JSONRPCError(code: -32602, message: "Invalid params"))
+                )
+            }
+
+            return
+        }
+
+        Logger.verbose(
+            "WC request received: \(request.method) id: \(id) chain: \(request.chainId.absoluteString) "
+                + "topic: \(request.topic.prefix(8)) params: \(String(data: params, encoding: .utf8) ?? "")"
+        )
+
+        onRequest?(
+            WalletConnectRequest(
+                chainId: request.chainId.absoluteString,
+                id: id,
+                method: request.method,
+                params: params,
+                topic: request.topic,
+                verification: Self.verification(context)
+            )
+        )
+    }
+
+    func observeConnection() {
+        Relay.instance.socketConnectionStatusPublisher
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                MainActor.assumeIsolated {
+                    self?.socketStatusChanged(status)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    func socketStatusChanged(_ status: SocketConnectionStatus) {
+        Logger.verbose("WC relay socket: \(status)")
+
+#if os(macOS)
+        isSocketConnected = status == .connected
+
+        if !isSocketConnected {
+            reconnect()
+        }
+#endif
+    }
+
     func subscribe() {
         Sign.instance.sessionProposalPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] proposal, context in
                 MainActor.assumeIsolated {
-                    self?.onProposal?(
-                        WalletConnectProposal(
-                            id: proposal.id,
-                            iconURL: proposal.proposer.icons.first.flatMap { URL(string: $0) },
-                            name: proposal.proposer.name,
-                            optionalChains: Self.chains(proposal.optionalNamespaces),
-                            requiredChains: Self.chains(proposal.requiredNamespaces),
-                            url: proposal.proposer.url,
-                            verification: Self.verification(context)
-                        )
-                    )
+                    self?.emit(proposal: proposal, context: context)
                 }
             }
             .store(in: &cancellables)
@@ -170,30 +245,8 @@ private extension ReownWalletConnectClient {
         Sign.instance.sessionRequestPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] request, context in
-                guard
-                    let id = (try? JSONEncoder().encode(request.id)).flatMap({ String(data: $0, encoding: .utf8) }),
-                    let params = try? JSONEncoder().encode(request.params)
-                else {
-                    Logger.verbose("WC request dropped: id or params not encodable, method: \(request.method)")
-                    return
-                }
-
-                Logger.verbose(
-                    "WC request received: \(request.method) id: \(id) chain: \(request.chainId.absoluteString) "
-                        + "topic: \(request.topic.prefix(8)) params: \(String(data: params, encoding: .utf8) ?? "")"
-                )
-
                 MainActor.assumeIsolated {
-                    self?.onRequest?(
-                        WalletConnectRequest(
-                            chainId: request.chainId.absoluteString,
-                            id: id,
-                            method: request.method,
-                            params: params,
-                            topic: request.topic,
-                            verification: Self.verification(context)
-                        )
-                    )
+                    self?.emit(request: request, context: context)
                 }
             }
             .store(in: &cancellables)
@@ -201,6 +254,8 @@ private extension ReownWalletConnectClient {
         Sign.instance.sessionsPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] sessions in
+                Logger.verbose("WC sessions: \(sessions.map { "\($0.peer.name) \($0.topic.prefix(8))" })")
+
                 MainActor.assumeIsolated {
                     self?.onSessions?(sessions.map(Self.info(for:)))
                 }
@@ -208,6 +263,65 @@ private extension ReownWalletConnectClient {
             .store(in: &cancellables)
     }
 }
+
+#if os(macOS)
+
+// MARK: - Reconnecting
+
+private extension ReownWalletConnectClient {
+    /// Reown reconnects a dropped socket only while the app is frontmost on macOS
+    /// (`AppStateObserver`), so one that drops while the dApp's browser is in front stays
+    /// down. Subscribing to the session and pairing topics makes it connect.
+    func reconnect() {
+        guard reconnectTask == nil else {
+            return
+        }
+
+        reconnectTask = Task { [weak self] in
+            var delay = 2.0
+
+            while true {
+                try? await Task.sleep(for: .seconds(delay))
+
+                guard
+                    let self,
+                    !self.isSocketConnected,
+                    await self.resubscribe()
+                else {
+                    break
+                }
+
+                delay = min(delay * 2, 60)
+            }
+
+            self?.reconnectTask = nil
+        }
+    }
+
+    /// Returns `false` when there's nothing to subscribe to.
+    func resubscribe() async -> Bool {
+        let now = Date()
+        let topics = Sign.instance.getSessions().map(\.topic)
+            + Pair.instance.getPairings().filter { $0.expiryDate > now }.map(\.topic)
+
+        guard !topics.isEmpty else {
+            Logger.verbose("WC reconnect skipped: no sessions or pairings")
+            return false
+        }
+
+        Logger.verbose("WC reconnecting: subscribing to \(topics.count) topics")
+
+        do {
+            try await Networking.interactor.batchSubscribe(topics: topics)
+        } catch {
+            Logger.verbose("WC reconnect failed: \(error)")
+        }
+
+        return true
+    }
+}
+
+#endif
 
 // MARK: - Crypto
 
@@ -224,87 +338,6 @@ private struct UnsupportedCryptoProvider: CryptoProvider {
 
     func recoverPubKey(signature: EthereumSignature, message: Data) throws -> Data {
         throw Failure.unsupported
-    }
-}
-
-// MARK: - Sockets
-
-private struct URLSessionSocketFactory: WebSocketFactory {
-    func create(with url: URL) -> WebSocketConnecting {
-        URLSessionWebSocket(url: url)
-    }
-}
-
-private final class URLSessionWebSocket: NSObject, WebSocketConnecting, URLSessionWebSocketDelegate,
-    @unchecked Sendable {
-    var isConnected = false
-    var onConnect: (() -> Void)?
-    var onDisconnect: ((Error?) -> Void)?
-    var onText: ((String) -> Void)?
-    var request: URLRequest
-
-    private var session: URLSession?
-    private var task: URLSessionWebSocketTask?
-
-    init(url: URL) {
-        request = URLRequest(url: url)
-        super.init()
-    }
-
-    func connect() {
-        let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
-        self.session = session
-        task = session.webSocketTask(with: request)
-        task?.resume()
-        receive()
-    }
-
-    func disconnect() {
-        task?.cancel(with: .normalClosure, reason: nil)
-        isConnected = false
-    }
-
-    func write(string: String, completion: (() -> Void)?) {
-        task?.send(.string(string)) { _ in completion?() }
-    }
-
-    private func receive() {
-        task?.receive { [weak self] result in
-            guard let self else {
-                return
-            }
-
-            switch result {
-            case let .success(message):
-                if case let .string(text) = message {
-                    onText?(text)
-                }
-
-                receive()
-            case let .failure(error):
-                isConnected = false
-                onDisconnect?(error)
-            }
-        }
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        webSocketTask: URLSessionWebSocketTask,
-        didOpenWithProtocol protocol: String?
-    ) {
-        isConnected = true
-        onConnect?()
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        webSocketTask: URLSessionWebSocketTask,
-        didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
-        reason: Data?
-    ) {
-        isConnected = false
-        onDisconnect?(nil)
     }
 }
 

@@ -18,6 +18,8 @@ final class DappApprover: DappApproving {
     private(set) var currentRequest: DappApprovalRequest?
     /// The last approved request's failure, shown as an alert until dismissed.
     var failureMessage: String?
+    /// Called when a prompt is about to be presented.
+    @ObservationIgnored var onPrompt: (() -> Void)?
     /// Whether the approved `currentRequest` finished and "Complete" is showing.
     private(set) var isCompleted = false
     /// Whether `currentRequest` was approved and is still being handled.
@@ -75,6 +77,7 @@ final class DappApprover: DappApproving {
         rejectPending()
 
         currentRequest = request
+        onPrompt?()
         isCompleted = false
         isProcessing = false
         pendingRequestId = DappRequestScope.id

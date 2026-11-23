@@ -61,35 +61,3 @@ struct DappDisconnectTests {
         )
     }
 }
-
-@MainActor
-private final class FakeWalletConnectClient: WalletConnectClient {
-    var onProposal: ((WalletConnectProposal) -> Void)?
-    var onRequest: ((WalletConnectRequest) -> Void)?
-    var onSessions: (([WalletConnectSessionInfo]) -> Void)?
-
-    private(set) var disconnectedTopics: [String] = []
-    private let storedSessions: [WalletConnectSessionInfo]
-
-    init(sessions: [WalletConnectSessionInfo]) {
-        storedSessions = sessions
-    }
-
-    func approve(proposalId: String, namespaces: [WalletConnectApprovedNamespace]) async throws {}
-
-    func configure() {}
-
-    func disconnect(topic: String) async throws {
-        disconnectedTopics.append(topic)
-    }
-
-    func pair(uri: String) async throws {}
-
-    func reject(proposalId: String) async throws {}
-
-    func respond(topic: String, requestId: String, result: Result<Data, WalletConnectRPCError>) async throws {}
-
-    func sessions() -> [WalletConnectSessionInfo] {
-        storedSessions
-    }
-}
