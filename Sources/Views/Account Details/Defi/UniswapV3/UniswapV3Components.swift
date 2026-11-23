@@ -72,6 +72,30 @@ struct TokenIconView: View {
     }
 }
 
+// MARK: - Metric
+
+/// A captioned value; DeFi rows have no column headers.
+struct DefiMetric<Value: View>: View {
+    let title: LocalizedStringResource
+    let value: Value
+    let width: CGFloat
+
+    init(_ title: LocalizedStringResource, width: CGFloat, @ViewBuilder value: () -> Value) {
+        self.title = title
+        self.value = value()
+        self.width = width
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(title)
+                .style(.small, foreground: .secondary)
+            value
+        }
+        .frame(width: width, alignment: .trailing)
+    }
+}
+
 // MARK: - Status
 
 struct PositionStatusLabel: View {

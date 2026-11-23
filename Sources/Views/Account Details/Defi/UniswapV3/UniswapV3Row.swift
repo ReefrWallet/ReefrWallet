@@ -33,12 +33,34 @@ struct UniswapV3Row: Identifiable {
 
     /// "WETH / USDC", base first.
     var pairName: String {
-        "\(base.symbol) / \(quote.symbol)"
+        Self.pairName(position.token0, position.token1)
+    }
+
+    var feeTier: String {
+        Self.feeTier(position.fee)
     }
 
     /// "0.05%".
-    var feeTier: String {
-        (Decimal(position.fee) / 1_000_000).formatted(.percent.precision(.fractionLength(0 ... 2)))
+    static func feeTier(_ fee: UInt32) -> String {
+        (Decimal(fee) / 1_000_000).formatted(.percent.precision(.fractionLength(0 ... 2)))
+    }
+
+    /// The pair base first: the quote is a stablecoin when one side is, else token1.
+    static func pair(
+        _ token0: UniswapV3Position.Token,
+        _ token1: UniswapV3Position.Token
+    ) -> (base: UniswapV3Position.Token, quote: UniswapV3Position.Token) {
+        isQuote(token0) && !isQuote(token1) ? (token1, token0) : (token0, token1)
+    }
+
+    static func pairName(_ token0: UniswapV3Position.Token, _ token1: UniswapV3Position.Token) -> String {
+        let pair = pair(token0, token1)
+        return "\(pair.base.symbol) / \(pair.quote.symbol)"
+    }
+
+    /// "1,598.47 US$".
+    static func usd(_ value: Decimal) -> String {
+        "\(value.formattedAbbreviated()) US$"
     }
 
     // MARK: - Range
@@ -85,8 +107,15 @@ struct UniswapV3Row: Identifiable {
     // MARK: - Distribution
 
     /// Each token's share of the deployed value in USD, base first; `nil` if unpriced or empty.
+    /// A one-sided position needs no prices.
     var distribution: (base: Double, quote: Double)? {
         let deployed = position.deployed
+
+        if (deployed.amount0 == 0) != (deployed.amount1 == 0) {
+            let share0: Double = deployed.amount0 == 0 ? 0 : 1
+            return isInverted ? (1 - share0, share0) : (share0, 1 - share0)
+        }
+
         let value0 = position.token0.usdValue(deployed.amount0)
         let value1 = position.token1.usdValue(deployed.amount1)
 
@@ -107,17 +136,20 @@ struct UniswapV3Row: Identifiable {
 
     // MARK: - Values
 
-    /// "1,598.47 US$": the priced parts.
+    /// "1,598.47 US$": the priced parts; "—" when nothing is priced.
     var valueText: String {
-        Self.usd(usdValue)
+        position.token0.usdPrice == nil && position.token1.usdPrice == nil ? "—" : Self.usd(usdValue)
     }
 
-    var feesText: String {
+    /// "0.42 US$", or one line per token when unpriced.
+    var feesLines: [String] {
         if let feesUSD = position.feesUSD {
-            return Self.usd(feesUSD)
+            return [Self.usd(feesUSD)]
         }
 
-        return Self.amounts(position.fees, position)
+        let fees = position.fees
+        let parts = Self.amountParts([(fees.amount0, position.token0), (fees.amount1, position.token1)])
+        return parts.isEmpty ? ["0"] : parts
     }
 
     /// Owed amounts that may mix principal and fees, shown apart from Fees.
@@ -169,16 +201,17 @@ struct UniswapV3Row: Identifiable {
             : value.formatted(.number.precision(.significantDigits(4)))
     }
 
-    private static func usd(_ value: Decimal) -> String {
-        "\(value.formattedAbbreviated()) US$"
-    }
-
     private static func amounts(_ amounts: UniswapV3Position.Amounts, _ position: UniswapV3Position) -> String {
         Self.amounts([(amounts.amount0, position.token0), (amounts.amount1, position.token1)])
     }
 
-    /// Non-zero amounts joined with "+"; ones too small to show read "<0.000001".
+    /// Non-zero amounts joined with "+".
     private static func amounts(_ amounts: [(BigUInt, UniswapV3Position.Token)]) -> String {
+        amountParts(amounts).joined(separator: " + ").nonEmpty ?? "0"
+    }
+
+    /// Non-zero amounts; ones too small to show read "<0.000001".
+    private static func amountParts(_ amounts: [(BigUInt, UniswapV3Position.Token)]) -> [String] {
         amounts
             .filter { $0.0 > 0 }
             .map { amount, token in
@@ -187,8 +220,6 @@ struct UniswapV3Row: Identifiable {
                     ? "<\(smallestAmount.formatted(symbol: token.symbol))"
                     : value.formatted(symbol: token.symbol)
             }
-            .joined(separator: " + ")
-            .nonEmpty ?? "0"
     }
 
     private static let smallestAmount = Decimal(sign: .plus, exponent: -6, significand: 1)

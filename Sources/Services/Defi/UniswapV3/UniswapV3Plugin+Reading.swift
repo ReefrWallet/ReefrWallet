@@ -106,7 +106,7 @@ extension UniswapV3Plugin {
     }
 
     /// Ownership, position, pool and tick reads at `block`, in three Multicall rounds.
-    func readStates(
+    static func readStates(
         _ candidates: [Candidate],
         owner: String,
         deployment: UniswapV3Deployment,
@@ -140,7 +140,7 @@ extension UniswapV3Plugin {
     }
 
     /// Round 1: `ownerOf` and `positions` per token.
-    private func readOwnedPositions(
+    private static func readOwnedPositions(
         _ candidates: [Candidate],
         owner: String,
         deployment: UniswapV3Deployment,
@@ -180,7 +180,7 @@ extension UniswapV3Plugin {
     }
 
     /// Round 2: the factory's pool for each distinct token pair and fee.
-    private func readPools(
+    private static func readPools(
         _ raws: [RawPosition],
         deployment: UniswapV3Deployment,
         reader: any DefiEVMReader,
@@ -210,7 +210,7 @@ extension UniswapV3Plugin {
     }
 
     /// Round 3: each pool's price and global fee growth, and each position's tick fee growth.
-    private func readPoolStates(
+    private static func readPoolStates(
         _ located: [Located],
         reader: any DefiEVMReader,
         at block: BlockRef

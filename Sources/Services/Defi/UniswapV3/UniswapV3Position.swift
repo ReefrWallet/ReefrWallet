@@ -14,6 +14,8 @@ struct UniswapV3Position: Codable, Equatable, Sendable {
     let apr: Decimal?
     let chainId: UInt64
     let createdAt: Date?
+    /// The protocol holding the NFT for the account, e.g. a Revert Lend vault; `nil` when the account holds it.
+    var custodian: Custodian?
     /// Token amounts currently providing liquidity.
     let deployed: Amounts
     let deployedUSD: Decimal?
@@ -120,7 +122,14 @@ struct UniswapV3Position: Codable, Equatable, Sendable {
         case withdrawn
     }
 
-    struct Token: Codable, Equatable, Sendable {
+    /// A contract holding the position NFT on the account's behalf. See ADR-075.
+    struct Custodian: Codable, Equatable, Sendable {
+        let kind: DefiPluginKind
+        /// The custodian contract's address.
+        let vault: String
+    }
+
+        struct Token: Codable, Equatable, Sendable {
         let address: String
         let decimals: Int
         let imageURL: URL?

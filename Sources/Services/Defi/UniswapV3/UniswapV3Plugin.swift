@@ -99,7 +99,8 @@ struct UniswapV3Plugin: DefiPlugin {
         return now.timeIntervalSince(scannedAt) >= Self.nftScanMaxAge
     }
 
-    /// One outcome per stored or owned position: valued, removed or failed.
+    /// One outcome per stored or owned position: valued, removed or failed. Rows held by a
+    /// custodian belong to its plugin and are left alone.
     /// - Parameter rotation: Where the run starts handing out `budget`.
     func outcomes(
         nfts: [NFT],
@@ -113,51 +114,141 @@ struct UniswapV3Plugin: DefiPlugin {
         }
 
         let reader = try readerFactory(account)
+        let blocks = try await Self.pin(reader)
+        let previous = Self.payloads(previous)
+        let candidates = positionNFTs(nfts, deployment: deployment, chainId: chain.chainId)
+        let gone = previous.keys.filter { key in !candidates.contains { $0.key == key } }
+        let context = Run(
+            account: account,
+            blocks: blocks,
+            budget: budget,
+            chainId: chain.chainId,
+            deployment: deployment,
+            reader: reader,
+            tokenSource: tokenSource
+        )
 
+        let valued = try await Self.value(
+            candidates,
+            owner: account.address,
+            custodian: nil,
+            run: context,
+            previous: previous,
+            mints: mints,
+            rotation: rotation
+        )
+
+        try await Self.verifyCanonical(blocks.pinned, reader: reader)
+
+        // A stale NFT scan may still list a position a custodian now holds.
+        return (gone.map { DefiPositionOutcome.removed(key: $0) } + valued).filter { outcome in
+            guard case let .removed(key) = outcome else {
+                return true
+            }
+
+            return previous[key]?.custodian == nil
+        }
+    }
+}
+
+// MARK: - Shared pipeline
+
+/// Reads and values Uniswap V3 positions held by any owner; also used by custodian plugins. See ADR-075.
+extension UniswapV3Plugin {
+    /// A run's pinned reads: everything valued in one run shares these.
+    struct Run: Sendable {
+        let account: Account
+        let blocks: Blocks
+        let budget: DefiRequestBudget
+        let chainId: UInt64
+        let deployment: UniswapV3Deployment
+        let reader: any DefiEVMReader
+        let tokenSource: any UniswapV3TokenSource
+    }
+
+    struct Blocks: Sendable {
+        let pinned: BlockRef
+        let safe: BlockRef
+    }
+
+    /// The latest block to pin every read to, and the safe block history settles at.
+    static func pin(_ reader: any DefiEVMReader) async throws -> Blocks {
         guard let pinned = try await reader.block(.latest) else {
             throw BlockchainClientError.decodingFailed(reason: "no latest block")
         }
 
-        let safe = try await safeBlock(reader: reader, pinned: pinned)
-        let previous = Self.payloads(previous)
-        let candidates = positionNFTs(nfts, deployment: deployment, chainId: chain.chainId)
-        var outcomes = previous.keys
-            .filter { key in !candidates.contains { $0.key == key } }
-            .map { DefiPositionOutcome.removed(key: $0) }
+        return Blocks(pinned: pinned, safe: try await safeBlock(reader: reader, pinned: pinned))
+    }
 
-        let states = try await readStates(
-            candidates,
-            owner: account.address,
-            deployment: deployment,
-            reader: reader,
-            at: pinned
-        )
-
-        let live = Self.classify(candidates, states: states, chainId: chain.chainId, outcomes: &outcomes)
-        let tokens = await tokenSource.tokens(Self.tokenAddresses(live), account: account, now: pinned.timestamp)
-        let blocks = BlockCache(reader: reader, known: [pinned, safe])
-        let scanner = UniswapV3HistoryScanner(
-            blocks: blocks,
-            budget: budget,
-            chunks: ChunkSizer(reader.preferredLogRange),
-            deployment: deployment,
-            pinned: pinned,
-            reader: reader,
-            safe: safe
-        )
-
-        for position in Self.rotated(live, by: rotation) {
-            outcomes.append(
-                try await valuate(position, tokens: tokens, mints: mints, scanner: scanner, previous: previous)
-            )
-        }
-
-        // Every read was pinned to this block; a reorg during the run voids them all.
+    /// Every read was pinned to this block; a reorg during the run voids them all.
+    static func verifyCanonical(_ pinned: BlockRef, reader: any DefiEVMReader) async throws {
         guard try await reader.block(.number(pinned.number))?.hash == pinned.hash else {
             throw BlockchainClientError.decodingFailed(reason: "block \(pinned.number) reorganized during the run")
         }
+    }
+
+    /// Outcomes for `candidates` held by `owner`: valued, removed (not held, empty) or failed.
+    static func value(
+        _ candidates: [Candidate],
+        owner: String,
+        custodian: UniswapV3Position.Custodian?,
+        run: Run,
+        previous: [String: UniswapV3Position],
+        mints: [String: NFTMint],
+        rotation: Int
+    ) async throws -> [DefiPositionOutcome] {
+        let pinned = run.blocks.pinned
+        let states = try await readStates(
+            candidates,
+            owner: owner,
+            deployment: run.deployment,
+            reader: run.reader,
+            at: pinned
+        )
+
+        var outcomes: [DefiPositionOutcome] = []
+        let live = classify(candidates, states: states, chainId: run.chainId, outcomes: &outcomes)
+        let tokens = await run.tokenSource.tokens(tokenAddresses(live), account: run.account, now: pinned.timestamp)
+        let scanner = UniswapV3HistoryScanner(
+            blocks: BlockCache(reader: run.reader, known: [pinned, run.blocks.safe]),
+            budget: run.budget,
+            chunks: ChunkSizer(run.reader.preferredLogRange),
+            deployment: run.deployment,
+            pinned: pinned,
+            reader: run.reader,
+            safe: run.blocks.safe
+        )
+
+        for position in rotated(live, by: rotation) {
+            outcomes.append(
+                try await valuate(
+                    position,
+                    tokens: tokens,
+                    mints: mints,
+                    scanner: scanner,
+                    previous: previous,
+                    custodian: custodian
+                )
+            )
+        }
 
         return outcomes
+    }
+
+    /// Stored payloads of kind `uniswapV3` by key.
+    static func payloads(_ positions: [DefiPosition]) -> [String: UniswapV3Position] {
+        positions.reduce(into: [:]) { result, position in
+            guard position.kind == kind else {
+                return
+            }
+
+            result[position.key] = try? position.payload.decoded() as UniswapV3Position
+        }
+    }
+
+    /// The record key of a position.
+    static func key(chainId: UInt64, tokenId: BigUInt) -> String {
+        "\(chainId):\(tokenId)"
     }
 }
 
@@ -190,12 +281,13 @@ extension UniswapV3Plugin {
     }
 
     /// Scans a live position's history and builds its outcome.
-    private func valuate(
+    private static func valuate(
         _ position: LivePosition,
         tokens: [String: UniswapV3Position.Token],
         mints: [String: NFTMint],
         scanner: UniswapV3HistoryScanner,
-        previous: [String: UniswapV3Position]
+        previous: [String: UniswapV3Position],
+        custodian: UniswapV3Position.Custodian?
     ) async throws -> DefiPositionOutcome {
         let key = position.candidate.key
 
@@ -226,13 +318,14 @@ extension UniswapV3Plugin {
             history = .init(mint: nil, persisted: previousHistory, state: .unavailable, totals: nil)
         }
 
-        return Self.outcome(
+        return outcome(
             key: key,
             chainId: position.chainId,
             position: position,
             history: history,
             tokens: (token0, token1),
-            pinned: scanner.pinned
+            pinned: scanner.pinned,
+            custodian: custodian
         )
     }
 
@@ -258,21 +351,11 @@ extension UniswapV3Plugin {
                 return nil
             }
 
-            return Candidate(key: "\(chainId):\(tokenId)", nftKey: nft.id, tokenId: tokenId)
+            return Candidate(key: Self.key(chainId: chainId, tokenId: tokenId), nftKey: nft.id, tokenId: tokenId)
         }
     }
 
-    private static func payloads(_ positions: [DefiPosition]) -> [String: UniswapV3Position] {
-        positions.reduce(into: [:]) { result, position in
-            guard position.kind == kind else {
-                return
-            }
-
-            result[position.key] = try? position.payload.decoded() as UniswapV3Position
-        }
-    }
-
-    private func safeBlock(reader: any DefiEVMReader, pinned: BlockRef) async throws -> BlockRef {
+    private static func safeBlock(reader: any DefiEVMReader, pinned: BlockRef) async throws -> BlockRef {
         if let finalized = try await reader.block(.finalized), finalized.number <= pinned.number {
             return finalized
         }
@@ -287,7 +370,7 @@ extension UniswapV3Plugin {
     }
 
     /// The newest still-canonical persisted mint of a lower token id.
-    private func searchFloor(
+    private static func searchFloor(
         below tokenId: BigUInt,
         previous: [String: UniswapV3Position],
         blocks: BlockCache

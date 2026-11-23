@@ -30,7 +30,8 @@ extension UniswapV3Plugin {
         position: LivePosition,
         history: UniswapV3HistoryScanner.Result,
         tokens: TokenPair,
-        pinned: BlockRef
+        pinned: BlockRef,
+        custodian: UniswapV3Position.Custodian? = nil
     ) -> DefiPositionOutcome {
         let state = position.state
         let fees = fees(state, history: history)
@@ -44,6 +45,7 @@ extension UniswapV3Plugin {
             apr: valuation.apr,
             chainId: chainId,
             createdAt: valuation.mint?.timestamp,
+            custodian: custodian,
             deployed: valuation.deployed,
             deployedUSD: valuation.deployedUSD,
             fee: state.fee,

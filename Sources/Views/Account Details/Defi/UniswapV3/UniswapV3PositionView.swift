@@ -62,6 +62,8 @@ private extension UniswapV3PositionView {
                     feesLabel(row)
                 }
 
+                custodianLabel(row)
+
                 LiquidityDistributionBar(row: row)
             }
         }
@@ -88,27 +90,28 @@ private extension UniswapV3PositionView {
                     .style(.medium, foreground: .primary)
                     .lineLimit(1)
                 PositionStatusLabel(status: row.position.status)
+                custodianLabel(row)
             }
             .frame(width: 235, alignment: .leading)
 
             LiquidityDistributionBar(row: row)
                 .frame(minWidth: 160, maxWidth: 260)
 
-            metric(.defiUniswapV3Value, width: 100) {
+            DefiMetric(.defiUniswapV3Value, width: 100) {
                 valueLabel(row)
                     .style(.medium, foreground: .primary)
             }
 
-            metric(.defiUniswapV3Fees, width: 110) {
+            DefiMetric(.defiUniswapV3Fees, width: 110) {
                 feesLabel(row)
             }
 
-            metric(.defiUniswapV3Apr, width: 60) {
+            DefiMetric(.defiUniswapV3Apr, width: 60) {
                 aprLabel(row)
                     .style(.medium, foreground: .primary)
             }
 
-            metric(.defiUniswapV3Created, width: 80) {
+            DefiMetric(.defiUniswapV3Created, width: 80) {
                 historyLabel(row, text: row.createdText)
                     .style(.medium, foreground: .secondary)
             }
@@ -117,17 +120,17 @@ private extension UniswapV3PositionView {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("defi-uniswap-row-\(row.position.tokenId)")
     }
-
-    /// A captioned value; rows have no column headers.
-    func metric(_ title: LocalizedStringResource, width: CGFloat, @ViewBuilder value: () -> some View) -> some View {
-        VStack(alignment: .trailing, spacing: 2) {
-            Text(title)
-                .style(.small, foreground: .secondary)
-            value()
-        }
-        .frame(width: width, alignment: .trailing)
-    }
     #endif
+
+    /// "Revert Lend collateral" when a protocol holds the NFT.
+    @ViewBuilder
+    func custodianLabel(_ row: UniswapV3Row) -> some View {
+        if let custodian = row.position.custodian, custodian.kind == .revertLend {
+            Text(.defiUniswapV3RevertCollateral)
+                .style(.small, foreground: .secondary)
+                .help(String(localized: .defiUniswapV3CustodianHelp(custodian.vault)))
+        }
+    }
 
     @ViewBuilder
     func rangeLabel(_ row: UniswapV3Row) -> some View {
@@ -145,9 +148,15 @@ private extension UniswapV3PositionView {
 
     func feesLabel(_ row: UniswapV3Row) -> some View {
         VStack(alignment: .trailing, spacing: 2) {
-            Text(verbatim: row.feesText)
-                .style(isPhone ? .callout : .medium, foreground: .primary)
-                .help(row.lifetimeFeesText.map { String(localized: .defiUniswapV3LifetimeFees($0)) } ?? "")
+            VStack(alignment: .trailing, spacing: 0) {
+                ForEach(row.feesLines, id: \.self) { line in
+                    Text(verbatim: line)
+                }
+            }
+            .style(isPhone ? .callout : .medium, foreground: .primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .help(row.lifetimeFeesText.map { String(localized: .defiUniswapV3LifetimeFees($0)) } ?? "")
 
             if let claimable = row.claimableText {
                 Text(.defiUniswapV3Claimable(claimable))
@@ -190,7 +199,8 @@ extension DefiPosition {
         liquidity: Int = 1,
         history: UniswapV3Position.HistoryState = .complete,
         isPriced: Bool = true,
-        ticks: (lower: Int, upper: Int) = (-199_200, -191_100)
+        ticks: (lower: Int, upper: Int) = (-199_200, -191_100),
+        custodian: UniswapV3Position.Custodian? = nil
     ) -> DefiPosition {
         let weth = UniswapV3Position.Token(
             address: "0x1", decimals: 18, imageURL: nil, priceAt: .now, symbol: "WETH", usdPrice: isPriced ? 3_000 : nil
@@ -210,6 +220,7 @@ extension DefiPosition {
             apr: history == .complete ? 0.306 : nil,
             chainId: 1,
             createdAt: history == .complete ? .now.addingTimeInterval(-90 * 86_400) : nil,
+            custodian: custodian,
             deployed: .init(BigUInt(5) * BigUInt(10).power(17), 39_000_000),
             deployedUSD: 1_539,
             fee: 500,
@@ -253,7 +264,8 @@ extension DefiPosition {
         .uniswapPreview(id: "3", liquidity: 0),
         .uniswapPreview(id: "4", history: .loading),
         .uniswapPreview(id: "5", isPriced: false),
-        .uniswapPreview(id: "6", ticks: (-887_270, 887_270))
+        .uniswapPreview(id: "6", ticks: (-887_270, 887_270)),
+        .uniswapPreview(id: "7", custodian: .init(kind: .revertLend, vault: "0x74e6afef5705beb1"))
     ]
 
     let blockchain = Blockchain.evm(.ethereum(.mainnet))

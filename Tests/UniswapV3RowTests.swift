@@ -47,4 +47,54 @@ struct UniswapV3RowTests {
 
         #expect(row.pooledText == expected)
     }
+
+    // MARK: - Unpriced (testnet)
+
+    @Test func anUnpricedPositionHasNoValue() throws {
+        let row = try Self.unpriced { _ in }
+
+        #expect(row.valueText == "—")
+    }
+
+    @Test func unpricedFeesGetALinePerToken() throws {
+        let row = try Self.unpriced { _ in }
+
+        #expect(row.feesLines.count == 2)
+        #expect(row.feesLines.allSatisfy { !$0.contains("+") })
+    }
+
+    @Test func aOneSidedPositionNeedsNoPricesToSplit() throws {
+        let row = try Self.unpriced { $0["deployed"] = ["token0": "0", "token1": "10000000"] }
+        let distribution = try #require(row.distribution)
+
+        #expect(distribution.base == 0)
+        #expect(distribution.quote == 1)
+    }
+
+    /// The preview position without prices, edited as JSON.
+    private static func unpriced(_ edit: (inout [String: Any]) -> Void) throws -> UniswapV3Row {
+        let preview = DefiPosition.uniswapPreview(id: "1")
+        var json = try #require(try JSONSerialization.jsonObject(with: preview.payload) as? [String: Any])
+
+        for token in ["token0", "token1"] {
+            var value = try #require(json[token] as? [String: Any])
+            value["usdPrice"] = nil
+            json[token] = value
+        }
+
+        json["feesUSD"] = nil
+        json["valueUSD"] = nil
+        edit(&json)
+
+        let record = DefiPosition(
+            id: preview.id,
+            key: preview.key,
+            kind: preview.kind,
+            payload: try JSONSerialization.data(withJSONObject: json),
+            updatedAt: preview.updatedAt,
+            usdValue: 0
+        )
+
+        return try #require(UniswapV3Row(record))
+    }
 }

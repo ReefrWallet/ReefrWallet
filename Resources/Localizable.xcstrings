@@ -3564,6 +3564,162 @@
         }
       }
     },
+    "defi.revertLend.atRisk" : {
+      "comment" : "RevertLendPositionView: loan health below 1.2",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At risk"
+          }
+        }
+      }
+    },
+    "defi.revertLend.borrowApr" : {
+      "comment" : "RevertLendPositionView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrow APR"
+          }
+        }
+      }
+    },
+    "defi.revertLend.debt" : {
+      "comment" : "RevertLendPositionView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debt"
+          }
+        }
+      }
+    },
+    "defi.revertLend.deposit" : {
+      "comment" : "RevertLendPositionView: token symbol lent to the vault",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ deposit"
+          }
+        }
+      }
+    },
+    "defi.revertLend.health" : {
+      "comment" : "RevertLendPositionView: collateral value ÷ debt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health"
+          }
+        }
+      }
+    },
+    "defi.revertLend.healthHelp" : {
+      "comment" : "RevertLendPositionView: help of the health value; the argument is a USD value",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collateral value %@ ÷ debt. Below 1 the loan can be liquidated."
+          }
+        }
+      }
+    },
+    "defi.revertLend.healthy" : {
+      "comment" : "RevertLendPositionView: loan health",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Healthy"
+          }
+        }
+      }
+    },
+    "defi.revertLend.liquidatable" : {
+      "comment" : "RevertLendPositionView: loan health below 1",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquidatable"
+          }
+        }
+      }
+    },
+    "defi.revertLend.ltv" : {
+      "comment" : "RevertLendPositionView: loan to value",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LTV"
+          }
+        }
+      }
+    },
+    "defi.revertLend.noDebt" : {
+      "comment" : "RevertLendPositionView: a position in the vault without a loan",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No debt"
+          }
+        }
+      }
+    },
+    "defi.revertLend.position" : {
+      "comment" : "RevertLendPositionView: the collateral's Uniswap V3 token id",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position #%@"
+          }
+        }
+      }
+    },
+    "defi.revertLend.supplyApr" : {
+      "comment" : "RevertLendPositionView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supply APR"
+          }
+        }
+      }
+    },
+    "defi.revertLend.title" : {
+      "comment" : "AccountDefiView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revert Lend"
+          }
+        }
+      }
+    },
     "defi.section.collapsed" : {
       "comment" : "AccountDefiView: accessibility value of a collapsed plugin section",
       "extractionState" : "manual",
@@ -3672,6 +3828,18 @@
         }
       }
     },
+    "defi.uniswapV3.custodianHelp" : {
+      "comment" : "UniswapV3PositionView: help of the collateral badge",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Held by vault %@"
+          }
+        }
+      }
+    },
     "defi.uniswapV3.fees" : {
       "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
@@ -3752,6 +3920,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Out of range"
+          }
+        }
+      }
+    },
+    "defi.uniswapV3.revertCollateral" : {
+      "comment" : "UniswapV3PositionView: the position backs a Revert Lend loan",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revert Lend collateral"
           }
         }
       }

@@ -152,7 +152,7 @@ struct DefiStoreTests {
             DefiPlugins.types.filter { $0.isSupported(blockchain) }.map { $0.kind }
         }
 
-        #expect(kinds(.evm(.ethereum(.mainnet))) == [.uniswapV3])
+        #expect(kinds(.evm(.ethereum(.mainnet))) == [.revertLend, .uniswapV3])
         #expect(kinds(.evm(.ethereum(.sepolia))) == [.uniswapV3])
         #expect(kinds(.evm(.hyperEVM(.mainnet))) == [.hyperliquid])
         #expect(kinds(.solana(.mainnet)).isEmpty)

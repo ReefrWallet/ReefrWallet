@@ -76,20 +76,25 @@ struct AccountDefiView: View {
             EmptyStateView(.defiNoPositions)
                 .accessibilityIdentifier("account-no-defi")
         } else {
-            Table(of: DefiPosition.self) {
-                TableColumn(.accountDetailsDefi) { position in
-                    model.plugins.first { $0.kindId == position.kind }?.row(position)
+            Table(of: DefiTableEntry.self) {
+                TableColumn(.accountDetailsDefi) { entry in
+                    switch entry {
+                    case let .header(kind):
+                        sectionHeader(kind)
+                    case let .position(position):
+                        model.plugins.first { $0.kindId == position.kind }?.row(position)
+                    }
                 }
             } rows: {
                 ForEach(model.pluginsWithPositions, id: \.kindId) { plugin in
-                    Section {
-                        if !collapsed.contains(plugin.kindId) {
-                            ForEach(model.positions(of: plugin.kindId)) { position in
-                                TableRow(position)
-                            }
+                    DisclosureTableRow(DefiTableEntry.header(plugin.kindId), isExpanded: isExpanded(plugin.kindId)) {
+                        Optional<TableRow<DefiTableEntry>>.none
+                    }
+
+                    if !collapsed.contains(plugin.kindId) {
+                        ForEach(model.positions(of: plugin.kindId)) { position in
+                            TableRow(DefiTableEntry.position(position))
                         }
-                    } header: {
-                        sectionHeader(plugin.kindId)
                     }
                 }
             }
@@ -98,35 +103,52 @@ struct AccountDefiView: View {
     }
     #endif
 
-    /// The plugin's title and total; toggles the section.
-    private func sectionHeader(_ kind: DefiPluginKind) -> some View {
-        let isExpanded = !collapsed.contains(kind)
-
-        return Button {
-            withAnimation(.snappy) {
+    private func isExpanded(_ kind: DefiPluginKind) -> Binding<Bool> {
+        Binding {
+            !collapsed.contains(kind)
+        } set: { isExpanded in
+            withAnimation {
                 if isExpanded {
-                    collapsed.insert(kind)
-                } else {
                     collapsed.remove(kind)
+                } else {
+                    collapsed.insert(kind)
                 }
             }
+        }
+    }
+
+    /// The plugin's title, styled like the Tokens tab's hidden balances; toggles the section.
+    private func sectionHeader(_ kind: DefiPluginKind) -> some View {
+        let isExpanded = isExpanded(kind)
+
+        #if os(iOS)
+        return Button {
+            isExpanded.wrappedValue.toggle()
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "chevron.right")
-                    .style(.small, foreground: .secondary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
                 Text(kind.title)
                 Spacer()
-
-                if isMainnet {
-                    Text(verbatim: Self.usd(model.positions(of: kind).reduce(0) { $0 + $1.usdValue }))
-                }
             }
+            .style(.smallHeader, foreground: .secondary)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityValue(Text(isExpanded ? .defiSectionExpanded : .defiSectionCollapsed))
+        .accessibilityValue(Text(isExpanded.wrappedValue ? .defiSectionExpanded : .defiSectionCollapsed))
         .accessibilityIdentifier("defi-section-\(kind.rawValue)")
+        #else
+        return Text(kind.title)
+            .style(.smallHeader, foreground: .secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isExpanded.wrappedValue.toggle()
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityValue(Text(isExpanded.wrappedValue ? .defiSectionExpanded : .defiSectionCollapsed))
+            .accessibilityIdentifier("defi-section-\(kind.rawValue)")
+        #endif
     }
 
     private static func usd(_ value: Decimal) -> String {
@@ -134,10 +156,26 @@ struct AccountDefiView: View {
     }
 }
 
+#if os(macOS)
+/// A DeFi table row: a plugin's disclosure header or one of its records.
+private enum DefiTableEntry: Identifiable {
+    case header(DefiPluginKind)
+    case position(DefiPosition)
+
+    var id: String {
+        switch self {
+        case let .header(kind): "header:\(kind.rawValue)"
+        case let .position(position): "position:\(position.id)"
+        }
+    }
+}
+#endif
+
 private extension DefiPluginKind {
     var title: LocalizedStringResource {
         switch self {
         case .hyperliquid: .defiHyperliquidTitle
+        case .revertLend: .defiRevertLendTitle
         case .uniswapV3: .defiUniswapV3Title
         }
     }

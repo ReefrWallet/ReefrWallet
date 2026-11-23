@@ -36,11 +36,12 @@ protocol DefiPlugin: Sendable {
 
 enum DefiPluginKind: String, CaseIterable, Codable, Sendable {
     case hyperliquid
+    case revertLend
     case uniswapV3
 }
 
 enum DefiPlugins {
-    static let types: [any DefiPlugin.Type] = [HyperliquidPlugin.self, UniswapV3Plugin.self]
+    static let types: [any DefiPlugin.Type] = [HyperliquidPlugin.self, RevertLendPlugin.self, UniswapV3Plugin.self]
 
     /// Plugins for every supported kind on `account`'s blockchain.
     static func make(for account: Account) -> [any DefiPlugin] {
