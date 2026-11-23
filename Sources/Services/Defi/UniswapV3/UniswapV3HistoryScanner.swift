@@ -48,7 +48,7 @@ struct UniswapV3HistoryScanner: Sendable {
     func scan(
         tokenId: BigUInt,
         previous: UniswapV3Position.History,
-        ledgerMint: DefiMintEvidence?,
+        ledgerMint: NFTMint?,
         searchFloor: UInt64?
     ) async throws -> Result {
         var history = try await verified(previous)
@@ -89,7 +89,7 @@ struct UniswapV3HistoryScanner: Sendable {
         case notFound
     }
 
-    private func ledgerMintBlock(_ evidence: DefiMintEvidence?) async throws -> BlockRef? {
+    private func ledgerMintBlock(_ evidence: NFTMint?) async throws -> BlockRef? {
         guard let evidence, let block = try await blocks.block(evidence.blockNumber) else {
             return nil
         }

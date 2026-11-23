@@ -31,10 +31,6 @@ struct UniswapV3Deployment: Sendable {
         return all[chain.chainId]
     }
 
-    /// Chains whose public NFT provider passed verification (ADR-073): Ethereum,
-    /// Optimism, Unichain. Other deployments need an account's RPC override.
-    static let verifiedProviderChains: Set<UInt64> = [1, 10, 130]
-
     /// By chain id.
     static let all: [UInt64: Self] = [
         // Ethereum
@@ -84,6 +80,12 @@ struct UniswapV3Deployment: Sendable {
             factory: "0x740b1c1de25031c31ff4fc9a62f554a55cdc1bad",
             positionManager: "0x655c406ebfa14ee2006250925e54ec43ad184f8b",
             deploymentBlock: 27_833_025
+        ),
+        // Sepolia
+        11_155_111: Self(
+            factory: "0x0227628f3f023bb0b980b67d528571c95c6dac1c",
+            positionManager: "0x1238536071e1c677a632429e3655c799b22cda52",
+            deploymentBlock: 3_518_286
         )
     ]
 }

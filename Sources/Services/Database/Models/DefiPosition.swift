@@ -13,7 +13,6 @@ import SwiftData
 /// A DeFi widget's stored state, written by its plugin. See ADR-073.
 struct DefiPosition: Equatable, Identifiable, Sendable {
     let id: String
-    let isUSDValueComplete: Bool
     /// The plugin-defined key, unique per account and kind.
     let key: String
     let kind: DefiPluginKind
@@ -21,7 +20,7 @@ struct DefiPosition: Equatable, Identifiable, Sendable {
     let payload: Data
     let updatedAt: Date
     /// The sum of the position's priced parts.
-    let usdValue: Decimal?
+    let usdValue: Decimal
 
     init?(model: DefiPositionModel) {
         guard let kind = DefiPluginKind(rawValue: model.serializedKind) else {
@@ -29,7 +28,6 @@ struct DefiPosition: Equatable, Identifiable, Sendable {
         }
 
         id = model.defiPositionId
-        isUSDValueComplete = model.isUSDValueComplete
         key = model.key
         self.kind = kind
         payload = model.payload
@@ -39,15 +37,13 @@ struct DefiPosition: Equatable, Identifiable, Sendable {
 
     init(
         id: String,
-        isUSDValueComplete: Bool,
         key: String,
         kind: DefiPluginKind,
         payload: Data,
         updatedAt: Date,
-        usdValue: Decimal?
+        usdValue: Decimal
     ) {
         self.id = id
-        self.isUSDValueComplete = isUSDValueComplete
         self.key = key
         self.kind = kind
         self.payload = payload
@@ -65,12 +61,12 @@ struct DefiPosition: Equatable, Identifiable, Sendable {
 @Model
 final class DefiPositionModel {
     @Attribute(.unique) var defiPositionId: String
-    var isUSDValueComplete: Bool
     var key: String
     var payload: Data
     var serializedKind: String
     var updatedAt: Date
-    var usdValue: Decimal?
+    /// Defaulted so stores with unpriced (`nil`) rows migrate.
+    var usdValue: Decimal = 0
 
     @Relationship(deleteRule: .noAction)
     var account: AccountModel
@@ -84,7 +80,6 @@ final class DefiPositionModel {
     ) {
         self.account = account
         self.defiPositionId = defiPositionId
-        isUSDValueComplete = record.isUSDValueComplete
         key = record.key
         payload = record.payload
         serializedKind = kind.rawValue
@@ -93,7 +88,6 @@ final class DefiPositionModel {
     }
 
     func update(from record: DefiPositionRecord, updatedAt: Date) {
-        isUSDValueComplete = record.isUSDValueComplete
         payload = record.payload
         self.updatedAt = updatedAt
         usdValue = record.usdValue

@@ -108,7 +108,7 @@ struct PositionStatusLabel: View {
 
 // MARK: - Distribution
 
-/// The deployed value split between the two tokens.
+/// The deployed value split between the two tokens, with the pooled amounts below.
 struct LiquidityDistributionBar: View {
     let row: UniswapV3Row
 
@@ -128,13 +128,20 @@ struct LiquidityDistributionBar: View {
             }
             .frame(height: 6)
 
-            if let distribution = row.distribution {
-                Text(verbatim: "\(Self.percent(distribution.base)) \(row.base.symbol)  \(Self.percent(distribution.quote)) \(row.quote.symbol)")
-                    .style(.caption, foreground: .secondary)
-                    .lineLimit(1)
-            }
+            Text(verbatim: row.pooledText)
+                .style(.caption, foreground: .secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
+        .help(shares ?? "")
         .accessibilityElement(children: .combine)
+    }
+
+    /// "89.30% WETH, 10.70% USDC".
+    private var shares: String? {
+        row.distribution.map { distribution in
+            "\(Self.percent(distribution.base)) \(row.base.symbol), \(Self.percent(distribution.quote)) \(row.quote.symbol)"
+        }
     }
 
     private static func percent(_ value: Double) -> String {

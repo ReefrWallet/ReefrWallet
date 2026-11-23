@@ -31,9 +31,7 @@ extension DatabaseService {
         var defi = FetchDescriptor<DefiPositionModel>()
         defi.relationshipKeyPathsForPrefetching = [\.account]
         for position in try modelContext.fetch(defi) {
-            if let usdValue = position.usdValue {
-                values[position.account.id, default: 0] += usdValue
-            }
+            values[position.account.id, default: 0] += position.usdValue
         }
 
         return values

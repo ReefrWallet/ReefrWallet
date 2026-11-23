@@ -17,6 +17,12 @@ struct NFTScanState: Equatable, Sendable {
     var isSnapshotSource: Bool
 }
 
+/// A mint (`from == 0x0`) transfer seen in an account's NFT ledger.
+struct NFTMint: Equatable, Sendable {
+    let blockHash: String?
+    let blockNumber: UInt64
+}
+
 /// An NFT whose metadata URI hasn't been resolved yet.
 struct NFTMetadataRequest: Sendable {
     let key: String
@@ -73,6 +79,35 @@ extension DatabaseService {
                 scannedBlock: scan.scannedBlock,
                 isSnapshotSource: scan.isSnapshotSource
             )
+        }
+    }
+
+    /// The earliest ledger mint of each NFT, by NFT key.
+    func fetchNFTMints(account: Account) throws -> [String: NFTMint] {
+        let model = try accountModel(for: account)
+        let accountKey = try model.persistentModelID.stableKey()
+        let zero = "0x" + String(repeating: "0", count: 40)
+
+        return model.nftTransferEvents.reduce(into: [:]) { result, row in
+            guard row.from == zero, let event = row.event else {
+                return
+            }
+
+            let reference = NFTReference(
+                collection: event.contract,
+                isTransferable: true,
+                standard: event.standard,
+                tokenId: event.tokenId
+            )
+
+            let key = NFTKey.make(accountKey: accountKey, reference: reference)
+            let mint = NFTMint(blockHash: event.blockHash, blockNumber: event.blockNumber)
+
+            if let existing = result[key], existing.blockNumber <= mint.blockNumber {
+                return
+            }
+
+            result[key] = mint
         }
     }
 

@@ -1,5 +1,5 @@
 //
-//  UniswapV3Section.swift
+//  UniswapV3PositionView.swift
 //  Reefr Wallet
 //
 //  Copyright © 2026 Reefr Wallet. All rights reserved.
@@ -9,45 +9,28 @@ import BigInt
 import SwiftUI
 import WalletKit
 
-/// Uniswap V3 LP positions: a sortable table on Mac, Mail-style rows on iPhone.
-struct UniswapV3Section: View {
+/// One Uniswap V3 LP position as a DeFi table row.
+struct UniswapV3PositionView: View {
     let blockchain: Blockchain
-    let rows: [UniswapV3Row]
+    let row: UniswapV3Row?
 
-    #if os(macOS)
-    @State private var sortOrder = [KeyPathComparator(\UniswapV3Row.sortValue, order: .reverse)]
-    #endif
-
-    init(positions: [DefiPosition], blockchain: Blockchain) {
+    init(position: DefiPosition, blockchain: Blockchain) {
         self.blockchain = blockchain
-        rows = positions.compactMap(UniswapV3Row.init)
+        row = UniswapV3Row(position)
     }
 
     var body: some View {
-        #if os(iOS)
-        Text(.defiUniswapV3Title)
-            .style(.smallHeader, foreground: .secondary)
-            .listRowSeparator(.hidden)
-
-        ForEach(rows.sorted { $0.sortValue > $1.sortValue }) { row in
+        if let row {
+            #if os(iOS)
             phoneRow(row)
+            #else
+            macRow(row)
+            #endif
         }
-        #else
-        VStack(alignment: .leading, spacing: 8) {
-            Text(.defiUniswapV3Title)
-                .style(.smallHeader, foreground: .secondary)
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-            Table(rows.sorted(using: sortOrder), sortOrder: $sortOrder) {
-                columns
-            }
-        }
-        #endif
     }
 }
 
-private extension UniswapV3Section {
+private extension UniswapV3PositionView {
     #if os(iOS)
     func phoneRow(_ row: UniswapV3Row) -> some View {
         HStack(alignment: .top, spacing: 12) {
@@ -59,9 +42,8 @@ private extension UniswapV3Section {
                     Text(verbatim: row.pairName)
                         .style(.headline, foreground: .primary)
                     Spacer()
-                    Text(verbatim: row.valueText)
+                    valueLabel(row)
                         .style(.large, foreground: .primary)
-                        .help(row.unpricedSymbols.map { String(localized: .defiUnpricedTokens($0)) } ?? "")
                 }
 
                 HStack {
@@ -71,7 +53,7 @@ private extension UniswapV3Section {
                 }
                 .style(.callout, foreground: .secondary)
 
-                Text(verbatim: row.rangeText)
+                rangeLabel(row)
                     .style(.callout, foreground: .secondary)
 
                 HStack {
@@ -87,9 +69,8 @@ private extension UniswapV3Section {
         .accessibilityIdentifier("defi-uniswap-row-\(row.position.tokenId)")
     }
     #else
-    @TableColumnBuilder<UniswapV3Row, KeyPathComparator<UniswapV3Row>>
-    var columns: some TableColumnContent<UniswapV3Row, KeyPathComparator<UniswapV3Row>> {
-        TableColumn(.defiUniswapV3Pool) { row in
+    func macRow(_ row: UniswapV3Row) -> some View {
+        HStack(alignment: .center, spacing: 16) {
             HStack(spacing: 10) {
                 PairIconView(base: row.base, blockchain: blockchain, quote: row.quote)
 
@@ -100,50 +81,67 @@ private extension UniswapV3Section {
                         .style(.small, foreground: .secondary)
                 }
             }
-            .padding(.vertical, 4)
-            .accessibilityIdentifier("defi-uniswap-row-\(row.position.tokenId)")
-        }
-        .width(min: 150, ideal: 190)
+            .frame(width: 180, alignment: .leading)
 
-        TableColumn(.defiUniswapV3Position) { row in
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: row.rangeText)
+                rangeLabel(row)
                     .style(.medium, foreground: .primary)
+                    .lineLimit(1)
                 PositionStatusLabel(status: row.position.status)
             }
-        }
-        .width(min: 180, ideal: 230)
+            .frame(width: 235, alignment: .leading)
 
-        TableColumn(.defiUniswapV3Distribution) { row in
             LiquidityDistributionBar(row: row)
-        }
-        .width(min: 140, ideal: 200)
+                .frame(minWidth: 160, maxWidth: 260)
 
-        TableColumn(.defiUniswapV3Value, value: \.sortValue) { row in
-            Text(verbatim: row.valueText)
-                .style(.medium, foreground: .primary)
-                .help(row.unpricedSymbols.map { String(localized: .defiUnpricedTokens($0)) } ?? "")
-        }
-        .width(min: 80, ideal: 110)
+            metric(.defiUniswapV3Value, width: 100) {
+                valueLabel(row)
+                    .style(.medium, foreground: .primary)
+            }
 
-        TableColumn(.defiUniswapV3Fees, value: \.sortFees) { row in
-            feesLabel(row)
-        }
-        .width(min: 80, ideal: 110)
+            metric(.defiUniswapV3Fees, width: 110) {
+                feesLabel(row)
+            }
 
-        TableColumn(.defiUniswapV3Apr, value: \.sortAPR) { row in
-            aprLabel(row)
-                .style(.medium, foreground: .primary)
-        }
-        .width(min: 60, ideal: 80)
+            metric(.defiUniswapV3Apr, width: 60) {
+                aprLabel(row)
+                    .style(.medium, foreground: .primary)
+            }
 
-        TableColumn(.defiUniswapV3Created, value: \.sortCreated) { row in
-            historyLabel(row, text: row.createdText)
-                .style(.medium, foreground: .secondary)
+            metric(.defiUniswapV3Created, width: 80) {
+                historyLabel(row, text: row.createdText)
+                    .style(.medium, foreground: .secondary)
+            }
         }
-        .width(min: 80, ideal: 100)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("defi-uniswap-row-\(row.position.tokenId)")
+    }
+
+    /// A captioned value; rows have no column headers.
+    func metric(_ title: LocalizedStringResource, width: CGFloat, @ViewBuilder value: () -> some View) -> some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(title)
+                .style(.small, foreground: .secondary)
+            value()
+        }
+        .frame(width: width, alignment: .trailing)
     }
     #endif
+
+    @ViewBuilder
+    func rangeLabel(_ row: UniswapV3Row) -> some View {
+        if row.isFullRange {
+            Text(.defiUniswapV3FullRange)
+        } else {
+            Text(verbatim: row.rangeText)
+        }
+    }
+
+    func valueLabel(_ row: UniswapV3Row) -> some View {
+        Text(verbatim: row.valueText)
+            .help(row.unpricedSymbols.map { String(localized: .defiUnpricedTokens($0)) } ?? "")
+    }
 
     func feesLabel(_ row: UniswapV3Row) -> some View {
         VStack(alignment: .trailing, spacing: 2) {
@@ -191,7 +189,8 @@ extension DefiPosition {
         tick: Int = 0,
         liquidity: Int = 1,
         history: UniswapV3Position.HistoryState = .complete,
-        isPriced: Bool = true
+        isPriced: Bool = true,
+        ticks: (lower: Int, upper: Int) = (-199_200, -191_100)
     ) -> DefiPosition {
         let weth = UniswapV3Position.Token(
             address: "0x1", decimals: 18, imageURL: nil, priceAt: .now, symbol: "WETH", usdPrice: isPriced ? 3_000 : nil
@@ -206,7 +205,6 @@ extension DefiPosition {
             usdPrice: 1
         )
 
-        let ticks = (lower: -199_200, upper: -191_100)
         let current = ticks.lower + tick * (ticks.upper - ticks.lower) / 2 + (ticks.upper - ticks.lower) / 2
         let position = UniswapV3Position(
             apr: history == .complete ? 0.306 : nil,
@@ -239,7 +237,6 @@ extension DefiPosition {
 
         return DefiPosition(
             id: id,
-            isUSDValueComplete: isPriced,
             key: "1:\(id)",
             kind: .uniswapV3,
             payload: (try? position.encoded()) ?? Data(),
@@ -255,17 +252,37 @@ extension DefiPosition {
         .uniswapPreview(id: "2", tick: 2),
         .uniswapPreview(id: "3", liquidity: 0),
         .uniswapPreview(id: "4", history: .loading),
-        .uniswapPreview(id: "5", isPriced: false)
+        .uniswapPreview(id: "5", isPriced: false),
+        .uniswapPreview(id: "6", ticks: (-887_270, 887_270))
     ]
+
+    let blockchain = Blockchain.evm(.ethereum(.mainnet))
 
     #if os(iOS)
     List {
-        UniswapV3Section(positions: positions, blockchain: .evm(.ethereum(.mainnet)))
+        Section {
+            ForEach(positions) { UniswapV3PositionView(position: $0, blockchain: blockchain) }
+        } header: {
+            Text(.defiUniswapV3Title)
+        }
     }
     .listStyle(.plain)
     #else
-    UniswapV3Section(positions: positions, blockchain: .evm(.ethereum(.mainnet)))
-        .frame(width: 1_100, height: 420)
+    Table(of: DefiPosition.self) {
+        TableColumn(.defiUniswapV3Title) { UniswapV3PositionView(position: $0, blockchain: blockchain) }
+    } rows: {
+        Section(.defiUniswapV3Title) {
+            ForEach(positions) { TableRow($0) }
+        }
+    }
+    .tableColumnHeaders(.hidden)
+    .frame(width: 1_100, height: 560)
     #endif
 }
 #endif
+
+extension UniswapV3Plugin {
+    func view(_ position: DefiPosition) -> some View {
+        UniswapV3PositionView(position: position, blockchain: account.blockchain)
+    }
+}

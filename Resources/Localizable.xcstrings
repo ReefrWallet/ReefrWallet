@@ -3450,6 +3450,78 @@
         }
       }
     },
+    "defi.hyperliquid.partial" : {
+      "comment" : "HyperliquidPositionView: help when part of a value that could be negative can't be priced",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some balances or positions can't be priced, so this value may be higher or lower"
+          }
+        }
+      }
+    },
+    "defi.hyperliquid.portfolioValue" : {
+      "comment" : "HyperliquidPositionView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portfolio Value"
+          }
+        }
+      }
+    },
+    "defi.hyperliquid.testnet" : {
+      "comment" : "HyperliquidPositionView: on testnet accounts",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testnet"
+          }
+        }
+      }
+    },
+    "defi.hyperliquid.title" : {
+      "comment" : "HyperliquidPositionView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hyperliquid"
+          }
+        }
+      }
+    },
+    "defi.hyperliquid.unavailable" : {
+      "comment" : "HyperliquidPositionView: help when the account's mode can't be valued yet",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portfolio Value isn't available for this account's margin mode yet"
+          }
+        }
+      }
+    },
+    "defi.hyperliquid.unrealizedPnl" : {
+      "comment" : "HyperliquidPositionView",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unrealized PnL"
+          }
+        }
+      }
+    },
     "defi.noPositions" : {
       "comment" : "AccountDefiView",
       "extractionState" : "manual",
@@ -3458,30 +3530,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No DeFi Positions"
-          }
-        }
-      }
-    },
-    "defi.partlyUnpriced" : {
-      "comment" : "AccountDefiView",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld position is partly unpriced"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld positions are partly unpriced"
-                }
-              }
-            }
           }
         }
       }
@@ -3516,8 +3564,56 @@
         }
       }
     },
+    "defi.section.collapsed" : {
+      "comment" : "AccountDefiView: accessibility value of a collapsed plugin section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapsed"
+          }
+        }
+      }
+    },
+    "defi.section.expanded" : {
+      "comment" : "AccountDefiView: accessibility value of an expanded plugin section",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expanded"
+          }
+        }
+      }
+    },
+    "defi.totalIncomplete" : {
+      "comment" : "USDTotalText: help for a total missing a DeFi value that could be negative",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some DeFi positions can't be valued, so this total may be higher or lower"
+          }
+        }
+      }
+    },
+    "defi.totalIncompleteValue" : {
+      "comment" : "USDTotal: a total missing a DeFi value, e.g. \"1,200 US$ (incomplete)\"",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (incomplete)"
+          }
+        }
+      }
+    },
     "defi.uniswapV3.apr" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3529,7 +3625,7 @@
       }
     },
     "defi.uniswapV3.aprHelp" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3541,7 +3637,7 @@
       }
     },
     "defi.uniswapV3.claimable" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3553,7 +3649,7 @@
       }
     },
     "defi.uniswapV3.claimableHelp" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3565,7 +3661,7 @@
       }
     },
     "defi.uniswapV3.created" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3576,20 +3672,8 @@
         }
       }
     },
-    "defi.uniswapV3.distribution" : {
-      "comment" : "UniswapV3Section",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Distribution"
-          }
-        }
-      }
-    },
     "defi.uniswapV3.fees" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3600,8 +3684,20 @@
         }
       }
     },
+    "defi.uniswapV3.fullRange" : {
+      "comment" : "UniswapV3PositionView: a position covering every pool price",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full range"
+          }
+        }
+      }
+    },
     "defi.uniswapV3.historyUnavailable" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3613,7 +3709,7 @@
       }
     },
     "defi.uniswapV3.inRange" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3625,7 +3721,7 @@
       }
     },
     "defi.uniswapV3.lifetimeFees" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3637,7 +3733,7 @@
       }
     },
     "defi.uniswapV3.loadingHistory" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3649,7 +3745,7 @@
       }
     },
     "defi.uniswapV3.outOfRange" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3660,32 +3756,8 @@
         }
       }
     },
-    "defi.uniswapV3.pool" : {
-      "comment" : "UniswapV3Section",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pool"
-          }
-        }
-      }
-    },
-    "defi.uniswapV3.position" : {
-      "comment" : "UniswapV3Section",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Position"
-          }
-        }
-      }
-    },
     "defi.uniswapV3.title" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3697,7 +3769,7 @@
       }
     },
     "defi.uniswapV3.value" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -3709,7 +3781,7 @@
       }
     },
     "defi.uniswapV3.withdrawn" : {
-      "comment" : "UniswapV3Section",
+      "comment" : "UniswapV3PositionView",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {

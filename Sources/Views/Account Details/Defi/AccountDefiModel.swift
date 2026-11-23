@@ -8,60 +8,55 @@
 import Foundation
 import SwiftUI
 
-/// The account's stored DeFi positions and whether the DeFi tab applies. See ADR-073.
+/// The account's DeFi plugins and their stored positions. See ADR-073.
 @MainActor
 @Observable
 final class AccountDefiModel {
-    private(set) var isEligible = false
     private(set) var isLoaded = false
     private(set) var positions: [DefiPosition] = []
 
     let account: Account
+    /// Plugins for the account's blockchain; the DeFi tab shows when there are any.
+    let plugins: [any DefiPlugin]
 
     private let databaseService = DI.injectOrFail(DatabaseService.self)
 
     init(_ account: Account) {
         self.account = account
+        plugins = DefiPlugins.make(for: account)
     }
 
-    var isCandidate: Bool {
-        DefiPlugins.all.contains { $0.isCandidate(account) }
+    var isVisible: Bool {
+        !plugins.isEmpty
     }
 
-    var kinds: [DefiPluginKind] {
-        DefiPluginKind.allCases.filter { kind in positions.contains { $0.kind == kind } }
+    /// Plugins with stored positions.
+    var pluginsWithPositions: [any DefiPlugin] {
+        plugins.filter { plugin in positions.contains { $0.kind == type(of: plugin).kind } }
     }
 
-    /// Positions missing a price for some nonzero part.
-    var partlyUnpricedCount: Int {
-        positions.count { !$0.isUSDValueComplete }
+    var total: Decimal {
+        positions.reduce(0) { $0 + $1.usdValue }
     }
 
-    /// The sum of every position's priced parts.
-    var totalUSDValue: Decimal {
-        positions.compactMap(\.usdValue).reduce(0, +)
-    }
-
+    /// The plugin's positions, most valuable first.
     func positions(of kind: DefiPluginKind) -> [DefiPosition] {
-        positions.filter { $0.kind == kind }
+        positions.filter { $0.kind == kind }.sorted { $0.usdValue > $1.usdValue }
     }
 
-    /// Follows the committed NFT snapshot (for eligibility) and the stored positions.
     func observe() async {
-        guard isCandidate else {
+        guard isVisible else {
             return
         }
 
         let account = account
         let container = databaseService.modelContainer
 
-        await container.observeSaves(affecting: ["DefiPositionModel", "NFTScanModel"]) {
-            let (scanStates, positions) = try await container.readSnapshot { reader in
-                try await (reader.fetchNFTScanStates(account: account), reader.fetchDefiPositions(account: account))
+        await container.observeSaves(affecting: ["DefiPositionModel"]) {
+            positions = try await container.readSnapshot { reader in
+                try await reader.fetchDefiPositions(account: account)
             }
 
-            isEligible = DefiPlugins.all.contains { $0.isEligible(account, scanStates: scanStates) }
-            self.positions = positions
             isLoaded = true
         }
     }

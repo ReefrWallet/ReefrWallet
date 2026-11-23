@@ -32,8 +32,12 @@ struct KeyStoreDetailsView: View {
         #else
         .navigationBarTitleDisplayMode(.large)
         #endif
+        // Reloads on saves too, so an open view never shows a stale total.
         .task(id: keyStore.id) {
-            await loadAccountRows()
+            let entities: Set = ["AccountModel", "BalanceModel", "DefiPositionModel", "StakingModel", "TokenModel"]
+            await DI.injectOrFail(DatabaseService.self).modelContainer.observeSaves(affecting: entities) {
+                await loadAccountRows()
+            }
         }
     }
 }

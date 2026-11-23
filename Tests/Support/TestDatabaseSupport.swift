@@ -5,8 +5,9 @@ import WalletKit
 
 // MARK: - Database
 
-func makeDatabaseService() throws -> DatabaseService {
-    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+func makeDatabaseService(
+    configuration: ModelConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
+) throws -> DatabaseService {
     let container = try ModelContainer(
         for: AccountModel.self,
             ApprovalModel.self,

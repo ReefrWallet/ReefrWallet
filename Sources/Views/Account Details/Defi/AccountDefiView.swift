@@ -7,43 +7,48 @@
 
 import SwiftUI
 
-/// The DeFi tab: one section per plugin kind, read from stored records.
+/// The DeFi tab: a one-column table with a collapsible section per plugin with stored records.
 struct AccountDefiView: View {
     let model: AccountDefiModel
 
+    @State private var collapsed: Set<DefiPluginKind> = []
+
     var body: some View {
         #if os(iOS)
-        AccountCountLabel(text: totalText)
-            .opacity(model.isLoaded ? 1 : 0)
-            .accessibilityIdentifier("account-defi-total")
-
-        if model.partlyUnpricedCount > 0 {
-            AccountCountLabel(text: String(localized: .defiPartlyUnpriced(model.partlyUnpricedCount)))
+        if isMainnet {
+            AccountCountLabel(text: totalText)
+                .opacity(model.isLoaded ? 1 : 0)
+                .accessibilityIdentifier("account-defi-total")
         }
 
         if model.isLoaded, model.positions.isEmpty {
             AccountEmptyRow(title: .defiNoPositions)
                 .accessibilityIdentifier("account-no-defi")
         } else {
-            ForEach(model.kinds, id: \.self) { kind in
-                kind.section(model.positions(of: kind), blockchain: model.account.blockchain)
+            ForEach(model.pluginsWithPositions, id: \.kindId) { plugin in
+                Section {
+                    if !collapsed.contains(plugin.kindId) {
+                        ForEach(model.positions(of: plugin.kindId)) { position in
+                            plugin.row(position)
+                        }
+                    }
+                } header: {
+                    sectionHeader(plugin.kindId)
+                }
             }
         }
         #else
         content
             .statusBar(edge: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Text(.commonTotalValueLabel)
-                        Text(verbatim: totalText)
-                            .accessibilityIdentifier("account-defi-total")
-                    }
-                    .opacity(model.isLoaded ? 1 : 0)
-                    .style(.mediumHeader, foreground: .primary)
-
-                    if model.partlyUnpricedCount > 0 {
-                        Text(.defiPartlyUnpriced(model.partlyUnpricedCount))
-                            .style(.callout, foreground: .secondary)
+                    if isMainnet {
+                        HStack(spacing: 4) {
+                            Text(.commonTotalValueLabel)
+                            Text(verbatim: totalText)
+                                .accessibilityIdentifier("account-defi-total")
+                        }
+                        .opacity(model.isLoaded ? 1 : 0)
+                        .style(.mediumHeader, foreground: .primary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,10 +58,13 @@ struct AccountDefiView: View {
         #endif
     }
 
-    /// "≥" marks a total missing some prices.
+    /// Testnet values aren't real dollars, so no total is shown.
+    private var isMainnet: Bool {
+        model.account.blockchain.isMainnet
+    }
+
     private var totalText: String {
-        let value = "\(model.totalUSDValue.formattedAbbreviated()) US$"
-        return model.partlyUnpricedCount > 0 ? "≥ \(value)" : value
+        Self.usd(model.total)
     }
 
     #if os(macOS)
@@ -68,12 +76,81 @@ struct AccountDefiView: View {
             EmptyStateView(.defiNoPositions)
                 .accessibilityIdentifier("account-no-defi")
         } else {
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(model.kinds, id: \.self) { kind in
-                    kind.section(model.positions(of: kind), blockchain: model.account.blockchain)
+            Table(of: DefiPosition.self) {
+                TableColumn(.accountDetailsDefi) { position in
+                    model.plugins.first { $0.kindId == position.kind }?.row(position)
+                }
+            } rows: {
+                ForEach(model.pluginsWithPositions, id: \.kindId) { plugin in
+                    Section {
+                        if !collapsed.contains(plugin.kindId) {
+                            ForEach(model.positions(of: plugin.kindId)) { position in
+                                TableRow(position)
+                            }
+                        }
+                    } header: {
+                        sectionHeader(plugin.kindId)
+                    }
                 }
             }
+            .tableColumnHeaders(.hidden)
         }
     }
     #endif
+
+    /// The plugin's title and total; toggles the section.
+    private func sectionHeader(_ kind: DefiPluginKind) -> some View {
+        let isExpanded = !collapsed.contains(kind)
+
+        return Button {
+            withAnimation(.snappy) {
+                if isExpanded {
+                    collapsed.insert(kind)
+                } else {
+                    collapsed.remove(kind)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .style(.small, foreground: .secondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                Text(kind.title)
+                Spacer()
+
+                if isMainnet {
+                    Text(verbatim: Self.usd(model.positions(of: kind).reduce(0) { $0 + $1.usdValue }))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(Text(isExpanded ? .defiSectionExpanded : .defiSectionCollapsed))
+        .accessibilityIdentifier("defi-section-\(kind.rawValue)")
+    }
+
+    private static func usd(_ value: Decimal) -> String {
+        "\(value.formattedAbbreviated()) US$"
+    }
+}
+
+private extension DefiPluginKind {
+    var title: LocalizedStringResource {
+        switch self {
+        case .hyperliquid: .defiHyperliquidTitle
+        case .uniswapV3: .defiUniswapV3Title
+        }
+    }
+}
+
+private extension DefiPlugin {
+    var kindId: DefiPluginKind {
+        Self.kind
+    }
+
+    /// The plugin's row behind `AnyView`: views over `[any DefiPlugin]` can't keep its type.
+    @MainActor
+    func row(_ position: DefiPosition) -> AnyView {
+        AnyView(view(position))
+    }
 }

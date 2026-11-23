@@ -9,39 +9,30 @@ import Foundation
 import SwiftData
 import WalletKit
 
-/// Runs DeFi plugins periodically and when an account's NFT ownership
-/// changes, and writes their outcomes. See ADR-073.
+/// Refreshes every account's DeFi plugins periodically and on demand. See ADR-073.
 actor DefiScheduler {
-    static let historyBudget = 20
     static let interval = Duration.seconds(5 * 60)
 
     private struct RunKey: Hashable {
-        let accountKey: String
+        let accountId: PersistentIdentifier
         let kind: DefiPluginKind
     }
 
     private let databaseService: DatabaseService
     private var dirty: Set<RunKey> = []
-    /// The NFT revision each account's last run read, to skip metadata-only saves.
-    private var lastRevisions: [String: String] = [:]
-    private var observeTask: Task<Void, Never>?
-    private let plugins: [any DefiPlugin]
-    private let requestNFTRefresh: @Sendable (Account) -> Void
-    private var rotations: [RunKey: Int] = [:]
+    private let makePlugins: @Sendable (Account) -> [any DefiPlugin]
+    /// Kept while their account is unchanged, so plugins can keep state between runs.
+    private var plugins: [RunKey: any DefiPlugin] = [:]
     private var running: Set<RunKey> = []
     private var sleepTask: Task<Void, Never>?
     private var task: Task<Void, Never>?
 
     init(
         databaseService: DatabaseService? = nil,
-        plugins: [any DefiPlugin] = DefiPlugins.all,
-        requestNFTRefresh: (@Sendable (Account) -> Void)? = nil
+        plugins: (@Sendable (Account) -> [any DefiPlugin])? = nil
     ) {
         self.databaseService = databaseService ?? DI.injectOrFail(DatabaseService.self)
-        self.plugins = plugins
-        self.requestNFTRefresh = requestNFTRefresh ?? { account in
-            DI.injectOrFail(NFTService.self).enqueueRefresh(account)
-        }
+        makePlugins = plugins ?? { DefiPlugins.make(for: $0) }
     }
 
     func refreshNow() {
@@ -60,28 +51,18 @@ actor DefiScheduler {
                 await self?.loop()
             }
         }
-
-        let container = databaseService.modelContainer
-        observeTask = Task { @MainActor [weak self] in
-            await container.observeSaves(affecting: ["NFTModel", "NFTPendingSendModel", "NFTScanModel"]) {
-                await self?.ownershipMayHaveChanged()
-            }
-        }
     }
 
     func stop() {
         task?.cancel()
         task = nil
-        observeTask?.cancel()
-        observeTask = nil
         sleepTask?.cancel()
     }
 
     // MARK: - Runs
 
-    /// One pass over all accounts: bootstraps NFT scans for candidates and runs
-    /// plugins for eligible accounts.
-    func runAll(now: Date = .now) async {
+    /// Refreshes every account's plugins once.
+    func runAll() async {
         let accounts: [Account]
 
         do {
@@ -91,44 +72,23 @@ actor DefiScheduler {
             return
         }
 
+        let current = Set(accounts.compactMap(\.id))
+        plugins = plugins.filter { current.contains($0.key.accountId) }
+
         for account in accounts {
-            await update(account, now: now)
+            for plugin in plugins(for: account) {
+                await run(plugin)
+            }
         }
     }
 
-    /// Bootstraps `account`'s NFT scan when stale and runs every eligible plugin.
-    func update(_ account: Account, now: Date = .now) async {
-        let candidates = plugins.filter { $0.isCandidate(account) }
-
-        guard !candidates.isEmpty else {
+    /// Refreshes `plugin`, coalescing a call made during a run into one rerun.
+    func run(_ plugin: any DefiPlugin) async {
+        guard let accountId = plugin.account.id else {
             return
         }
 
-        let scanStates: [NFTSourceId: NFTScanState]
-
-        do {
-            scanStates = try await databaseService.fetchNFTScanStates(account: account)
-        } catch {
-            printError("DeFi \(account.name): cannot read NFT scans: \(error)")
-            return
-        }
-
-        if candidates.contains(where: { isScanStale($0, account: account, scanStates: scanStates, now: now) }) {
-            requestNFTRefresh(account)
-        }
-
-        for plugin in candidates where plugin.isEligible(account, scanStates: scanStates) {
-            await run(plugin, account: account)
-        }
-    }
-
-    /// Runs `plugin` for `account`, coalescing a call made during a run into one rerun.
-    func run(_ plugin: any DefiPlugin, account: Account) async {
-        guard let accountKey = try? await databaseService.nftAccountKey(account: account) else {
-            return
-        }
-
-        let key = RunKey(accountKey: accountKey, kind: plugin.kind)
+        let key = RunKey(accountId: accountId, kind: type(of: plugin).kind)
 
         guard running.insert(key).inserted else {
             dirty.insert(key)
@@ -141,28 +101,18 @@ actor DefiScheduler {
 
         repeat {
             dirty.remove(key)
-            await runOnce(plugin, account: account, key: key)
+
+            do {
+                try await plugin.refresh()
+            } catch is CancellationError {
+                return
+            } catch {
+                printError("DeFi \(plugin.account.name) \(key.kind.rawValue): \(error)")
+            }
         } while dirty.contains(key) && !Task.isCancelled
     }
 
     // MARK: - Private
-
-    private func isScanStale(
-        _ plugin: any DefiPlugin,
-        account: Account,
-        scanStates: [NFTSourceId: NFTScanState],
-        now: Date
-    ) -> Bool {
-        guard let source = plugin.requiredScanSource(account, scanStates: scanStates) else {
-            return false
-        }
-
-        guard let scannedAt = scanStates[source]?.lastCompleteScanAt else {
-            return true
-        }
-
-        return now.timeIntervalSince(scannedAt) >= TimeInterval(Self.interval.components.seconds)
-    }
 
     private func loop() async {
         while !Task.isCancelled {
@@ -178,62 +128,21 @@ actor DefiScheduler {
         }
     }
 
-    /// Re-runs accounts whose ownership revision moved since their last run.
-    private func ownershipMayHaveChanged() async {
-        guard task != nil, let accounts = try? await databaseService.fetchAllAccounts() else {
-            return
+    /// The account's plugins, reusing those made for the same account value.
+    private func plugins(for account: Account) -> [any DefiPlugin] {
+        guard let accountId = account.id else {
+            return []
         }
 
-        for account in accounts where plugins.contains(where: { $0.isCandidate(account) }) {
-            guard let input = try? await databaseService.defiInput(account: account),
-                  lastRevisions[input.accountKey] != input.revision
-            else {
-                continue
+        return makePlugins(account).map { made in
+            let key = RunKey(accountId: accountId, kind: type(of: made).kind)
+
+            if let kept = plugins[key], kept.account == account {
+                return kept
             }
 
-            for plugin in plugins where plugin.isCandidate(account) && plugin.isEligible(
-                account,
-                scanStates: input.scanStates
-            ) {
-                await run(plugin, account: account)
-            }
-        }
-    }
-
-    private func runOnce(_ plugin: any DefiPlugin, account: Account, key: RunKey) async {
-        // A revision change between read and commit gets one immediate retry.
-        for _ in 0 ..< 2 {
-            do {
-                let input = try await databaseService.defiInput(account: account)
-                let rotation = rotations[key, default: 0]
-                let context = DefiPluginContext(
-                    account: account,
-                    budget: DefiRequestBudget(Self.historyBudget),
-                    input: input,
-                    rotation: rotation
-                )
-
-                let outcomes = try await plugin.fetch(context)
-
-                rotations[key] = rotation &+ 1
-                lastRevisions[key.accountKey] = input.revision
-
-                if try await databaseService.commitDefiOutcomes(
-                    account: account,
-                    kind: plugin.kind,
-                    outcomes: outcomes,
-                    expectedRevision: input.revision
-                ) {
-                    return
-                }
-
-                printVerbose("DeFi \(account.name) \(plugin.kind.rawValue): ownership changed during run, retrying")
-            } catch is CancellationError {
-                return
-            } catch {
-                printError("DeFi \(account.name) \(plugin.kind.rawValue): \(error)")
-                return
-            }
+            plugins[key] = made
+            return made
         }
     }
 }

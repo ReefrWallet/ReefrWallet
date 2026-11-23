@@ -6,33 +6,50 @@
 //
 
 import Foundation
+import SwiftUI
+import WalletKit
 
-/// Fetches one kind of DeFi position for an account and reports what to
-/// store. Views read the stored records only. See ADR-073.
+/// One kind of DeFi position for one account: reads the chain, saves records
+/// and shows them. Views read the stored records only. See ADR-073.
 protocol DefiPlugin: Sendable {
-    var kind: DefiPluginKind { get }
+    associatedtype Body: View
 
-    /// Fetches the account's positions. Throws only for run-wide failures,
-    /// which leave every stored record untouched.
-    func fetch(_ context: DefiPluginContext) async throws -> [DefiPositionOutcome]
+    static var kind: DefiPluginKind { get }
 
-    /// Whether the account's configuration could ever be eligible. The
-    /// scheduler uses it to bootstrap the inputs ``isEligible(_:scanStates:)`` needs.
-    func isCandidate(_ account: Account) -> Bool
+    var account: Account { get }
 
-    /// Whether the committed NFT snapshot makes the account's positions knowable.
-    func isEligible(_ account: Account, scanStates: [NFTSourceId: NFTScanState]) -> Bool
+    /// A plugin for an account on a supported blockchain, with live dependencies.
+    init(account: Account)
 
-    /// The NFT source whose scan freshness matters for `account`, if any.
-    func requiredScanSource(_ account: Account, scanStates: [NFTSourceId: NFTScanState]) -> NFTSourceId?
+    /// Whether the plugin can hold positions on `blockchain`; decides the DeFi tab.
+    static func isSupported(_ blockchain: Blockchain) -> Bool
+
+    /// Reads the chain, then processes and saves the account's records. Throws
+    /// only for run-wide failures, which leave stored records untouched.
+    func refresh() async throws
+
+    /// The table row for one of this plugin's stored records.
+    @MainActor
+    @ViewBuilder
+    func view(_ position: DefiPosition) -> Body
 }
 
 enum DefiPluginKind: String, CaseIterable, Codable, Sendable {
+    case hyperliquid
     case uniswapV3
 }
 
 enum DefiPlugins {
-    static let all: [any DefiPlugin] = [UniswapV3Plugin()]
+    static let types: [any DefiPlugin.Type] = [HyperliquidPlugin.self, UniswapV3Plugin.self]
+
+    /// Plugins for every supported kind on `account`'s blockchain.
+    static func make(for account: Account) -> [any DefiPlugin] {
+        types.filter { $0.isSupported(account.blockchain) }.map { $0.init(account: account) }
+    }
+
+    static func isSupported(_ blockchain: Blockchain) -> Bool {
+        types.contains { $0.isSupported(blockchain) }
+    }
 }
 
 /// One position's result in a plugin run.
@@ -52,36 +69,8 @@ enum DefiPositionOutcome: Equatable, Sendable {
 }
 
 struct DefiPositionRecord: Equatable, Sendable {
-    let isUSDValueComplete: Bool
     let key: String
     let payload: Data
-    let usdValue: Decimal?
-}
-
-struct DefiPluginContext: Sendable {
-    let account: Account
-    let budget: DefiRequestBudget
-    let input: DefiInput
-    /// Where a run starts handing out the shared budget, so one long backfill
-    /// can't starve the account's other positions.
-    let rotation: Int
-}
-
-/// The number of expensive requests (history log queries) one plugin run may make.
-actor DefiRequestBudget {
-    private(set) var remaining: Int
-
-    init(_ limit: Int) {
-        remaining = limit
-    }
-
-    /// Takes one request from the budget; `false` once it's spent.
-    func spend() -> Bool {
-        guard remaining > 0 else {
-            return false
-        }
-
-        remaining -= 1
-        return true
-    }
+    /// The sum of the position's priced parts; 0 when nothing is priced yet.
+    let usdValue: Decimal
 }

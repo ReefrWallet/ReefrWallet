@@ -1,9 +1,10 @@
-// DeFi record store and scheduler: per-position outcomes, revision-checked
-// commits, NFT-scan bootstrap and run coalescing (ADR-073).
+// DeFi record store and scheduler: per-position outcomes, ledger mints,
+// supported blockchains, plugin reuse and run coalescing (ADR-073).
 
 import BigInt
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
 import WalletKit
 @testable import ReefrWallet
@@ -27,7 +28,7 @@ struct DefiStoreTests {
     }
 
     private func record(_ key: String, value: Decimal = 1) -> DefiPositionRecord {
-        DefiPositionRecord(isUSDValueComplete: true, key: key, payload: Data(key.utf8), usdValue: value)
+        DefiPositionRecord(key: key, payload: Data(key.utf8), usdValue: value)
     }
 
     private func transfer(from: String, to: String, id: String, block: UInt64) -> NFTTransferEvent {
@@ -65,27 +66,23 @@ struct DefiStoreTests {
 
     // MARK: - Store
 
-    @Test func oneCommitAppliesUpdatedFailedAndRemovedOutcomes() async throws {
+    @Test func oneSaveAppliesUpdatedFailedAndRemovedOutcomes() async throws {
         let databaseService = try makeDatabaseService()
         let account = try await account(databaseService)
-        let revision = try await databaseService.defiInput(account: account).revision
-        try await databaseService.commitDefiOutcomes(
+        try await databaseService.saveDefiOutcomes(
             account: account,
             kind: .uniswapV3,
-            outcomes: ["a", "b", "c", "d"].map { .updated(record($0)) },
-            expectedRevision: revision
+            ["a", "b", "c", "d"].map { .updated(record($0)) }
         )
 
-        let applied = try await databaseService.commitDefiOutcomes(
+        try await databaseService.saveDefiOutcomes(
             account: account,
             kind: .uniswapV3,
-            outcomes: [.updated(record("a", value: 5)), .failed(key: "b"), .removed(key: "c")],
-            expectedRevision: revision
+            [.updated(record("a", value: 5)), .failed(key: "b"), .removed(key: "c")]
         )
 
         let positions = try await databaseService.fetchDefiPositions(account: account)
 
-        #expect(applied)
         #expect(positions.map(\.key) == ["a", "b", "d"])
         #expect(positions.first { $0.key == "a" }?.usdValue == 5)
         #expect(positions.first { $0.key == "b" }?.usdValue == 1)
@@ -95,63 +92,27 @@ struct DefiStoreTests {
         let databaseService = try makeDatabaseService()
         let account = try await account(databaseService)
         let accountId = try #require(account.id)
-        let revision = try await databaseService.defiInput(account: account).revision
-        try await databaseService.commitDefiOutcomes(
+        try await databaseService.saveDefiOutcomes(
             account: account,
             kind: .uniswapV3,
-            outcomes: [
-                .updated(record("a", value: 1_684)),
-                .updated(DefiPositionRecord(isUSDValueComplete: false, key: "b", payload: Data(), usdValue: nil))
-            ],
-            expectedRevision: revision
+            [.updated(record("a", value: 1_684)), .updated(record("b", value: 0))]
         )
 
         #expect(try await databaseService.accountUSDValues()[accountId] == 1_684)
         #expect(try await databaseService.usdValue(accountId: accountId) == 1_684)
     }
 
-    @Test func ownershipChangeDuringARunVoidsItsCommit() async throws {
+    @Test func positionsAreReadByKind() async throws {
         let databaseService = try makeDatabaseService()
         let account = try await account(databaseService)
-        try await commitLedger(
-            databaseService,
-            account,
-            [transfer(from: Self.zero, to: Self.owner, id: "1", block: 10)]
-        )
+        try await databaseService.saveDefiOutcomes(account: account, kind: .uniswapV3, [.updated(record("a"))])
+        try await databaseService.saveDefiOutcomes(account: account, kind: .hyperliquid, [.updated(record("b"))])
 
-        let input = try await databaseService.defiInput(account: account)
+        let uniswap = try await databaseService.fetchDefiPositions(account: account, kind: .uniswapV3)
+        let all = try await databaseService.fetchDefiPositions(account: account)
 
-        try await commitLedger(databaseService, account, [
-            transfer(from: Self.zero, to: Self.owner, id: "1", block: 10),
-            transfer(from: Self.owner, to: Self.other, id: "1", block: 20)
-        ])
-
-        let applied = try await databaseService.commitDefiOutcomes(
-            account: account,
-            kind: .uniswapV3,
-            outcomes: [.updated(record("1:1"))],
-            expectedRevision: input.revision
-        )
-
-        #expect(!applied)
-        #expect(try await databaseService.fetchDefiPositions(account: account).isEmpty)
-    }
-
-    @Test func metadataWritesKeepTheRevision() async throws {
-        let databaseService = try makeDatabaseService()
-        let account = try await account(databaseService)
-        try await commitLedger(
-            databaseService,
-            account,
-            [transfer(from: Self.zero, to: Self.owner, id: "1", block: 10)]
-        )
-
-        let before = try await databaseService.defiInput(account: account)
-        let key = try #require(before.nfts.first?.id)
-
-        try await databaseService.applyNFTMetadata(key: key, name: "Position", imageURL: "https://example.com/1.svg", failedAt: nil)
-
-        #expect(try await databaseService.defiInput(account: account).revision == before.revision)
+        #expect(uniswap.map(\.key) == ["a"])
+        #expect(all.map(\.key) == ["b", "a"])
     }
 
     @Test func ledgerMintsAreKeyedByNFT() async throws {
@@ -163,19 +124,18 @@ struct DefiStoreTests {
             [transfer(from: Self.zero, to: Self.owner, id: "7", block: 42)]
         )
 
-        let input = try await databaseService.defiInput(account: account)
-        let key = try #require(input.nfts.first?.id)
+        let key = try #require(try await databaseService.fetchNFTs(account: account).first?.id)
 
-        #expect(input.mints[key] == DefiMintEvidence(blockHash: "0xh42", blockNumber: 42))
+        #expect(try await databaseService.fetchNFTMints(account: account)[key] == NFTMint(
+            blockHash: "0xh42",
+            blockNumber: 42
+        ))
     }
 
     @Test func positionsGoWithTheirAccount() async throws {
         let databaseService = try makeDatabaseService()
         let account = try await account(databaseService)
-        let revision = try await databaseService.defiInput(account: account).revision
-        try await databaseService.commitDefiOutcomes(
-            account: account, kind: .uniswapV3, outcomes: [.updated(record("a"))], expectedRevision: revision
-        )
+        try await databaseService.saveDefiOutcomes(account: account, kind: .uniswapV3, [.updated(record("a"))])
 
         try await databaseService.deleteAccount(id: try #require(account.id))
 
@@ -185,117 +145,54 @@ struct DefiStoreTests {
         #expect(remaining == 0)
     }
 
-    // MARK: - Eligibility
+    // MARK: - Plugins
 
-    @Test func candidateAndEligibleOnBothPaths() async throws {
-        let databaseService = try makeDatabaseService()
-        let plugin = UniswapV3Plugin()
-        let fresh = NFTScanState(lastCompleteScanAt: .now, scannedBlock: 1, isSnapshotSource: true)
-        let node = URL(string: "http://localhost:8545")
-        let mainnet = try await account(databaseService)
-        let base = try await makeStakingAccount(databaseService, blockchain: .evm(.base(.mainnet)), address: Self.owner)
-        let baseOverride = try await makeStakingAccount(
-            databaseService, blockchain: .evm(.base(.mainnet)), address: Self.owner, rpcURL: node
-        )
+    @Test func supportedBlockchainsPickThePlugins() {
+        let kinds = { (blockchain: Blockchain) in
+            DefiPlugins.types.filter { $0.isSupported(blockchain) }.map { $0.kind }
+        }
 
-        #expect(plugin.isCandidate(mainnet))
-        #expect(!plugin.isCandidate(base))
-        #expect(plugin.isCandidate(baseOverride))
-        #expect(!plugin.isEligible(mainnet, scanStates: [:]))
-        #expect(plugin.isEligible(mainnet, scanStates: [.blockscout: fresh]))
-        #expect(!plugin.isEligible(baseOverride, scanStates: [.blockscout: fresh]))
-        #expect(plugin.isEligible(baseOverride, scanStates: [.node: fresh]))
-        #expect(plugin.requiredScanSource(baseOverride, scanStates: [.blockscout: fresh]) == .node)
+        #expect(kinds(.evm(.ethereum(.mainnet))) == [.uniswapV3])
+        #expect(kinds(.evm(.ethereum(.sepolia))) == [.uniswapV3])
+        #expect(kinds(.evm(.hyperEVM(.mainnet))) == [.hyperliquid])
+        #expect(kinds(.solana(.mainnet)).isEmpty)
     }
 
     // MARK: - Scheduler
 
-    @Test func coldStartBootstrapsTheNodeScanThenRuns() async throws {
+    @Test func schedulerKeepsPluginsWhileTheAccountIsUnchanged() async throws {
         let databaseService = try makeDatabaseService()
-        let account = try await account(databaseService, rpcURL: URL(string: "http://localhost:8545"))
-        let plugin = RecordingPlugin()
-        let refreshes = Counter()
-        let scheduler = DefiScheduler(
-            databaseService: databaseService,
-            plugins: [plugin]
-        ) { _ in refreshes.increment() }
-
-        await scheduler.update(account)
-        #expect(refreshes.value == 1)
-        #expect(plugin.fetches.value == 0)
-
-        try await commitLedger(
-            databaseService,
-            account,
-            [transfer(from: Self.zero, to: Self.owner, id: "1", block: 10)]
-        )
-
-        await scheduler.update(account)
-
-        #expect(refreshes.value == 1)
-        #expect(plugin.fetches.value == 1)
-        #expect(try await databaseService.fetchDefiPositions(account: account).map(\.key) == ["1"])
-    }
-
-    @Test func overrideAccountRetriesItsNodeAfterAFallback() async throws {
-        let databaseService = try makeDatabaseService()
-        let account = try await account(databaseService, rpcURL: URL(string: "http://localhost:8545"))
-        try await commitLedger(databaseService, account, [], source: .node, at: .now.addingTimeInterval(-3_600))
-        try await commitLedger(databaseService, account, [], source: .blockscout)
-        let refreshes = Counter()
-        let scheduler = DefiScheduler(
-            databaseService: databaseService,
-            plugins: [RecordingPlugin()]
-        ) { _ in refreshes.increment() }
-
-        await scheduler.update(account)
-
-        #expect(refreshes.value == 1)
-    }
-
-    @Test func ownershipChangeMidRunRetriesOnceWithFreshInput() async throws {
-        let databaseService = try makeDatabaseService()
-        let account = try await account(databaseService)
-        try await commitLedger(
-            databaseService,
-            account,
-            [transfer(from: Self.zero, to: Self.owner, id: "1", block: 10)],
-            source: .blockscout
-        )
-
-        let plugin = RecordingPlugin()
-        plugin.beforeFirstReturn = {
-            try? await commitLedger(databaseService, account, [
-                transfer(from: Self.zero, to: Self.owner, id: "1", block: 10),
-                transfer(from: Self.zero, to: Self.owner, id: "2", block: 11)
-            ], source: .blockscout)
+        _ = try await account(databaseService)
+        let made = Made()
+        let scheduler = DefiScheduler(databaseService: databaseService) { account in
+            [made.add(RecordingPlugin(account: account))]
         }
 
-        let scheduler = DefiScheduler(databaseService: databaseService, plugins: [plugin]) { _ in }
+        await scheduler.runAll()
+        await scheduler.runAll()
 
-        await scheduler.run(plugin, account: account)
-
-        #expect(plugin.fetches.value == 2)
-        #expect(try await databaseService.fetchDefiPositions(account: account).map(\.key) == ["1", "2"])
+        let plugins = made.plugins
+        #expect(plugins.count == 2)
+        #expect(plugins.map(\.refreshes.value) == [2, 0])
     }
 
     @Test func triggersDuringARunCoalesceIntoOneRerun() async throws {
         let databaseService = try makeDatabaseService()
         let account = try await account(databaseService)
-        let plugin = RecordingPlugin()
+        let plugin = RecordingPlugin(account: account)
         let gate = Gate()
         plugin.gate = gate
-        let scheduler = DefiScheduler(databaseService: databaseService, plugins: [plugin]) { _ in }
+        let scheduler = DefiScheduler(databaseService: databaseService) { _ in [] }
 
-        async let first: Void = scheduler.run(plugin, account: account)
+        async let first: Void = scheduler.run(plugin)
         await gate.waitUntilEntered()
-        await scheduler.run(plugin, account: account)
-        await scheduler.run(plugin, account: account)
+        await scheduler.run(plugin)
+        await scheduler.run(plugin)
         plugin.gate = nil
         await gate.open()
         await first
 
-        #expect(plugin.fetches.value == 2)
+        #expect(plugin.refreshes.value == 2)
     }
 }
 
@@ -340,46 +237,46 @@ actor Gate {
     }
 }
 
-/// Uniswap eligibility rules with a fetch that reports one record per input NFT.
+/// Every plugin a scheduler's factory made, in order.
+final class Made: @unchecked Sendable {
+    private let lock = NSLock()
+    private var made: [RecordingPlugin] = []
+
+    var plugins: [RecordingPlugin] {
+        lock.withLock { made }
+    }
+
+    func add(_ plugin: RecordingPlugin) -> RecordingPlugin {
+        lock.withLock { made.append(plugin) }
+        return plugin
+    }
+}
+
+/// Counts refreshes; a gate can hold one open.
 final class RecordingPlugin: DefiPlugin, @unchecked Sendable {
-    let fetches = Counter()
-    let kind = DefiPluginKind.uniswapV3
-    var beforeFirstReturn: (@Sendable () async -> Void)?
+    static let kind = DefiPluginKind.uniswapV3
+
+    let account: ReefrWallet.Account
+    let refreshes = Counter()
     var gate: Gate?
 
-    private let rules = UniswapV3Plugin()
+    init(account: ReefrWallet.Account) {
+        self.account = account
+    }
 
-    func fetch(_ context: DefiPluginContext) async throws -> [DefiPositionOutcome] {
-        fetches.increment()
+    static func isSupported(_ blockchain: Blockchain) -> Bool {
+        true
+    }
+
+    func refresh() async throws {
+        refreshes.increment()
 
         if let gate {
             await gate.enter()
         }
-
-        if let hook = beforeFirstReturn {
-            beforeFirstReturn = nil
-            await hook()
-        }
-
-        return context.input.nfts.map {
-            .updated(DefiPositionRecord(
-                isUSDValueComplete: true,
-                key: $0.reference.tokenId,
-                payload: Data(),
-                usdValue: 1
-            ))
-        }
     }
 
-    func isCandidate(_ account: ReefrWallet.Account) -> Bool {
-        rules.isCandidate(account)
-    }
-
-    func isEligible(_ account: ReefrWallet.Account, scanStates: [NFTSourceId: NFTScanState]) -> Bool {
-        rules.isEligible(account, scanStates: scanStates)
-    }
-
-    func requiredScanSource(_ account: ReefrWallet.Account, scanStates: [NFTSourceId: NFTScanState]) -> NFTSourceId? {
-        rules.requiredScanSource(account, scanStates: scanStates)
+    func view(_ position: DefiPosition) -> some View {
+        EmptyView()
     }
 }

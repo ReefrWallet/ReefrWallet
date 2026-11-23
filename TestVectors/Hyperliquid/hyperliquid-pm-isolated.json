@@ -1,0 +1,390 @@
+{
+ "address": "0x6c237281c28b1de394b3418c9a59f7cf22f372ce",
+ "userAbstraction": "portfolioMargin",
+ "spotClearinghouseState": {
+  "portfolioMarginEnabled": true,
+  "balances": [
+   {
+    "coin": "USDC",
+    "token": 0,
+    "total": "66443.87467224",
+    "hold": "-16493.08785575",
+    "entryNtl": "0.0",
+    "spotHold": "66443.87467224",
+    "ltv": "0.0",
+    "borrowed": "70594.03655277"
+   },
+   {
+    "coin": "OMNIX",
+    "token": 53,
+    "total": "12316.0",
+    "hold": "0.0",
+    "entryNtl": "44.3770112"
+   },
+   {
+    "coin": "HYPE",
+    "token": 150,
+    "total": "3854.4637247",
+    "hold": "1772.29455098",
+    "entryNtl": "0.0",
+    "ltv": "0.65",
+    "supplied": "3854.4637247"
+   },
+   {
+    "coin": "USDT0",
+    "token": 268,
+    "total": "0.0",
+    "hold": "-83107.33255973",
+    "entryNtl": "0.0",
+    "spotHold": "0.0",
+    "ltv": "0.0"
+   },
+   {
+    "coin": "XAUT0",
+    "token": 297,
+    "total": "0.008383",
+    "hold": "0.0",
+    "entryNtl": "29.30038811"
+   },
+   {
+    "coin": "USDH",
+    "token": 360,
+    "total": "0.01220701",
+    "hold": "0.0",
+    "entryNtl": "0.01220701",
+    "ltv": "0.0"
+   },
+   {
+    "coin": "UZEC",
+    "token": 419,
+    "total": "108.699402841",
+    "hold": "0.0",
+    "entryNtl": "49999.98542"
+   },
+   {
+    "coin": "DRV",
+    "token": 843,
+    "total": "99598.00256103",
+    "hold": "0.0",
+    "entryNtl": "29890.364223"
+   }
+  ],
+  "portfolioMarginRatio": "0.3622691462",
+  "tokenToPortfolioBorrowRatio": [
+   [
+    0,
+    "0.0014118807"
+   ]
+  ],
+  "tokenToPortfolioSupplyRatio": [
+   [
+    150,
+    "0.0038544637"
+   ],
+   [
+    197,
+    "0.0"
+   ]
+  ],
+  "tokenToAvailableAfterMaintenance": [
+   [
+    0,
+    "124272.23151199"
+   ],
+   [
+    150,
+    "2458.11044212"
+   ],
+   [
+    197,
+    "0.0"
+   ],
+   [
+    268,
+    "124527.51291346"
+   ],
+   [
+    360,
+    "0.01220701"
+   ]
+  ]
+ },
+ "clearinghouseState": {
+  "": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288632640
+  },
+  "xyz": {
+   "marginSummary": {
+    "accountValue": "137037.911225",
+    "totalNtlPos": "641717.7368",
+    "totalRawUsd": "-504679.825575",
+    "totalMarginUsed": "137037.911225"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [
+    {
+     "type": "oneWay",
+     "position": {
+      "coin": "xyz:LLY",
+      "szi": "472.129",
+      "leverage": {
+       "type": "isolated",
+       "value": 4,
+       "rawUsd": "-504679.825575"
+      },
+      "entryPx": "1327.77",
+      "positionValue": "641717.7368",
+      "unrealizedPnl": "14835.62358",
+      "returnOnEquity": "0.0946629248",
+      "liquidationPx": "1125.2050216316",
+      "marginUsed": "137037.911225",
+      "maxLeverage": 10,
+      "cumFunding": {
+       "allTime": "11514.416253",
+       "sinceOpen": "8496.329526",
+       "sinceChange": "2643.706604"
+      }
+     }
+    }
+   ],
+   "time": 1795288634180
+  },
+  "flx": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288635418
+  },
+  "vntl": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288636844
+  },
+  "hyna": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288638397
+  },
+  "km": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288639680
+  },
+  "abcd": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288641089
+  },
+  "cash": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288642575
+  },
+  "para": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288643787
+  },
+  "mkts": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288645205
+  },
+  "io": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288646501
+  }
+ },
+ "borrowLendUserState": {
+  "tokenToState": [
+   [
+    0,
+    {
+     "borrow": {
+      "basis": "70593.99944479",
+      "value": "70594.03840607"
+     },
+     "supply": {
+      "basis": "0.0",
+      "value": "0.0"
+     }
+    }
+   ],
+   [
+    150,
+    {
+     "borrow": {
+      "basis": "0.0",
+      "value": "0.0"
+     },
+     "supply": {
+      "basis": "3854.4637247",
+      "value": "3854.4637247"
+     }
+    }
+   ],
+   [
+    197,
+    {
+     "borrow": {
+      "basis": "0.0",
+      "value": "0.0"
+     },
+     "supply": {
+      "basis": "0.0",
+      "value": "0.0"
+     }
+    }
+   ]
+  ],
+  "health": "healthy",
+  "healthFactor": "2.1743468277"
+ },
+ "userVaultEquities": [],
+ "delegatorSummary": {
+  "delegated": "0.0",
+  "undelegated": "0.0",
+  "totalPendingWithdrawal": "0.0",
+  "nPendingWithdrawals": 0
+ },
+ "referenceAccountValue": "421949.088048"
+}

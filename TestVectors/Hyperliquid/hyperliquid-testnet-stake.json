@@ -1,0 +1,84 @@
+{
+ "address": "0x0000472d488d33b7329ca53bfcc3918961d55f8e",
+ "userAbstraction": "default",
+ "spotClearinghouseState": {
+  "balances": [
+   {
+    "coin": "ACDD",
+    "token": 1219,
+    "total": "1932.03885795",
+    "hold": "0.0",
+    "entryNtl": "0.48300971"
+   }
+  ]
+ },
+ "clearinghouseState": {
+  "": {
+   "marginSummary": {
+    "accountValue": "2.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "2.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "2.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "2.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "2.0",
+   "assetPositions": [],
+   "time": 1795288765670
+  },
+  "test": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288767310
+  },
+  "unit": {
+   "marginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMarginSummary": {
+    "accountValue": "0.0",
+    "totalNtlPos": "0.0",
+    "totalRawUsd": "0.0",
+    "totalMarginUsed": "0.0"
+   },
+   "crossMaintenanceMarginUsed": "0.0",
+   "withdrawable": "0.0",
+   "assetPositions": [],
+   "time": 1795288768894
+  }
+ },
+ "borrowLendUserState": {
+  "tokenToState": [],
+  "health": "healthy",
+  "healthFactor": null
+ },
+ "userVaultEquities": [],
+ "delegatorSummary": {
+  "delegated": "10000.0",
+  "undelegated": "0.0",
+  "totalPendingWithdrawal": "0.0",
+  "nPendingWithdrawals": 0
+ },
+ "referenceAccountValue": "1324638.893259"
+}

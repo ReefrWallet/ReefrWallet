@@ -21,12 +21,19 @@ struct UniswapV3PluginTests {
         let chain = FakeUniswapV3Chain()
         let plugin: UniswapV3Plugin
 
-        init(account: ReefrWallet.Account, tokenSource: FakeUniswapV3TokenSource = .init()) {
+        init(
+            account: ReefrWallet.Account,
+            databaseService: DatabaseService,
+            tokenSource: FakeUniswapV3TokenSource = .init()
+        ) {
             self.account = account
             let chain = chain
             plugin = UniswapV3Plugin(
+                account: account,
+                databaseService: databaseService,
                 deployments: [1: FakeUniswapV3Chain.deployment],
                 readerFactory: { _ in chain },
+                requestNFTRefresh: { _ in },
                 tokenSource: tokenSource
             )
         }
@@ -44,7 +51,7 @@ struct UniswapV3PluginTests {
         func fetch(
             _ tokenIds: [BigUInt],
             previous: [DefiPosition] = [],
-            mints: [BigUInt: DefiMintEvidence] = [:],
+            mints: [BigUInt: NFTMint] = [:],
             budget: Int = 20,
             rotation: Int = 0
         ) async throws -> [DefiPositionOutcome] {
@@ -69,17 +76,12 @@ struct UniswapV3PluginTests {
                 )
             }
 
-            let input = DefiInput(
-                accountKey: "account",
-                mints: Dictionary(uniqueKeysWithValues: mints.map { ("nft|\($0.key)", $0.value) }),
+            return try await plugin.outcomes(
                 nfts: nfts,
-                positions: previous,
-                revision: "r",
-                scanStates: [:]
-            )
-
-            return try await plugin.fetch(
-                DefiPluginContext(account: account, budget: DefiRequestBudget(budget), input: input, rotation: rotation)
+                mints: Dictionary(uniqueKeysWithValues: mints.map { ("nft|\($0.key)", $0.value) }),
+                previous: previous,
+                budget: DefiRequestBudget(budget),
+                rotation: rotation
             )
         }
     }
@@ -92,7 +94,7 @@ struct UniswapV3PluginTests {
             address: Self.owner
         )
 
-        return Fixture(account: account, tokenSource: tokenSource)
+        return Fixture(account: account, databaseService: databaseService, tokenSource: tokenSource)
     }
 
     private func record(
@@ -118,7 +120,6 @@ struct UniswapV3PluginTests {
 
             return DefiPosition(
                 id: record.key,
-                isUSDValueComplete: record.isUSDValueComplete,
                 key: record.key,
                 kind: .uniswapV3,
                 payload: record.payload,
@@ -144,7 +145,6 @@ struct UniswapV3PluginTests {
         #expect(position.lifetimeFees == .zero)
         #expect(position.historyState == .complete)
         #expect(record.usdValue == 4_000)
-        #expect(record.isUSDValueComplete)
     }
 
     @Test func mixedOwedPrincipalAndFeesNeverCountsAsFees() async throws {
@@ -248,7 +248,7 @@ struct UniswapV3PluginTests {
         #expect(position.historyState == .loading)
         #expect(position.apr == nil)
         #expect(position.createdAt == nil)
-        #expect(record.usdValue != nil)
+        #expect(record.usdValue > 0)
     }
 
     @Test func mintAboveTheSafeBlockIsNotPersistedAndFollowsAReorg() async throws {
@@ -289,7 +289,7 @@ struct UniswapV3PluginTests {
 
         let outcomes = try await fixture.fetch(
             [1],
-            mints: [1: DefiMintEvidence(blockHash: "0xstale", blockNumber: 300)]
+            mints: [1: NFTMint(blockHash: "0xstale", blockNumber: 300)]
         )
 
         #expect(try record(outcomes, 1).1.history.mint?.number == 500)
@@ -369,15 +369,75 @@ struct UniswapV3PluginTests {
         #expect(settled.history.collected == .init(1, 1))
     }
 
+    // MARK: - Refresh
+
+    @Test func refreshRequestsAMissingScanThenSavesOnceOneCompletes() async throws {
+        let databaseService = try makeDatabaseService()
+        let account = try await makeStakingAccount(
+            databaseService,
+            blockchain: .evm(.ethereum(.mainnet)),
+            address: Self.owner
+        )
+
+        let chain = FakeUniswapV3Chain()
+        chain.setOwner(1, .owner(Self.owner))
+        chain.setPosition(1, .init(liquidity: 1_000_000_000_000))
+        chain.addMint(1, to: Self.owner, block: 100)
+
+        let requests = Counter()
+        let plugin = UniswapV3Plugin(
+            account: account,
+            databaseService: databaseService,
+            deployments: [1: FakeUniswapV3Chain.deployment],
+            readerFactory: { _ in chain },
+            requestNFTRefresh: { _ in requests.increment() },
+            tokenSource: FakeUniswapV3TokenSource()
+        )
+
+        try await plugin.refresh()
+
+        #expect(requests.value == 1)
+        #expect(try await databaseService.fetchDefiPositions(account: account).isEmpty)
+
+        let mint = NFTTransferEvent(
+            amount: 1,
+            batchPosition: 0,
+            blockHash: nil,
+            blockNumber: 100,
+            contract: FakeUniswapV3Chain.deployment.positionManager.string.lowercased(),
+            from: "0x" + String(repeating: "00", count: 20),
+            logIndex: 0,
+            source: NFTSourceId.blockscout.rawValue,
+            standard: .erc721,
+            to: Self.owner,
+            tokenId: "1",
+            transactionIndex: 0,
+            txHash: "0xt1"
+        )
+
+        try await databaseService.commitNFTLedger(
+            account: account,
+            source: .blockscout,
+            scan: NFTLedgerScan(events: [mint], fromBlock: 0, metadata: [:], scannedBlock: 1_000),
+            startedAt: .now
+        )
+
+        try await plugin.refresh()
+
+        #expect(requests.value == 1)
+        #expect(try await databaseService.fetchDefiPositions(account: account).map(\.key) == ["1:1"])
+    }
+
     // MARK: - Pricing
 
-    @Test func unpricedTokenMarksTheValuePartialAndBlanksAPR() async throws {
+    @Test func unpricedTokenCountsOnlyPricedPartsAndBlanksAPR() async throws {
         let fixture = try await makeFixture(tokenSource: .init(price0: nil, price1: 1))
         fixture.addPosition(1)
 
         let (record, position) = try record(try await fixture.fetch([1]), 1)
 
-        #expect(!record.isUSDValueComplete)
+        // Only token1 is priced, so the record counts it alone.
+        #expect(record.usdValue > 0)
         #expect(position.valueUSD == nil)
         #expect(position.apr == nil)
     }

@@ -16,9 +16,8 @@ struct UniswapV3Row: Identifiable {
     ]
 
     let id: String
-    let isUSDValueComplete: Bool
     let position: UniswapV3Position
-    let usdValue: Decimal?
+    let usdValue: Decimal
 
     init?(_ record: DefiPosition) {
         guard let position = try? record.payload.decoded() as UniswapV3Position else {
@@ -26,7 +25,6 @@ struct UniswapV3Row: Identifiable {
         }
 
         id = record.id
-        isUSDValueComplete = record.isUSDValueComplete
         self.position = position
         usdValue = record.usdValue
     }
@@ -38,10 +36,9 @@ struct UniswapV3Row: Identifiable {
         "\(base.symbol) / \(quote.symbol)"
     }
 
-    /// "v3 · 0.05%".
+    /// "0.05%".
     var feeTier: String {
-        let percent = (Decimal(position.fee) / 1_000_000).formatted(.percent.precision(.fractionLength(0 ... 2)))
-        return "v3 · \(percent)"
+        (Decimal(position.fee) / 1_000_000).formatted(.percent.precision(.fractionLength(0 ... 2)))
     }
 
     // MARK: - Range
@@ -59,13 +56,30 @@ struct UniswapV3Row: Identifiable {
         isInverted ? position.token0 : position.token1
     }
 
-    /// "1,590.87 → 3,543.94 USDC".
-    var rangeText: String {
-        let (lower, upper) = isInverted
-            ? (1 / position.priceUpper, 1 / position.priceLower)
-            : (position.priceLower, position.priceUpper)
+    /// Whether the range spans every price the pool allows.
+    var isFullRange: Bool {
+        isMinTick && isMaxTick
+    }
 
-        return "\(Self.price(lower)) → \(Self.price(upper)) \(quote.symbol)"
+    /// "1,590.87 → 3,543.94 USDC"; "0" and "∞" for the pool's price limits.
+    var rangeText: String {
+        let lower = isInverted
+            ? (isMaxTick ? "0" : Self.price(1 / position.priceUpper))
+            : (isMinTick ? "0" : Self.price(position.priceLower))
+        let upper = isInverted
+            ? (isMinTick ? "∞" : Self.price(1 / position.priceLower))
+            : (isMaxTick ? "∞" : Self.price(position.priceUpper))
+
+        return "\(lower) → \(upper) \(quote.symbol)"
+    }
+
+    /// Ticks are multiples of the pool's spacing, so the usable limits sit within one spacing of ±887,272.
+    private var isMaxTick: Bool {
+        UniswapV3Math.maxTick - position.tickUpper < Self.tickSpacing(fee: position.fee)
+    }
+
+    private var isMinTick: Bool {
+        position.tickLower - UniswapV3Math.minTick < Self.tickSpacing(fee: position.fee)
     }
 
     // MARK: - Distribution
@@ -84,16 +98,23 @@ struct UniswapV3Row: Identifiable {
         return isInverted ? (1 - share0, share0) : (share0, 1 - share0)
     }
 
+    /// "0.5 WETH + 790 USDC": the tokens providing liquidity, base first.
+    var pooledText: String {
+        let deployed = position.deployed
+        let pooled = [(deployed.amount0, position.token0), (deployed.amount1, position.token1)]
+        return Self.amounts(isInverted ? pooled.reversed() : pooled)
+    }
+
     // MARK: - Values
 
-    /// "1,598.47 US$", "≥ …" when partly priced, "—" when unpriced.
+    /// "1,598.47 US$": the priced parts.
     var valueText: String {
-        Self.usd(usdValue, isComplete: isUSDValueComplete)
+        Self.usd(usdValue)
     }
 
     var feesText: String {
         if let feesUSD = position.feesUSD {
-            return Self.usd(feesUSD, isComplete: true)
+            return Self.usd(feesUSD)
         }
 
         return Self.amounts(position.fees, position)
@@ -109,7 +130,7 @@ struct UniswapV3Row: Identifiable {
         let usd = [position.token0.usdValue(owed.amount0), position.token1.usdValue(owed.amount1)]
 
         if !usd.contains(nil) {
-            return Self.usd(usd.compactMap(\.self).reduce(0, +), isComplete: true)
+            return Self.usd(usd.compactMap(\.self).reduce(0, +))
         }
 
         return Self.amounts(owed, position)
@@ -132,24 +153,6 @@ struct UniswapV3Row: Identifiable {
         return symbols.isEmpty ? nil : symbols.formatted(.list(type: .and))
     }
 
-    // MARK: - Sorting
-
-    var sortValue: Decimal {
-        usdValue ?? -1
-    }
-
-    var sortFees: Decimal {
-        position.feesUSD ?? -1
-    }
-
-    var sortAPR: Decimal {
-        position.apr ?? -1
-    }
-
-    var sortCreated: Date {
-        position.createdAt ?? .distantPast
-    }
-
     // MARK: - Private
 
     private static func isQuote(_ token: UniswapV3Position.Token) -> Bool {
@@ -166,21 +169,33 @@ struct UniswapV3Row: Identifiable {
             : value.formatted(.number.precision(.significantDigits(4)))
     }
 
-    private static func usd(_ value: Decimal?, isComplete: Bool) -> String {
-        guard let value else {
-            return "—"
-        }
-
-        let text = "\(value.formattedAbbreviated()) US$"
-        return isComplete ? text : "≥ \(text)"
+    private static func usd(_ value: Decimal) -> String {
+        "\(value.formattedAbbreviated()) US$"
     }
 
     private static func amounts(_ amounts: UniswapV3Position.Amounts, _ position: UniswapV3Position) -> String {
-        [(amounts.amount0, position.token0), (amounts.amount1, position.token1)]
+        Self.amounts([(amounts.amount0, position.token0), (amounts.amount1, position.token1)])
+    }
+
+    /// Non-zero amounts joined with "+"; ones too small to show read "<0.000001".
+    private static func amounts(_ amounts: [(BigUInt, UniswapV3Position.Token)]) -> String {
+        amounts
             .filter { $0.0 > 0 }
-            .map { $0.1.decimalAmount($0.0).formatted(symbol: $0.1.symbol) }
+            .map { amount, token in
+                let value = token.decimalAmount(amount)
+                return value < smallestAmount
+                    ? "<\(smallestAmount.formatted(symbol: token.symbol))"
+                    : value.formatted(symbol: token.symbol)
+            }
             .joined(separator: " + ")
             .nonEmpty ?? "0"
+    }
+
+    private static let smallestAmount = Decimal(sign: .plus, exponent: -6, significand: 1)
+
+    /// The pool's tick spacing by fee tier; the widest when the tier is unknown.
+    private static func tickSpacing(fee: UInt32) -> Int {
+        [100: 1, 500: 10, 2_500: 50, 3_000: 60, 10_000: 200][fee] ?? 200
     }
 }
 

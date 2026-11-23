@@ -75,10 +75,9 @@ extension UniswapV3Plugin {
 
         return .updated(
             DefiPositionRecord(
-                isUSDValueComplete: valuation.value.complete != nil,
                 key: key,
                 payload: data,
-                usdValue: valuation.value.priced
+                usdValue: valuation.value.priced ?? 0
             )
         )
     }

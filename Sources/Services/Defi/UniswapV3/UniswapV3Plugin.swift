@@ -11,75 +11,103 @@ import WalletKit
 
 /// Uniswap V3 LP positions from the account's position-manager NFTs. See ADR-073.
 struct UniswapV3Plugin: DefiPlugin {
+    static let kind = DefiPluginKind.uniswapV3
+    /// History log queries per run.
+    static let historyBudget = 20
     /// The revert message of `ownerOf` for a burned or never-minted token (OpenZeppelin 3.4).
     static let nonexistentTokenReason = "ERC721: owner query for nonexistent token"
+    /// NFT scans older than this are refreshed before the next run reads them.
+    static let nftScanMaxAge: TimeInterval = 5 * 60
     /// The confirmation depth used as the safe block where `finalized` isn't supported.
     static let safeDepth: UInt64 = 64
 
-    let kind = DefiPluginKind.uniswapV3
+    let account: Account
 
+    private let databaseService: DatabaseService
     private let deployments: [UInt64: UniswapV3Deployment]
     private let readerFactory: @Sendable (Account) throws -> any DefiEVMReader
+    private let requestNFTRefresh: @Sendable (Account) -> Void
+    private let runs = DefiRunCounter()
     private let tokenSource: any UniswapV3TokenSource
 
+    init(account: Account) {
+        self.init(account: account, databaseService: DI.injectOrFail(DatabaseService.self))
+    }
+
     init(
+        account: Account,
+        databaseService: DatabaseService,
         deployments: [UInt64: UniswapV3Deployment] = UniswapV3Deployment.all,
         readerFactory: (@Sendable (Account) throws -> any DefiEVMReader)? = nil,
+        requestNFTRefresh: (@Sendable (Account) -> Void)? = nil,
         tokenSource: any UniswapV3TokenSource = LiveUniswapV3TokenSource()
     ) {
+        self.account = account
+        self.databaseService = databaseService
         self.deployments = deployments
         self.readerFactory = readerFactory ?? { account in
             try IndexedLogsDefiEVMReader.live(account: account)
         }
 
+        self.requestNFTRefresh = requestNFTRefresh ?? { account in
+            DI.injectOrFail(NFTService.self).enqueueRefresh(account)
+        }
+
         self.tokenSource = tokenSource
     }
 
-    // MARK: - Eligibility
-
-    func isCandidate(_ account: Account) -> Bool {
-        guard case let .evm(chain) = account.blockchain, deployments[chain.chainId] != nil else {
-            return false
-        }
-
-        return account.rpcURLOverride != nil || UniswapV3Deployment.verifiedProviderChains.contains(chain.chainId)
+    static func isSupported(_ blockchain: Blockchain) -> Bool {
+        UniswapV3Deployment.deployment(for: blockchain) != nil
     }
 
-    func isEligible(_ account: Account, scanStates: [NFTSourceId: NFTScanState]) -> Bool {
-        let snapshot = scanStates.first { $0.value.isSnapshotSource && $0.value.lastCompleteScanAt != nil }?.key
+    // MARK: - Refresh
 
-        guard isCandidate(account), case let .evm(chain) = account.blockchain, let snapshot else {
-            return false
+    /// Keeps the NFT scan fresh, then values the account's position NFTs once a scan has completed.
+    func refresh() async throws {
+        let scanStates = try await databaseService.fetchNFTScanStates(account: account)
+
+        if isScanStale(scanStates, now: .now) {
+            requestNFTRefresh(account)
         }
 
-        let isPublicIndexer = snapshot == .blockscout || snapshot == .etherscan
-
-        if account.rpcURLOverride != nil {
-            let isVerified = UniswapV3Deployment.verifiedProviderChains.contains(chain.chainId)
-            return snapshot == .node || (isPublicIndexer && isVerified)
+        guard scanStates.values.contains(where: { $0.isSnapshotSource && $0.lastCompleteScanAt != nil }) else {
+            return
         }
 
-        return isPublicIndexer
+        let outcomes = try await outcomes(
+            nfts: databaseService.fetchNFTs(account: account),
+            mints: databaseService.fetchNFTMints(account: account),
+            previous: databaseService.fetchDefiPositions(account: account, kind: Self.kind),
+            budget: DefiRequestBudget(Self.historyBudget),
+            rotation: runs.next()
+        )
+
+        try await databaseService.saveDefiOutcomes(account: account, kind: Self.kind, outcomes)
     }
 
-    func requiredScanSource(_ account: Account, scanStates: [NFTSourceId: NFTScanState]) -> NFTSourceId? {
-        guard isCandidate(account) else {
-            return nil
+    /// Whether the scan this account's positions come from is missing or old. Override
+    /// accounts follow their node's own scan, so a fallback to an indexer still retries it.
+    func isScanStale(_ scanStates: [NFTSourceId: NFTScanState], now: Date) -> Bool {
+        let source = account.rpcURLOverride != nil
+            ? NFTSourceId.node
+            : scanStates.first(where: \.value.isSnapshotSource)?.key ?? .blockscout
+
+        guard let scannedAt = scanStates[source]?.lastCompleteScanAt else {
+            return true
         }
 
-        // An override account retries its node on the node scan's own freshness.
-        if account.rpcURLOverride != nil {
-            return .node
-        }
-
-        return scanStates.first(where: \.value.isSnapshotSource)?.key ?? .blockscout
+        return now.timeIntervalSince(scannedAt) >= Self.nftScanMaxAge
     }
 
-    // MARK: - Fetch
-
-    func fetch(_ context: DefiPluginContext) async throws -> [DefiPositionOutcome] {
-        let account = context.account
-
+    /// One outcome per stored or owned position: valued, removed or failed.
+    /// - Parameter rotation: Where the run starts handing out `budget`.
+    func outcomes(
+        nfts: [NFT],
+        mints: [String: NFTMint],
+        previous: [DefiPosition],
+        budget: DefiRequestBudget,
+        rotation: Int
+    ) async throws -> [DefiPositionOutcome] {
         guard case let .evm(chain) = account.blockchain, let deployment = deployments[chain.chainId] else {
             return []
         }
@@ -91,8 +119,8 @@ struct UniswapV3Plugin: DefiPlugin {
         }
 
         let safe = try await safeBlock(reader: reader, pinned: pinned)
-        let previous = previousPositions(context.input)
-        let candidates = positionNFTs(context.input, deployment: deployment, chainId: chain.chainId)
+        let previous = Self.payloads(previous)
+        let candidates = positionNFTs(nfts, deployment: deployment, chainId: chain.chainId)
         var outcomes = previous.keys
             .filter { key in !candidates.contains { $0.key == key } }
             .map { DefiPositionOutcome.removed(key: $0) }
@@ -110,7 +138,7 @@ struct UniswapV3Plugin: DefiPlugin {
         let blocks = BlockCache(reader: reader, known: [pinned, safe])
         let scanner = UniswapV3HistoryScanner(
             blocks: blocks,
-            budget: context.budget,
+            budget: budget,
             chunks: ChunkSizer(reader.preferredLogRange),
             deployment: deployment,
             pinned: pinned,
@@ -118,9 +146,9 @@ struct UniswapV3Plugin: DefiPlugin {
             safe: safe
         )
 
-        for position in Self.rotated(live, by: context.rotation) {
+        for position in Self.rotated(live, by: rotation) {
             outcomes.append(
-                try await valuate(position, tokens: tokens, context: context, scanner: scanner, previous: previous)
+                try await valuate(position, tokens: tokens, mints: mints, scanner: scanner, previous: previous)
             )
         }
 
@@ -165,7 +193,7 @@ extension UniswapV3Plugin {
     private func valuate(
         _ position: LivePosition,
         tokens: [String: UniswapV3Position.Token],
-        context: DefiPluginContext,
+        mints: [String: NFTMint],
         scanner: UniswapV3HistoryScanner,
         previous: [String: UniswapV3Position]
     ) async throws -> DefiPositionOutcome {
@@ -184,7 +212,7 @@ extension UniswapV3Plugin {
             history = try await scanner.scan(
                 tokenId: position.candidate.tokenId,
                 previous: previousHistory,
-                ledgerMint: context.input.mints[position.candidate.nftKey],
+                ledgerMint: mints[position.candidate.nftKey],
                 searchFloor: await searchFloor(
                     below: position.candidate.tokenId,
                     previous: previous,
@@ -219,10 +247,10 @@ extension UniswapV3Plugin {
         return Array(addresses.values)
     }
 
-    func positionNFTs(_ input: DefiInput, deployment: UniswapV3Deployment, chainId: UInt64) -> [Candidate] {
+    func positionNFTs(_ nfts: [NFT], deployment: UniswapV3Deployment, chainId: UInt64) -> [Candidate] {
         let manager = deployment.positionManager.string.lowercased()
 
-        return input.nfts.compactMap { nft in
+        return nfts.compactMap { nft in
             guard nft.reference.standard == .erc721,
                   nft.reference.collection.lowercased() == manager,
                   let tokenId = BigUInt(nft.reference.tokenId, radix: 10)
@@ -234,8 +262,8 @@ extension UniswapV3Plugin {
         }
     }
 
-    private func previousPositions(_ input: DefiInput) -> [String: UniswapV3Position] {
-        input.positions.reduce(into: [:]) { result, position in
+    private static func payloads(_ positions: [DefiPosition]) -> [String: UniswapV3Position] {
+        positions.reduce(into: [:]) { result, position in
             guard position.kind == kind else {
                 return
             }

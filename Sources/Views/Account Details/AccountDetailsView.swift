@@ -198,7 +198,7 @@ extension AccountDetailsView: View {
                     .tag(AccountTab.nfts)
                 }
 
-                if defi.isEligible {
+                if defi.isVisible {
                     VStack(spacing: 0) {
                         if tab == .defi {
                             AccountDefiView(model: defi)
@@ -743,7 +743,7 @@ private extension AccountDetailsView {
             tabs.append(.nfts)
         }
 
-        if defi.isEligible {
+        if defi.isVisible {
             tabs.append(.defi)
         }
 
