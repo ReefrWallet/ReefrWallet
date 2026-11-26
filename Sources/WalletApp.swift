@@ -34,6 +34,14 @@ import WalletKit
         let syncService = transactionSyncService!
         let tokenIdentityScheduler = DI.injectOrFail(TokenIdentityScheduler.self)
         let tokenPriceScheduler = DI.injectOrFail(TokenPriceScheduler.self)
+
+        // Not tied to a window: dApps must reach the app while none is open.
+        let walletConnect = DI.injectOrFail(WalletConnectService.self)
+#if os(macOS)
+        walletConnect.onPrompt = { MainWindow.showIfClosed() }
+#endif
+        walletConnect.start()
+
         Task {
 #if DEBUG
             await Self.processPostStartupOptions(
@@ -73,19 +81,25 @@ import WalletKit
     }
 
     var body: some Scene {
-        WindowGroup {
+#if os(macOS)
+        // A single main window: each would show its own copy of every WalletConnect prompt.
+        Window(Text(.appName), id: MainWindow.id) {
             MainView()
         }
         .commandsRemoved()
+        .defaultLaunchBehavior(.presented)
+        .defaultSize(width: 1280, height: 800)
+        // Restored state could leave it closed at launch (e.g. state saved by older builds).
+        .restorationBehavior(.disabled)
         .modelContainer(databaseService.modelContainer)
 
-#if os(macOS)
         WindowGroup("Browser", id: "browser", for: BrowserWindowTarget.self) { $target in
             let initialURL = target?.url ?? Self.dappURL ?? Self.defaultBrowserURL
             BrowserView(initialURL: initialURL, namespace: target?.namespace.flatMap(DappNamespace.init(rawValue:)))
                 .accessibilityIdentifier("browser-window")
         }
         .defaultSize(width: 1100, height: 700)
+        .handlesExternalEvents(matching: [])
         .restorationBehavior(.disabled)
         .commands {
             CommandGroup(replacing: .newItem) {}
@@ -95,6 +109,12 @@ import WalletKit
         Settings {
             SettingsView()
         }
+#else
+        WindowGroup {
+            MainView()
+        }
+        .commandsRemoved()
+        .modelContainer(databaseService.modelContainer)
 #endif
     }
 }

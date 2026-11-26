@@ -954,6 +954,18 @@
         }
       }
     },
+    "app.name" : {
+      "comment" : "WalletApp: main window title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reefr Wallet"
+          }
+        }
+      }
+    },
     "approvals.approvalCount" : {
       "comment" : "AccountApprovalsView",
       "extractionState" : "manual",
